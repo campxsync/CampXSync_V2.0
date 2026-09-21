@@ -103,6 +103,10 @@ public final class LogContext {
         put(KEY_USER_ROLE, role);
     }
 
+    public static String getUserRole() {
+        return get(KEY_USER_ROLE);
+    }
+
     public static void setService(String serviceName) {
         put(KEY_SERVICE, serviceName);
     }

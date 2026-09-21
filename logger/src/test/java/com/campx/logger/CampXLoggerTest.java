@@ -79,6 +79,9 @@ public class CampXLoggerTest {
 
         logger.audit(audit);
         CampXLoggerFactory.flush();
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {}
 
         File logFile = new File("logs/campx-app.log");
         boolean foundAudit = false;

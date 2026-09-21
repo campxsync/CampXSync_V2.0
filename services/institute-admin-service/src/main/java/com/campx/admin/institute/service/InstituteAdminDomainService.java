@@ -27,6 +27,27 @@ public class InstituteAdminDomainService {
     private final List<Map<String, Object>> auditTrail = Collections.synchronizedList(new ArrayList<>());
     private final Set<String> idempotencyKeys = Collections.synchronizedSet(new HashSet<>());
 
+    private void recordAudit(AuditEvent event) {
+        logger.audit(event);
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("eventId", UUID.randomUUID().toString());
+        record.put("action", event.getAction());
+        record.put("principalId", event.getPrincipalId());
+        record.put("principalRole", event.getPrincipalRole());
+        record.put("resourceType", event.getResourceType());
+        record.put("resourceId", event.getResourceId());
+        record.put("status", event.getStatus());
+        record.put("description", event.getDescription());
+        record.put("timestamp", event.getTimestamp());
+        record.put("traceId", LogContext.getTraceId());
+        record.put("tenantId", LogContext.getTenantId());
+        auditTrail.add(record);
+    }
+
+    public List<Map<String, Object>> getAuditTrail() {
+        return new ArrayList<>(auditTrail);
+    }
+
     public InstituteAdminDomainService() {
         seedDefaults();
     }
@@ -81,16 +102,17 @@ public class InstituteAdminDomainService {
 
             flow.step("PersistInstituteRecord");
 
-            // Publish Audit event
-            logger.audit(AuditEvent.builder()
+            // Record and publish Audit event
+            AuditEvent event = AuditEvent.builder()
                     .action("INSTITUTE_CREATED")
                     .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN")
-                    .principalRole("SUPER_ADMIN")
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "SUPER_ADMIN")
                     .resourceType("INSTITUTE")
                     .resourceId(institute.getId())
                     .status("SUCCESS")
                     .description("Registered institute: " + institute.getDisplayName() + " [" + institute.getInstituteCode() + "]")
-                    .build());
+                    .build();
+            recordAudit(event);
 
             return institute;
         }
@@ -100,25 +122,43 @@ public class InstituteAdminDomainService {
      * User Story 4: Update institute profile while protecting published identity keys
      */
     public Institute updateInstitute(String id, Institute updateReq) {
-        Institute existing = institutes.get(id);
-        if (existing == null) {
-            throw new IllegalArgumentException("Institute with id " + id + " not found");
+        try (FlowTracker flow = logger.flow("UpdateInstituteWorkflow", "INST-" + id)) {
+            Institute existing = institutes.get(id);
+            if (existing == null) {
+                flow.markFailed(new IllegalArgumentException("Institute with id " + id + " not found"));
+                throw new IllegalArgumentException("Institute with id " + id + " not found");
+            }
+
+            // Prevent modifying immutable identity keys
+            if (updateReq.getInstituteCode() != null && !updateReq.getInstituteCode().equals(existing.getInstituteCode())) {
+                flow.markFailed(new IllegalArgumentException("Modification of immutable identity key 'instituteCode' is prohibited"));
+                throw new IllegalArgumentException("Modification of immutable identity key 'instituteCode' is prohibited");
+            }
+
+            flow.step("ValidateUpdateParameters");
+            if (updateReq.getDisplayName() != null) existing.setDisplayName(updateReq.getDisplayName());
+            if (updateReq.getTimezone() != null) existing.setTimezone(updateReq.getTimezone());
+            if (updateReq.getLocale() != null) existing.setLocale(updateReq.getLocale());
+            if (updateReq.getStatus() != null) existing.setStatus(updateReq.getStatus());
+            existing.setVersion(existing.getVersion() + 1);
+            existing.setUpdatedAt(System.currentTimeMillis());
+
+            flow.step("PersistUpdatedInstitute");
+            logger.info("Updated institute id={} to version={}", id, existing.getVersion());
+
+            AuditEvent audit = AuditEvent.builder()
+                    .action("INSTITUTE_UPDATED")
+                    .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN")
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "SUPER_ADMIN")
+                    .resourceType("INSTITUTE")
+                    .resourceId(id)
+                    .status("SUCCESS")
+                    .description("Updated institute " + existing.getDisplayName() + " to version " + existing.getVersion())
+                    .build();
+            recordAudit(audit);
+
+            return existing;
         }
-
-        // Prevent modifying immutable identity keys
-        if (updateReq.getInstituteCode() != null && !updateReq.getInstituteCode().equals(existing.getInstituteCode())) {
-            throw new IllegalArgumentException("Modification of immutable identity key 'instituteCode' is prohibited");
-        }
-
-        if (updateReq.getDisplayName() != null) existing.setDisplayName(updateReq.getDisplayName());
-        if (updateReq.getTimezone() != null) existing.setTimezone(updateReq.getTimezone());
-        if (updateReq.getLocale() != null) existing.setLocale(updateReq.getLocale());
-        if (updateReq.getStatus() != null) existing.setStatus(updateReq.getStatus());
-        existing.setVersion(existing.getVersion() + 1);
-        existing.setUpdatedAt(System.currentTimeMillis());
-
-        logger.info("Updated institute id={} to version={}", id, existing.getVersion());
-        return existing;
     }
 
     public List<Institute> listInstitutes() {
@@ -155,6 +195,17 @@ public class InstituteAdminDomainService {
 
             flow.step("PersistCollegeRecord");
             logger.info("Successfully registered college {} under institute {}", college.getName(), parent.getDisplayName());
+
+            AuditEvent audit = AuditEvent.builder()
+                    .action("COLLEGE_REGISTERED")
+                    .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "INSTITUTE_ADMIN")
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "INSTITUTE_ADMIN")
+                    .resourceType("COLLEGE")
+                    .resourceId(college.getId())
+                    .status("SUCCESS")
+                    .description("Registered college: " + college.getName() + " [" + college.getCollegeCode() + "] under institute " + parent.getDisplayName())
+                    .build();
+            recordAudit(audit);
 
             return college;
         }
@@ -193,15 +244,16 @@ public class InstituteAdminDomainService {
 
             provisioningJobs.put(req.getProvisioningId(), req);
 
-            logger.audit(AuditEvent.builder()
+            AuditEvent audit = AuditEvent.builder()
                     .action("TENANT_PROVISIONED")
-                    .principalId(req.getRequestedBy() != null ? req.getRequestedBy() : "SYSTEM_OPS")
-                    .principalRole("PLATFORM_OPERATIONS")
+                    .principalId(req.getRequestedBy() != null ? req.getRequestedBy() : (LogContext.getUserId() != null ? LogContext.getUserId() : "SYSTEM_OPS"))
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "PLATFORM_OPERATIONS")
                     .resourceType("TENANT")
                     .resourceId(req.getTenantId())
                     .status("SUCCESS")
                     .description("Completed provisioning for tenant: " + req.getTenantId() + " on scope: " + req.getTargetScope())
-                    .build());
+                    .build();
+            recordAudit(audit);
 
             return req;
         }
@@ -220,6 +272,18 @@ public class InstituteAdminDomainService {
         }
         globalSettings.put(setting.getKey(), setting);
         logger.info("Saved global configuration key: {} for scope: {}", setting.getKey(), setting.getScope());
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("GLOBAL_SETTING_CONFIGURED")
+                .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN")
+                .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "SUPER_ADMIN")
+                .resourceType("GLOBAL_SETTING")
+                .resourceId(setting.getKey())
+                .status("SUCCESS")
+                .description("Configured global setting " + setting.getKey() + " for scope: " + setting.getScope())
+                .build();
+        recordAudit(audit);
+
         return setting;
     }
 

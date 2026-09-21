@@ -25,6 +25,28 @@ public class CollegeAdminDomainService {
     private final Map<String, DataImportJob> importJobs = new ConcurrentHashMap<>();
     private final Map<String, GovernanceDocument> documents = new ConcurrentHashMap<>();
     private final Set<String> idempotencyKeys = Collections.synchronizedSet(new HashSet<>());
+    private final List<Map<String, Object>> auditTrail = Collections.synchronizedList(new ArrayList<>());
+
+    private void recordAudit(AuditEvent event) {
+        logger.audit(event);
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("eventId", UUID.randomUUID().toString());
+        record.put("action", event.getAction());
+        record.put("principalId", event.getPrincipalId());
+        record.put("principalRole", event.getPrincipalRole());
+        record.put("resourceType", event.getResourceType());
+        record.put("resourceId", event.getResourceId());
+        record.put("status", event.getStatus());
+        record.put("description", event.getDescription());
+        record.put("timestamp", event.getTimestamp());
+        record.put("traceId", LogContext.getTraceId());
+        record.put("tenantId", LogContext.getTenantId());
+        auditTrail.add(record);
+    }
+
+    public List<Map<String, Object>> getAuditTrail() {
+        return new ArrayList<>(auditTrail);
+    }
 
     public CollegeAdminDomainService() {
         seedDefaults();
@@ -80,6 +102,18 @@ public class CollegeAdminDomainService {
         profile.setUpdatedAt(System.currentTimeMillis());
 
         logger.info("Updated college profile version to {}", profile.getCurrentVersion());
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("COLLEGE_PROFILE_UPDATED")
+                .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                .resourceType("COLLEGE_PROFILE")
+                .resourceId(profile.getCollegeCode())
+                .status("SUCCESS")
+                .description("Updated college profile to version " + profile.getCurrentVersion())
+                .build();
+        recordAudit(audit);
+
         return profile;
     }
 
@@ -106,6 +140,18 @@ public class CollegeAdminDomainService {
 
             flow.step("ValidateAndPersistDepartment");
             logger.info("Created department [{}] {} (HOD: {})", dep.getDepartmentCode(), dep.getName(), dep.getHeadUserId());
+
+            AuditEvent audit = AuditEvent.builder()
+                    .action("DEPARTMENT_CREATED")
+                    .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                    .resourceType("DEPARTMENT")
+                    .resourceId(dep.getId())
+                    .status("SUCCESS")
+                    .description("Created department [" + dep.getDepartmentCode() + "] " + dep.getName() + " (HOD: " + dep.getHeadUserId() + ")")
+                    .build();
+            recordAudit(audit);
+
             return dep;
         }
     }
@@ -226,15 +272,16 @@ public class CollegeAdminDomainService {
             doc.setStatus("APPROVED");
 
             flow.step("PublishImmutableVersion");
-            logger.audit(AuditEvent.builder()
+            AuditEvent audit = AuditEvent.builder()
                     .action("GOVERNANCE_DOCUMENT_APPROVED")
                     .principalId(approverId != null ? approverId : "COLLEGE_DEAN")
-                    .principalRole("APPROVER")
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "APPROVER")
                     .resourceType("DOCUMENT")
                     .resourceId(documentId)
                     .status("SUCCESS")
                     .description("Approved governance document: " + doc.getTitle() + " (checksum: " + doc.getChecksum() + ")")
-                    .build());
+                    .build();
+            recordAudit(audit);
 
             return doc;
         }

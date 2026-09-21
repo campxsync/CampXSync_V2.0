@@ -4,6 +4,8 @@ import com.campx.admin.college.model.CollegeModels.*;
 import com.campx.admin.college.service.CollegeAdminDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.FlowTracker;
+import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -13,6 +15,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,15 +37,38 @@ public class CollegeAdminController implements HttpHandler {
         String path = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod();
 
-        logger.info("[CollegeAdminService] [{}] {}", method, path);
+        // 1. Trace & Tenant Correlation Context
+        String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+        if (traceId == null || traceId.trim().isEmpty()) {
+            traceId = LogContext.initTraceId();
+        } else {
+            LogContext.setTraceId(traceId);
+        }
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        if (tenantId != null && !tenantId.trim().isEmpty()) {
+            LogContext.setTenantId(tenantId);
+        }
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        if (userId != null && !userId.trim().isEmpty()) {
+            LogContext.setUserId(userId);
+        }
+        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        if (userRole != null && !userRole.trim().isEmpty()) {
+            LogContext.setUserRole(userRole);
+        }
 
+        logger.info("[CollegeAdminService] Incoming [{}] {}", method, path);
+
+        FlowTracker flow = logger.flow("CollegeAdminRequest", method + " " + path);
         try {
             // 1. Profile Endpoint
             if (path.equals("/api/v1/college-admin/profile")) {
                 if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetProfile");
                     handleGetProfile(exchange);
                     return;
                 } else if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)) {
+                    flow.step("handleUpdateProfile");
                     handleUpdateProfile(exchange);
                     return;
                 }
@@ -51,9 +77,11 @@ public class CollegeAdminController implements HttpHandler {
             // 2. Departments Endpoint
             if (path.equals("/api/v1/college-admin/departments")) {
                 if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateDepartment");
                     handleCreateDepartment(exchange);
                     return;
                 } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListDepartments");
                     handleListDepartments(exchange);
                     return;
                 }
@@ -62,9 +90,11 @@ public class CollegeAdminController implements HttpHandler {
             // 3. Programs Endpoint
             if (path.equals("/api/v1/college-admin/programs")) {
                 if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateProgram");
                     handleCreateProgram(exchange);
                     return;
                 } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListPrograms");
                     handleListPrograms(exchange);
                     return;
                 }
@@ -72,9 +102,11 @@ public class CollegeAdminController implements HttpHandler {
 
             // 4. Data Imports Endpoint
             if (path.equals("/api/v1/college-admin/imports") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleSubmitImport");
                 handleSubmitImport(exchange);
                 return;
             } else if (path.startsWith("/api/v1/college-admin/imports/") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleGetImport");
                 String id = path.substring("/api/v1/college-admin/imports/".length());
                 handleGetImport(exchange, id);
                 return;
@@ -83,26 +115,44 @@ public class CollegeAdminController implements HttpHandler {
             // 5. Governance Documents Endpoint
             if (path.equals("/api/v1/college-admin/documents")) {
                 if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleRegisterDocument");
                     handleRegisterDocument(exchange);
                     return;
                 } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListDocuments");
                     handleListDocuments(exchange);
                     return;
                 }
             } else if (path.matches("^/api/v1/college-admin/documents/[^/]+/submit$") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleApproveDocument");
                 String[] parts = path.split("/");
                 String docId = parts[parts.length - 2];
                 handleApproveDocument(exchange, docId);
                 return;
             }
 
+            // 6. Audit Trail Endpoint
+            if (path.equals("/api/v1/college-admin/audit-logs") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleGetAuditLogs");
+                handleGetAuditLogs(exchange);
+                return;
+            }
+
+            logger.warn("[CollegeAdminService] Route not found: [{}] {}", method, path);
             sendJson(exchange, 404, "{\"error\":\"Resource not found in College Admin Service\",\"path\":\"" + path + "\"}");
         } catch (IllegalArgumentException | IllegalStateException e) {
+            flow.markFailed(e);
             logger.warn("Validation error in College Admin: {}", e.getMessage());
             sendJson(exchange, 400, "{\"error\":\"" + escape(e.getMessage()) + "\"}");
         } catch (Exception e) {
+            flow.markFailed(e);
             logger.error("Internal server error in College Admin: {}", e.getMessage(), e);
             sendJson(exchange, 500, "{\"error\":\"Internal Server Error\",\"message\":\"" + escape(e.getMessage()) + "\"}");
+        } finally {
+            if (flow != null) {
+                flow.close();
+            }
+            LogContext.clear();
         }
     }
 
@@ -230,6 +280,29 @@ public class CollegeAdminController implements HttpHandler {
         sendJson(exchange, 200, sb.toString());
     }
 
+    private void handleGetAuditLogs(HttpExchange exchange) throws IOException {
+        List<Map<String, Object>> logs = domainService.getAuditTrail();
+        StringBuilder sb = new StringBuilder("{\"auditLogs\":[");
+        for (int i = 0; i < logs.size(); i++) {
+            if (i > 0) sb.append(",");
+            Map<String, Object> log = logs.get(i);
+            sb.append("{");
+            sb.append("\"eventId\":\"").append(log.get("eventId")).append("\",");
+            sb.append("\"action\":\"").append(log.get("action")).append("\",");
+            sb.append("\"principalId\":\"").append(log.get("principalId")).append("\",");
+            sb.append("\"principalRole\":\"").append(log.get("principalRole")).append("\",");
+            sb.append("\"resourceType\":\"").append(log.get("resourceType")).append("\",");
+            sb.append("\"resourceId\":\"").append(log.get("resourceId")).append("\",");
+            sb.append("\"status\":\"").append(log.get("status")).append("\",");
+            sb.append("\"description\":\"").append(escape((String) log.get("description"))).append("\",");
+            sb.append("\"traceId\":\"").append(log.get("traceId") != null ? log.get("traceId") : "").append("\",");
+            sb.append("\"timestamp\":").append(log.get("timestamp"));
+            sb.append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
     private String readBody(HttpExchange exchange) throws IOException {
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
@@ -261,6 +334,10 @@ public class CollegeAdminController implements HttpHandler {
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {
         byte[] bytes = responseJson.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        String traceId = LogContext.getTraceId();
+        if (traceId != null && !traceId.isEmpty()) {
+            exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+        }
         exchange.sendResponseHeaders(statusCode, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
