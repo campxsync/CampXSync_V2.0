@@ -8,6 +8,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -115,9 +116,99 @@ public class InstituteAdminServiceTest {
         assertTrue(resp.contains("\"tenantId\":\"TENANT_NIT_01\""));
     }
 
+    @Test
+    public void testDuplicateInstituteCodeConflict409() throws Exception {
+        String json = "{"
+                + "\"instituteCode\":\"INST_DUP_01\","
+                + "\"legalName\":\"Duplicate Institute Test\","
+                + "\"displayName\":\"Duplicate Inst\","
+                + "\"timezone\":\"Asia/Kolkata\","
+                + "\"locale\":\"en_IN\","
+                + "\"defaultCurrency\":\"INR\""
+                + "}";
+
+        // First creation succeeds
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection conn1 = (HttpURLConnection) url.openConnection();
+        conn1.setRequestMethod("POST");
+        conn1.setDoOutput(true);
+        conn1.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn1.getOutputStream()) {
+            os.write(json.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, conn1.getResponseCode());
+
+        // Second creation with duplicate code must fail with 409 Conflict
+        HttpURLConnection conn2 = (HttpURLConnection) url.openConnection();
+        conn2.setRequestMethod("POST");
+        conn2.setDoOutput(true);
+        conn2.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn2.getOutputStream()) {
+            os.write(json.getBytes(StandardCharsets.UTF_8));
+        }
+        int code = conn2.getResponseCode();
+        assertEquals(409, code);
+
+        String errResp = readResponse(conn2);
+        assertTrue(errResp.contains("\"status\":409"));
+        assertTrue(errResp.contains("\"errorCode\":\"ADM01_DUPLICATE_RESOURCE\""));
+        assertTrue(errResp.contains("\"error\":\"Conflict\""));
+        assertTrue(errResp.contains("INST_DUP_01"));
+    }
+
+    @Test
+    public void testNonExistentInstituteUpdate404() throws Exception {
+        String updateJson = "{\"displayName\":\"Non Existent Updated\"}";
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes/NON_EXISTENT_ID");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("PUT");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(updateJson.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int code = conn.getResponseCode();
+        assertEquals(404, code);
+
+        String errResp = readResponse(conn);
+        assertTrue(errResp.contains("\"status\":404"));
+        assertTrue(errResp.contains("\"errorCode\":\"ADM01_RESOURCE_NOT_FOUND\""));
+        assertTrue(errResp.contains("\"error\":\"Not Found\""));
+    }
+
+    @Test
+    public void testPlaintextSecretSecurityViolation400() throws Exception {
+        String configJson = "{"
+                + "\"key\":\"security.oauth2.client_secret\","
+                + "\"value\":\"plain-unencrypted-secret\","
+                + "\"isSecret\":\"true\","
+                + "\"scope\":\"GLOBAL\""
+                + "}";
+
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/configuration");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(configJson.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int code = conn.getResponseCode();
+        assertEquals(400, code);
+
+        String errResp = readResponse(conn);
+        assertTrue(errResp.contains("\"status\":400"));
+        assertTrue(errResp.contains("\"errorCode\":\"ADM01_PLAINTEXT_SECRET_REJECTED\""));
+        assertTrue(errResp.contains("\"error\":\"Bad Request\""));
+    }
+
     private String readResponse(HttpURLConnection conn) throws Exception {
+        InputStream stream = conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream();
+        if (stream == null) return "";
         StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 sb.append(line);

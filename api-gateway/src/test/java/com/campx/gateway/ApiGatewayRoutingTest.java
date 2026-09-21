@@ -26,6 +26,7 @@ public class ApiGatewayRoutingTest {
     public static void setup() throws Exception {
         GatewayConfig config = new GatewayConfig();
         config.setPort(TEST_PORT);
+        config.addRoute("/api/v1/offline-service", "http://localhost:59999");
         gatewayServer = new GatewayServer(config);
         gatewayServer.start();
     }
@@ -70,9 +71,49 @@ public class ApiGatewayRoutingTest {
         assertTrue(resp.contains("/api/v1/college-admin"));
     }
 
+    @Test
+    public void testRouteNotFound404() throws Exception {
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/unknown-endpoint/test");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(3000);
+
+        int code = conn.getResponseCode();
+        assertEquals(404, code);
+
+        String traceId = conn.getHeaderField("X-Trace-Id");
+        assertNotNull("Gateway must inject X-Trace-Id header on errors", traceId);
+
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("\"status\":404"));
+        assertTrue(resp.contains("\"errorCode\":\"GATEWAY_ROUTE_NOT_FOUND\""));
+        assertTrue(resp.contains("\"error\":\"Not Found\""));
+    }
+
+    @Test
+    public void testDownstreamServiceUnavailable503() throws Exception {
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/offline-service/test");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(3000);
+
+        int code = conn.getResponseCode();
+        assertEquals(503, code);
+
+        String traceId = conn.getHeaderField("X-Trace-Id");
+        assertNotNull("Gateway must inject X-Trace-Id header on errors", traceId);
+
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("\"status\":503"));
+        assertTrue(resp.contains("\"errorCode\":\"GATEWAY_SERVICE_UNAVAILABLE\""));
+        assertTrue(resp.contains("\"error\":\"Service Unavailable\""));
+    }
+
     private String readResponse(HttpURLConnection conn) throws Exception {
+        java.io.InputStream stream = conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream();
+        if (stream == null) return "";
         StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 sb.append(line);

@@ -1,5 +1,6 @@
 package com.campx.admin.college.service;
 
+import com.campx.admin.college.exception.*;
 import com.campx.admin.college.model.CollegeModels.*;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -92,7 +93,7 @@ public class CollegeAdminDomainService {
 
     public CollegeProfile updateProfile(CollegeProfile updated) {
         if (updated.getCollegeCode() != null && !updated.getCollegeCode().equals(profile.getCollegeCode())) {
-            throw new IllegalArgumentException("Cannot modify authoritative immutable collegeCode");
+            throw new CollegeLifecycleException("Cannot modify authoritative immutable collegeCode");
         }
         if (updated.getDisplayName() != null) profile.setDisplayName(updated.getDisplayName());
         if (updated.getAddress() != null) profile.setAddress(updated.getAddress());
@@ -123,14 +124,16 @@ public class CollegeAdminDomainService {
     public Department createDepartment(Department dep) {
         try (FlowTracker flow = logger.flow("CreateDepartmentWorkflow", "DEP-" + dep.getDepartmentCode())) {
             if (dep.getDepartmentCode() == null || dep.getDepartmentCode().trim().isEmpty()) {
-                flow.markFailed(new IllegalArgumentException("departmentCode is required"));
-                throw new IllegalArgumentException("departmentCode is required");
+                CollegeMalformedPayloadException ex = new CollegeMalformedPayloadException("Mandatory field 'departmentCode' is required");
+                flow.markFailed(ex);
+                throw ex;
             }
 
             for (Department existing : departments.values()) {
                 if (existing.getDepartmentCode().equalsIgnoreCase(dep.getDepartmentCode())) {
-                    flow.markFailed(new IllegalStateException("Uniqueness violation: departmentCode already exists"));
-                    throw new IllegalStateException("Uniqueness violation: departmentCode already exists");
+                    CollegeResourceConflictException ex = new CollegeResourceConflictException("Department", "departmentCode", dep.getDepartmentCode());
+                    flow.markFailed(ex);
+                    throw ex;
                 }
             }
 
@@ -159,13 +162,22 @@ public class CollegeAdminDomainService {
     public void retireDepartment(String departmentId) {
         Department dep = departments.get(departmentId);
         if (dep == null) {
-            throw new IllegalArgumentException("Department not found: " + departmentId);
+            for (Department d : departments.values()) {
+                if (d.getDepartmentCode().equalsIgnoreCase(departmentId)) {
+                    dep = d;
+                    departmentId = d.getId();
+                    break;
+                }
+            }
+        }
+        if (dep == null) {
+            throw new CollegeResourceNotFoundException("Department", departmentId);
         }
 
         // Prevent retirement / hard delete if referenced by programs
         for (Program prog : programs.values()) {
             if (departmentId.equals(prog.getDepartmentId())) {
-                throw new IllegalStateException("Cannot retire department " + dep.getName() + " because it is actively referenced by program " + prog.getName());
+                throw new CollegeLifecycleException("Cannot retire department " + dep.getName() + " because it is actively referenced by program " + prog.getName());
             }
         }
 
@@ -183,11 +195,11 @@ public class CollegeAdminDomainService {
     public Program createProgram(Program prog) {
         Department parent = departments.get(prog.getDepartmentId());
         if (parent == null || !"ACTIVE".equalsIgnoreCase(parent.getStatus())) {
-            throw new IllegalArgumentException("Program must reference an existing ACTIVE department");
+            throw new CollegeLifecycleException("Program must reference an existing ACTIVE department");
         }
 
         if (prog.getDurationYears() <= 0) {
-            throw new IllegalArgumentException("durationYears must be positive");
+            throw new CollegeMalformedPayloadException("Field 'durationYears' must be positive");
         }
 
         prog.setId(UUID.randomUUID().toString());
@@ -248,7 +260,7 @@ public class CollegeAdminDomainService {
      */
     public GovernanceDocument registerDocument(GovernanceDocument doc) {
         if (doc.getClassification() == null) {
-            throw new IllegalArgumentException("Document classification (PUBLIC, INTERNAL, CONFIDENTIAL) is mandatory");
+            throw new DocumentGovernanceException("Document classification (PUBLIC, INTERNAL, CONFIDENTIAL) is mandatory");
         }
 
         doc.setId(UUID.randomUUID().toString());
@@ -264,7 +276,7 @@ public class CollegeAdminDomainService {
     public GovernanceDocument submitDocumentApproval(String documentId, String approverId) {
         GovernanceDocument doc = documents.get(documentId);
         if (doc == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new CollegeResourceNotFoundException("Governance Document", documentId);
         }
 
         try (FlowTracker flow = logger.flow("SubmitDocumentApprovalWorkflow", "DOC-APPR-" + documentId)) {

@@ -2,6 +2,7 @@ package com.campx.gateway.router;
 
 import com.campx.gateway.config.GatewayConfig;
 import com.campx.gateway.filter.CorrelationFilter;
+import com.campx.gateway.model.ErrorResponse;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -14,7 +15,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -70,15 +74,29 @@ public class ReverseProxyHandler implements HttpHandler {
             String destinationUrlStr = resolveDestinationUrl(path, query);
             if (destinationUrlStr == null) {
                 logger.warn("No route registered for request path: {}", path);
-                sendJson(exchange, 404, "{\"error\":\"Route Not Found\",\"path\":\"" + path + "\"}");
+                sendError(exchange, 404, "Not Found", "GATEWAY_ROUTE_NOT_FOUND",
+                        "No route registered for request path: " + path, path);
                 return;
             }
 
             logger.debug("Proxying [{}] {} -> {}", method, path, destinationUrlStr);
             proxyRequest(exchange, destinationUrlStr, method);
+        } catch (ConnectException e) {
+            logger.error("Downstream service unreachable for path [{}]: {}", path, e.getMessage());
+            sendError(exchange, 503, "Service Unavailable", "GATEWAY_SERVICE_UNAVAILABLE",
+                    "Downstream microservice unreachable: " + e.getMessage(), path);
+        } catch (SocketTimeoutException e) {
+            logger.error("Downstream service timeout for path [{}]: {}", path, e.getMessage());
+            sendError(exchange, 504, "Gateway Timeout", "GATEWAY_DOWNSTREAM_TIMEOUT",
+                    "Downstream microservice timed out: " + e.getMessage(), path);
+        } catch (MalformedURLException e) {
+            logger.error("Malformed downstream URL for path [{}]: {}", path, e.getMessage());
+            sendError(exchange, 500, "Internal Server Error", "GATEWAY_CONFIG_ERROR",
+                    "Malformed downstream routing URL: " + e.getMessage(), path);
         } catch (Exception e) {
             logger.error("Gateway proxy error for [{}]: {}", path, e.getMessage(), e);
-            sendJson(exchange, 502, "{\"error\":\"Bad Gateway\",\"message\":\"" + e.getMessage() + "\"}");
+            sendError(exchange, 502, "Bad Gateway", "GATEWAY_PROXY_ERROR",
+                    "Gateway proxy failure: " + e.getMessage(), path);
         } finally {
             LogContext.clear();
         }
@@ -145,13 +163,23 @@ public class ReverseProxyHandler implements HttpHandler {
 
         // Receive response
         int responseCode;
-        InputStream respStream;
+        InputStream respStream = null;
         try {
             responseCode = conn.getResponseCode();
-            respStream = conn.getInputStream();
+            if (responseCode >= 400) {
+                respStream = conn.getErrorStream();
+            } else {
+                respStream = conn.getInputStream();
+            }
+        } catch (ConnectException | SocketTimeoutException e) {
+            throw e;
         } catch (IOException e) {
-            responseCode = conn.getResponseCode();
-            respStream = conn.getErrorStream();
+            try {
+                responseCode = conn.getResponseCode();
+                respStream = conn.getErrorStream();
+            } catch (Exception ex) {
+                throw e;
+            }
         }
 
         // Copy response headers
@@ -193,6 +221,27 @@ public class ReverseProxyHandler implements HttpHandler {
         exchange.sendResponseHeaders(statusCode, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
+        }
+    }
+
+    private void sendError(HttpExchange exchange, int status, String error, String errorCode, String message, String path) {
+        try {
+            String traceId = LogContext.getTraceId();
+            if (traceId == null || traceId.isEmpty()) {
+                traceId = exchange.getResponseHeaders().getFirst("X-Trace-Id");
+            }
+            ErrorResponse errorResponse = new ErrorResponse(status, error, errorCode, message, path, traceId);
+            byte[] bytes = errorResponse.toBytes();
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            if (traceId != null && !traceId.isEmpty()) {
+                exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+            }
+            exchange.sendResponseHeaders(status, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        } catch (IOException ioException) {
+            logger.warn("Failed to send error response to client: {}", ioException.getMessage());
         }
     }
 }

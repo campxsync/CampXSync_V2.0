@@ -1,5 +1,7 @@
 package com.campx.admin.institute.controller;
 
+import com.campx.admin.institute.exception.*;
+import com.campx.admin.institute.model.ErrorResponse;
 import com.campx.admin.institute.model.InstituteModels.*;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
 import com.campx.logger.CampXLogger;
@@ -129,15 +131,39 @@ public class InstituteAdminController implements HttpHandler {
 
             // Not found
             logger.warn("[InstituteAdminService] Route not found: [{}] {}", method, path);
-            sendJson(exchange, 404, "{\"error\":\"Resource not found in Institute Admin Service\",\"path\":\"" + path + "\"}");
+            sendError(exchange, 404, "Not Found", "ADM01_ROUTE_NOT_FOUND", "Resource not found in Institute Admin Service: " + path, path);
+        } catch (InstituteNotFoundException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Resource not found [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Not Found", e.getErrorCode(), e.getMessage(), path);
+        } catch (InstituteAlreadyExistsException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Conflict [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Conflict", e.getErrorCode(), e.getMessage(), path);
+        } catch (InvalidTenantStateException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Unprocessable state [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Unprocessable Entity", e.getErrorCode(), e.getMessage(), path);
+        } catch (SecurityViolationException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Security violation [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
+        } catch (MalformedPayloadException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Malformed payload [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
+        } catch (InstituteAdminException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Institute admin error [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Client Error", e.getErrorCode(), e.getMessage(), path);
         } catch (IllegalArgumentException | IllegalStateException e) {
             flow.markFailed(e);
-            logger.warn("Validation error in Institute Admin: {}", e.getMessage());
-            sendJson(exchange, 400, "{\"error\":\"" + escape(e.getMessage()) + "\"}");
+            logger.warn("[InstituteAdminService] Validation error [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, 400, "Bad Request", "ADM01_VALIDATION_ERROR", e.getMessage(), path);
         } catch (Exception e) {
             flow.markFailed(e);
-            logger.error("Internal server error in Institute Admin: {}", e.getMessage(), e);
-            sendJson(exchange, 500, "{\"error\":\"Internal Server Error\",\"message\":\"" + escape(e.getMessage()) + "\"}");
+            logger.error("[InstituteAdminService] Internal server error [{} {}]: {}", method, path, e.getMessage(), e);
+            sendError(exchange, 500, "Internal Server Error", "ADM01_INTERNAL_SERVER_ERROR", "An unexpected server error occurred: " + escape(e.getMessage()), path);
         } finally {
             if (flow != null) {
                 flow.close();
@@ -329,6 +355,20 @@ public class InstituteAdminController implements HttpHandler {
             exchange.getResponseHeaders().set("X-Trace-Id", traceId);
         }
         exchange.sendResponseHeaders(statusCode, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
+    }
+
+    private void sendError(HttpExchange exchange, int status, String error, String errorCode, String message, String path) throws IOException {
+        String traceId = LogContext.getTraceId();
+        ErrorResponse err = new ErrorResponse(status, error, errorCode, message, path, traceId);
+        byte[] bytes = err.toBytes();
+        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        if (traceId != null && !traceId.isEmpty()) {
+            exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+        }
+        exchange.sendResponseHeaders(status, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }

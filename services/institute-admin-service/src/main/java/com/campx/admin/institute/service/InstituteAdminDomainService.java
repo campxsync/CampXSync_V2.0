@@ -1,5 +1,6 @@
 package com.campx.admin.institute.service;
 
+import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.InstituteModels.*;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -81,15 +82,17 @@ public class InstituteAdminDomainService {
             logger.info("Initiating institute registration for: {} (code: {})", institute.getLegalName(), institute.getInstituteCode());
 
             if (institute.getInstituteCode() == null || institute.getInstituteCode().trim().isEmpty()) {
-                flow.markFailed(new IllegalArgumentException("instituteCode is mandatory"));
-                throw new IllegalArgumentException("instituteCode is mandatory");
+                MalformedPayloadException ex = new MalformedPayloadException("Mandatory field 'instituteCode' is required");
+                flow.markFailed(ex);
+                throw ex;
             }
 
             // Check uniqueness
             for (Institute existing : institutes.values()) {
                 if (existing.getInstituteCode().equalsIgnoreCase(institute.getInstituteCode())) {
-                    flow.markFailed(new IllegalStateException("Uniqueness violation: instituteCode already exists"));
-                    throw new IllegalStateException("Uniqueness violation: instituteCode " + institute.getInstituteCode() + " already exists");
+                    InstituteAlreadyExistsException ex = new InstituteAlreadyExistsException("Institute", "instituteCode", institute.getInstituteCode());
+                    flow.markFailed(ex);
+                    throw ex;
                 }
             }
 
@@ -125,14 +128,17 @@ public class InstituteAdminDomainService {
         try (FlowTracker flow = logger.flow("UpdateInstituteWorkflow", "INST-" + id)) {
             Institute existing = institutes.get(id);
             if (existing == null) {
-                flow.markFailed(new IllegalArgumentException("Institute with id " + id + " not found"));
-                throw new IllegalArgumentException("Institute with id " + id + " not found");
+                InstituteNotFoundException ex = new InstituteNotFoundException("Institute", id);
+                flow.markFailed(ex);
+                throw ex;
             }
 
             // Prevent modifying immutable identity keys
             if (updateReq.getInstituteCode() != null && !updateReq.getInstituteCode().equals(existing.getInstituteCode())) {
-                flow.markFailed(new IllegalArgumentException("Modification of immutable identity key 'instituteCode' is prohibited"));
-                throw new IllegalArgumentException("Modification of immutable identity key 'instituteCode' is prohibited");
+                SecurityViolationException ex = new SecurityViolationException("ADM01_IMMUTABLE_KEY_MODIFICATION",
+                        "Modification of immutable identity key 'instituteCode' is prohibited");
+                flow.markFailed(ex);
+                throw ex;
             }
 
             flow.step("ValidateUpdateParameters");
@@ -171,21 +177,24 @@ public class InstituteAdminDomainService {
     public College registerCollege(College college) {
         try (FlowTracker flow = logger.flow("RegisterCollegeUnderInstitute", "COLLEGE-" + college.getCollegeCode())) {
             if (college.getInstituteId() == null || !institutes.containsKey(college.getInstituteId())) {
-                flow.markFailed(new IllegalArgumentException("Referenced parent institute does not exist"));
-                throw new IllegalArgumentException("Referenced parent institute does not exist");
+                InstituteNotFoundException ex = new InstituteNotFoundException("Parent Institute", college.getInstituteId());
+                flow.markFailed(ex);
+                throw ex;
             }
 
             Institute parent = institutes.get(college.getInstituteId());
             if (!"ACTIVE".equalsIgnoreCase(parent.getStatus())) {
-                flow.markFailed(new IllegalStateException("Cannot register college under an INACTIVE institute"));
-                throw new IllegalStateException("Cannot register college under an INACTIVE institute");
+                InvalidTenantStateException ex = new InvalidTenantStateException("Institute", parent.getStatus(), "ACTIVE");
+                flow.markFailed(ex);
+                throw ex;
             }
 
             flow.step("ValidateCollegeUniqueness");
             for (College c : colleges.values()) {
                 if (c.getCollegeCode().equalsIgnoreCase(college.getCollegeCode())) {
-                    flow.markFailed(new IllegalStateException("Uniqueness violation: collegeCode already exists"));
-                    throw new IllegalStateException("Uniqueness violation: collegeCode already exists");
+                    InstituteAlreadyExistsException ex = new InstituteAlreadyExistsException("College", "collegeCode", college.getCollegeCode());
+                    flow.markFailed(ex);
+                    throw ex;
                 }
             }
 
@@ -268,7 +277,8 @@ public class InstituteAdminDomainService {
      */
     public GlobalSetting setGlobalSetting(GlobalSetting setting) {
         if (setting.isSecret() && setting.getValue() != null && !setting.getValue().startsWith("vault:") && !setting.getValue().startsWith("secret://")) {
-            throw new IllegalArgumentException("Security Violation: Plaintext secrets are rejected. Must supply vault or KMS reference.");
+            throw new SecurityViolationException("ADM01_PLAINTEXT_SECRET_REJECTED",
+                    "Security Violation: Plaintext secrets are rejected. Must supply vault or KMS reference.");
         }
         globalSettings.put(setting.getKey(), setting);
         logger.info("Saved global configuration key: {} for scope: {}", setting.getKey(), setting.getScope());

@@ -9,6 +9,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * High-throughput asynchronous log processor.
@@ -21,6 +22,7 @@ public class AsyncLogProcessor {
     private final List<LogAppender> appenders = new ArrayList<>();
     private final Thread workerThread;
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicInteger inFlight = new AtomicInteger(0);
 
     public AsyncLogProcessor(int capacity) {
         this.queue = new ArrayBlockingQueue<>(capacity > 0 ? capacity : 10000);
@@ -62,10 +64,15 @@ public class AsyncLogProcessor {
             return;
         }
 
+        inFlight.incrementAndGet();
         boolean enqueued = queue.offer(event);
         if (!enqueued) {
             // Queue is full: fall back to synchronous dispatch for this event
-            dispatchToAppenders(event);
+            try {
+                dispatchToAppenders(event);
+            } finally {
+                inFlight.decrementAndGet();
+            }
         }
     }
 
@@ -74,7 +81,11 @@ public class AsyncLogProcessor {
             try {
                 LogEvent event = queue.poll(200, TimeUnit.MILLISECONDS);
                 if (event != null) {
-                    dispatchToAppenders(event);
+                    try {
+                        dispatchToAppenders(event);
+                    } finally {
+                        inFlight.decrementAndGet();
+                    }
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -103,11 +114,11 @@ public class AsyncLogProcessor {
      * Flushes queue and appenders synchronously.
      */
     public void flush() {
-        // Wait until queue drains
+        // Wait until queue drains and all in-flight dispatches complete
         int maxWait = 50; // max 5 seconds
-        while (!queue.isEmpty() && maxWait-- > 0) {
+        while ((!queue.isEmpty() || inFlight.get() > 0) && maxWait-- > 0) {
             try {
-                Thread.sleep(100);
+                Thread.sleep(50);
             } catch (InterruptedException ignored) {
                 break;
             }

@@ -1,5 +1,7 @@
 package com.campx.admin.college.controller;
 
+import com.campx.admin.college.exception.*;
+import com.campx.admin.college.model.ErrorResponse;
 import com.campx.admin.college.model.CollegeModels.*;
 import com.campx.admin.college.service.CollegeAdminDomainService;
 import com.campx.logger.CampXLogger;
@@ -85,6 +87,13 @@ public class CollegeAdminController implements HttpHandler {
                     handleListDepartments(exchange);
                     return;
                 }
+            } else if (path.startsWith("/api/v1/college-admin/departments/")) {
+                String depId = path.substring("/api/v1/college-admin/departments/".length());
+                if ("DELETE".equalsIgnoreCase(method)) {
+                    flow.step("handleRetireDepartment");
+                    handleRetireDepartment(exchange, depId);
+                    return;
+                }
             }
 
             // 3. Programs Endpoint
@@ -138,16 +147,41 @@ public class CollegeAdminController implements HttpHandler {
                 return;
             }
 
+            // Not found
             logger.warn("[CollegeAdminService] Route not found: [{}] {}", method, path);
-            sendJson(exchange, 404, "{\"error\":\"Resource not found in College Admin Service\",\"path\":\"" + path + "\"}");
+            sendError(exchange, 404, "Not Found", "ADM02_ROUTE_NOT_FOUND", "Resource not found in College Admin Service: " + path, path);
+        } catch (CollegeResourceNotFoundException e) {
+            flow.markFailed(e);
+            logger.warn("[CollegeAdminService] Resource not found [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Not Found", e.getErrorCode(), e.getMessage(), path);
+        } catch (CollegeResourceConflictException e) {
+            flow.markFailed(e);
+            logger.warn("[CollegeAdminService] Conflict [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Conflict", e.getErrorCode(), e.getMessage(), path);
+        } catch (CollegeLifecycleException e) {
+            flow.markFailed(e);
+            logger.warn("[CollegeAdminService] Unprocessable entity [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Unprocessable Entity", e.getErrorCode(), e.getMessage(), path);
+        } catch (DocumentGovernanceException e) {
+            flow.markFailed(e);
+            logger.warn("[CollegeAdminService] Document governance error [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
+        } catch (CollegeMalformedPayloadException e) {
+            flow.markFailed(e);
+            logger.warn("[CollegeAdminService] Malformed payload [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
+        } catch (CollegeAdminException e) {
+            flow.markFailed(e);
+            logger.warn("[CollegeAdminService] College admin error [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Client Error", e.getErrorCode(), e.getMessage(), path);
         } catch (IllegalArgumentException | IllegalStateException e) {
             flow.markFailed(e);
-            logger.warn("Validation error in College Admin: {}", e.getMessage());
-            sendJson(exchange, 400, "{\"error\":\"" + escape(e.getMessage()) + "\"}");
+            logger.warn("[CollegeAdminService] Validation error [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, 400, "Bad Request", "ADM02_VALIDATION_ERROR", e.getMessage(), path);
         } catch (Exception e) {
             flow.markFailed(e);
-            logger.error("Internal server error in College Admin: {}", e.getMessage(), e);
-            sendJson(exchange, 500, "{\"error\":\"Internal Server Error\",\"message\":\"" + escape(e.getMessage()) + "\"}");
+            logger.error("[CollegeAdminService] Internal server error [{} {}]: {}", method, path, e.getMessage(), e);
+            sendError(exchange, 500, "Internal Server Error", "ADM02_INTERNAL_SERVER_ERROR", "An unexpected server error occurred: " + escape(e.getMessage()), path);
         } finally {
             if (flow != null) {
                 flow.close();
@@ -188,6 +222,11 @@ public class CollegeAdminController implements HttpHandler {
 
         Department created = domainService.createDepartment(d);
         sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getDepartmentCode() + "\",\"status\":\"" + created.getStatus() + "\"}");
+    }
+
+    private void handleRetireDepartment(HttpExchange exchange, String depId) throws IOException {
+        domainService.retireDepartment(depId);
+        sendJson(exchange, 200, "{\"status\":\"RETIRED\",\"id\":\"" + depId + "\"}");
     }
 
     private void handleListDepartments(HttpExchange exchange) throws IOException {
@@ -256,7 +295,7 @@ public class CollegeAdminController implements HttpHandler {
         doc.setDocumentType(extract(body, "documentType", "POLICY"));
         doc.setTitle(extract(body, "title", "Campus Policy"));
         doc.setOwnerId(extract(body, "ownerId", "ADMIN_01"));
-        doc.setClassification(extract(body, "classification", "INTERNAL"));
+        doc.setClassification(extract(body, "classification", null));
 
         GovernanceDocument registered = domainService.registerDocument(doc);
         sendJson(exchange, 201, "{\"id\":\"" + registered.getId() + "\",\"checksum\":\"" + registered.getChecksum() + "\",\"status\":\"" + registered.getStatus() + "\"}");
@@ -339,6 +378,20 @@ public class CollegeAdminController implements HttpHandler {
             exchange.getResponseHeaders().set("X-Trace-Id", traceId);
         }
         exchange.sendResponseHeaders(statusCode, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
+    }
+
+    private void sendError(HttpExchange exchange, int status, String error, String errorCode, String message, String path) throws IOException {
+        String traceId = LogContext.getTraceId();
+        ErrorResponse err = new ErrorResponse(status, error, errorCode, message, path, traceId);
+        byte[] bytes = err.toBytes();
+        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        if (traceId != null && !traceId.isEmpty()) {
+            exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+        }
+        exchange.sendResponseHeaders(status, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }
