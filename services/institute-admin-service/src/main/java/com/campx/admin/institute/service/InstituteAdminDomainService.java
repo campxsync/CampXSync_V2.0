@@ -176,6 +176,12 @@ public class InstituteAdminDomainService {
      */
     public College registerCollege(College college) {
         try (FlowTracker flow = logger.flow("RegisterCollegeUnderInstitute", "COLLEGE-" + college.getCollegeCode())) {
+            if (college.getCollegeCode() == null || college.getCollegeCode().trim().isEmpty()) {
+                MalformedPayloadException ex = new MalformedPayloadException("Mandatory field 'collegeCode' is required");
+                flow.markFailed(ex);
+                throw ex;
+            }
+
             if (college.getInstituteId() == null || !institutes.containsKey(college.getInstituteId())) {
                 InstituteNotFoundException ex = new InstituteNotFoundException("Parent Institute", college.getInstituteId());
                 flow.markFailed(ex);

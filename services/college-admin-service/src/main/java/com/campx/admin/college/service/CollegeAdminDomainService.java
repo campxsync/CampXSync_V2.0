@@ -193,6 +193,16 @@ public class CollegeAdminDomainService {
      * User Story 5: Create a program under an active department with immutable versioning
      */
     public Program createProgram(Program prog) {
+        if (prog.getProgramCode() == null || prog.getProgramCode().trim().isEmpty()) {
+            throw new CollegeMalformedPayloadException("Mandatory field 'programCode' is required");
+        }
+
+        for (Program existing : programs.values()) {
+            if (existing.getProgramCode().equalsIgnoreCase(prog.getProgramCode())) {
+                throw new CollegeResourceConflictException("Program", "programCode", prog.getProgramCode());
+            }
+        }
+
         Department parent = departments.get(prog.getDepartmentId());
         if (parent == null || !"ACTIVE".equalsIgnoreCase(parent.getStatus())) {
             throw new CollegeLifecycleException("Program must reference an existing ACTIVE department");

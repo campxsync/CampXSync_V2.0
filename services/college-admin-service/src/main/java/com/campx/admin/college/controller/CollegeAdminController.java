@@ -216,8 +216,8 @@ public class CollegeAdminController implements HttpHandler {
     private void handleCreateDepartment(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         Department d = new Department();
-        d.setDepartmentCode(extract(body, "departmentCode", "DEP-" + System.currentTimeMillis()));
-        d.setName(extract(body, "name", "Department of Studies"));
+        d.setDepartmentCode(extract(body, "departmentCode", null));
+        d.setName(extract(body, "name", null));
         d.setHeadUserId(extract(body, "headUserId", "FACULTY_HOD"));
 
         Department created = domainService.createDepartment(d);
@@ -245,11 +245,15 @@ public class CollegeAdminController implements HttpHandler {
     private void handleCreateProgram(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         Program p = new Program();
-        p.setProgramCode(extract(body, "programCode", "PRG_NEW"));
-        p.setName(extract(body, "name", "New Degree Program"));
-        p.setDepartmentId(extract(body, "departmentId", "DEP_CS"));
+        p.setProgramCode(extract(body, "programCode", null));
+        p.setName(extract(body, "name", null));
+        p.setDepartmentId(extract(body, "departmentId", null));
         String dur = extract(body, "durationYears", "4");
-        p.setDurationYears(Integer.parseInt(dur));
+        try {
+            p.setDurationYears(Integer.parseInt(dur));
+        } catch (NumberFormatException e) {
+            throw new CollegeMalformedPayloadException("Field 'durationYears' must be a valid integer");
+        }
 
         Program created = domainService.createProgram(p);
         sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getProgramCode() + "\",\"published\":true}");
@@ -283,8 +287,7 @@ public class CollegeAdminController implements HttpHandler {
     private void handleGetImport(HttpExchange exchange, String id) throws IOException {
         DataImportJob job = domainService.getImportJob(id);
         if (job == null) {
-            sendJson(exchange, 404, "{\"error\":\"Import job not found\"}");
-            return;
+            throw new CollegeResourceNotFoundException("Data Import Job", id);
         }
         sendJson(exchange, 200, "{\"id\":\"" + job.getImportId() + "\",\"status\":\"" + job.getStatus() + "\",\"processed\":" + job.getProcessedRows() + "}");
     }

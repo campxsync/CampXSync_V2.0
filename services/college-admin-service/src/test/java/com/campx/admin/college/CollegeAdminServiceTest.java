@@ -224,6 +224,41 @@ public class CollegeAdminServiceTest {
         assertTrue(errResp.contains("\"errorCode\":\"ADM02_DOCUMENT_GOVERNANCE_ERROR\""));
     }
 
+    @Test
+    public void testMissingDepartmentCodeReturns400() throws Exception {
+        String depJson = "{\"name\":\"Department Without Code\"}";
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/departments");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(depJson.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int code = conn.getResponseCode();
+        assertEquals(400, code);
+
+        String errResp = readResponse(conn);
+        assertTrue(errResp.contains("\"status\":400"));
+        assertTrue(errResp.contains("\"errorCode\":\"ADM02_MALFORMED_PAYLOAD\""));
+    }
+
+    @Test
+    public void testNonExistentImportJobReturns404() throws Exception {
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/imports/JOB_NON_EXISTENT");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+
+        int code = conn.getResponseCode();
+        assertEquals(404, code);
+
+        String errResp = readResponse(conn);
+        assertTrue(errResp.contains("\"status\":404"));
+        assertTrue(errResp.contains("\"errorCode\":\"ADM02_RESOURCE_NOT_FOUND\""));
+    }
+
     private String readResponse(HttpURLConnection conn) throws Exception {
         InputStream stream = conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream();
         if (stream == null) return "";

@@ -175,8 +175,8 @@ public class InstituteAdminController implements HttpHandler {
     private void handleCreateInstitute(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         Institute inst = new Institute();
-        inst.setInstituteCode(extract(body, "instituteCode", "INST-" + System.currentTimeMillis()));
-        inst.setLegalName(extract(body, "legalName", "Untitled Institute"));
+        inst.setInstituteCode(extract(body, "instituteCode", null));
+        inst.setLegalName(extract(body, "legalName", null));
         inst.setDisplayName(extract(body, "displayName", inst.getLegalName()));
         inst.setTimezone(extract(body, "timezone", "Asia/Kolkata"));
         inst.setLocale(extract(body, "locale", "en_IN"));
@@ -221,8 +221,8 @@ public class InstituteAdminController implements HttpHandler {
     private void handleRegisterCollege(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         College c = new College();
-        c.setCollegeCode(extract(body, "collegeCode", "COL-" + System.currentTimeMillis()));
-        c.setName(extract(body, "name", "College of Engineering"));
+        c.setCollegeCode(extract(body, "collegeCode", null));
+        c.setName(extract(body, "name", null));
         c.setInstituteId(extract(body, "instituteId", null));
 
         College registered = domainService.registerCollege(c);

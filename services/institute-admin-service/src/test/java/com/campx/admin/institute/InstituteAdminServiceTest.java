@@ -204,6 +204,30 @@ public class InstituteAdminServiceTest {
         assertTrue(errResp.contains("\"error\":\"Bad Request\""));
     }
 
+    @Test
+    public void testMissingInstituteCodeReturns400() throws Exception {
+        String payload = "{"
+                + "\"legalName\":\"No Code University\","
+                + "\"displayName\":\"NCU\""
+                + "}";
+
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(payload.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int code = conn.getResponseCode();
+        assertEquals(400, code);
+
+        String errResp = readResponse(conn);
+        assertTrue(errResp.contains("\"status\":400"));
+        assertTrue(errResp.contains("\"errorCode\":\"ADM01_MALFORMED_PAYLOAD\""));
+    }
+
     private String readResponse(HttpURLConnection conn) throws Exception {
         InputStream stream = conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream();
         if (stream == null) return "";
