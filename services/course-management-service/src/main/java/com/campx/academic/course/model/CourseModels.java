@@ -409,11 +409,11 @@ public final class CourseModels {
     }
 
     // =========================================================================
-    // Phase 2: Transactional Reliability Layer Models (User Story Lines 67–68)
+    // Phase 2: Transactional Reliability Layer Models (User Story Lines 67–69)
     // =========================================================================
 
     /**
-     * ACD01_idempotency_records — Academic command deduplication and request hash verification.
+     * ACD01_idempotency_records — Academic command deduplication and request hash verification (CSV Line 69).
      */
     public static class IdempotencyRecord {
         private String id;
