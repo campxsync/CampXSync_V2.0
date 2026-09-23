@@ -1,0 +1,21 @@
+services:
+
+  mongodb:
+    image: mongodb/mongodb-community-server:8.0-ubi8
+    container_name: campxsync-mongodb
+
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:27017:27017"
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+
+    volumes:
+      - campxsync_mongodb_data:/data/db
+
+volumes:
+  campxsync_mongodb_data:
+    name: campxsync_mongodb_data

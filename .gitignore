@@ -1,0 +1,10 @@
+target/
+**/target/
+logs/
+**/logs/
+*.log
+*.jsonl
+.idea/
+*.iml
+.vscode/
+.env
