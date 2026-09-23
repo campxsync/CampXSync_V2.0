@@ -33,7 +33,7 @@ public class GatewayCourseIntegrationTest {
     private static CourseServer courseServer;
     private static GatewayServer gatewayServer;
 
-    private static final int GW_PORT = 8084;
+    private static final int GW_PORT = 8097;
     private static final int CRS_PORT = 8083;
 
     /**

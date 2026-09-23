@@ -43,6 +43,18 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.campx</groupId>
+            <artifactId>curriculum-service</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.campx</groupId>
+            <artifactId>subject-management-service</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Testing -->
         <dependency>

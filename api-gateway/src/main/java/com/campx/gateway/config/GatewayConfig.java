@@ -39,8 +39,19 @@ public class GatewayConfig {
         // Core V2.0 / V3.0 User Story Ingress Routes
         routeTable.put("/api/v1/admin", "http://localhost:8081/api/v1/admin");
         routeTable.put("/api/v1/college-admin", "http://localhost:8082/api/v1/college-admin");
+        // Academic Tier -> Course Management Service (Port 8083)
         routeTable.put("/api/v1/courses", "http://localhost:8083/api/v1/courses");
         routeTable.put("/api/v1/academics/courses", "http://localhost:8083/api/v1/academics/courses");
+
+        // Academic Tier -> Curriculum Management Service (Port 8084)
+        routeTable.put("/api/v1/curricula/metrics", "http://localhost:8084/metrics");
+        routeTable.put("/api/v1/curricula", "http://localhost:8084/api/v1/curricula");
+        routeTable.put("/api/v1/academics/curricula", "http://localhost:8084/api/v1/academics/curricula");
+        routeTable.put("/api/v1/active", "http://localhost:8084/api/v1/curricula/active");
+
+        // Academic Tier -> Subject Management Service (Port 8085)
+        routeTable.put("/api/v1/subjects", "http://localhost:8085/api/v1/subjects");
+        routeTable.put("/api/v1/academics/subjects", "http://localhost:8085/api/v1/academics/subjects");
 
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
@@ -61,6 +72,14 @@ public class GatewayConfig {
         // Academic Tier -> Course Management Service (Port 8083)
         routeTable.put("/v1/courses", "http://localhost:8083/api/v1/courses");
         routeTable.put("/v1/course-catalog", "http://localhost:8083/api/v1/courses/catalog");
+
+        // Academic Tier -> Curriculum Management Service (Port 8084)
+        routeTable.put("/v1/curricula", "http://localhost:8084/api/v1/curricula");
+        routeTable.put("/v1/curriculum-catalog", "http://localhost:8084/api/v1/curricula/active");
+
+        // Academic Tier -> Subject Management Service (Port 8085)
+        routeTable.put("/v1/subjects", "http://localhost:8085/api/v1/subjects");
+        routeTable.put("/v1/subject-catalog", "http://localhost:8085/api/v1/academics/subjects/catalog");
     }
 
     /**

@@ -1,0 +1,790 @@
+openapi: 3.0.3
+info:
+  title: CampXSync ACD-02 Curriculum Management Service API
+  description: >
+    Production REST API specification for ACD-02 Curriculum Management Service.
+    Enforces curriculum lifecycle management, versioning, subject mapping, syllabus design,
+    learning outcome alignment, DAG prerequisite cycles, outbox events, and audit governance.
+  version: 2.0.0
+  contact:
+    name: CampX Platform Engineering Team
+    email: platform-eng@campx.edu
+servers:
+  - url: http://localhost:8084
+    description: Direct ACD-02 Service Local Instance
+  - url: http://localhost:8080/api/v1/curricula
+    description: API Gateway Ingress Route
+paths:
+  /api/v1/curricula:
+    get:
+      summary: Search and list curricula
+      description: Searches curricula filtered by courseId, departmentId, academicYear, and status with pagination.
+      parameters:
+        - name: courseId
+          in: query
+          schema:
+            type: string
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+        - name: academicYear
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Search results returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  curricula:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CurriculumSummary'
+                  total:
+                    type: integer
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      summary: Create new curriculum
+      description: Creates an aggregate root curriculum in DRAFT status with initial version 1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCurriculumRequest'
+      responses:
+        '201':
+          description: Curriculum created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponseEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/v1/curricula/{id}:
+    get:
+      summary: Retrieve curriculum by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curriculum aggregate details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Curriculum'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Soft-delete draft curriculum
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curriculum deleted successfully
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/curricula/{id}/submit:
+    post:
+      summary: Submit curriculum for committee review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curriculum status transitioned to REVIEW
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/review:
+    post:
+      summary: Record committee review feedback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum: [REQUEST_CHANGES, ENDORSED]
+                feedback:
+                  type: string
+      responses:
+        '200':
+          description: Review outcome recorded
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/approve:
+    post:
+      summary: Approve curriculum
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curriculum approved
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/publish:
+    post:
+      summary: Publish curriculum
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curriculum published and outbox event emitted
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/retire:
+    post:
+      summary: Retire curriculum
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curriculum retired
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/annual-revision:
+    post:
+      summary: Clone published version for annual revision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: New draft version cloned from current published version
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/compliance-view:
+    get:
+      summary: Retrieve composite compliance & accreditation view
+      description: Returns curriculum aggregate, all versions, outcomes, subject mappings, and full audit trail for accreditation teams.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Composite compliance view returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceView'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/curricula/{id}/history:
+    get:
+      summary: Get compliance audit trail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit history records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CurriculumHistory'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/v1/curricula/{id}/prerequisites:
+    get:
+      summary: List prerequisites for curriculum
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Prerequisites list
+    post:
+      summary: Add prerequisite rule with cycle detection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjectId, prerequisiteSubjectId]
+              properties:
+                subjectId:
+                  type: string
+                prerequisiteSubjectId:
+                  type: string
+                relationshipType:
+                  type: string
+                  enum: [MANDATORY, RECOMMENDED, CO_REQUISITE]
+                  default: MANDATORY
+                minimumGrade:
+                  type: string
+      responses:
+        '201':
+          description: Prerequisite registered
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/curricula/{id}/versions:
+    get:
+      summary: List all versions of a curriculum
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of versions
+    post:
+      summary: Create new curriculum version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                effectiveFrom:
+                  type: string
+                effectiveTo:
+                  type: string
+                academicYear:
+                  type: string
+                regulation:
+                  type: string
+                changeSummary:
+                  type: string
+      responses:
+        '201':
+          description: Version created
+
+  /api/v1/curricula/{id}/versions/{versionNo}/subjects:
+    get:
+      summary: List mapped subjects in curriculum version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Mapped subjects list
+    post:
+      summary: Map subject to curriculum version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjectId, semesterNo, credits]
+              properties:
+                subjectId:
+                  type: string
+                semesterNo:
+                  type: integer
+                subjectOrder:
+                  type: integer
+                subjectType:
+                  type: string
+                  enum: [CORE, ELECTIVE, PRACTICAL, PROJECT, AUDIT]
+                credits:
+                  type: number
+                contactHours:
+                  type: number
+                mandatory:
+                  type: boolean
+      responses:
+        '201':
+          description: Subject mapped successfully
+
+  /api/v1/curricula/{id}/versions/{versionNo}/syllabus:
+    get:
+      summary: Get syllabus modules for curriculum version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Syllabus modules list
+    put:
+      summary: Update syllabus modules for curriculum version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modules]
+              properties:
+                modules:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SyllabusModule'
+      responses:
+        '200':
+          description: Syllabus updated successfully
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/curricula/{id}/versions/{versionNo}/outcomes:
+    get:
+      summary: List learning outcomes for version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Outcomes list
+    post:
+      summary: Add learning outcome
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, description]
+              properties:
+                code:
+                  type: string
+                description:
+                  type: string
+                bloomLevel:
+                  type: string
+                type:
+                  type: string
+                  enum: [CO, PO, PROGRAM, COURSE, UNIT]
+      responses:
+        '201':
+          description: Outcome added
+
+  /api/v1/curricula/active:
+    get:
+      summary: List active/published curricula
+      responses:
+        '200':
+          description: Active curricula catalog
+
+  /api/v1/curricula/events/outbox:
+    get:
+      summary: Inspect pending outbox events
+      responses:
+        '200':
+          description: Outbox event records
+
+  /api/v1/curricula/events/dead-letter:
+    get:
+      summary: Inspect dead letter events
+      responses:
+        '200':
+          description: Dead letter queue items
+
+  /api/v1/curricula/events/inbox:
+    post:
+      summary: Process inbound domain event from external service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, eventType]
+              properties:
+                eventId:
+                  type: string
+                eventType:
+                  type: string
+                payload:
+                  type: string
+      responses:
+        '200':
+          description: Inbound event processed or deduplicated
+
+  /actuator/health:
+    get:
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: Service is UP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  service:
+                    type: string
+                    example: ACD-02-Curriculum-Management-Service
+
+components:
+  securitySchemes:
+    TenantIdHeader:
+      type: apiKey
+      name: X-Tenant-Id
+      in: header
+    UserRoleHeader:
+      type: apiKey
+      name: X-User-Role
+      in: header
+    TraceIdHeader:
+      type: apiKey
+      name: X-Trace-Id
+      in: header
+    ApiKeyAuth:
+      type: apiKey
+      name: X-API-Key
+      in: header
+    IdempotencyKeyHeader:
+      type: apiKey
+      name: Idempotency-Key
+      in: header
+
+  schemas:
+    CreateCurriculumRequest:
+      type: object
+      required: [courseId, academicPattern]
+      properties:
+        courseId:
+          type: string
+          example: COURSE-001
+        name:
+          type: string
+          example: Computer Science Curriculum 2026
+        academicPattern:
+          type: string
+          enum: [CBCS, NEP, SEMESTER, ANNUAL]
+          example: CBCS
+        departmentId:
+          type: string
+          example: DEPT-CA
+        academicYear:
+          type: string
+          example: 2026-2027
+
+    Curriculum:
+      type: object
+      properties:
+        id:
+          type: string
+        curriculumId:
+          type: string
+        courseId:
+          type: string
+        departmentId:
+          type: string
+        name:
+          type: string
+        academicPattern:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, REVIEW, APPROVED, PUBLISHED, RETIRED]
+        currentVersion:
+          type: integer
+
+    CurriculumSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        courseId:
+          type: string
+        departmentId:
+          type: string
+        status:
+          type: string
+        currentVersion:
+          type: integer
+        name:
+          type: string
+
+    SyllabusModule:
+      type: object
+      required: [moduleId, title, order]
+      properties:
+        moduleId:
+          type: string
+          example: MOD-1
+        title:
+          type: string
+          example: Core Data Structures
+        order:
+          type: integer
+          example: 1
+        hours:
+          type: number
+          example: 30.0
+        topics:
+          type: array
+          items:
+            type: string
+          example: [Arrays, Trees, Graphs]
+
+    ComplianceView:
+      type: object
+      properties:
+        curriculum:
+          $ref: '#/components/schemas/Curriculum'
+        versions:
+          type: array
+          items:
+            type: object
+        outcomes:
+          type: array
+          items:
+            type: object
+        subjectMappings:
+          type: array
+          items:
+            type: object
+        auditHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurriculumHistory'
+
+    CurriculumHistory:
+      type: object
+      properties:
+        id:
+          type: string
+        sequenceNo:
+          type: integer
+        action:
+          type: string
+        actorId:
+          type: string
+        actorRole:
+          type: string
+        occurredAt:
+          type: integer
+
+    StandardResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+        timestamp:
+          type: integer
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      required: [status, error, errorCode, message, timestamp]
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        errorCode:
+          type: string
+          example: ACD2_VALIDATION_ERROR
+          enum:
+            - ACD2_INVALID_COURSE
+            - ACD2_TENANT_MISMATCH
+            - ACD2_DUPLICATE_MAPPING
+            - ACD2_NOT_FOUND
+            - ACD2_VERSION_IMMUTABLE
+            - ACD2_INVALID_SUBJECT
+            - ACD2_CREDIT_POLICY_VIOLATION
+            - ACD2_VERSION_CONFLICT
+            - ACD2_CYCLIC_PREREQUISITE
+            - ACD2_PUBLICATION_BLOCKED
+            - ACD2_DEPENDENCY_UNAVAILABLE
+            - ACD2_FORBIDDEN
+            - ACD2_VALIDATION_ERROR
+        message:
+          type: string
+        timestamp:
+          type: integer
+        path:
+          type: string
+        traceId:
+          type: string
+
+  responses:
+    ValidationError:
+      description: Request body or business validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: Role lacks required RBAC permission or departmental scope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Requested curriculum resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Uniqueness violation or concurrency conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

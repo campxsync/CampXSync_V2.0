@@ -1,0 +1,539 @@
+openapi: 3.0.3
+info:
+  title: CampXSync Subject Management Service (ACD-03)
+  description: >-
+    Authoritative microservice owning reusable academic subject masters, subject code identity,
+    department ownership, credits, taxonomy classifications, prerequisite DAG graphs,
+    monotonic versioning, lifecycle governance, and transactional outbox event propagation.
+  version: 2.0.0
+  contact:
+    name: CampX Platform Engineering Team
+    url: https://github.com/campx/campx-sync
+servers:
+  - url: http://localhost:8085
+    description: Direct ACD-03 Microservice Endpoint
+  - url: http://localhost:8080
+    description: Unified CampXSync API Gateway Ingress Proxy
+
+paths:
+  /api/v1/academics/subjects:
+    post:
+      summary: Create a new subject master
+      description: >-
+        Creates a new reusable subject under an authorized department and institution.
+        Enforces tenant+institution subjectCode uniqueness (BR-01), active department validation (BR-08),
+        credit and contact hour ranges (BR-02, BR-03), and emits a SubjectCreated outbox event.
+      parameters:
+        - $ref: '#/components/parameters/X-Trace-Id'
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/Idempotency-Key'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubjectRequest'
+      responses:
+        '201':
+          description: Subject created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '400':
+          $ref: '#/components/responses/400Error'
+        '401':
+          $ref: '#/components/responses/401Error'
+        '403':
+          $ref: '#/components/responses/403Error'
+        '409':
+          $ref: '#/components/responses/409Error'
+        '422':
+          $ref: '#/components/responses/422Error'
+
+    get:
+      summary: Search and filter subjects
+      description: Lists subjects matching query parameters with pagination.
+      parameters:
+        - name: subjectCode
+          in: query
+          schema:
+            type: string
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: subjectType
+          in: query
+          schema:
+            type: string
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Filtered list of subjects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+
+  /api/v1/academics/subjects/catalog:
+    get:
+      summary: Retrieve published subject catalog
+      description: Returns active, published subjects visible to students, faculty, and parent portals.
+      responses:
+        '200':
+          description: Published subject catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+
+  /api/v1/academics/subjects/{id}:
+    get:
+      summary: View subject detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subject details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '404':
+          $ref: '#/components/responses/404Error'
+    put:
+      summary: Update subject master fields
+      description: Updates mutable master fields with optimistic concurrency locking (BR-12).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubjectRequest'
+      responses:
+        '200':
+          description: Subject updated successfully
+        '409':
+          $ref: '#/components/responses/409Error'
+        '422':
+          $ref: '#/components/responses/422Error'
+    delete:
+      summary: Hard delete subject
+      description: Deletes subject only if not referenced in curriculum or active batch offerings (BR-05).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subject deleted
+        '409':
+          description: Subject is referenced in curriculum; deletion rejected
+
+  /api/v1/academics/subjects/{id}/versions:
+    post:
+      summary: Create a new subject version
+      description: Creates a draft version with monotonic sequential numbering.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Draft version created
+    get:
+      summary: List all subject versions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of versions
+
+  /api/v1/academics/subjects/{id}/versions/{v}:
+    get:
+      summary: Get specific historical subject version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Immutable version snapshot
+    put:
+      summary: Update draft subject version
+      description: Updates draft version fields. Rejects update with 409 if version is published (BR-06).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Draft updated
+        '409':
+          description: Version is published and immutable
+
+  /api/v1/academics/subjects/{id}/versions/{v}/publish:
+    post:
+      summary: Publish subject version
+      description: Marks version as PUBLISHED and supersedes the prior published version.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Version published successfully
+
+  /api/v1/academics/subjects/{id}/metadata:
+    get:
+      summary: Retrieve extended metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Extended metadata with field-level classification filtering
+    put:
+      summary: Add or update extended metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Metadata updated
+
+  /api/v1/academics/subjects/{id}/prerequisites:
+    post:
+      summary: Add subject prerequisite or co-requisite
+      description: Validates DAG for cycles and prevents duplicate active relationships.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Prerequisite added
+        '409':
+          description: Circular dependency or duplicate relationship detected
+    get:
+      summary: List forward and reverse prerequisite dependencies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Prerequisite dependency graph
+
+  /api/v1/academics/subjects/{id}/deactivate:
+    post:
+      summary: Deactivate subject
+      responses:
+        '200':
+          description: Subject transitioned to DEACTIVATED
+
+  /api/v1/academics/subjects/{id}/reactivate:
+    post:
+      summary: Reactivate subject
+      responses:
+        '200':
+          description: Subject transitioned to ACTIVE
+
+  /api/v1/academics/subjects/{id}/status:
+    put:
+      summary: Controlled lifecycle status transition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subject status updated
+
+  /api/v1/academics/subjects/{id}/history:
+    get:
+      summary: Retrieve subject change history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit history log
+
+  /api/v1/subjects/import:
+    post:
+      summary: Bulk import subjects
+      description: Processes rows with per-row validation and non-aborting batch execution.
+      responses:
+        '201':
+          description: Bulk import results
+
+  /api/v1/subjects/export:
+    get:
+      summary: Export subject catalog
+      responses:
+        '200':
+          description: Catalog exported as CSV
+
+  /actuator/health:
+    get:
+      summary: Health check probe
+      responses:
+        '200':
+          description: Service health status
+
+  /metrics:
+    get:
+      summary: Prometheus operational metrics
+      responses:
+        '200':
+          description: Prometheus formatted metric gauges and counters
+
+components:
+  parameters:
+    X-Trace-Id:
+      name: X-Trace-Id
+      in: header
+      schema:
+        type: string
+      description: Distributed correlation trace identifier
+    X-Tenant-Id:
+      name: X-Tenant-Id
+      in: header
+      schema:
+        type: string
+      description: Multi-tenant boundary identifier
+    X-User-Role:
+      name: X-User-Role
+      in: header
+      schema:
+        type: string
+      description: Authenticated user authorization role
+    Idempotency-Key:
+      name: Idempotency-Key
+      in: header
+      schema:
+        type: string
+      description: Unique client key ensuring retry safety
+
+  schemas:
+    CreateSubjectRequest:
+      type: object
+      required:
+        - subjectCode
+        - name
+        - departmentId
+        - subjectType
+        - credits
+      properties:
+        subjectCode:
+          type: string
+          example: "SUB-101"
+        name:
+          type: string
+          example: "Advanced Database Management"
+        departmentId:
+          type: string
+          example: "DEPT-CA"
+        campusId:
+          type: string
+          example: "MAIN"
+        subjectType:
+          type: string
+          enum: [CORE, ELECTIVE, PRACTICAL, PROJECT, AUDIT]
+          example: "CORE"
+        classification:
+          type: string
+          enum: [THEORY, PRACTICAL, TUTORIAL, PROJECT, ELECTIVE, AUDIT]
+          example: "THEORY"
+        credits:
+          type: number
+          example: 4.0
+        contactHours:
+          type: number
+          example: 60.0
+        elective:
+          type: boolean
+          example: false
+        academicYear:
+          type: string
+          example: "2026-2027"
+
+    UpdateSubjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        shortName:
+          type: string
+        description:
+          type: string
+        departmentId:
+          type: string
+        campusId:
+          type: string
+        credits:
+          type: number
+        contactHours:
+          type: number
+        version:
+          type: integer
+          description: Optimistic lock version reference
+
+    StandardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+            correlationId:
+              type: string
+            timestamp:
+              type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "ACD_SUBJECT_CODE_DUPLICATE"
+            message:
+              type: string
+              example: "Subject code already exists within the institution."
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+            correlationId:
+              type: string
+            timestamp:
+              type: integer
+
+  responses:
+    400Error:
+      description: Malformed request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    401Error:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    403Error:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    404Error:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    409Error:
+      description: Conflict (Duplicate code, stale version, circular prerequisite, immutable version)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    422Error:
+      description: Business validation failure (Taxonomy, credit boundaries, inactive department)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

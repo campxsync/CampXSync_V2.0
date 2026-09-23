@@ -72,6 +72,15 @@ The API Gateway provides two route surfaces:
 | **GW-15** | `/api/v1/academics/courses` | `http://localhost:8083/api/v1/academics/courses` | ACD-01 Course Management | 8083 | Academic Tier (Namespace Ingress) |
 | **GW-16** | `/v1/courses` | `http://localhost:8083/api/v1/courses` | ACD-01 Course Management | 8083 | Course Management Canonical Alias |
 | **GW-17** | `/v1/course-catalog` | `http://localhost:8083/api/v1/courses/catalog` | ACD-01 Course Management | 8083 | Published Course Catalog Alias |
+| **GW-18** | `/api/v1/curricula` | `http://localhost:8084/api/v1/curricula` | ACD-02 Curriculum Management | 8084 | Academic Tier (Direct Full Ingress) |
+| **GW-19** | `/api/v1/academics/curricula` | `http://localhost:8084/api/v1/academics/curricula` | ACD-02 Curriculum Management | 8084 | Academic Tier (Namespace Ingress) |
+| **GW-20** | `/api/v1/active` | `http://localhost:8084/api/v1/curricula/active` | ACD-02 Curriculum Management | 8084 | Active Curriculum Ingress |
+| **GW-21** | `/v1/curricula` | `http://localhost:8084/api/v1/curricula` | ACD-02 Curriculum Management | 8084 | Curriculum Management Canonical Alias |
+| **GW-22** | `/v1/curriculum-catalog` | `http://localhost:8084/api/v1/curricula/active` | ACD-02 Curriculum Management | 8084 | Published Curriculum Catalog Alias |
+| **GW-23** | `/api/v1/subjects` | `http://localhost:8085/api/v1/subjects` | ACD-03 Subject Management | 8085 | Academic Tier (Direct Full Ingress) |
+| **GW-24** | `/api/v1/academics/subjects` | `http://localhost:8085/api/v1/academics/subjects` | ACD-03 Subject Management | 8085 | Academic Tier (Namespace Ingress) |
+| **GW-25** | `/v1/subjects` | `http://localhost:8085/api/v1/subjects` | ACD-03 Subject Management | 8085 | Subject Management Canonical Alias |
+| **GW-26** | `/v1/subject-catalog` | `http://localhost:8085/api/v1/academics/subjects/catalog` | ACD-03 Subject Management | 8085 | Published Subject Catalog Alias |
 
 ---
 
@@ -633,6 +642,81 @@ All downstream microservice endpoints are fully accessible through the API Gatew
   "externalWeightage": 60.0
 }
 ```
+
+---
+
+### 4.4 ACD-03 Subject Management Service Endpoints (`http://localhost:8085`)
+
+#### 1. Create Subject Master
+- **Gateway Path**: `POST /api/v1/academics/subjects` or `POST /v1/subjects`
+- **Target**: `POST http://localhost:8085/api/v1/academics/subjects`
+- **Headers**: `X-Trace-Id`, `X-Tenant-Id`, `X-User-Role: ACADEMIC_ADMIN`, `Idempotency-Key`
+- **Request Body**:
+```json
+{
+  "subjectCode": "CS201",
+  "name": "Data Structures & Algorithms",
+  "departmentId": "DEP_CSE_01",
+  "campusId": "MAIN",
+  "subjectType": "CORE",
+  "classification": "THEORY",
+  "credits": 4.0,
+  "contactHours": 60.0,
+  "elective": false,
+  "academicYear": "2026-2027"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "subjectId": "SUB-D93B2F10",
+    "subjectCode": "CS201",
+    "name": "Data Structures & Algorithms",
+    "version": 1,
+    "status": "ACTIVE"
+  },
+  "meta": {
+    "requestId": "TRACE-GW-SUB-001",
+    "correlationId": "TRACE-GW-SUB-001",
+    "timestamp": 1789973100000
+  }
+}
+```
+
+#### 2. Query Published Subject Catalog
+- **Gateway Path**: `GET /api/v1/academics/subjects/catalog` or `GET /v1/subject-catalog`
+- **Target**: `GET http://localhost:8085/api/v1/academics/subjects/catalog`
+- **Response**: `200 OK` (Public catalog; accessible to Students, Parents, External API)
+
+#### 3. Search Subjects with Filters
+- **Gateway Path**: `GET /api/v1/academics/subjects?departmentId=DEP_CSE_01&subjectType=CORE`
+- **Target**: `GET http://localhost:8085/api/v1/academics/subjects`
+- **Response**: `200 OK`
+
+#### 4. Add Subject Prerequisite (with DAG Cycle Prevention)
+- **Gateway Path**: `POST /api/v1/academics/subjects/{id}/prerequisites`
+- **Target**: `POST http://localhost:8085/api/v1/academics/subjects/{id}/prerequisites`
+- **Request Body**:
+```json
+{
+  "prerequisiteSubjectId": "SUB-CS101",
+  "relationshipType": "PREREQUISITE",
+  "mandatory": true,
+  "minimumGrade": "C"
+}
+```
+- **Response**: `201 Created` / `409 Conflict` (if cycle detected)
+
+#### 5. Subject Lifecycle Governance
+- **Gateway Path**:
+  - `POST /api/v1/academics/subjects/{id}/deactivate` &rarr; Transition to `DEACTIVATED`
+  - `POST /api/v1/academics/subjects/{id}/reactivate` &rarr; Transition to `ACTIVE`
+  - `POST /api/v1/academics/subjects/{id}/deprecate` &rarr; Transition to `DEPRECATED`
+  - `POST /api/v1/academics/subjects/{id}/retire` &rarr; Transition to `RETIRED`
+  - `DELETE /api/v1/academics/subjects/{id}` &rarr; Hard delete (blocked with 409 if in use)
+- **Response**: `200 OK`
 
 ---
 
