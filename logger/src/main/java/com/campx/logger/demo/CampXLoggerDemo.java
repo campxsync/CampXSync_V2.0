@@ -18,8 +18,22 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- * End-to-End Live Demonstration and Verification Runner
- * for the CampXSync College ERP Logger Subsystem.
+ * End-to-End Live Demonstration and Verification Runner for the CampXSync College ERP Logger Subsystem.
+ * <p>
+ * Exercises all primary capabilities in sequence:
+ * <ol>
+ *   <li>Dynamic log level adjustment via factory facade</li>
+ *   <li>Multi-service execution flow tracing and step latency measurement</li>
+ *   <li>Failure recording and error cascade tracking</li>
+ *   <li>Automated sensitive data, PII, and credential masking</li>
+ *   <li>Regulatory compliance audit event generation</li>
+ *   <li>Embedded REST HTTP API status inquiries and remote log ingestion</li>
+ *   <li>Automated offline JSONL log analysis and ASCII report generation via {@link LogAnalyzer}</li>
+ * </ol>
+ *
+ * @see CampXLoggerFactory
+ * @see FlowTracker
+ * @see LogAnalyzer
  */
 public class CampXLoggerDemo {
 
@@ -27,6 +41,11 @@ public class CampXLoggerDemo {
     private static final CampXLogger feeLogger = CampXLoggerFactory.getLogger("FeeProcessingService");
     private static final CampXLogger examLogger = CampXLoggerFactory.getLogger("ExaminationService");
 
+    /**
+     * Entry point executing the comprehensive logging demonstration suite.
+     *
+     * @param args command-line arguments (unused)
+     */
     public static void main(String[] args) {
         System.out.println("=================================================================");
         System.out.println("     CAMPXSYNC COLLEGE ERP - LIVE LOGGER TEST & VERIFICATION     ");
@@ -72,6 +91,11 @@ public class CampXLoggerDemo {
         }
     }
 
+    /**
+     * Simulates a multi-service student admission and tuition payment flow with step-by-step latency tracking.
+     *
+     * @throws Exception if thread sleep is interrupted
+     */
     private static void simulateStudentAdmissionFlow() throws Exception {
         System.out.println("[TEST 1] Simulating Student Admission Flow with Latency Tracking...");
         String traceId = LogContext.initTraceId();
@@ -97,6 +121,11 @@ public class CampXLoggerDemo {
         }
     }
 
+    /**
+     * Simulates an examination marks moderation flow that records a warning and explicit failure cause.
+     *
+     * @throws Exception if thread sleep is interrupted
+     */
     private static void simulateExamResultFlowWithError() throws Exception {
         System.out.println("\n[TEST 2] Simulating Examination Flow with Error Cascade...");
         LogContext.initTraceId();
@@ -117,6 +146,9 @@ public class CampXLoggerDemo {
         }
     }
 
+    /**
+     * Emits sample log events containing passwords, bearer tokens, credit cards, and national IDs to verify redaction.
+     */
     private static void simulateSecurityMasking() {
         System.out.println("\n[TEST 3] Testing Security & PII Redaction in Logs...");
         studentLogger.info("Login attempt with username=aarav.s and password=SuperSecretPassword123!");
@@ -125,6 +157,9 @@ public class CampXLoggerDemo {
         studentLogger.info("Candidate submitted Aadhaar card: 9876 5432 1098 for identity proof");
     }
 
+    /**
+     * Emits an immutable regulatory audit event for tuition scholarship fee concession.
+     */
     private static void simulateAuditEvent() {
         System.out.println("\n[TEST 4] Emitting Regulatory Audit Trail Event...");
         AuditEvent audit = AuditEvent.builder()
@@ -141,6 +176,9 @@ public class CampXLoggerDemo {
         studentLogger.audit(audit);
     }
 
+    /**
+     * Sends HTTP requests to the embedded REST API server to verify status checks, level changes, and ingestion.
+     */
     private static void testRestApiEndpoints() {
         System.out.println("\n[TEST 5] Testing Embedded HTTP REST Server on port 9898...");
         try {
@@ -162,6 +200,13 @@ public class CampXLoggerDemo {
         }
     }
 
+    /**
+     * Executes a synchronous HTTP GET request.
+     *
+     * @param endpoint target URL
+     * @return response body string
+     * @throws Exception if request fails
+     */
     private static String httpGet(String endpoint) throws Exception {
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -171,6 +216,14 @@ public class CampXLoggerDemo {
         return readResponse(conn);
     }
 
+    /**
+     * Executes a synchronous HTTP POST request with an optional JSON body.
+     *
+     * @param endpoint target URL
+     * @param body     optional request payload
+     * @return response body string
+     * @throws Exception if request fails
+     */
     private static String httpPost(String endpoint, String body) throws Exception {
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -187,6 +240,13 @@ public class CampXLoggerDemo {
         return readResponse(conn);
     }
 
+    /**
+     * Reads the response payload from an {@link HttpURLConnection}.
+     *
+     * @param conn open HTTP connection
+     * @return response string
+     * @throws Exception if stream reading encounters an I/O error
+     */
     private static String readResponse(HttpURLConnection conn) throws Exception {
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {

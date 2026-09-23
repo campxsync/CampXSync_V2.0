@@ -11,6 +11,12 @@ import java.net.InetSocketAddress;
 
 /**
  * Embedded HTTP server hosting the ADM-01 Institute Admin Service on port 8081.
+ * <p>
+ * Mounts {@link InstituteAdminController} at {@code /api/v1/admin} to service platform-level
+ * tenant, RBAC, reliability, and governance requests.
+ *
+ * @see InstituteAdminController
+ * @see InstituteAdminDomainService
  */
 public class InstituteAdminServer {
 
@@ -21,15 +27,29 @@ public class InstituteAdminServer {
     private HttpServer server;
     private boolean running = false;
 
+    /**
+     * Initializes the server with default port 8081 and a new domain service instance.
+     */
     public InstituteAdminServer() {
         this(8081, new InstituteAdminDomainService());
     }
 
+    /**
+     * Initializes the server with custom port and domain service.
+     *
+     * @param port          TCP port to listen on
+     * @param domainService business domain service instance
+     */
     public InstituteAdminServer(int port, InstituteAdminDomainService domainService) {
         this.port = port;
         this.domainService = domainService;
     }
 
+    /**
+     * Binds the server socket, registers request contexts, and begins accepting HTTP requests.
+     *
+     * @throws IOException if network socket creation or binding fails
+     */
     public synchronized void start() throws IOException {
         if (running) {
             return;
@@ -46,6 +66,9 @@ public class InstituteAdminServer {
         logger.info("ADM-01 Institute Admin Service started on port {}", port);
     }
 
+    /**
+     * Stops the HTTP server and terminates socket listeners.
+     */
     public synchronized void stop() {
         if (server != null && running) {
             server.stop(0);
@@ -54,14 +77,29 @@ public class InstituteAdminServer {
         }
     }
 
+    /**
+     * Checks if the HTTP server is currently active and processing requests.
+     *
+     * @return {@code true} if running
+     */
     public boolean isRunning() {
         return running;
     }
 
+    /**
+     * Returns the TCP port bound to this server.
+     *
+     * @return port number
+     */
     public int getPort() {
         return port;
     }
 
+    /**
+     * Returns the underlying domain service instance managing platform state.
+     *
+     * @return {@link InstituteAdminDomainService}
+     */
     public InstituteAdminDomainService getDomainService() {
         return domainService;
     }

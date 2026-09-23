@@ -16,7 +16,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Enterprise-grade rolling file appender supporting size-based rolling,
- * daily rollover, and file retention management.
+ * daily rollover, and historical file retention management.
+ * <p>
+ * Employs a thread-safe {@link ReentrantLock} to serialize writes and atomic roll operations,
+ * ensuring zero corruption during concurrent high-throughput logging.
+ *
+ * @see LogAppender
+ * @see JsonFileAppender
  */
 public class RollingFileAppender implements LogAppender {
 
@@ -33,10 +39,25 @@ public class RollingFileAppender implements LogAppender {
     private String currentDateTag = "";
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
+    /**
+     * Initializes a file appender with default name {@code "FILE"}, 10MB file limit,
+     * and up to 10 backups using pattern formatting without ANSI codes.
+     *
+     * @param filePath path to the output log file
+     */
     public RollingFileAppender(String filePath) {
         this("FILE", filePath, 10 * 1024 * 1024L, 10, new PatternFormatter(false, true));
     }
 
+    /**
+     * Initializes a rolling file appender with full configuration parameters.
+     *
+     * @param name           logical appender name
+     * @param filePath       path to the output log file
+     * @param maxFileSize    maximum file size threshold in bytes before triggering rotation
+     * @param maxBackupIndex maximum number of index-shifted backups to retain
+     * @param formatter      formatter used to serialize {@link LogEvent} instances
+     */
     public RollingFileAppender(String name, String filePath, long maxFileSize, int maxBackupIndex, LogFormatter formatter) {
         this.name = name;
         this.filePath = filePath;
@@ -47,6 +68,9 @@ public class RollingFileAppender implements LogAppender {
         init();
     }
 
+    /**
+     * Initializes the target directory structure, computes current file size, and opens buffered writer.
+     */
     private void init() {
         lock.lock();
         try {
@@ -71,6 +95,11 @@ public class RollingFileAppender implements LogAppender {
         }
     }
 
+    /**
+     * Opens or reopens the UTF-8 buffered file output stream in append mode.
+     *
+     * @throws IOException if the file stream cannot be opened
+     */
     private void openWriter() throws IOException {
         if (writer != null) {
             try {
@@ -82,19 +111,37 @@ public class RollingFileAppender implements LogAppender {
         this.writer = new BufferedWriter(new OutputStreamWriter(fos, StandardCharsets.UTF_8), 32 * 1024);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getName() {
         return name;
     }
 
+    /**
+     * Returns the configured absolute or relative log file system path.
+     *
+     * @return file path
+     */
     public String getFilePath() {
         return filePath;
     }
 
+    /**
+     * Returns the current byte size of the active file being written to.
+     *
+     * @return active file size in bytes
+     */
     public long getCurrentSizeBytes() {
         return currentSizeBytes;
     }
 
+    /**
+     * Appends a log event to the active file, evaluating rotation thresholds prior to writing.
+     *
+     * @param event the log event to append
+     */
     @Override
     public void append(LogEvent event) {
         String formatted = formatter.format(event);
@@ -115,6 +162,12 @@ public class RollingFileAppender implements LogAppender {
         }
     }
 
+    /**
+     * Checks if current write pushes file over max file size or transitions to a new calendar day.
+     *
+     * @param incomingBytes byte size of incoming log entry
+     * @throws IOException if rotation operations encounter I/O failure
+     */
     private void checkRollover(int incomingBytes) throws IOException {
         String todayTag = dateFormat.format(new Date());
 
@@ -130,6 +183,9 @@ public class RollingFileAppender implements LogAppender {
         }
     }
 
+    /**
+     * Manually triggers a size-based archive rotation on the current file.
+     */
     public void rotate() {
         lock.lock();
         try {
@@ -141,6 +197,11 @@ public class RollingFileAppender implements LogAppender {
         }
     }
 
+    /**
+     * Shifts indexed backup log files (e.g. .1 -> .2) and renames the current log file to .1.
+     *
+     * @throws IOException if file rename operations fail
+     */
     private void rotateBySize() throws IOException {
         if (writer != null) {
             writer.flush();
@@ -173,6 +234,12 @@ public class RollingFileAppender implements LogAppender {
         openWriter();
     }
 
+    /**
+     * Archives current log file with yesterday's date tag and creates a fresh file for today.
+     *
+     * @param newDateTag format string representing the new day (e.g. "yyyy-MM-dd")
+     * @throws IOException if file rename operations fail
+     */
     private void rotateDaily(String newDateTag) throws IOException {
         if (writer != null) {
             writer.flush();
@@ -190,6 +257,9 @@ public class RollingFileAppender implements LogAppender {
         openWriter();
     }
 
+    /**
+     * Flushes buffered log entries to underlying disk storage.
+     */
     @Override
     public void flush() {
         lock.lock();
@@ -204,6 +274,9 @@ public class RollingFileAppender implements LogAppender {
         }
     }
 
+    /**
+     * Flushes and safely closes the file writer stream.
+     */
     @Override
     public void close() {
         lock.lock();

@@ -6,8 +6,14 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Unit tests verifying sensitive credential, token, PAN, and PII masking via {@link SecurityMasker}.
+ */
 public class SecurityMaskingTest {
 
+    /**
+     * Verifies that plain text and JSON-encoded password values are properly masked with asterisks.
+     */
     @Test
     public void testPasswordMasking() {
         String msg1 = "User login attempt with password=SecretPassword123 and username=admin";
@@ -21,6 +27,9 @@ public class SecurityMaskingTest {
         assertTrue(masked2.contains("\"password\": \"******\""));
     }
 
+    /**
+     * Verifies that HTTP Bearer authentication tokens are redacted while preserving the Bearer scheme header.
+     */
     @Test
     public void testBearerTokenMasking() {
         String msg = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.doNotLeakThisSignature";
@@ -29,6 +38,9 @@ public class SecurityMaskingTest {
         assertTrue(masked.contains("Bearer ******"));
     }
 
+    /**
+     * Verifies that 16-digit credit and debit card PAN numbers are replaced with asterisks.
+     */
     @Test
     public void testCardNumberMasking() {
         String msg = "Fee payment transaction using card 4111-2222-3333-4444 completed";
@@ -37,6 +49,9 @@ public class SecurityMaskingTest {
         assertTrue(masked.contains("****-****-****-****"));
     }
 
+    /**
+     * Verifies that 12-digit national identification numbers (Aadhaar) mask the leading 8 digits.
+     */
     @Test
     public void testNationalIdMasking() {
         String msg = "Student Aadhaar verification for 1234 5678 9012 submitted";

@@ -6,6 +6,11 @@ package com.campx.admin.college.exception;
  */
 public class CollegeLifecycleException extends CollegeAdminException {
 
+    /**
+     * Constructs a new {@code CollegeLifecycleException} with the specified detail message.
+     *
+     * @param message the explanation of the invalid lifecycle state transition
+     */
     public CollegeLifecycleException(String message) {
         super(422, "ADM02_INVALID_LIFECYCLE_STATE", message);
     }

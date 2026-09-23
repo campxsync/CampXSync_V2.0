@@ -8,15 +8,48 @@ import java.util.UUID;
 
 /**
  * Filter responsible for extracting and establishing correlation tracing tokens
- * (traceId, tenantId, userId) and initializing LogContext for API Gateway routing.
+ * ({@code traceId}, {@code tenantId}, {@code userId}, {@code userRole}) and
+ * initializing {@link LogContext} for API Gateway routing.
+ * <p>
+ * If incoming request headers omit a trace identifier, this filter generates
+ * a cryptographically strong UUID-based trace token. The trace ID is then
+ * injected into the response headers ({@code X-Trace-Id}) to support end-to-end
+ * distributed request tracing across clients and backend services.
+ * </p>
+ *
+ * @author CampX Platform Engineering Team
+ * @version 2.0.0
+ * @since 2.0.0
  */
 public class CorrelationFilter {
 
+    /**
+     * HTTP Header name for distributed correlation trace identifier.
+     */
     public static final String HEADER_TRACE_ID = "X-Trace-Id";
+
+    /**
+     * HTTP Header name for multi-tenant isolation context (Campus / College ID).
+     */
     public static final String HEADER_TENANT_ID = "X-Tenant-Id";
+
+    /**
+     * HTTP Header name for authenticated user principal identity.
+     */
     public static final String HEADER_USER_ID = "X-User-Id";
+
+    /**
+     * HTTP Header name for caller security role (e.g. SUPER_ADMIN, COLLEGE_ADMIN).
+     */
     public static final String HEADER_USER_ROLE = "X-User-Role";
 
+    /**
+     * Extracts correlation headers from the incoming exchange, populates the
+     * ThreadLocal {@link LogContext}, and decorates response headers with the trace ID.
+     *
+     * @param exchange The incoming {@link HttpExchange} representing the client request.
+     * @return The resolved or generated {@code traceId} string.
+     */
     public String apply(HttpExchange exchange) {
         Headers headers = exchange.getRequestHeaders();
 

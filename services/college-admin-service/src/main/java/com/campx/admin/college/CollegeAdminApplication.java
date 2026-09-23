@@ -7,11 +7,20 @@ import com.campx.logger.CampXLoggerFactory;
 
 /**
  * Entrypoint for launching ADM-02 College Admin Service standalone.
+ * Configures the HTTP server port, initializes the domain service, and manages graceful shutdown.
  */
 public class CollegeAdminApplication {
 
+    /**
+     * Shared structured logger instance for service lifecycle events.
+     */
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(CollegeAdminApplication.class);
 
+    /**
+     * Application entry point for College Admin Service.
+     *
+     * @param args optional command-line arguments; args[0] may specify the HTTP server port (defaults to 8082)
+     */
     public static void main(String[] args) {
         try {
             int port = 8082;

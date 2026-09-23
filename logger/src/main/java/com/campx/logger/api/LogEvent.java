@@ -11,21 +11,58 @@ import java.util.Set;
 /**
  * Immutable log event carrying all contextual and diagnostic details
  * for analysis, debugging, and audit trails.
+ * <p>
+ * Encapsulates timestamp, thread information, logger origin, severity level,
+ * contextual key-value pairs (MDC), categorization tags, flow tracing metadata,
+ * execution duration, stack trace, and caller source code location.
+ * </p>
+ *
+ * @author CampX Platform Engineering Team
+ * @version 2.0.0
+ * @since 2.0.0
  */
 public final class LogEvent {
+
+    /** Timestamp in epoch milliseconds when the event was recorded. */
     private final long timestamp;
+
+    /** Name of the thread that generated the log event. */
     private final String threadName;
+
+    /** Name of the logger or category that recorded the event. */
     private final String loggerName;
+
+    /** Severity level of the event. */
     private final LogLevel level;
+
+    /** Formatted message string. */
     private final String message;
+
+    /** Immutable contextual key-value mappings (MDC properties). */
     private final Map<String, String> context;
+
+    /** Immutable set of categorizing tags (e.g., "SECURITY", "PAYMENT"). */
     private final Set<String> tags;
+
+    /** Distributed workflow or correlation flow identifier. */
     private final String flowId;
+
+    /** High-level operation or business action name. */
     private final String operation;
+
+    /** Execution latency in milliseconds, or null if not applicable. */
     private final Long durationMs;
+
+    /** Optional associated exception/throwable cause. */
     private final Throwable throwable;
+
+    /** Calling class name resolved from call stack. */
     private final String callerClass;
+
+    /** Calling method name resolved from call stack. */
     private final String callerMethod;
+
+    /** Calling source line number resolved from call stack. */
     private final int callerLineNumber;
 
     private LogEvent(Builder builder) {
@@ -45,50 +82,66 @@ public final class LogEvent {
         this.callerLineNumber = builder.callerLineNumber;
     }
 
+    /** @return Event timestamp in milliseconds since epoch. */
     public long getTimestamp() {
         return timestamp;
     }
 
+    /** @return Name of the generating thread. */
     public String getThreadName() {
         return threadName;
     }
 
+    /** @return Name of the originating logger. */
     public String getLoggerName() {
         return loggerName;
     }
 
+    /** @return Severity log level. */
     public LogLevel getLevel() {
         return level;
     }
 
+    /** @return The formatted log message. */
     public String getMessage() {
         return message;
     }
 
+    /** @return Immutable map of contextual key-value pairs. */
     public Map<String, String> getContext() {
         return context;
     }
 
+    /** @return Immutable set of categorization tags. */
     public Set<String> getTags() {
         return tags;
     }
 
+    /** @return Correlated flow or transaction ID. */
     public String getFlowId() {
         return flowId;
     }
 
+    /** @return Business operation name. */
     public String getOperation() {
         return operation;
     }
 
+    /** @return Execution duration in milliseconds, or null if not tracked. */
     public Long getDurationMs() {
         return durationMs;
     }
 
+    /** @return Associated Throwable exception, or null. */
     public Throwable getThrowable() {
         return throwable;
     }
 
+    /**
+     * Renders the associated exception stack trace as a string.
+     *
+     * @return Formatted stack trace string, or null if no throwable is attached.
+     */
     public String getStackTraceAsString() {
         if (throwable == null) {
             return null;

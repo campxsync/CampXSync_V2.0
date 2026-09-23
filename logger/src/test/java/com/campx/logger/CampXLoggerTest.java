@@ -14,21 +14,38 @@ import java.io.FileReader;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Unit and integration tests for core {@link CampXLogger} operations.
+ * <p>
+ * Verifies standard level output, log file creation and disk persistence,
+ * MDC contextual scope guards, audit event emission, and fluent log builders.
+ */
 public class CampXLoggerTest {
 
     private static CampXLogger logger;
 
+    /**
+     * Initializes test logger instance and configures DEBUG severity threshold.
+     */
     @BeforeClass
     public static void setup() {
         CampXLoggerFactory.setRootLevel(LogLevel.DEBUG);
         logger = CampXLoggerFactory.getLogger(CampXLoggerTest.class);
     }
 
+    /**
+     * Flushes asynchronous buffers to disk following test suite execution.
+     */
     @AfterClass
     public static void teardown() {
         CampXLoggerFactory.flush();
     }
 
+    /**
+     * Verifies basic multi-level logging, MDC thread context injection, and disk file emission.
+     *
+     * @throws Exception if file read operations fail
+     */
     @Test
     public void testBasicLoggingAndFileCreation() throws Exception {
         String testId = "TEST-EVENT-" + System.currentTimeMillis();
@@ -62,6 +79,11 @@ public class CampXLoggerTest {
         assertTrue("Log file should contain emitted test event", foundTestId);
     }
 
+    /**
+     * Verifies regulatory compliance audit trail serialization and persistence to disk.
+     *
+     * @throws Exception if disk reading fails
+     */
     @Test
     public void testAuditEvent() throws Exception {
         String auditAction = "SEMESTER_GRADE_UPDATE_" + System.currentTimeMillis();
@@ -98,6 +120,9 @@ public class CampXLoggerTest {
         assertTrue("Log file should contain emitted audit event", foundAudit);
     }
 
+    /**
+     * Verifies method chaining, contextual tagging, and argument substitution using {@link FluentLogBuilder}.
+     */
     @Test
     public void testFluentLogBuilder() {
         logger.atInfo()

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.campx</groupId>
+        <artifactId>campx-sync-parent</artifactId>
+        <version>2.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>course-management-service</artifactId>
+    <packaging>jar</packaging>
+
+    <name>CampXSync Course Management Service (ACD-01)</name>
+    <description>Academic Tier Course Definition, Lifecycle, Prerequisite, and Catalog Governance for CampXSync ERP</description>
+
+    <dependencies>
+        <!-- Platform Logger Integration -->
+        <dependency>
+            <groupId>com.campx.platform</groupId>
+            <artifactId>campx-logger</artifactId>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

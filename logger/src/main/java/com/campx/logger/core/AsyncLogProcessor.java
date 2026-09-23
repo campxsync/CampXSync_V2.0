@@ -12,9 +12,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * High-throughput asynchronous log processor.
- * Offloads disk and console I/O to a background worker thread
- * so business operations in CampXSync ERP are never blocked.
+ * High-throughput asynchronous log event processing engine.
+ * <p>
+ * Offloads console rendering, pattern formatting, and disk I/O to a dedicated background
+ * daemon worker thread ({@code "CampX-AsyncLogWorker"}) backed by a bounded {@link ArrayBlockingQueue}.
+ * <p>
+ * If the internal queue fills under severe load, the processor dynamically falls back to synchronous
+ * dispatch to guarantee that critical error and compliance audit records are never discarded.
+ *
+ * @see LogAppender
+ * @see LogEvent
  */
 public class AsyncLogProcessor {
 
@@ -24,6 +31,11 @@ public class AsyncLogProcessor {
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final AtomicInteger inFlight = new AtomicInteger(0);
 
+    /**
+     * Initializes the asynchronous log processor with the specified ring buffer capacity.
+     *
+     * @param capacity maximum pending log events held in memory (defaults to 10,000 if &le; 0)
+     */
     public AsyncLogProcessor(int capacity) {
         this.queue = new ArrayBlockingQueue<>(capacity > 0 ? capacity : 10000);
         this.workerThread = new Thread(this::processQueue, "CampX-AsyncLogWorker");
@@ -31,33 +43,60 @@ public class AsyncLogProcessor {
         this.workerThread.start();
     }
 
+    /**
+     * Registers a new output appender to receive dispatched log events.
+     *
+     * @param appender the appender instance to attach
+     */
     public synchronized void addAppender(LogAppender appender) {
         if (appender != null && !appenders.contains(appender)) {
             appenders.add(appender);
         }
     }
 
+    /**
+     * Unregisters an output appender from receiving future events.
+     *
+     * @param appender the appender instance to remove
+     */
     public synchronized void removeAppender(LogAppender appender) {
         if (appender != null) {
             appenders.remove(appender);
         }
     }
 
+    /**
+     * Returns a thread-safe snapshot copy of all currently registered appenders.
+     *
+     * @return list of active appenders
+     */
     public synchronized List<LogAppender> getAppenders() {
         return new ArrayList<>(appenders);
     }
 
+    /**
+     * Returns the number of log events currently pending in the processing queue.
+     *
+     * @return pending queue size
+     */
     public int getQueueSize() {
         return queue.size();
     }
 
+    /**
+     * Returns the total capacity of the internal blocking queue.
+     *
+     * @return maximum queue capacity
+     */
     public int getQueueCapacity() {
         return queue.size() + queue.remainingCapacity();
     }
 
     /**
-     * Enqueues a log event. If queue is full, attempts offer with short timeout,
-     * otherwise dispatches synchronously to avoid dropping critical audit/error logs.
+     * Enqueues a log event for asynchronous processing.
+     * If the queue is saturated, falls back to synchronous dispatch to prevent message drops.
+     *
+     * @param event the log event record to process
      */
     public void enqueue(LogEvent event) {
         if (!running.get() || event == null) {
@@ -76,6 +115,9 @@ public class AsyncLogProcessor {
         }
     }
 
+    /**
+     * Continuous background loop draining queued events and broadcasting to registered appenders.
+     */
     private void processQueue() {
         while (running.get() || !queue.isEmpty()) {
             try {
@@ -96,6 +138,11 @@ public class AsyncLogProcessor {
         }
     }
 
+    /**
+     * Dispatches a single log event to all attached appenders, isolating failures per appender.
+     *
+     * @param event the log event to broadcast
+     */
     private void dispatchToAppenders(LogEvent event) {
         List<LogAppender> targetAppenders;
         synchronized (this) {
@@ -111,7 +158,7 @@ public class AsyncLogProcessor {
     }
 
     /**
-     * Flushes queue and appenders synchronously.
+     * Blocks until all queued and in-flight log events have been processed and appender buffers are flushed.
      */
     public void flush() {
         // Wait until queue drains and all in-flight dispatches complete
@@ -134,7 +181,7 @@ public class AsyncLogProcessor {
     }
 
     /**
-     * Graceful shutdown of async processor and underlying appenders.
+     * Performs graceful shutdown: drains queue, interrupts worker thread, and closes appender resources.
      */
     public void shutdown() {
         if (running.compareAndSet(true, false)) {

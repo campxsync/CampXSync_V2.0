@@ -24,6 +24,10 @@ import static org.junit.Assert.assertTrue;
 /**
  * End-to-End integration test verifying unified API Gateway routing
  * to both ADM-01 Institute Admin Service and ADM-02 College Admin Service.
+ *
+ * @author CampX Platform Engineering Team
+ * @version 2.0.0
+ * @since 2.0.0
  */
 public class GatewayEndToEndIntegrationTest {
 
@@ -35,6 +39,11 @@ public class GatewayEndToEndIntegrationTest {
     private static final int INST_PORT = 8081;
     private static final int COL_PORT = 8082;
 
+    /**
+     * Boots the Institute Admin Service, College Admin Service, and the API Gateway.
+     *
+     * @throws Exception If any server fails to initialize.
+     */
     @BeforeClass
     public static void startAll() throws Exception {
         // 1. Start Institute Admin Service
@@ -55,6 +64,9 @@ public class GatewayEndToEndIntegrationTest {
         gatewayServer.start();
     }
 
+    /**
+     * Gracefully stops all servers and flushes logging framework buffers.
+     */
     @AfterClass
     public static void stopAll() {
         if (gatewayServer != null) gatewayServer.stop();
@@ -63,6 +75,12 @@ public class GatewayEndToEndIntegrationTest {
         CampXLoggerFactory.flush();
     }
 
+    /**
+     * Verifies routing a tenant registration request through the Gateway
+     * to the ADM-01 Institute Admin Service.
+     *
+     * @throws Exception If HTTP request fails.
+     */
     @Test
     public void testRouteToInstituteAdminViaGateway() throws Exception {
         String institutePayload = "{"
@@ -96,6 +114,12 @@ public class GatewayEndToEndIntegrationTest {
         assertTrue(resp.contains("\"instituteCode\":\"INST_GW_01\""));
     }
 
+    /**
+     * Verifies routing a profile retrieval request through the Gateway
+     * to the ADM-02 College Admin Service.
+     *
+     * @throws Exception If HTTP request fails.
+     */
     @Test
     public void testRouteToCollegeAdminViaGateway() throws Exception {
         URL url = new URL("http://localhost:" + GW_PORT + "/api/v1/college-admin/profile");
@@ -113,6 +137,12 @@ public class GatewayEndToEndIntegrationTest {
         assertTrue(resp.contains("\"code\":\"COL_ENGG_01\""));
     }
 
+    /**
+     * Verifies that duplicate resource errors from ADM-01 pass through
+     * the Gateway with HTTP 409 status and error response body.
+     *
+     * @throws Exception If HTTP request fails.
+     */
     @Test
     public void testDownstreamErrorPassThroughViaGateway() throws Exception {
         String payload = "{"

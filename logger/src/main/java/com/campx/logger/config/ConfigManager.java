@@ -8,19 +8,41 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * Loads logger configuration from properties file, environment variables,
- * and system properties.
+ * Central configuration loader for the CampXSync logging framework.
+ * <p>
+ * Employs a hierarchical configuration resolution strategy with strict precedence:
+ * <ol>
+ *   <li><b>Java System Properties</b> (e.g. {@code -Dcampx.logger.level=DEBUG})</li>
+ *   <li><b>OS Environment Variables</b> (e.g. {@code CAMPX_LOG_LEVEL=DEBUG})</li>
+ *   <li><b>Properties File</b> (file system or classpath {@code campx-logger.properties})</li>
+ *   <li><b>Internal Defaults</b> defined on {@link LoggerConfig}</li>
+ * </ol>
+ *
+ * @see LoggerConfig
  */
 public final class ConfigManager {
 
+    /** Default property configuration file name searched on file system and classpath. */
     private static final String DEFAULT_CONFIG_FILE = "campx-logger.properties";
 
     private ConfigManager() {}
 
+    /**
+     * Loads the logging configuration using the default configuration file name {@code "campx-logger.properties"}.
+     *
+     * @return populated {@link LoggerConfig}
+     */
     public static LoggerConfig load() {
         return load(DEFAULT_CONFIG_FILE);
     }
 
+    /**
+     * Loads the logging configuration from the given properties file or classpath resource,
+     * overlaying system properties and environment variables.
+     *
+     * @param filename configuration resource or file path
+     * @return populated {@link LoggerConfig}
+     */
     public static LoggerConfig load(String filename) {
         LoggerConfig config = new LoggerConfig();
         Properties props = new Properties();
@@ -124,6 +146,14 @@ public final class ConfigManager {
         return config;
     }
 
+    /**
+     * Resolves a configuration property value with system property -> env var -> file property precedence.
+     *
+     * @param props   properties object loaded from file or classpath
+     * @param sysProp Java system property name
+     * @param envVar  OS environment variable name
+     * @return resolved value, or {@code null} if unset across all sources
+     */
     private static String getVal(Properties props, String sysProp, String envVar) {
         // System property overrides
         String val = System.getProperty(sysProp);

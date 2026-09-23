@@ -26,20 +26,60 @@ import java.util.Map;
 
 /**
  * Reverse proxy handler that dynamically dispatches client requests to the
- * appropriate downstream microservice (Institute Admin or College Admin)
- * while injecting correlation tokens and recording execution flow metrics.
+ * appropriate downstream microservice (Institute Admin, College Admin, or Course
+ * Management) while injecting correlation tokens and recording execution flow metrics.
+ * <p>
+ * Key capabilities:
+ * <ul>
+ *   <li><b>Context Extraction</b>: Populates {@link LogContext} from {@code X-Trace-Id},
+ *       {@code X-Tenant-Id}, and security role headers.</li>
+ *   <li><b>Dynamic Prefix Routing</b>: Resolves destination URLs using longest matching
+ *       registered route prefix.</li>
+ *   <li><b>Direct Endpoints</b>: Intercepts {@code /actuator/health} and
+ *       {@code /api/v1/gateway/routes} directly at the edge.</li>
+ *   <li><b>Header & Stream Propagation</b>: Copies HTTP headers and request bodies,
+ *       handles HTTP keep-alive, and returns downstream headers and payloads.</li>
+ *   <li><b>Error Normalization</b>: Converts upstream timeouts, network partition errors,
+ *       and unmapped routes into RFC 7807 {@link ErrorResponse} JSON payloads.</li>
+ * </ul>
+ * </p>
+ *
+ * @author CampX Platform Engineering Team
+ * @version 2.0.0
+ * @since 2.0.0
  */
 public class ReverseProxyHandler implements HttpHandler {
 
+    /**
+     * Logger instance for the reverse proxy routing lifecycle.
+     */
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(ReverseProxyHandler.class);
 
+    /**
+     * Active gateway configuration holding route table definitions.
+     */
     private final GatewayConfig config;
+
+    /**
+     * Correlation filter for extracting and propagating tracing headers.
+     */
     private final CorrelationFilter correlationFilter = new CorrelationFilter();
 
+    /**
+     * Constructs a ReverseProxyHandler instance with the specified gateway configuration.
+     *
+     * @param config The active {@link GatewayConfig} providing the route mappings.
+     */
     public ReverseProxyHandler(GatewayConfig config) {
         this.config = config;
     }
 
+    /**
+     * Dispatches an incoming HTTP client exchange to the matching downstream service.
+     *
+     * @param exchange The {@link HttpExchange} containing client request and response channels.
+     * @throws IOException If an I/O error occurs during proxying.
+     */
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
@@ -102,6 +142,17 @@ public class ReverseProxyHandler implements HttpHandler {
         }
     }
 
+    /**
+     * Resolves the matching downstream target URL from the route table.
+     * <p>
+     * Performs prefix matching and determines whether to preserve the full path
+     * or concatenate the subpath suffix based on the target URL specification.
+     * </p>
+     *
+     * @param path  The incoming request URI path (e.g. "/api/v1/admin/institutes").
+     * @param query The optional query string, or {@code null}.
+     * @return The complete downstream URL string, or {@code null} if no prefix matched.
+     */
     private String resolveDestinationUrl(String path, String query) {
         for (Map.Entry<String, String> entry : config.getRouteTable().entrySet()) {
             String prefix = entry.getKey();
@@ -131,6 +182,14 @@ public class ReverseProxyHandler implements HttpHandler {
         return null;
     }
 
+    /**
+     * Proxies the client HTTP request to the designated downstream microservice destination.
+     *
+     * @param clientExchange     The client's HTTP exchange.
+     * @param destinationUrlStr The target downstream service URL.
+     * @param method             The HTTP method (e.g. GET, POST, PUT, DELETE).
+     * @throws IOException If a communication or stream transfer error occurs.
+     */
     private void proxyRequest(HttpExchange clientExchange, String destinationUrlStr, String method) throws IOException {
         URL targetUrl = new URL(destinationUrlStr);
         HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
@@ -205,6 +264,13 @@ public class ReverseProxyHandler implements HttpHandler {
         logger.info("Gateway proxy completed: [{}] {} -> status={}", method, destinationUrlStr, responseCode);
     }
 
+    /**
+     * Reads all bytes from the provided input stream into a byte array.
+     *
+     * @param is The input stream to read.
+     * @return The complete byte array.
+     * @throws IOException If reading fails.
+     */
     private byte[] readAllBytes(InputStream is) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] data = new byte[4096];
@@ -215,6 +281,14 @@ public class ReverseProxyHandler implements HttpHandler {
         return buffer.toByteArray();
     }
 
+    /**
+     * Writes a direct JSON string response to the client.
+     *
+     * @param exchange     The active HTTP exchange.
+     * @param statusCode   HTTP response status code.
+     * @param responseJson JSON body payload.
+     * @throws IOException If writing to the response body fails.
+     */
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {
         byte[] bytes = responseJson.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
@@ -224,6 +298,16 @@ public class ReverseProxyHandler implements HttpHandler {
         }
     }
 
+    /**
+     * Sends a standardized RFC 7807 JSON error response to the client.
+     *
+     * @param exchange  The active HTTP exchange.
+     * @param status    HTTP status code.
+     * @param error     Short error title.
+     * @param errorCode Machine-readable error code.
+     * @param message   Human-readable diagnostic message.
+     * @param path      Request URI path.
+     */
     private void sendError(HttpExchange exchange, int status, String error, String errorCode, String message, String path) {
         try {
             String traceId = LogContext.getTraceId();

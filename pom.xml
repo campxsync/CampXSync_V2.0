@@ -16,6 +16,7 @@
         <module>logger</module>
         <module>services/institute-admin-service</module>
         <module>services/college-admin-service</module>
+        <module>services/course-management-service</module>
         <module>api-gateway</module>
     </modules>
 

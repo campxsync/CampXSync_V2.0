@@ -13,16 +13,30 @@ import java.io.File;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Integration test suite verifying distributed execution flow tracking and JSON log reconstruction.
+ * <p>
+ * Tests step-by-step latency profiling, automatic milestone logging,
+ * failure marking with root cause exceptions, and offline report reconstruction via {@link LogAnalyzer}.
+ */
 public class FlowTracingTest {
 
     private static CampXLogger logger;
 
+    /**
+     * Initializes test logger instance and configures DEBUG severity threshold.
+     */
     @BeforeClass
     public static void setup() {
         CampXLoggerFactory.setRootLevel(LogLevel.DEBUG);
         logger = CampXLoggerFactory.getLogger(FlowTracingTest.class);
     }
 
+    /**
+     * Verifies end-to-end execution flow tracing, milestone recording, and offline analysis report generation.
+     *
+     * @throws Exception if file or analysis operations fail
+     */
     @Test
     public void testFlowTracingAndAnalysis() throws Exception {
         String customFlowId = "FLOW-ENROLLMENT-" + System.currentTimeMillis();
@@ -61,6 +75,11 @@ public class FlowTracingTest {
         assertTrue("Report should mention AllocateCourseSeat", report.contains("AllocateCourseSeat"));
     }
 
+    /**
+     * Verifies that flows marked as failed capture root cause exceptions and register in error counts.
+     *
+     * @throws Exception if log reading fails
+     */
     @Test
     public void testFailedFlowTracing() throws Exception {
         String failedFlowId = "FLOW-EXAM-FAIL-" + System.currentTimeMillis();

@@ -16,8 +16,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Central singleton managing logger lifecycle, configuration, appender dispatching,
- * and optional embedded HTTP management API.
+ * Central singleton managing logger lifecycle, configuration bootstrap, appender dispatching,
+ * and optional embedded HTTP management API server.
+ * <p>
+ * Implements double-checked locking for thread-safe singleton initialization.
+ * Automatically attaches a JVM shutdown hook to guarantee that buffered logs are flushed
+ * and file appenders cleanly closed upon service termination.
+ *
+ * @see LoggerConfig
+ * @see AsyncLogProcessor
+ * @see LoggerApiServer
  */
 public class LogManager {
 
@@ -38,6 +46,11 @@ public class LogManager {
         registerShutdownHook();
     }
 
+    /**
+     * Returns the global singleton instance of the log manager.
+     *
+     * @return active {@link LogManager} instance
+     */
     public static LogManager getInstance() {
         if (instance == null) {
             synchronized (LOCK) {
@@ -49,6 +62,9 @@ public class LogManager {
         return instance;
     }
 
+    /**
+     * Builds and registers console, rolling file, and JSON file appenders according to active configuration.
+     */
     private void configureAppenders() {
         if (config.isConsoleEnabled()) {
             PatternFormatter consoleFormatter = new PatternFormatter(config.isColorEnabled(), config.isMaskSecurityData());
@@ -79,6 +95,9 @@ public class LogManager {
         }
     }
 
+    /**
+     * Starts the embedded management HTTP API server if enabled in configuration.
+     */
     private void startApiServerIfEnabled() {
         if (config.isApiServerEnabled()) {
             try {
@@ -91,17 +110,31 @@ public class LogManager {
         }
     }
 
+    /**
+     * Registers a JVM shutdown hook to trigger graceful logging shutdown and buffer flushing.
+     */
     private void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             shutdown();
         }, "CampX-LogShutdownHook"));
     }
 
+    /**
+     * Retrieves or creates a named {@link LoggerImpl} instance.
+     *
+     * @param name category or class name
+     * @return logger instance
+     */
     public LoggerImpl getLogger(String name) {
         String loggerName = (name != null && !name.trim().isEmpty()) ? name : "ROOT";
         return loggers.computeIfAbsent(loggerName, LoggerImpl::new);
     }
 
+    /**
+     * Dispatches an event to the asynchronous processor queue or directly to appenders if async is disabled.
+     *
+     * @param event log event to dispatch
+     */
     public void dispatch(LogEvent event) {
         if (config.isAsyncEnabled()) {
             asyncProcessor.enqueue(event);
@@ -112,17 +145,31 @@ public class LogManager {
         }
     }
 
+    /**
+     * Dynamically updates the global root logging severity threshold.
+     *
+     * @param level new root severity level
+     */
     public void setRootLevel(LogLevel level) {
         if (level != null) {
             this.config.setRootLevel(level);
         }
     }
 
+    /**
+     * Dynamically updates the logging threshold for a specific named logger category.
+     *
+     * @param name  logger category name
+     * @param level new severity level
+     */
     public void setLoggerLevel(String name, LogLevel level) {
         LoggerImpl logger = getLogger(name);
         logger.setLevel(level);
     }
 
+    /**
+     * Triggers manual archive rotation on all active rolling file appenders.
+     */
     public void rotateAppenders() {
         for (LogAppender appender : asyncProcessor.getAppenders()) {
             if (appender instanceof RollingFileAppender) {
@@ -131,10 +178,16 @@ public class LogManager {
         }
     }
 
+    /**
+     * Flushes all internal async queues and appender write buffers.
+     */
     public void flush() {
         asyncProcessor.flush();
     }
 
+    /**
+     * Gracefully stops the embedded API server, flushes queues, and terminates appenders.
+     */
     public void shutdown() {
         if (apiServer != null) {
             apiServer.stop();
@@ -142,14 +195,29 @@ public class LogManager {
         asyncProcessor.shutdown();
     }
 
+    /**
+     * Returns the active logger configuration object.
+     *
+     * @return active {@link LoggerConfig}
+     */
     public LoggerConfig getConfig() {
         return config;
     }
 
+    /**
+     * Returns the underlying asynchronous processor instance.
+     *
+     * @return {@link AsyncLogProcessor}
+     */
     public AsyncLogProcessor getAsyncProcessor() {
         return asyncProcessor;
     }
 
+    /**
+     * Returns the embedded management HTTP API server instance, or {@code null} if not enabled.
+     *
+     * @return active {@link LoggerApiServer} or {@code null}
+     */
     public LoggerApiServer getApiServer() {
         return apiServer;
     }

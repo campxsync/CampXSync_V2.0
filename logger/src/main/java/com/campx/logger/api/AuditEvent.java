@@ -6,18 +6,47 @@ import java.util.Map;
 
 /**
  * Specialized model for security and compliance audit logging in CampXSync ERP.
- * Captures user actions, target resources, client IPs, and status.
+ * <p>
+ * Captures user actions, principal identity, security roles, target resources,
+ * client network IP addresses, outcome status (SUCCESS, FAILURE, ATTEMPT),
+ * human-readable descriptions, and extensible metadata maps. Can be transformed
+ * into a standard {@link LogEvent} for asynchronous pipeline processing.
+ * </p>
+ *
+ * @author CampX Platform Engineering Team
+ * @version 2.0.0
+ * @since 2.0.0
  */
 public class AuditEvent {
+
+    /** Action or operation identifier (e.g. "TENANT_PROVISIONED", "ROLE_ASSIGNED"). */
     private final String action;
+
+    /** Unique identifier of the acting subject (user, service, or API key). */
     private final String principalId;
+
+    /** Security role of the acting subject (e.g. "SUPER_ADMIN", "DEAN"). */
     private final String principalRole;
+
+    /** Category of the entity being acted upon (e.g. "INSTITUTE", "DOCUMENT"). */
     private final String resourceType;
+
+    /** Unique identity of the entity being acted upon. */
     private final String resourceId;
+
+    /** Originating network IP address of the caller. */
     private final String clientIp;
-    private final String status; // SUCCESS, FAILURE, ATTEMPT
+
+    /** Outcome of the audited action: "SUCCESS", "FAILURE", or "ATTEMPT". */
+    private final String status;
+
+    /** Human-readable explanation of the action. */
     private final String description;
+
+    /** Extensible metadata key-value pairs for contextual audit detail. */
     private final Map<String, String> metadata;
+
+    /** Timestamp in milliseconds since epoch. */
     private final long timestamp;
 
     private AuditEvent(Builder builder) {
@@ -33,17 +62,43 @@ public class AuditEvent {
         this.timestamp = builder.timestamp > 0 ? builder.timestamp : System.currentTimeMillis();
     }
 
+    /** @return Action name. */
     public String getAction() { return action; }
+
+    /** @return Principal identity. */
     public String getPrincipalId() { return principalId; }
+
+    /** @return Principal security role. */
     public String getPrincipalRole() { return principalRole; }
+
+    /** @return Type of resource targeted. */
     public String getResourceType() { return resourceType; }
+
+    /** @return ID of resource targeted. */
     public String getResourceId() { return resourceId; }
+
+    /** @return Caller IP address. */
     public String getClientIp() { return clientIp; }
+
+    /** @return Audit execution status (SUCCESS, FAILURE, ATTEMPT). */
     public String getStatus() { return status; }
+
+    /** @return Descriptive summary. */
     public String getDescription() { return description; }
+
+    /** @return Unmodifiable map of audit metadata. */
     public Map<String, String> getMetadata() { return metadata; }
+
+    /** @return Event timestamp in milliseconds since epoch. */
     public long getTimestamp() { return timestamp; }
 
+    /**
+     * Converts this structured AuditEvent into a standard {@link LogEvent}
+     * with {@link LogLevel#AUDIT} severity for appender emission.
+     *
+     * @param loggerName The category or logger name to assign.
+     * @return Fully populated LogEvent.
+     */
     public LogEvent toLogEvent(String loggerName) {
         Map<String, String> ctx = new HashMap<>(metadata);
         ctx.put("audit.action", action);

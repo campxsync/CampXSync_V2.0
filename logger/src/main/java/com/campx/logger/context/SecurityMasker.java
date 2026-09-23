@@ -6,8 +6,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Enterprise PII and sensitive data masking utility for CampXSync College ERP.
- * Sanitizes student credentials, authentication tokens, payment details, and national IDs.
+ * Enterprise PII (Personally Identifiable Information) and sensitive credential masking utility.
+ * <p>
+ * Sanitizes sensitive telemetry data before writing to logs, disk archives, or external aggregators:
+ * <ul>
+ *   <li>HTTP Bearer and OAuth authorization tokens</li>
+ *   <li>Raw user passwords and password configuration hashes</li>
+ *   <li>API keys, secrets, and shared signing tokens</li>
+ *   <li>16-digit credit/debit card PANs (while preserving 13-digit epoch millisecond timestamps)</li>
+ *   <li>12-digit national identification numbers (e.g. Aadhaar), masking leading 8 digits</li>
+ * </ul>
  */
 public final class SecurityMasker {
 
@@ -54,7 +62,10 @@ public final class SecurityMasker {
     private SecurityMasker() {}
 
     /**
-     * Masks sensitive patterns in the input message.
+     * Sanitizes sensitive data patterns in the given message string using predefined regex filters.
+     *
+     * @param input the raw string message
+     * @return sanitized string with credentials and sensitive identifiers redacted
      */
     public static String mask(String input) {
         if (input == null || input.isEmpty()) {
@@ -71,6 +82,9 @@ public final class SecurityMasker {
         return result;
     }
 
+    /**
+     * Internal rule container holding a compiled regular expression and replacement template.
+     */
     private static class PatternRule {
         final Pattern pattern;
         final String replacement;

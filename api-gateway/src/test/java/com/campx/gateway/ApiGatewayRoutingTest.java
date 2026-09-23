@@ -17,11 +17,24 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Test suite verifying API Gateway edge routing behaviors, health checks,
+ * route listing, and RFC 7807 error status mappings (404 and 503).
+ *
+ * @author CampX Platform Engineering Team
+ * @version 2.0.0
+ * @since 2.0.0
+ */
 public class ApiGatewayRoutingTest {
 
     private static GatewayServer gatewayServer;
     private static final int TEST_PORT = 8090;
 
+    /**
+     * Initializes and boots an embedded test instance of the API Gateway on port 8090.
+     *
+     * @throws Exception If initialization or port binding fails.
+     */
     @BeforeClass
     public static void setup() throws Exception {
         GatewayConfig config = new GatewayConfig();
@@ -31,6 +44,9 @@ public class ApiGatewayRoutingTest {
         gatewayServer.start();
     }
 
+    /**
+     * Shuts down the test API Gateway instance and flushes async log buffers.
+     */
     @AfterClass
     public static void teardown() {
         if (gatewayServer != null) {
@@ -39,6 +55,12 @@ public class ApiGatewayRoutingTest {
         CampXLoggerFactory.flush();
     }
 
+    /**
+     * Verifies that the gateway health check endpoint {@code /actuator/health}
+     * returns HTTP 200 UP and injects an {@code X-Trace-Id} correlation header.
+     *
+     * @throws Exception If HTTP exchange fails.
+     */
     @Test
     public void testHealthEndpoint() throws Exception {
         URL url = new URL("http://localhost:" + TEST_PORT + "/actuator/health");
@@ -56,6 +78,11 @@ public class ApiGatewayRoutingTest {
         assertTrue(resp.contains("\"status\":\"UP\""));
     }
 
+    /**
+     * Verifies that {@code /api/v1/gateway/routes} lists registered prefixes.
+     *
+     * @throws Exception If HTTP exchange fails.
+     */
     @Test
     public void testRoutesEndpoint() throws Exception {
         URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/gateway/routes");
@@ -71,6 +98,12 @@ public class ApiGatewayRoutingTest {
         assertTrue(resp.contains("/api/v1/college-admin"));
     }
 
+    /**
+     * Verifies that unmapped request paths return HTTP 404 with structured JSON
+     * error details and an injected correlation trace header.
+     *
+     * @throws Exception If HTTP exchange fails.
+     */
     @Test
     public void testRouteNotFound404() throws Exception {
         URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/unknown-endpoint/test");
@@ -90,6 +123,12 @@ public class ApiGatewayRoutingTest {
         assertTrue(resp.contains("\"error\":\"Not Found\""));
     }
 
+    /**
+     * Verifies that routes pointing to unreachable downstream microservices
+     * cleanly fail with HTTP 503 Service Unavailable and a valid trace identifier.
+     *
+     * @throws Exception If HTTP exchange fails.
+     */
     @Test
     public void testDownstreamServiceUnavailable503() throws Exception {
         URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/offline-service/test");

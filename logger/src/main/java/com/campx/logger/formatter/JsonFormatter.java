@@ -11,7 +11,13 @@ import java.util.TimeZone;
 
 /**
  * High-speed, zero-dependency JSON formatter producing structured JSON lines (JSONL).
- * Designed for downstream log aggregators (ELK, Loki, Splunk) and code flow analysis.
+ * <p>
+ * Designed for downstream log aggregators (ELK, Loki, Splunk) and execution flow observability.
+ * Serializes standard log attributes, MDC contextual maps, tags, performance durations,
+ * caller stack frames, and nested exception diagnostics with optional sensitive data masking.
+ *
+ * @see LogFormatter
+ * @see SecurityMasker
  */
 public class JsonFormatter implements LogFormatter {
 
@@ -22,14 +28,28 @@ public class JsonFormatter implements LogFormatter {
         return sdf;
     });
 
+    /**
+     * Initializes a JSON formatter with sensitive data masking enabled by default.
+     */
     public JsonFormatter() {
         this(true);
     }
 
+    /**
+     * Initializes a JSON formatter with explicit sensitive data masking policy.
+     *
+     * @param maskSecurityData {@code true} to mask passwords, tokens, API keys, and credit cards
+     */
     public JsonFormatter(boolean maskSecurityData) {
         this.maskSecurityData = maskSecurityData;
     }
 
+    /**
+     * Serializes the given {@link LogEvent} into a single-line valid JSON object string.
+     *
+     * @param event log event record to serialize
+     * @return newline-terminated JSON object string
+     */
     @Override
     public String format(LogEvent event) {
         StringBuilder sb = new StringBuilder(512);
@@ -114,6 +134,12 @@ public class JsonFormatter implements LogFormatter {
         return sb.toString();
     }
 
+    /**
+     * Escapes special characters according to RFC 8259 JSON string specifications.
+     *
+     * @param s raw input string
+     * @return JSON-escaped string
+     */
     private static String escape(String s) {
         if (s == null) {
             return "";

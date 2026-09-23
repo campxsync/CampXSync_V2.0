@@ -15,10 +15,23 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Integration test suite for the embedded {@link com.campx.logger.server.LoggerApiServer}.
+ * <p>
+ * Verifies live HTTP endpoints:
+ * <ul>
+ *   <li>Status check endpoint ({@code GET /api/v1/logger/status})</li>
+ *   <li>Runtime severity level modification ({@code POST /api/v1/logger/level})</li>
+ *   <li>Remote cross-service JSON log ingestion ({@code POST /api/v1/logs})</li>
+ * </ul>
+ */
 public class LoggerApiServerTest {
 
     private static int serverPort = 9898;
 
+    /**
+     * Bootstraps the singleton {@link LogManager} and queries the configured API server port.
+     */
     @BeforeClass
     public static void setup() {
         // Ensure LogManager and its API server are initialized
@@ -26,6 +39,11 @@ public class LoggerApiServerTest {
         serverPort = LogManager.getInstance().getConfig().getApiServerPort();
     }
 
+    /**
+     * Tests the status check endpoint, validating HTTP 200 response and JSON payload integrity.
+     *
+     * @throws Exception if network connection fails
+     */
     @Test
     public void testGetStatusEndpoint() throws Exception {
         URL url = new URL("http://localhost:" + serverPort + "/api/v1/logger/status");
@@ -42,6 +60,11 @@ public class LoggerApiServerTest {
         assertTrue(responseBody.contains("\"service\":\"CampXSync-Logger\""));
     }
 
+    /**
+     * Tests dynamic log level reconfiguration via HTTP POST and confirms internal configuration updates.
+     *
+     * @throws Exception if network connection fails
+     */
     @Test
     public void testUpdateLevelEndpoint() throws Exception {
         URL url = new URL("http://localhost:" + serverPort + "/api/v1/logger/level?level=WARN");
@@ -61,6 +84,11 @@ public class LoggerApiServerTest {
         LogManager.getInstance().setRootLevel(LogLevel.DEBUG);
     }
 
+    /**
+     * Tests the remote ingestion HTTP endpoint, confirming acceptance of external JSON-formatted events.
+     *
+     * @throws Exception if network connection fails
+     */
     @Test
     public void testLogIngestionEndpoint() throws Exception {
         URL url = new URL("http://localhost:" + serverPort + "/api/v1/logs");
@@ -88,6 +116,13 @@ public class LoggerApiServerTest {
         assertTrue(responseBody.contains("\"status\":\"ACCEPTED\""));
     }
 
+    /**
+     * Reads the entire response string from an active HTTP connection.
+     *
+     * @param conn active HTTP connection
+     * @return response payload string
+     * @throws Exception if reading fails
+     */
     private String readResponse(HttpURLConnection conn) throws Exception {
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {

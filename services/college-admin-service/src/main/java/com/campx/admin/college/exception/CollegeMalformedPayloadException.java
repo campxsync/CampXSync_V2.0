@@ -5,6 +5,11 @@ package com.campx.admin.college.exception;
  */
 public class CollegeMalformedPayloadException extends CollegeAdminException {
 
+    /**
+     * Constructs a new {@code CollegeMalformedPayloadException} with the specified validation error message.
+     *
+     * @param message the explanation of why the payload is malformed or invalid
+     */
     public CollegeMalformedPayloadException(String message) {
         super(400, "ADM02_MALFORMED_PAYLOAD", message);
     }
