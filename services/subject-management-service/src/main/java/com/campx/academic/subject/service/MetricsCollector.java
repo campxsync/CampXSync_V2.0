@@ -25,6 +25,7 @@ public class MetricsCollector {
     private final Map<String, AtomicLong> requestDurationsMs = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> errorTotals = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> validationFailures = new ConcurrentHashMap<>();
+    private final AtomicLong idempotencyHits = new AtomicLong(0);
 
     public MetricsCollector() {}
 
@@ -49,6 +50,13 @@ public class MetricsCollector {
         if (errorCode != null && !errorCode.isEmpty()) {
             errorTotals.computeIfAbsent(errorCode, k -> new AtomicLong(0)).incrementAndGet();
         }
+    }
+
+    /**
+     * Records an idempotency cache hit.
+     */
+    public void recordIdempotencyHit() {
+        idempotencyHits.incrementAndGet();
     }
 
     /**

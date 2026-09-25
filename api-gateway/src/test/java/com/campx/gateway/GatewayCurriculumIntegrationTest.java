@@ -41,6 +41,7 @@ public class GatewayCurriculumIntegrationTest {
         // 2. Start Gateway on port 8095 configured to proxy to curriculumServer
         GatewayConfig config = new GatewayConfig();
         config.setPort(GW_PORT);
+        config.addRoute("/api/v1/curricula/metrics", "http://localhost:" + CURR_PORT + "/metrics");
         config.addRoute("/api/v1/curricula", "http://localhost:" + CURR_PORT + "/api/v1/curricula");
         config.addRoute("/api/v1/academics/curricula", "http://localhost:" + CURR_PORT + "/api/v1/academics/curricula");
         config.addRoute("/v1/curricula", "http://localhost:" + CURR_PORT + "/api/v1/curricula");
@@ -136,6 +137,17 @@ public class GatewayCurriculumIntegrationTest {
 
         String resp = readResponse(conn);
         assertTrue(resp.contains("\"errorCode\":\"ACD2_FORBIDDEN\""));
+    }
+
+    @Test
+    public void testRouteCurriculumMetricsViaGateway() throws Exception {
+        URL url = new URL("http://localhost:" + GW_PORT + "/api/v1/curricula/metrics");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+
+        assertEquals(200, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("acd02_request_total"));
     }
 
     private String readResponse(HttpURLConnection conn) throws Exception {

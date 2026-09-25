@@ -103,3 +103,54 @@ mvn clean test -pl services/subject-management-service
 mvn exec:java -pl services/subject-management-service -Dexec.mainClass="com.campx.academic.subject.SubjectManagementApplication"
 ```
 The server will bind to port `8085` (or a custom port passed as argument).
+
+---
+
+## 7. MongoDB Collections & Schema Registry
+
+The Subject Management Service operates with **9 collections** under the `ACD03__` physical prefix in the consolidated enterprise database (`CampXSync`), or directly in a standalone database (`campx_subject`).
+
+| # | Logical Collection | Physical Collection (`CampXSync`) | Purpose |
+|---|---|---|---|
+| 1 | `subjects` | `ACD03__subjects` | Aggregate Root: Core identity, code uniqueness, department linkage, credits, taxonomy |
+| 2 | `subject_versions` | `ACD03__subject_versions` | Monotonic immutable definitions, syllabus units, OBE outcomes, CO-PO matrix |
+| 3 | `subject_metadata` | `ACD03__subject_metadata` | Extended catalog metadata, national IDs (ABC, AICTE, NPTEL), bibliographies |
+| 4 | `subject_prerequisites` | `ACD03__subject_prerequisites` | Directed Acyclic Graph (DAG) edges: prerequisites, co-requisites, recommendations |
+| 5 | `subject_equivalences` | `ACD03__subject_equivalences` | Credit transfers, lateral entry mappings, NEP 2020 course equivalences |
+| 6 | `subject_history` | `ACD03__subject_history` | Full temporal audit log of subject changes and version transitions |
+| 7 | `outbox_events` | `ACD03__outbox_events` | Transactional outbox table for reliable asynchronous domain event publishing |
+| 8 | `idempotency_records` | `ACD03__idempotency_records` | API mutation deduplication cache with 24h TTL index |
+| 9 | `dead_letter_events` | `ACD03__dead_letter_events` | Quarantine queue for failed outbox relays and error diagnostics |
+
+### Applying Database Schemas & Indexes
+
+- **Consolidated Enterprise Database**:
+  Run [CampXSync_MongoDB_Compass_Setup_FINAL.js](file:///d:/CampXSync/CampXSync_V2.0/database/mongodb/CampXSync_MongoDB_Compass_Setup_FINAL.js) in MongoDB Compass Shell or `mongosh`:
+  ```powershell
+  mongosh "mongodb://localhost:27017" database/mongodb/CampXSync_MongoDB_Compass_Setup_FINAL.js
+  ```
+
+- **Standalone Service Database**:
+  Run [mongodb_indexes.js](file:///d:/CampXSync/CampXSync_V2.0/services/subject-management-service/mongodb_indexes.js):
+  ```powershell
+  mongosh "mongodb://localhost:27017/campx_subject" services/subject-management-service/mongodb_indexes.js
+  ```
+
+---
+
+## 8. Implemented User Stories (Candidate 10 Features)
+
+| Story # | Capability | Area | HTTP Endpoint | Key Model / Validation |
+|---|---|---|---|---|
+| **Story 1** | Course Outcomes (CO) Definition | OBE / NBA / NAAC | `PUT/GET /api/v1/academics/subjects/{id}/versions/{v}/course-outcomes` | `CourseOutcome` (Bloom Levels K1–K6, target attainment 0–100%, immutable once published) |
+| **Story 2** | CO-to-PO Articulation Matrix | OBE / Accreditation | `PUT/GET /api/v1/academics/subjects/{id}/versions/{v}/co-po-matrix` | `CoPoMapping` (Correlation strengths: 1=Slight, 2=Moderate, 3=Substantial) |
+| **Story 3** | Subject Equivalence & Credit Transfer | NEP 2020 / Multi-Disciplinary | `POST/GET /api/v1/academics/subjects/{id}/equivalences`<br>`DELETE /.../equivalences/{eid}` | `SubjectEquivalence` (`DIRECT_SUBSTITUTION`, `LATERAL_ENTRY`, `SWAYAM_NPTEL_TRANSFER`, multiplier > 0) |
+| **Story 4** | National Academic Registries | ABC / APAAR / AICTE / NPTEL | `PUT/GET /api/v1/academics/subjects/{id}/metadata` | `NationalIdentifier` (`ABC_COURSE_ID`, `AICTE_MODEL_CURRICULUM_ID`, `SWAYAM_NPTEL_ID`) |
+| **Story 5** | Modular Syllabus Units | Instructional Planning | `PUT/GET /api/v1/academics/subjects/{id}/versions/{v}/syllabus-units` | `SyllabusUnit` (`unitNumber`, `title`, `topics`, `hours`, immutable once published) |
+| **Story 6** | Bibliography & Prescribed Textbooks | Learning Resources | `PUT/GET /api/v1/academics/subjects/{id}/metadata` | `BibliographyItem` (`title`, `authors`, `isbn`, `edition`, `isTextbook` flag) |
+| **Story 7** | Multi-Department Cross-Listing | Inter-Disciplinary Offerings | `POST/PUT /api/v1/academics/subjects`<br>`GET /api/v1/academics/subjects/search?departmentId={d}` | `crossListedDepartmentIds` (Active dept validation; cross-listing searches match primary or cross depts) |
+| **Story 8** | Multi-Campus Delivery Rules | Multi-Campus Operations | `PUT/GET /api/v1/academics/subjects/{id}/metadata` | `CampusDeliveryRule` (`campusId`, `deliveryMode`, `labFacilityRequired`, `maxBatchSize`) |
+| **Story 9** | Board of Studies (BoS) Governance | Statutory Compliance | `PUT/GET /api/v1/academics/subjects/{id}/versions/{v}/resolution` | `ApprovalResolution` (`resolutionNumber`, `approvedByBoard`, `meetingDate`, `minutesUrl`, `gazetteNotificationNumber`) |
+| **Story 10** | Visual Side-by-Side Version Diff | Audit & Curriculum Review | `GET /api/v1/academics/subjects/{id}/versions/diff?v1={v1}&v2={v2}` | `VersionDiffResult` (Deep field comparison across credits, hours, taxonomy, COs, matrix, syllabus, BoS resolution) |
+
+

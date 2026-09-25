@@ -492,6 +492,27 @@ public class CollegeAdminController implements HttpHandler {
                 return;
             }
 
+            // 24.1 Batch Split/Merge Approvals & Workflows (User Story Lines 39–41)
+            if (path.equals("/api/v1/college-admin/workflows/batch-approvals/events") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleProcessBatchApprovalEvent");
+                handleProcessBatchApprovalEvent(exchange);
+                return;
+            } else if (path.equals("/api/v1/college-admin/workflows/batch-approvals") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleListBatchApprovals");
+                handleListBatchApprovals(exchange);
+                return;
+            } else if (path.startsWith("/api/v1/college-admin/workflows/batch-approvals/") && path.endsWith("/decide") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleDecideBatchApproval");
+                String reqId = path.substring("/api/v1/college-admin/workflows/batch-approvals/".length(), path.length() - "/decide".length());
+                handleDecideBatchApproval(exchange, reqId);
+                return;
+            } else if (path.startsWith("/api/v1/college-admin/workflows/batch-approvals/") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleGetBatchApproval");
+                String reqId = path.substring("/api/v1/college-admin/workflows/batch-approvals/".length());
+                handleGetBatchApproval(exchange, reqId);
+                return;
+            }
+
             // 24. College Workflows Endpoint (CSV Line 32)
             if (path.equals("/api/v1/college-admin/workflows")) {
                 if ("POST".equalsIgnoreCase(method)) {
@@ -551,6 +572,10 @@ public class CollegeAdminController implements HttpHandler {
             flow.markFailed(e);
             logger.error("[CollegeAdminService] Internal server error [{} {}]: {}", method, path, e.getMessage(), e);
             sendError(exchange, 500, "Internal Server Error", "ADM02_INTERNAL_SERVER_ERROR", "An unexpected server error occurred: " + escape(e.getMessage()), path);
+        } catch (Throwable t) {
+            flow.markFailed(t);
+            logger.error("[CollegeAdminService] Critical error [{} {}]: {}", method, path, t.getMessage(), t);
+            sendError(exchange, 500, "Internal Server Error", "ADM02_INTERNAL_SERVER_ERROR", "A critical server error occurred: " + escape(t.getMessage()), path);
         } finally {
             if (flow != null) {
                 flow.close();
@@ -842,7 +867,15 @@ public class CollegeAdminController implements HttpHandler {
         role.setProtectedSystemRole("true".equalsIgnoreCase(extract(body, "protectedSystemRole", "false")));
         String permsStr = extract(body, "permissions", null);
         if (permsStr != null && !permsStr.isEmpty()) {
-            role.setPermissions(java.util.Arrays.asList(permsStr.split(",")));
+            List<String> perms = new ArrayList<>();
+            String clean = permsStr.replaceAll("^\\[|\\]$", "");
+            for (String p : clean.split(",")) {
+                String trimmed = p.replace("\"", "").trim();
+                if (!trimmed.isEmpty()) {
+                    perms.add(trimmed);
+                }
+            }
+            role.setPermissions(perms);
         }
 
         CollegeRole created = domainService.createCollegeRole(role);
@@ -994,6 +1027,14 @@ public class CollegeAdminController implements HttpHandler {
         String sourceService = extract(body, "sourceService", "ACD-07");
         String consumerGroup = extract(body, "consumerGroup", "ADM-02");
         String payload = extract(body, "payload", "{}");
+
+        // User Story 40 & 41: Cross-module ACD-04 batch approval event ingestion
+        if (body.contains("BatchSplitApprovalRequested") || body.contains("BatchMergeApprovalRequested") || "ACD-04".equalsIgnoreCase(sourceService)) {
+            BatchApprovalDetails d = domainService.processBatchApprovalEvent(body);
+            sendJson(exchange, 200, "{\"id\":\"" + d.getRequestId() + "\",\"eventId\":\"" + eventId
+                    + "\",\"status\":\"" + d.getStatus() + "\",\"workflowInstanceId\":\"" + d.getWorkflowInstanceId() + "\"}");
+            return;
+        }
 
         InboxEvent processed = domainService.processInboxEvent(eventId, sourceService, consumerGroup, payload);
         sendJson(exchange, 200, "{\"id\":\"" + processed.getId() + "\",\"eventId\":\"" + processed.getEventId()
@@ -1289,6 +1330,11 @@ public class CollegeAdminController implements HttpHandler {
     }
 
     private void handleDecideApprovalRequest(HttpExchange exchange, String reqId) throws IOException {
+        if (domainService.getBatchApprovals().containsKey(reqId)) {
+            handleDecideBatchApproval(exchange, reqId);
+            return;
+        }
+
         String body = readBody(exchange);
         String approverId = extract(body, "approverId", "PRINCIPAL");
         String decision = extract(body, "decision", "APPROVE");
@@ -1348,6 +1394,100 @@ public class CollegeAdminController implements HttpHandler {
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
+    }
+
+    // =========================================================================
+    // User Stories 40 & 41: Cross-Module Batch Split/Merge Handlers
+    // =========================================================================
+
+    private void handleProcessBatchApprovalEvent(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        BatchApprovalDetails details = domainService.processBatchApprovalEvent(body);
+        int statusCode = "DUPLICATE_IGNORED".equals(details.getStatus()) ? 200 : 201;
+        String resp = "{"
+                + "\"status\":\"" + details.getStatus() + "\","
+                + "\"requestId\":\"" + details.getRequestId() + "\","
+                + "\"requestType\":\"" + details.getRequestType() + "\","
+                + "\"workflowInstanceId\":\"" + (details.getWorkflowInstanceId() != null ? details.getWorkflowInstanceId() : "") + "\","
+                + "\"approverRole\":\"" + details.getApproverRole() + "\""
+                + "}";
+        sendJson(exchange, statusCode, resp);
+    }
+
+    private void handleDecideBatchApproval(HttpExchange exchange, String reqId) throws IOException {
+        String body = readBody(exchange);
+        String decision = extract(body, "decision", "APPROVED");
+        String decidedBy = extract(body, "decidedBy", LogContext.getUserId());
+        String reason = extract(body, "reason", "Approved by Registrar");
+
+        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        if (userRole == null || userRole.trim().isEmpty()) {
+            userRole = LogContext.getUserRole();
+        }
+
+        BatchApprovalDetails decided = domainService.decideBatchApproval(reqId, decision, decidedBy, userRole, reason);
+        String resp = "{"
+                + "\"status\":\"" + decided.getStatus() + "\","
+                + "\"requestId\":\"" + decided.getRequestId() + "\","
+                + "\"decision\":\"" + decided.getDecision() + "\","
+                + "\"decidedBy\":\"" + escape(decided.getDecidedBy()) + "\","
+                + "\"decidedAt\":" + decided.getDecidedAt() + ","
+                + "\"reason\":\"" + escape(decided.getDecisionReason()) + "\","
+                + "\"auditRecordId\":\"" + (decided.getAuditRecordId() != null ? decided.getAuditRecordId() : "") + "\","
+                + "\"beforeHash\":\"" + (decided.getBeforeHash() != null ? decided.getBeforeHash() : "") + "\","
+                + "\"afterHash\":\"" + (decided.getAfterHash() != null ? decided.getAfterHash() : "") + "\""
+                + "}";
+        sendJson(exchange, 200, resp);
+    }
+
+    private void handleGetBatchApproval(HttpExchange exchange, String reqId) throws IOException {
+        BatchApprovalDetails d = domainService.getBatchApproval(reqId);
+        String resp = "{"
+                + "\"requestId\":\"" + d.getRequestId() + "\","
+                + "\"requestType\":\"" + d.getRequestType() + "\","
+                + "\"status\":\"" + d.getStatus() + "\","
+                + "\"decision\":\"" + (d.getDecision() != null ? d.getDecision() : "") + "\","
+                + "\"sourceBatchId\":\"" + (d.getSourceBatchId() != null ? d.getSourceBatchId() : "") + "\","
+                + "\"sourceBatchCode\":\"" + (d.getSourceBatchCode() != null ? d.getSourceBatchCode() : "") + "\","
+                + "\"sourceBatchIds\":" + toJsonStringList(d.getSourceBatchIds()) + ","
+                + "\"sourceBatchDepartmentIds\":" + toJsonStringList(d.getSourceBatchDepartmentIds()) + ","
+                + "\"targetBatchId\":\"" + (d.getTargetBatchId() != null ? d.getTargetBatchId() : "") + "\","
+                + "\"departmentId\":\"" + (d.getDepartmentId() != null ? d.getDepartmentId() : "") + "\","
+                + "\"campusId\":\"" + (d.getCampusId() != null ? d.getCampusId() : "") + "\","
+                + "\"requestedBy\":\"" + escape(d.getRequestedBy()) + "\","
+                + "\"requestedAt\":" + d.getRequestedAt() + ","
+                + "\"reason\":\"" + escape(d.getReason()) + "\","
+                + "\"approverRole\":\"" + d.getApproverRole() + "\","
+                + "\"workflowInstanceId\":\"" + (d.getWorkflowInstanceId() != null ? d.getWorkflowInstanceId() : "") + "\""
+                + "}";
+        sendJson(exchange, 200, resp);
+    }
+
+    private void handleListBatchApprovals(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String status = getQueryParam(query, "status");
+        List<BatchApprovalDetails> list = domainService.listBatchApprovals(status);
+        StringBuilder sb = new StringBuilder("{\"batchApprovals\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            BatchApprovalDetails d = list.get(i);
+            sb.append("{\"requestId\":\"").append(d.getRequestId()).append("\",\"requestType\":\"").append(d.getRequestType())
+              .append("\",\"sourceBatchId\":\"").append(d.getSourceBatchId() != null ? d.getSourceBatchId() : "")
+              .append("\",\"status\":\"").append(d.getStatus()).append("\",\"approverRole\":\"").append(d.getApproverRole()).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private String toJsonStringList(List<String> list) {
+        if (list == null || list.isEmpty()) return "[]";
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(escape(list.get(i))).append("\"");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     private String getQueryParam(String query, String key) {

@@ -154,32 +154,40 @@ public class ReverseProxyHandler implements HttpHandler {
      * @return The complete downstream URL string, or {@code null} if no prefix matched.
      */
     private String resolveDestinationUrl(String path, String query) {
+        Map.Entry<String, String> bestMatch = null;
         for (Map.Entry<String, String> entry : config.getRouteTable().entrySet()) {
             String prefix = entry.getKey();
             if (path.startsWith(prefix)) {
-                String target = entry.getValue();
-                String destination;
-                try {
-                    URL targetUrl = new URL(target);
-                    String targetPath = targetUrl.getPath();
-                    if (targetPath == null || targetPath.isEmpty() || "/".equals(targetPath)) {
-                        // Target is base host (e.g., http://localhost:8081) - preserve full request path
-                        String cleanTarget = target.replaceAll("/+$", "");
-                        destination = cleanTarget + (path.startsWith("/") ? path : "/" + path);
-                    } else {
-                        // Target has explicit destination path - append remaining relative path
-                        String remaining = path.substring(prefix.length());
-                        String cleanTarget = target.replaceAll("/+$", "");
-                        destination = cleanTarget + (remaining.startsWith("/") ? remaining : (remaining.isEmpty() ? "" : "/" + remaining));
-                    }
-                } catch (Exception e) {
-                    String remaining = path.substring(prefix.length());
-                    destination = target + remaining;
+                if (bestMatch == null || prefix.length() > bestMatch.getKey().length()) {
+                    bestMatch = entry;
                 }
-                return destination + (query != null ? "?" + query : "");
             }
         }
-        return null;
+        if (bestMatch == null) {
+            return null;
+        }
+
+        String prefix = bestMatch.getKey();
+        String target = bestMatch.getValue();
+        String destination;
+        try {
+            URL targetUrl = new URL(target);
+            String targetPath = targetUrl.getPath();
+            if (targetPath == null || targetPath.isEmpty() || "/".equals(targetPath)) {
+                // Target is base host (e.g., http://localhost:8081) - preserve full request path
+                String cleanTarget = target.replaceAll("/+$", "");
+                destination = cleanTarget + (path.startsWith("/") ? path : "/" + path);
+            } else {
+                // Target has explicit destination path - append remaining relative path
+                String remaining = path.substring(prefix.length());
+                String cleanTarget = target.replaceAll("/+$", "");
+                destination = cleanTarget + (remaining.startsWith("/") ? remaining : (remaining.isEmpty() ? "" : "/" + remaining));
+            }
+        } catch (Exception e) {
+            String remaining = path.substring(prefix.length());
+            destination = target + remaining;
+        }
+        return destination + (query != null ? "?" + query : "");
     }
 
     /**
@@ -207,6 +215,20 @@ public class ReverseProxyHandler implements HttpHandler {
                     conn.addRequestProperty(name, val);
                 }
             }
+        }
+
+        // Propagate trace identifier if not already explicitly present in incoming headers
+        String traceId = LogContext.getTraceId();
+        if (traceId != null && !traceId.isEmpty() && conn.getRequestProperty(CorrelationFilter.HEADER_TRACE_ID) == null) {
+            conn.setRequestProperty(CorrelationFilter.HEADER_TRACE_ID, traceId);
+        }
+
+        // Forward caller IP address via X-Forwarded-For
+        if (conn.getRequestProperty("X-Forwarded-For") == null && clientExchange.getRemoteAddress() != null) {
+            String remoteAddr = clientExchange.getRemoteAddress().getAddress() != null
+                    ? clientExchange.getRemoteAddress().getAddress().getHostAddress()
+                    : clientExchange.getRemoteAddress().getHostString();
+            conn.setRequestProperty("X-Forwarded-For", remoteAddr);
         }
 
         // Forward body if present
@@ -246,8 +268,12 @@ public class ReverseProxyHandler implements HttpHandler {
         for (Map.Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
             String name = header.getKey();
             if (name != null && !"Transfer-Encoding".equalsIgnoreCase(name) && !"Content-Length".equalsIgnoreCase(name)) {
-                for (String val : header.getValue()) {
-                    outgoingHeaders.add(name, val);
+                if (CorrelationFilter.HEADER_TRACE_ID.equalsIgnoreCase(name)) {
+                    outgoingHeaders.set(CorrelationFilter.HEADER_TRACE_ID, traceId != null ? traceId : header.getValue().get(0));
+                } else {
+                    for (String val : header.getValue()) {
+                        outgoingHeaders.add(name, val);
+                    }
                 }
             }
         }

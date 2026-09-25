@@ -337,6 +337,207 @@ paths:
         '200':
           description: Audit history log
 
+  /api/v1/academics/subjects/{id}/versions/{v}/course-outcomes:
+    put:
+      summary: Define Course Outcomes (CO) with Bloom's Taxonomy levels (Story 1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Course outcomes updated
+    get:
+      summary: Retrieve Course Outcomes for version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of course outcomes
+
+  /api/v1/academics/subjects/{id}/versions/{v}/co-po-matrix:
+    put:
+      summary: Maintain CO-to-PO Articulation Matrix (Story 2)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: CO-PO Matrix updated
+    get:
+      summary: Retrieve CO-to-PO Articulation Matrix
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Articulation matrix mappings
+
+  /api/v1/academics/subjects/{id}/versions/{v}/syllabus-units:
+    put:
+      summary: Define modular syllabus units and instructional hours (Story 5)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Syllabus units updated
+    get:
+      summary: Retrieve modular syllabus units
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of modular syllabus units
+
+  /api/v1/academics/subjects/{id}/versions/{v}/resolution:
+    put:
+      summary: Record Board of Studies (BoS) governance resolution (Story 9)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: BoS resolution updated
+    get:
+      summary: Retrieve BoS resolution metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: BoS approval resolution details
+
+  /api/v1/academics/subjects/{id}/versions/diff:
+    get:
+      summary: Side-by-side visual version diff comparison (Story 10)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v1
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: v2
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Side-by-side version field diff comparison
+
+  /api/v1/academics/subjects/{id}/equivalences:
+    post:
+      summary: Register NEP Subject Equivalence & Credit Transfer rule (Story 3)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Equivalence rule created
+    get:
+      summary: Retrieve subject equivalence rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of subject equivalence rules
+
+  /api/v1/academics/subjects/{id}/equivalences/{equivalenceId}:
+    delete:
+      summary: Revoke subject equivalence rule (Story 3)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: equivalenceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Equivalence rule revoked
+
   /api/v1/subjects/import:
     post:
       summary: Bulk import subjects

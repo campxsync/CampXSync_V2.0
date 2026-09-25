@@ -94,6 +94,7 @@ public final class SubjectModels {
         private String createdBy;
         private String updatedBy;
         private long version; // Optimistic concurrency lock
+        private List<String> crossListedDepartmentIds = new ArrayList<>();
 
         public Subject() {}
 
@@ -153,6 +154,10 @@ public final class SubjectModels {
         public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
         public long getVersion() { return version; }
         public void setVersion(long version) { this.version = version; }
+        public List<String> getCrossListedDepartmentIds() { return crossListedDepartmentIds; }
+        public void setCrossListedDepartmentIds(List<String> crossListedDepartmentIds) {
+            this.crossListedDepartmentIds = crossListedDepartmentIds != null ? crossListedDepartmentIds : new ArrayList<>();
+        }
 
         /**
          * Clones subject data for safe snapshot storage.
@@ -187,6 +192,7 @@ public final class SubjectModels {
             s.createdBy = this.createdBy;
             s.updatedBy = this.updatedBy;
             s.version = this.version;
+            s.crossListedDepartmentIds = new ArrayList<>(this.crossListedDepartmentIds);
             return s;
         }
     }
@@ -268,6 +274,28 @@ public final class SubjectModels {
         public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
         public String getUpdatedBy() { return updatedBy; }
         public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+
+        private List<CourseOutcome> courseOutcomes = new ArrayList<>();
+        private List<CoPoMapping> coPoMatrix = new ArrayList<>();
+        private List<SyllabusUnit> syllabusUnits = new ArrayList<>();
+        private ApprovalResolution approvalResolution;
+
+        public List<CourseOutcome> getCourseOutcomes() { return courseOutcomes; }
+        public void setCourseOutcomes(List<CourseOutcome> courseOutcomes) {
+            this.courseOutcomes = courseOutcomes != null ? courseOutcomes : new ArrayList<>();
+        }
+        public List<CoPoMapping> getCoPoMatrix() { return coPoMatrix; }
+        public void setCoPoMatrix(List<CoPoMapping> coPoMatrix) {
+            this.coPoMatrix = coPoMatrix != null ? coPoMatrix : new ArrayList<>();
+        }
+        public List<SyllabusUnit> getSyllabusUnits() { return syllabusUnits; }
+        public void setSyllabusUnits(List<SyllabusUnit> syllabusUnits) {
+            this.syllabusUnits = syllabusUnits != null ? syllabusUnits : new ArrayList<>();
+        }
+        public ApprovalResolution getApprovalResolution() { return approvalResolution; }
+        public void setApprovalResolution(ApprovalResolution approvalResolution) {
+            this.approvalResolution = approvalResolution;
+        }
     }
 
     // =========================================================================
@@ -330,6 +358,23 @@ public final class SubjectModels {
         public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
         public long getVersion() { return version; }
         public void setVersion(long version) { this.version = version; }
+
+        private List<NationalIdentifier> nationalIdentifiers = new ArrayList<>();
+        private List<BibliographyItem> bibliographies = new ArrayList<>();
+        private List<CampusDeliveryRule> campusDeliveryRules = new ArrayList<>();
+
+        public List<NationalIdentifier> getNationalIdentifiers() { return nationalIdentifiers; }
+        public void setNationalIdentifiers(List<NationalIdentifier> nationalIdentifiers) {
+            this.nationalIdentifiers = nationalIdentifiers != null ? nationalIdentifiers : new ArrayList<>();
+        }
+        public List<BibliographyItem> getBibliographies() { return bibliographies; }
+        public void setBibliographies(List<BibliographyItem> bibliographies) {
+            this.bibliographies = bibliographies != null ? bibliographies : new ArrayList<>();
+        }
+        public List<CampusDeliveryRule> getCampusDeliveryRules() { return campusDeliveryRules; }
+        public void setCampusDeliveryRules(List<CampusDeliveryRule> campusDeliveryRules) {
+            this.campusDeliveryRules = campusDeliveryRules != null ? campusDeliveryRules : new ArrayList<>();
+        }
     }
 
     // =========================================================================
@@ -700,5 +745,313 @@ public final class SubjectModels {
             public String getMessage() { return message; }
             public void setMessage(String message) { this.message = message; }
         }
+    }
+
+    // =========================================================================
+    // 10. Candidate 10 User Story Extension Models
+    // =========================================================================
+
+    public static class CourseOutcome {
+        private String outcomeCode;
+        private String statement;
+        private String bloomLevel; // K1, K2, K3, K4, K5, K6
+        private double targetAttainment;
+
+        public CourseOutcome() {}
+
+        public CourseOutcome(String outcomeCode, String statement, String bloomLevel, double targetAttainment) {
+            this.outcomeCode = outcomeCode;
+            this.statement = statement;
+            this.bloomLevel = bloomLevel;
+            this.targetAttainment = targetAttainment;
+        }
+
+        public String getOutcomeCode() { return outcomeCode; }
+        public void setOutcomeCode(String outcomeCode) { this.outcomeCode = outcomeCode; }
+        public String getStatement() { return statement; }
+        public void setStatement(String statement) { this.statement = statement; }
+        public String getBloomLevel() { return bloomLevel; }
+        public void setBloomLevel(String bloomLevel) { this.bloomLevel = bloomLevel; }
+        public double getTargetAttainment() { return targetAttainment; }
+        public void setTargetAttainment(double targetAttainment) { this.targetAttainment = targetAttainment; }
+    }
+
+    public static class CoPoMapping {
+        private String outcomeCode;
+        private String programOutcomeCode;
+        private int correlationStrength; // 1 = Low/Slight, 2 = Medium/Moderate, 3 = High/Substantial
+
+        public CoPoMapping() {}
+
+        public CoPoMapping(String outcomeCode, String programOutcomeCode, int correlationStrength) {
+            this.outcomeCode = outcomeCode;
+            this.programOutcomeCode = programOutcomeCode;
+            this.correlationStrength = correlationStrength;
+        }
+
+        public String getOutcomeCode() { return outcomeCode; }
+        public void setOutcomeCode(String outcomeCode) { this.outcomeCode = outcomeCode; }
+        public String getProgramOutcomeCode() { return programOutcomeCode; }
+        public void setProgramOutcomeCode(String programOutcomeCode) { this.programOutcomeCode = programOutcomeCode; }
+        public int getCorrelationStrength() { return correlationStrength; }
+        public void setCorrelationStrength(int correlationStrength) { this.correlationStrength = correlationStrength; }
+    }
+
+    public enum EquivalenceType {
+        DIRECT_SUBSTITUTION,
+        LATERAL_ENTRY,
+        SWAYAM_NPTEL_TRANSFER,
+        INTERNAL_ELECTIVE_SWAP,
+        LEGACY_CURRICULUM_EQUIVALENCE
+    }
+
+    public static class SubjectEquivalence {
+        private String id;
+        private String tenantId;
+        private String sourceSubjectId;
+        private String targetSubjectId;
+        private String equivalenceType;
+        private String minimumGrade;
+        private double transferMultiplier = 1.0;
+        private String externalInstitutionName;
+        private String effectiveFrom;
+        private String effectiveTo;
+        private String status = "ACTIVE"; // ACTIVE, REVOKED
+        private long createdAt;
+        private long updatedAt;
+        private String createdBy;
+        private String updatedBy;
+
+        public SubjectEquivalence() {}
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getSourceSubjectId() { return sourceSubjectId; }
+        public void setSourceSubjectId(String sourceSubjectId) { this.sourceSubjectId = sourceSubjectId; }
+        public String getTargetSubjectId() { return targetSubjectId; }
+        public void setTargetSubjectId(String targetSubjectId) { this.targetSubjectId = targetSubjectId; }
+        public String getEquivalenceType() { return equivalenceType; }
+        public void setEquivalenceType(String equivalenceType) { this.equivalenceType = equivalenceType; }
+        public String getMinimumGrade() { return minimumGrade; }
+        public void setMinimumGrade(String minimumGrade) { this.minimumGrade = minimumGrade; }
+        public double getTransferMultiplier() { return transferMultiplier; }
+        public void setTransferMultiplier(double transferMultiplier) { this.transferMultiplier = transferMultiplier; }
+        public String getExternalInstitutionName() { return externalInstitutionName; }
+        public void setExternalInstitutionName(String externalInstitutionName) { this.externalInstitutionName = externalInstitutionName; }
+        public String getEffectiveFrom() { return effectiveFrom; }
+        public void setEffectiveFrom(String effectiveFrom) { this.effectiveFrom = effectiveFrom; }
+        public String getEffectiveTo() { return effectiveTo; }
+        public void setEffectiveTo(String effectiveTo) { this.effectiveTo = effectiveTo; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+    }
+
+    public static class NationalIdentifier {
+        private String scheme; // ABC_COURSE_ID, APAAR_SKILL_ID, AICTE_MODEL_CURRICULUM_ID, SWAYAM_NPTEL_ID
+        private String identifierValue;
+        private String registeredDate;
+        private String validationStatus = "VERIFIED";
+
+        public NationalIdentifier() {}
+
+        public NationalIdentifier(String scheme, String identifierValue, String registeredDate, String validationStatus) {
+            this.scheme = scheme;
+            this.identifierValue = identifierValue;
+            this.registeredDate = registeredDate;
+            this.validationStatus = validationStatus != null ? validationStatus : "VERIFIED";
+        }
+
+        public String getScheme() { return scheme; }
+        public void setScheme(String scheme) { this.scheme = scheme; }
+        public String getIdentifierValue() { return identifierValue; }
+        public void setIdentifierValue(String identifierValue) { this.identifierValue = identifierValue; }
+        public String getRegisteredDate() { return registeredDate; }
+        public void setRegisteredDate(String registeredDate) { this.registeredDate = registeredDate; }
+        public String getValidationStatus() { return validationStatus; }
+        public void setValidationStatus(String validationStatus) { this.validationStatus = validationStatus; }
+    }
+
+    public static class SyllabusUnit {
+        private int unitNumber;
+        private String title;
+        private List<String> topics = new ArrayList<>();
+        private double hours;
+
+        public SyllabusUnit() {}
+
+        public SyllabusUnit(int unitNumber, String title, List<String> topics, double hours) {
+            this.unitNumber = unitNumber;
+            this.title = title;
+            this.topics = topics != null ? topics : new ArrayList<>();
+            this.hours = hours;
+        }
+
+        public int getUnitNumber() { return unitNumber; }
+        public void setUnitNumber(int unitNumber) { this.unitNumber = unitNumber; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public List<String> getTopics() { return topics; }
+        public void setTopics(List<String> topics) { this.topics = topics != null ? topics : new ArrayList<>(); }
+        public double getHours() { return hours; }
+        public void setHours(double hours) { this.hours = hours; }
+    }
+
+    public static class BibliographyItem {
+        private String title;
+        private List<String> authors = new ArrayList<>();
+        private String isbn;
+        private String edition;
+        private String publisher;
+        private String year;
+        private boolean textbook = true; // true = Prescribed Textbook, false = Reference Book
+
+        public BibliographyItem() {}
+
+        public BibliographyItem(String title, List<String> authors, String isbn, String edition, String publisher, String year, boolean textbook) {
+            this.title = title;
+            this.authors = authors != null ? authors : new ArrayList<>();
+            this.isbn = isbn;
+            this.edition = edition;
+            this.publisher = publisher;
+            this.year = year;
+            this.textbook = textbook;
+        }
+
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public List<String> getAuthors() { return authors; }
+        public void setAuthors(List<String> authors) { this.authors = authors != null ? authors : new ArrayList<>(); }
+        public String getIsbn() { return isbn; }
+        public void setIsbn(String isbn) { this.isbn = isbn; }
+        public String getEdition() { return edition; }
+        public void setEdition(String edition) { this.edition = edition; }
+        public String getPublisher() { return publisher; }
+        public void setPublisher(String publisher) { this.publisher = publisher; }
+        public String getYear() { return year; }
+        public void setYear(String year) { this.year = year; }
+        public boolean isTextbook() { return textbook; }
+        public void setTextbook(boolean textbook) { this.textbook = textbook; }
+    }
+
+    public static class CampusDeliveryRule {
+        private String campusId;
+        private String deliveryMode; // OFFLINE, ONLINE, HYBRID
+        private boolean labFacilityRequired;
+        private int maxBatchSize;
+        private String notes;
+
+        public CampusDeliveryRule() {}
+
+        public CampusDeliveryRule(String campusId, String deliveryMode, boolean labFacilityRequired, int maxBatchSize, String notes) {
+            this.campusId = campusId;
+            this.deliveryMode = deliveryMode;
+            this.labFacilityRequired = labFacilityRequired;
+            this.maxBatchSize = maxBatchSize;
+            this.notes = notes;
+        }
+
+        public String getCampusId() { return campusId; }
+        public void setCampusId(String campusId) { this.campusId = campusId; }
+        public String getDeliveryMode() { return deliveryMode; }
+        public void setDeliveryMode(String deliveryMode) { this.deliveryMode = deliveryMode; }
+        public boolean isLabFacilityRequired() { return labFacilityRequired; }
+        public void setLabFacilityRequired(boolean labFacilityRequired) { this.labFacilityRequired = labFacilityRequired; }
+        public int getMaxBatchSize() { return maxBatchSize; }
+        public void setMaxBatchSize(int maxBatchSize) { this.maxBatchSize = maxBatchSize; }
+        public String getNotes() { return notes; }
+        public void setNotes(String notes) { this.notes = notes; }
+    }
+
+    public static class ApprovalResolution {
+        private String resolutionNumber;
+        private String approvedByBoard;
+        private String meetingDate;
+        private String minutesUrl;
+        private String gazetteNotificationNumber;
+
+        public ApprovalResolution() {}
+
+        public ApprovalResolution(String resolutionNumber, String approvedByBoard, String meetingDate, String minutesUrl, String gazetteNotificationNumber) {
+            this.resolutionNumber = resolutionNumber;
+            this.approvedByBoard = approvedByBoard;
+            this.meetingDate = meetingDate;
+            this.minutesUrl = minutesUrl;
+            this.gazetteNotificationNumber = gazetteNotificationNumber;
+        }
+
+        public String getResolutionNumber() { return resolutionNumber; }
+        public void setResolutionNumber(String resolutionNumber) { this.resolutionNumber = resolutionNumber; }
+        public String getApprovedByBoard() { return approvedByBoard; }
+        public void setApprovedByBoard(String approvedByBoard) { this.approvedByBoard = approvedByBoard; }
+        public String getMeetingDate() { return meetingDate; }
+        public void setMeetingDate(String meetingDate) { this.meetingDate = meetingDate; }
+        public String getMinutesUrl() { return minutesUrl; }
+        public void setMinutesUrl(String minutesUrl) { this.minutesUrl = minutesUrl; }
+        public String getGazetteNotificationNumber() { return gazetteNotificationNumber; }
+        public void setGazetteNotificationNumber(String gazetteNotificationNumber) { this.gazetteNotificationNumber = gazetteNotificationNumber; }
+    }
+
+    public static class FieldDifference {
+        private String fieldName;
+        private String version1Value;
+        private String version2Value;
+        private boolean changed;
+
+        public FieldDifference() {}
+
+        public FieldDifference(String fieldName, String version1Value, String version2Value, boolean changed) {
+            this.fieldName = fieldName;
+            this.version1Value = version1Value;
+            this.version2Value = version2Value;
+            this.changed = changed;
+        }
+
+        public String getFieldName() { return fieldName; }
+        public void setFieldName(String fieldName) { this.fieldName = fieldName; }
+        public String getVersion1Value() { return version1Value; }
+        public void setVersion1Value(String version1Value) { this.version1Value = version1Value; }
+        public String getVersion2Value() { return version2Value; }
+        public void setVersion2Value(String version2Value) { this.version2Value = version2Value; }
+        public boolean isChanged() { return changed; }
+        public void setChanged(boolean changed) { this.changed = changed; }
+    }
+
+    public static class VersionDiffResult {
+        private String subjectId;
+        private int version1;
+        private int version2;
+        private List<FieldDifference> differences = new ArrayList<>();
+        private String summary;
+
+        public VersionDiffResult() {}
+
+        public VersionDiffResult(String subjectId, int version1, int version2, List<FieldDifference> differences, String summary) {
+            this.subjectId = subjectId;
+            this.version1 = version1;
+            this.version2 = version2;
+            this.differences = differences != null ? differences : new ArrayList<>();
+            this.summary = summary;
+        }
+
+        public String getSubjectId() { return subjectId; }
+        public void setSubjectId(String subjectId) { this.subjectId = subjectId; }
+        public int getVersion1() { return version1; }
+        public void setVersion1(int version1) { this.version1 = version1; }
+        public int getVersion2() { return version2; }
+        public void setVersion2(int version2) { this.version2 = version2; }
+        public List<FieldDifference> getDifferences() { return differences; }
+        public void setDifferences(List<FieldDifference> differences) { this.differences = differences != null ? differences : new ArrayList<>(); }
+        public String getSummary() { return summary; }
+        public void setSummary(String summary) { this.summary = summary; }
     }
 }

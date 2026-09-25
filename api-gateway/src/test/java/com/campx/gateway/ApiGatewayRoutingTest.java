@@ -96,6 +96,10 @@ public class ApiGatewayRoutingTest {
         String resp = readResponse(conn);
         assertTrue(resp.contains("/api/v1/admin"));
         assertTrue(resp.contains("/api/v1/college-admin"));
+        assertTrue(resp.contains("/api/v1/courses"));
+        assertTrue(resp.contains("/api/v1/curricula"));
+        assertTrue(resp.contains("/api/v1/subjects"));
+        assertTrue(resp.contains("/v1/subject-catalog"));
     }
 
     /**

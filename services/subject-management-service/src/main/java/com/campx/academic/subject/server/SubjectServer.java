@@ -25,6 +25,7 @@ public class SubjectServer {
     private boolean tlsEnabled = false;
     private OutboxRelayService outboxRelay;
     private java.util.concurrent.ScheduledExecutorService cleanupScheduler;
+    private SubjectController controller;
 
     public SubjectServer(int port, SubjectDomainService domainService) {
         this.port = port;
@@ -94,7 +95,7 @@ public class SubjectServer {
 
         server.setExecutor(null);
 
-        SubjectController controller = new SubjectController(domainService);
+        this.controller = new SubjectController(domainService);
         server.createContext("/api/v1/academics/subjects", controller);
         server.createContext("/api/v1/subjects", controller);
         server.createContext("/v1/subjects", controller);
@@ -150,5 +151,9 @@ public class SubjectServer {
 
     public int getPort() {
         return port;
+    }
+
+    public SubjectController getController() {
+        return controller;
     }
 }

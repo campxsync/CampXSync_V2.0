@@ -27,6 +27,7 @@ public class SubjectDomainService {
     private final Map<String, List<SubjectVersion>> subjectVersions = new ConcurrentHashMap<>();
     private final Map<String, SubjectMetadata> subjectMetadata = new ConcurrentHashMap<>();
     private final Map<String, SubjectPrerequisite> subjectPrerequisites = new ConcurrentHashMap<>();
+    private final Map<String, SubjectEquivalence> subjectEquivalences = new ConcurrentHashMap<>();
     private final List<SubjectHistory> historyRecords = Collections.synchronizedList(new ArrayList<>());
     private final List<OutboxEvent> outboxEvents = Collections.synchronizedList(new ArrayList<>());
     private final Map<String, IdempotencyRecord> idempotencyRecords = new ConcurrentHashMap<>();
@@ -71,6 +72,16 @@ public class SubjectDomainService {
 
         // BR-08: Department existence and active state
         validateDepartment(subject.getDepartmentId());
+
+        // Story 7: Multi-department cross-listing validation
+        if (subject.getCrossListedDepartmentIds() != null && !subject.getCrossListedDepartmentIds().isEmpty()) {
+            if (subject.getCrossListedDepartmentIds().contains(subject.getDepartmentId())) {
+                throw new SubjectValidationException("Primary department '" + subject.getDepartmentId() + "' cannot be included in cross-listed departments");
+            }
+            for (String xDept : subject.getCrossListedDepartmentIds()) {
+                validateDepartment(xDept);
+            }
+        }
 
         String id = subject.getId() != null ? subject.getId() : "SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         subject.setId(id);
@@ -181,6 +192,16 @@ public class SubjectDomainService {
         if (updateRequest.getCampusId() != null) {
             existing.setCampusId(updateRequest.getCampusId());
             changedFields.add("campusId");
+        }
+        if (updateRequest.getCrossListedDepartmentIds() != null) {
+            for (String xDept : updateRequest.getCrossListedDepartmentIds()) {
+                if (xDept.equalsIgnoreCase(existing.getDepartmentId())) {
+                    throw new SubjectValidationException("Primary department '" + existing.getDepartmentId() + "' cannot be included in cross-listed departments");
+                }
+                validateDepartment(xDept);
+            }
+            existing.setCrossListedDepartmentIds(updateRequest.getCrossListedDepartmentIds());
+            changedFields.add("crossListedDepartmentIds");
         }
         if (updateRequest.getSubjectType() != null) {
             validateTaxonomy(updateRequest.getSubjectType(), updateRequest.getClassification() != null ? updateRequest.getClassification() : existing.getClassification());
@@ -461,6 +482,205 @@ public class SubjectDomainService {
     }
 
     // =========================================================================
+    // 2.1 Candidate User Stories 1, 2, 5, 9, 10: Version Extensions & Governance
+    // =========================================================================
+
+    /**
+     * Updates Course Outcomes (CO) for a subject version (Story 1).
+     * Enforces Bloom's Taxonomy validation (K1-K6) and immutability for published versions (BR-06).
+     */
+    public List<CourseOutcome> updateCourseOutcomes(String subjectId, int versionNo, List<CourseOutcome> outcomes, String actorId, String actorRole) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        if (version.getStatus() == VersionStatus.PUBLISHED || version.getStatus() == VersionStatus.SUPERSEDED) {
+            throw new VersionImmutableException(subjectId, versionNo);
+        }
+        if (outcomes != null) {
+            for (CourseOutcome co : outcomes) {
+                if (co.getOutcomeCode() == null || co.getOutcomeCode().trim().isEmpty()) {
+                    throw new SubjectValidationException("Course outcomeCode is mandatory");
+                }
+                if (co.getStatement() == null || co.getStatement().trim().isEmpty()) {
+                    throw new SubjectValidationException("Course outcome statement is mandatory for " + co.getOutcomeCode());
+                }
+                if (co.getBloomLevel() == null || !isValidBloomLevel(co.getBloomLevel())) {
+                    throw new InvalidTaxonomyException("Invalid Bloom's Taxonomy level '" + co.getBloomLevel() + "'. Must be K1 to K6.");
+                }
+                if (co.getTargetAttainment() < 0.0 || co.getTargetAttainment() > 100.0) {
+                    throw new SubjectValidationException("Target attainment must be between 0.0 and 100.0%");
+                }
+            }
+        }
+        version.setCourseOutcomes(outcomes != null ? outcomes : new ArrayList<>());
+        version.setUpdatedAt(System.currentTimeMillis());
+        version.setUpdatedBy(actorId);
+
+        recordHistoryEntry(version.getTenantId(), subjectId, versionNo, "COURSE_OUTCOMES_UPDATED",
+                version.getStatus().name(), version.getStatus().name(),
+                Collections.singletonList("courseOutcomes"), null, toJson(version),
+                "Updated Course Outcomes", actorId, actorRole);
+
+        outboxEvents.add(createOutboxEvent(version.getTenantId(), subjectId, "SubjectCourseOutcomesUpdated", toJson(version)));
+        logger.info("Updated course outcomes for subject {} version {}", subjectId, versionNo);
+        return version.getCourseOutcomes();
+    }
+
+    public List<CourseOutcome> getCourseOutcomes(String subjectId, int versionNo) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        return version.getCourseOutcomes();
+    }
+
+    private boolean isValidBloomLevel(String level) {
+        if (level == null) return false;
+        String upper = level.trim().toUpperCase();
+        return upper.matches("^(K[1-6])(_[A-Z]+)?$");
+    }
+
+    /**
+     * Updates CO-to-PO Articulation Matrix with correlation weights (1, 2, 3) (Story 2).
+     * Enforces correlation range 1-3 and immutability for published versions.
+     */
+    public List<CoPoMapping> updateCoPoMatrix(String subjectId, int versionNo, List<CoPoMapping> matrix, String actorId, String actorRole) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        if (version.getStatus() == VersionStatus.PUBLISHED || version.getStatus() == VersionStatus.SUPERSEDED) {
+            throw new VersionImmutableException(subjectId, versionNo);
+        }
+        if (matrix != null) {
+            for (CoPoMapping m : matrix) {
+                if (m.getOutcomeCode() == null || m.getOutcomeCode().trim().isEmpty()) {
+                    throw new SubjectValidationException("outcomeCode is mandatory in CO-PO matrix");
+                }
+                if (m.getProgramOutcomeCode() == null || m.getProgramOutcomeCode().trim().isEmpty()) {
+                    throw new SubjectValidationException("programOutcomeCode is mandatory in CO-PO matrix");
+                }
+                if (m.getCorrelationStrength() < 1 || m.getCorrelationStrength() > 3) {
+                    throw new SubjectValidationException("Correlation strength must be 1 (Slight), 2 (Moderate), or 3 (Substantial)");
+                }
+            }
+        }
+        version.setCoPoMatrix(matrix != null ? matrix : new ArrayList<>());
+        version.setUpdatedAt(System.currentTimeMillis());
+        version.setUpdatedBy(actorId);
+
+        recordHistoryEntry(version.getTenantId(), subjectId, versionNo, "CO_PO_MATRIX_UPDATED",
+                version.getStatus().name(), version.getStatus().name(),
+                Collections.singletonList("coPoMatrix"), null, toJson(version),
+                "Updated CO-PO Matrix", actorId, actorRole);
+
+        outboxEvents.add(createOutboxEvent(version.getTenantId(), subjectId, "SubjectCoPoMatrixUpdated", toJson(version)));
+        logger.info("Updated CO-PO matrix for subject {} version {}", subjectId, versionNo);
+        return version.getCoPoMatrix();
+    }
+
+    public List<CoPoMapping> getCoPoMatrix(String subjectId, int versionNo) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        return version.getCoPoMatrix();
+    }
+
+    /**
+     * Updates modular syllabus units and instructional hours (Story 5).
+     * Enforces immutability for published versions.
+     */
+    public List<SyllabusUnit> updateSyllabusUnits(String subjectId, int versionNo, List<SyllabusUnit> units, String actorId, String actorRole) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        if (version.getStatus() == VersionStatus.PUBLISHED || version.getStatus() == VersionStatus.SUPERSEDED) {
+            throw new VersionImmutableException(subjectId, versionNo);
+        }
+        if (units != null) {
+            for (SyllabusUnit u : units) {
+                if (u.getUnitNumber() <= 0) {
+                    throw new SubjectValidationException("unitNumber must be greater than 0");
+                }
+                if (u.getTitle() == null || u.getTitle().trim().isEmpty()) {
+                    throw new SubjectValidationException("Unit title is mandatory for unit " + u.getUnitNumber());
+                }
+                if (u.getHours() < 0) {
+                    throw new SubjectValidationException("Unit hours cannot be negative");
+                }
+            }
+        }
+        version.setSyllabusUnits(units != null ? units : new ArrayList<>());
+        version.setUpdatedAt(System.currentTimeMillis());
+        version.setUpdatedBy(actorId);
+
+        recordHistoryEntry(version.getTenantId(), subjectId, versionNo, "SYLLABUS_UPDATED",
+                version.getStatus().name(), version.getStatus().name(),
+                Collections.singletonList("syllabusUnits"), null, toJson(version),
+                "Updated Modular Syllabus Units", actorId, actorRole);
+
+        outboxEvents.add(createOutboxEvent(version.getTenantId(), subjectId, "SubjectSyllabusUpdated", toJson(version)));
+        logger.info("Updated syllabus units for subject {} version {}", subjectId, versionNo);
+        return version.getSyllabusUnits();
+    }
+
+    public List<SyllabusUnit> getSyllabusUnits(String subjectId, int versionNo) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        return version.getSyllabusUnits();
+    }
+
+    /**
+     * Updates Board of Studies (BoS) governance resolution metadata (Story 9).
+     */
+    public ApprovalResolution updateApprovalResolution(String subjectId, int versionNo, ApprovalResolution res, String actorId, String actorRole) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        if (res == null || res.getResolutionNumber() == null || res.getResolutionNumber().trim().isEmpty()) {
+            throw new SubjectValidationException("BoS resolutionNumber is mandatory");
+        }
+        version.setApprovalResolution(res);
+        version.setUpdatedAt(System.currentTimeMillis());
+        version.setUpdatedBy(actorId);
+
+        recordHistoryEntry(version.getTenantId(), subjectId, versionNo, "APPROVAL_RESOLUTION_UPDATED",
+                version.getStatus().name(), version.getStatus().name(),
+                Collections.singletonList("approvalResolution"), null, toJson(version),
+                "Updated BoS Approval Resolution " + res.getResolutionNumber(), actorId, actorRole);
+
+        outboxEvents.add(createOutboxEvent(version.getTenantId(), subjectId, "SubjectResolutionUpdated", toJson(version)));
+        logger.info("Updated approval resolution for subject {} version {}", subjectId, versionNo);
+        return version.getApprovalResolution();
+    }
+
+    public ApprovalResolution getApprovalResolution(String subjectId, int versionNo) {
+        SubjectVersion version = getSubjectVersion(subjectId, versionNo);
+        return version.getApprovalResolution();
+    }
+
+    /**
+     * Performs a side-by-side diff between two versions of a subject (Story 10).
+     */
+    public VersionDiffResult compareVersions(String subjectId, int v1No, int v2No) {
+        SubjectVersion v1 = getSubjectVersion(subjectId, v1No);
+        SubjectVersion v2 = getSubjectVersion(subjectId, v2No);
+
+        List<FieldDifference> diffs = new ArrayList<>();
+        addDiff(diffs, "status", String.valueOf(v1.getStatus()), String.valueOf(v2.getStatus()));
+        addDiff(diffs, "academicYear", v1.getAcademicYear(), v2.getAcademicYear());
+        addDiff(diffs, "credits", String.valueOf(v1.getCredits()), String.valueOf(v2.getCredits()));
+        addDiff(diffs, "contactHours", String.valueOf(v1.getContactHours()), String.valueOf(v2.getContactHours()));
+        addDiff(diffs, "subjectType", v1.getSubjectType(), v2.getSubjectType());
+        addDiff(diffs, "classification", v1.getClassification(), v2.getClassification());
+        addDiff(diffs, "elective", String.valueOf(v1.isElective()), String.valueOf(v2.isElective()));
+        addDiff(diffs, "changeSummary", v1.getChangeSummary(), v2.getChangeSummary());
+        addDiff(diffs, "courseOutcomesCount", String.valueOf(v1.getCourseOutcomes().size()), String.valueOf(v2.getCourseOutcomes().size()));
+        addDiff(diffs, "coPoMatrixCount", String.valueOf(v1.getCoPoMatrix().size()), String.valueOf(v2.getCoPoMatrix().size()));
+        addDiff(diffs, "syllabusUnitsCount", String.valueOf(v1.getSyllabusUnits().size()), String.valueOf(v2.getSyllabusUnits().size()));
+
+        String res1 = v1.getApprovalResolution() != null ? v1.getApprovalResolution().getResolutionNumber() : "NONE";
+        String res2 = v2.getApprovalResolution() != null ? v2.getApprovalResolution().getResolutionNumber() : "NONE";
+        addDiff(diffs, "approvalResolution", res1, res2);
+
+        long changedCount = diffs.stream().filter(FieldDifference::isChanged).count();
+        String summary = "Compared version " + v1No + " and " + v2No + " of subject " + subjectId + ": " + changedCount + " field(s) changed";
+        return new VersionDiffResult(subjectId, v1No, v2No, diffs, summary);
+    }
+
+    private void addDiff(List<FieldDifference> diffs, String field, String val1, String val2) {
+        String s1 = val1 != null ? val1 : "";
+        String s2 = val2 != null ? val2 : "";
+        boolean changed = !s1.equals(s2);
+        diffs.add(new FieldDifference(field, s1, s2, changed));
+    }
+
+    // =========================================================================
     // 3. Subject Prerequisite & Co-requisite Management (Epic 6, §39)
     // =========================================================================
 
@@ -658,6 +878,23 @@ public class SubjectDomainService {
         if (update.getPrerequisiteNotes() != null) existing.setPrerequisiteNotes(update.getPrerequisiteNotes());
         if (update.getCustomAttributes() != null) existing.setCustomAttributes(update.getCustomAttributes());
 
+        // Story 4: National Identifiers
+        if (update.getNationalIdentifiers() != null) {
+            for (NationalIdentifier nid : update.getNationalIdentifiers()) {
+                if (nid.getScheme() == null || nid.getScheme().trim().isEmpty() ||
+                        nid.getIdentifierValue() == null || nid.getIdentifierValue().trim().isEmpty()) {
+                    throw new SubjectValidationException("NationalIdentifier scheme and identifierValue are required");
+                }
+            }
+            existing.setNationalIdentifiers(update.getNationalIdentifiers());
+        }
+
+        // Story 6: Bibliographies
+        if (update.getBibliographies() != null) existing.setBibliographies(update.getBibliographies());
+
+        // Story 8: Multi-Campus Delivery Rules
+        if (update.getCampusDeliveryRules() != null) existing.setCampusDeliveryRules(update.getCampusDeliveryRules());
+
         existing.setUpdatedAt(now);
         existing.setUpdatedBy(actorId);
         existing.setVersion(existing.getVersion() + 1);
@@ -694,6 +931,9 @@ public class SubjectDomainService {
             filtered.setAssessmentMode(meta.getAssessmentMode());
             filtered.setIndustryRelevance(meta.getIndustryRelevance());
             filtered.setLanguageOfInstruction(meta.getLanguageOfInstruction());
+            filtered.setNationalIdentifiers(meta.getNationalIdentifiers());
+            filtered.setBibliographies(meta.getBibliographies());
+            filtered.setCampusDeliveryRules(meta.getCampusDeliveryRules());
             filtered.setCreatedAt(meta.getCreatedAt());
             filtered.setUpdatedAt(meta.getUpdatedAt());
             // regulatoryCode and prerequisiteNotes omitted
@@ -789,6 +1029,7 @@ public class SubjectDomainService {
     public List<Subject> getPublishedCatalog(String tenantId, String institutionId) {
         return subjects.values().stream()
                 .filter(s -> s.getStatus() == SubjectStatus.ACTIVE)
+                .filter(s -> s.getDepartmentId() == null || activeDepartments.getOrDefault(s.getDepartmentId(), true))
                 .filter(s -> tenantId == null || tenantId.equalsIgnoreCase(s.getTenantId()))
                 .filter(s -> institutionId == null || institutionId.equalsIgnoreCase(s.getInstitutionId()))
                 .map(Subject::copy)
@@ -804,12 +1045,24 @@ public class SubjectDomainService {
                 .filter(s -> code == null || s.getSubjectCode().toLowerCase().contains(code.toLowerCase()))
                 .filter(s -> name == null || s.getName().toLowerCase().contains(name.toLowerCase()))
                 .filter(s -> type == null || (s.getSubjectType() != null && s.getSubjectType().equalsIgnoreCase(type)))
-                .filter(s -> departmentId == null || s.getDepartmentId().equalsIgnoreCase(departmentId))
+                .filter(s -> {
+                    if (departmentId == null || departmentId.trim().isEmpty()) return true;
+                    boolean primary = departmentId.equalsIgnoreCase(s.getDepartmentId());
+                    boolean cross = s.getCrossListedDepartmentIds() != null &&
+                            s.getCrossListedDepartmentIds().stream().anyMatch(d -> d.equalsIgnoreCase(departmentId));
+                    return primary || cross;
+                })
                 .filter(s -> status == null || (s.getStatus() != null && s.getStatus().name().equalsIgnoreCase(status)))
                 .filter(s -> {
                     if (tag == null || tag.trim().isEmpty()) return true;
                     SubjectMetadata meta = subjectMetadata.get(s.getId());
                     return meta != null && meta.getTags() != null && meta.getTags().stream().anyMatch(t -> t.equalsIgnoreCase(tag));
+                })
+                .filter(s -> {
+                    if ("ACTIVE".equalsIgnoreCase(status) && departmentId == null && s.getDepartmentId() != null) {
+                        return activeDepartments.getOrDefault(s.getDepartmentId(), true);
+                    }
+                    return true;
                 })
                 .skip(offset > 0 ? offset : 0)
                 .limit(limit > 0 ? limit : 50)
@@ -834,9 +1087,80 @@ public class SubjectDomainService {
     public List<Subject> getSubjectsByDepartment(String deptId) {
         return subjects.values().stream()
                 .filter(s -> s.getStatus() == SubjectStatus.ACTIVE)
-                .filter(s -> s.getDepartmentId() != null && s.getDepartmentId().equalsIgnoreCase(deptId))
+                .filter(s -> (s.getDepartmentId() != null && s.getDepartmentId().equalsIgnoreCase(deptId))
+                        || (s.getCrossListedDepartmentIds() != null && s.getCrossListedDepartmentIds().stream().anyMatch(d -> d.equalsIgnoreCase(deptId))))
                 .map(Subject::copy)
                 .collect(Collectors.toList());
+    }
+
+    // =========================================================================
+    // 6.1 Candidate User Story 3: Subject Equivalence & Credit Transfer
+    // =========================================================================
+
+    /**
+     * Registers a subject equivalence rule (Story 3).
+     */
+    public SubjectEquivalence addSubjectEquivalence(String sourceSubjectId, SubjectEquivalence eq, String actorId, String actorRole) {
+        Subject source = getSubject(sourceSubjectId);
+        if (eq.getEquivalenceType() == null || eq.getEquivalenceType().trim().isEmpty()) {
+            throw new SubjectValidationException("Field 'equivalenceType' is mandatory");
+        }
+        if (eq.getTransferMultiplier() <= 0) {
+            throw new SubjectValidationException("transferMultiplier must be greater than 0");
+        }
+        if (eq.getTargetSubjectId() != null && !eq.getTargetSubjectId().trim().isEmpty()) {
+            // If target subject is specified, check whether it is an existing subject
+            if (!subjects.containsKey(eq.getTargetSubjectId()) && !eq.getTargetSubjectId().startsWith("EXT-")) {
+                // Allowed for external or internal subjects
+            }
+        }
+
+        String eqId = eq.getId() != null ? eq.getId() : "EQ-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        eq.setId(eqId);
+        eq.setSourceSubjectId(sourceSubjectId);
+        eq.setTenantId(source.getTenantId());
+        eq.setStatus("ACTIVE");
+        long now = System.currentTimeMillis();
+        eq.setCreatedAt(now);
+        eq.setUpdatedAt(now);
+        eq.setCreatedBy(actorId);
+        eq.setUpdatedBy(actorId);
+
+        subjectEquivalences.put(eqId, eq);
+
+        recordHistoryEntry(source.getTenantId(), sourceSubjectId, source.getCurrentVersion(), "EQUIVALENCE_ADDED",
+                null, "ACTIVE", Collections.singletonList("equivalenceId"), null, toJson(eq),
+                "Added subject equivalence " + eqId, actorId, actorRole);
+
+        outboxEvents.add(createOutboxEvent(source.getTenantId(), sourceSubjectId, "SubjectEquivalenceCreated", toJson(eq)));
+        logger.info("Created subject equivalence {} for subject {}", eqId, sourceSubjectId);
+        return eq;
+    }
+
+    public List<SubjectEquivalence> getSubjectEquivalences(String subjectId) {
+        getSubject(subjectId); // verify exists
+        return subjectEquivalences.values().stream()
+                .filter(eq -> subjectId.equalsIgnoreCase(eq.getSourceSubjectId()) || subjectId.equalsIgnoreCase(eq.getTargetSubjectId()))
+                .collect(Collectors.toList());
+    }
+
+    public SubjectEquivalence revokeSubjectEquivalence(String subjectId, String equivalenceId, String actorId, String actorRole) {
+        getSubject(subjectId);
+        SubjectEquivalence eq = subjectEquivalences.get(equivalenceId);
+        if (eq == null || (!subjectId.equalsIgnoreCase(eq.getSourceSubjectId()) && !subjectId.equalsIgnoreCase(eq.getTargetSubjectId()))) {
+            throw new SubjectNotFoundException("Subject equivalence not found with id: " + equivalenceId);
+        }
+        eq.setStatus("REVOKED");
+        eq.setUpdatedAt(System.currentTimeMillis());
+        eq.setUpdatedBy(actorId);
+
+        recordHistoryEntry(eq.getTenantId(), subjectId, 1, "EQUIVALENCE_REVOKED",
+                "ACTIVE", "REVOKED", Collections.singletonList("status"), null, toJson(eq),
+                "Revoked subject equivalence " + equivalenceId, actorId, actorRole);
+
+        outboxEvents.add(createOutboxEvent(eq.getTenantId(), subjectId, "SubjectEquivalenceRevoked", toJson(eq)));
+        logger.info("Revoked subject equivalence {} for subject {}", equivalenceId, subjectId);
+        return eq;
     }
 
     // =========================================================================
@@ -1067,8 +1391,17 @@ public class SubjectDomainService {
         if (s.getSubjectCode() == null || s.getSubjectCode().trim().isEmpty()) {
             throw new SubjectValidationException("subjectCode is mandatory");
         }
+        if (s.getSubjectCode().trim().length() < 3 || s.getSubjectCode().trim().length() > 20) {
+            throw new SubjectValidationException("subjectCode length must be between 3 and 20 characters");
+        }
         if (s.getName() == null || s.getName().trim().isEmpty()) {
             throw new SubjectValidationException("name is mandatory");
+        }
+        if (s.getName().trim().length() < 2 || s.getName().trim().length() > 120) {
+            throw new SubjectValidationException("name length must be between 2 and 120 characters");
+        }
+        if (s.getDepartmentId() == null || s.getDepartmentId().trim().isEmpty()) {
+            throw new SubjectValidationException("departmentId is mandatory");
         }
         if (s.getTenantId() == null || s.getTenantId().trim().isEmpty()) {
             s.setTenantId("TENANT-001");
@@ -1231,6 +1564,7 @@ public class SubjectDomainService {
                     + "\"academicYear\":\"" + escape(s.getAcademicYear()) + "\","
                     + "\"departmentActive\":" + s.isDepartmentActive() + ","
                     + "\"flaggedForReview\":" + s.isFlaggedForReview() + ","
+                    + "\"crossListedDepartmentIds\":" + toJsonStringList(s.getCrossListedDepartmentIds()) + ","
                     + "\"versionLock\":" + s.getVersion()
                     + "}";
         }
@@ -1246,7 +1580,11 @@ public class SubjectDomainService {
                     + "\"contactHours\":" + v.getContactHours() + ","
                     + "\"changeSummary\":\"" + escape(v.getChangeSummary()) + "\","
                     + "\"approvedBy\":\"" + escape(v.getApprovedBy()) + "\","
-                    + "\"publishedBy\":\"" + escape(v.getPublishedBy()) + "\""
+                    + "\"publishedBy\":\"" + escape(v.getPublishedBy()) + "\","
+                    + "\"courseOutcomes\":" + toJsonList(v.getCourseOutcomes()) + ","
+                    + "\"coPoMatrix\":" + toJsonList(v.getCoPoMatrix()) + ","
+                    + "\"syllabusUnits\":" + toJsonList(v.getSyllabusUnits()) + ","
+                    + "\"approvalResolution\":" + (v.getApprovalResolution() != null ? toJson(v.getApprovalResolution()) : "null")
                     + "}";
         }
         if (obj instanceof SubjectPrerequisite) {
@@ -1270,10 +1608,136 @@ public class SubjectDomainService {
                     + "\"assessmentMode\":\"" + escape(m.getAssessmentMode()) + "\","
                     + "\"regulatoryCode\":\"" + escape(m.getRegulatoryCode()) + "\","
                     + "\"languageOfInstruction\":\"" + escape(m.getLanguageOfInstruction()) + "\","
-                    + "\"prerequisiteNotes\":\"" + escape(m.getPrerequisiteNotes()) + "\""
+                    + "\"prerequisiteNotes\":\"" + escape(m.getPrerequisiteNotes()) + "\","
+                    + "\"nationalIdentifiers\":" + toJsonList(m.getNationalIdentifiers()) + ","
+                    + "\"bibliographies\":" + toJsonList(m.getBibliographies()) + ","
+                    + "\"campusDeliveryRules\":" + toJsonList(m.getCampusDeliveryRules())
                     + "}";
         }
+        if (obj instanceof CourseOutcome) {
+            CourseOutcome co = (CourseOutcome) obj;
+            return "{"
+                    + "\"outcomeCode\":\"" + escape(co.getOutcomeCode()) + "\","
+                    + "\"statement\":\"" + escape(co.getStatement()) + "\","
+                    + "\"bloomLevel\":\"" + escape(co.getBloomLevel()) + "\","
+                    + "\"targetAttainment\":" + co.getTargetAttainment()
+                    + "}";
+        }
+        if (obj instanceof CoPoMapping) {
+            CoPoMapping m = (CoPoMapping) obj;
+            return "{"
+                    + "\"outcomeCode\":\"" + escape(m.getOutcomeCode()) + "\","
+                    + "\"programOutcomeCode\":\"" + escape(m.getProgramOutcomeCode()) + "\","
+                    + "\"correlationStrength\":" + m.getCorrelationStrength()
+                    + "}";
+        }
+        if (obj instanceof SubjectEquivalence) {
+            SubjectEquivalence eq = (SubjectEquivalence) obj;
+            return "{"
+                    + "\"id\":\"" + escape(eq.getId()) + "\","
+                    + "\"sourceSubjectId\":\"" + escape(eq.getSourceSubjectId()) + "\","
+                    + "\"targetSubjectId\":\"" + escape(eq.getTargetSubjectId()) + "\","
+                    + "\"equivalenceType\":\"" + escape(eq.getEquivalenceType()) + "\","
+                    + "\"minimumGrade\":\"" + escape(eq.getMinimumGrade()) + "\","
+                    + "\"transferMultiplier\":" + eq.getTransferMultiplier() + ","
+                    + "\"externalInstitutionName\":\"" + escape(eq.getExternalInstitutionName()) + "\","
+                    + "\"effectiveFrom\":\"" + escape(eq.getEffectiveFrom()) + "\","
+                    + "\"effectiveTo\":\"" + escape(eq.getEffectiveTo()) + "\","
+                    + "\"status\":\"" + escape(eq.getStatus()) + "\""
+                    + "}";
+        }
+        if (obj instanceof NationalIdentifier) {
+            NationalIdentifier ni = (NationalIdentifier) obj;
+            return "{"
+                    + "\"scheme\":\"" + escape(ni.getScheme()) + "\","
+                    + "\"identifierValue\":\"" + escape(ni.getIdentifierValue()) + "\","
+                    + "\"registeredDate\":\"" + escape(ni.getRegisteredDate()) + "\","
+                    + "\"validationStatus\":\"" + escape(ni.getValidationStatus()) + "\""
+                    + "}";
+        }
+        if (obj instanceof SyllabusUnit) {
+            SyllabusUnit su = (SyllabusUnit) obj;
+            return "{"
+                    + "\"unitNumber\":" + su.getUnitNumber() + ","
+                    + "\"title\":\"" + escape(su.getTitle()) + "\","
+                    + "\"topics\":" + toJsonStringList(su.getTopics()) + ","
+                    + "\"hours\":" + su.getHours()
+                    + "}";
+        }
+        if (obj instanceof BibliographyItem) {
+            BibliographyItem b = (BibliographyItem) obj;
+            return "{"
+                    + "\"title\":\"" + escape(b.getTitle()) + "\","
+                    + "\"authors\":" + toJsonStringList(b.getAuthors()) + ","
+                    + "\"isbn\":\"" + escape(b.getIsbn()) + "\","
+                    + "\"edition\":\"" + escape(b.getEdition()) + "\","
+                    + "\"publisher\":\"" + escape(b.getPublisher()) + "\","
+                    + "\"year\":\"" + escape(b.getYear()) + "\","
+                    + "\"textbook\":" + b.isTextbook()
+                    + "}";
+        }
+        if (obj instanceof CampusDeliveryRule) {
+            CampusDeliveryRule cdr = (CampusDeliveryRule) obj;
+            return "{"
+                    + "\"campusId\":\"" + escape(cdr.getCampusId()) + "\","
+                    + "\"deliveryMode\":\"" + escape(cdr.getDeliveryMode()) + "\","
+                    + "\"labFacilityRequired\":" + cdr.isLabFacilityRequired() + ","
+                    + "\"maxBatchSize\":" + cdr.getMaxBatchSize() + ","
+                    + "\"notes\":\"" + escape(cdr.getNotes()) + "\""
+                    + "}";
+        }
+        if (obj instanceof ApprovalResolution) {
+            ApprovalResolution r = (ApprovalResolution) obj;
+            return "{"
+                    + "\"resolutionNumber\":\"" + escape(r.getResolutionNumber()) + "\","
+                    + "\"approvedByBoard\":\"" + escape(r.getApprovedByBoard()) + "\","
+                    + "\"meetingDate\":\"" + escape(r.getMeetingDate()) + "\","
+                    + "\"minutesUrl\":\"" + escape(r.getMinutesUrl()) + "\","
+                    + "\"gazetteNotificationNumber\":\"" + escape(r.getGazetteNotificationNumber()) + "\""
+                    + "}";
+        }
+        if (obj instanceof VersionDiffResult) {
+            VersionDiffResult vdr = (VersionDiffResult) obj;
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"subjectId\":\"").append(escape(vdr.getSubjectId())).append("\",");
+            sb.append("\"version1\":").append(vdr.getVersion1()).append(",");
+            sb.append("\"version2\":").append(vdr.getVersion2()).append(",");
+            sb.append("\"summary\":\"").append(escape(vdr.getSummary())).append("\",");
+            sb.append("\"differences\":[");
+            for (int i = 0; i < vdr.getDifferences().size(); i++) {
+                if (i > 0) sb.append(",");
+                FieldDifference fd = vdr.getDifferences().get(i);
+                sb.append("{\"fieldName\":\"").append(escape(fd.getFieldName()))
+                        .append("\",\"version1Value\":\"").append(escape(fd.getVersion1Value()))
+                        .append("\",\"version2Value\":\"").append(escape(fd.getVersion2Value()))
+                        .append("\",\"changed\":").append(fd.isChanged()).append("}");
+            }
+            sb.append("]}");
+            return sb.toString();
+        }
         return "{}";
+    }
+
+    public static String toJsonStringList(List<String> list) {
+        if (list == null) return "[]";
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(escape(list.get(i))).append("\"");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    public static String toJsonList(List<?> list) {
+        if (list == null) return "[]";
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(toJson(list.get(i)));
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     private static String escape(String s) {

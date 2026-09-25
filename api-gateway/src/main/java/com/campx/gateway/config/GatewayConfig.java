@@ -12,6 +12,8 @@ import java.util.Map;
  *   <li><b>Platform Tier (ADM-01)</b>: Institute Admin Service on port 8081</li>
  *   <li><b>College Tier (ADM-02)</b>: College Admin Service on port 8082</li>
  *   <li><b>Academic Tier (ACD-01)</b>: Course Management Service on port 8083</li>
+ *   <li><b>Academic Tier (ACD-02)</b>: Curriculum Management Service on port 8084</li>
+ *   <li><b>Academic Tier (ACD-03)</b>: Subject Management Service on port 8085</li>
  * </ul>
  * </p>
  *
@@ -50,6 +52,8 @@ public class GatewayConfig {
         routeTable.put("/api/v1/active", "http://localhost:8084/api/v1/curricula/active");
 
         // Academic Tier -> Subject Management Service (Port 8085)
+        routeTable.put("/api/v1/subjects/metrics", "http://localhost:8085/metrics");
+        routeTable.put("/api/v1/academics/subjects/metrics", "http://localhost:8085/metrics");
         routeTable.put("/api/v1/subjects", "http://localhost:8085/api/v1/subjects");
         routeTable.put("/api/v1/academics/subjects", "http://localhost:8085/api/v1/academics/subjects");
 
@@ -61,13 +65,18 @@ public class GatewayConfig {
         routeTable.put("/v1/billing-accounts", "http://localhost:8081/api/v1/admin/billing/plans");
         routeTable.put("/v1/platform-audit-logs", "http://localhost:8081/api/v1/admin/audit-logs");
 
-        // College Tier -> College Admin Service (Port 8082)
         routeTable.put("/v1/college-profile", "http://localhost:8082/api/v1/college-admin/profile");
         routeTable.put("/v1/departments", "http://localhost:8082/api/v1/college-admin/departments");
         routeTable.put("/v1/programs", "http://localhost:8082/api/v1/college-admin/programs");
         routeTable.put("/v1/college-configs", "http://localhost:8082/api/v1/college-admin/settings");
         routeTable.put("/v1/imports", "http://localhost:8082/api/v1/college-admin/imports");
         routeTable.put("/v1/documents", "http://localhost:8082/api/v1/college-admin/documents");
+        routeTable.put("/v1/college-workflows", "http://localhost:8082/api/v1/college-admin/workflows");
+        routeTable.put("/v1/batch-approvals", "http://localhost:8082/api/v1/college-admin/workflows/batch-approvals");
+        routeTable.put("/v1/college-approvals", "http://localhost:8082/api/v1/college-admin/approvals");
+        routeTable.put("/v1/college-roles", "http://localhost:8082/api/v1/college-admin/roles");
+        routeTable.put("/v1/college-permissions", "http://localhost:8082/api/v1/college-admin/permissions");
+        routeTable.put("/v1/college-audit-logs", "http://localhost:8082/api/v1/college-admin/audit-logs");
 
         // Academic Tier -> Course Management Service (Port 8083)
         routeTable.put("/v1/courses", "http://localhost:8083/api/v1/courses");

@@ -24,10 +24,10 @@ All core services, academic modules, reverse proxy gateways, and cross-cutting f
 | 3. college-admin-service (ADM-02)          | 9        | SUCCESS     | 1.677 s       | 0               |
 | 4. course-management-service (ACD-01)      | 16       | SUCCESS     | 1.168 s       | 0               |
 | 5. curriculum-service (ACD-02)             | 21       | SUCCESS     | 1.056 s       | 0               |
-| 6. subject-management-service (ACD-03)      | 26       | SUCCESS     | 1.544 s       | 0               |
-| 7. api-gateway (Routing & E2E Proxies)     | 16       | SUCCESS     | 3.913 s       | 0               |
+| 6. subject-management-service (ACD-03)      | 32       | SUCCESS     | 1.285 s       | 0               |
+| 7. api-gateway (Routing & E2E Proxies)     | 16       | SUCCESS     | 3.276 s       | 0               |
 +--------------------------------------------+----------+-------------+---------------+-----------------+
-| TOTAL                                      | 109 Tests| SUCCESS     | 14.621 s      | 0 Failures      |
+| TOTAL                                      | 115 Tests| SUCCESS     | 12.607 s      | 0 Failures      |
 +--------------------------------------------+----------+-------------+---------------+-----------------+
 ```
 
@@ -200,7 +200,7 @@ Validates perimeter reverse proxying, correlation tracing, error preservation, a
 
 ## 8. Quality & Architecture Certification
 
-- **Zero Test Failures**: 109/109 automated tests passed synchronously in Maven reactor (14.6s).
+- **Zero Test Failures**: 115/115 automated tests passed synchronously in Maven reactor (12.6s).
 - **Trace Correlation**: 100% of tested HTTP request/response flows successfully propagate `X-Trace-Id` through the API Gateway to downstream services.
 - **Resilience Guarantees**: Downstream connection failures return `503`, timeouts return `504`, and unmapped routes return `404` with RFC 7807 compliance.
 - **DAG Cycle Prevention**: Depth-First Search cycle detection strictly prevents circular prerequisite dependencies (`409 ACD_PREREQUISITE_CYCLE` and `422 ACD2_PREREQUISITE_CYCLE`).

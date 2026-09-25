@@ -10,6 +10,8 @@ import com.campx.logger.context.LogContext;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Domain business logic for ADM-02: College Admin Service.
@@ -47,7 +49,15 @@ public class CollegeAdminDomainService {
     private final Map<String, ApprovalRequest> approvalRequests = new ConcurrentHashMap<>();
     private final Map<String, CollegeWorkflowInstance> collegeWorkflows = new ConcurrentHashMap<>();
 
-    private void recordAudit(AuditEvent event) {
+    // Phase 1 & Cross-Module ACD-04 Collections (User Story Lines 12–16, 39–41)
+    private final Map<String, CollegeUser> collegeUsers = new ConcurrentHashMap<>();
+    private final Map<String, CollegeRole> collegeRoles = new ConcurrentHashMap<>();
+    private final Map<String, CollegePermission> collegePermissions = new ConcurrentHashMap<>();
+    private final Map<String, CollegeRoleBinding> collegeRoleBindings = new ConcurrentHashMap<>();
+    private final Map<String, CollegeAccessReview> collegeAccessReviews = new ConcurrentHashMap<>();
+    private final Map<String, BatchApprovalDetails> batchApprovals = new ConcurrentHashMap<>();
+
+    private Map<String, Object> recordAudit(AuditEvent event) {
         logger.audit(event);
         Map<String, Object> record = new LinkedHashMap<>();
         String eventId = UUID.randomUUID().toString();
@@ -72,6 +82,7 @@ public class CollegeAdminDomainService {
         lastAuditHash = afterHash;
 
         auditTrail.add(record);
+        return record;
     }
 
     /**
@@ -122,6 +133,51 @@ public class CollegeAdminDomainService {
         p1.setDepartmentId("DEP_CS");
         p1.setDurationYears(4);
         programs.put(p1.getId(), p1);
+
+        // User Story 39: Register cross-module batch split/merge permission codes referencing ACD-04
+        CollegePermission pSplitReq = new CollegePermission();
+        pSplitReq.setId("PERM_BATCH_SPLIT_REQ");
+        pSplitReq.setPermissionCode("BATCH_SPLIT_REQUEST");
+        pSplitReq.setResource("BATCH");
+        pSplitReq.setAction("SPLIT_REQUEST");
+        pSplitReq.setSourceService("ACD-04");
+        pSplitReq.setDescription("Request splitting a student batch into multiple sections");
+        collegePermissions.put(pSplitReq.getId(), pSplitReq);
+
+        CollegePermission pSplitApp = new CollegePermission();
+        pSplitApp.setId("PERM_BATCH_SPLIT_APP");
+        pSplitApp.setPermissionCode("BATCH_SPLIT_APPROVE");
+        pSplitApp.setResource("BATCH");
+        pSplitApp.setAction("SPLIT_APPROVE");
+        pSplitApp.setSourceService("ACD-04");
+        pSplitApp.setDescription("Approve or reject a batch split request across sections");
+        collegePermissions.put(pSplitApp.getId(), pSplitApp);
+
+        CollegePermission pMergeApp = new CollegePermission();
+        pMergeApp.setId("PERM_BATCH_MERGE_APP");
+        pMergeApp.setPermissionCode("BATCH_MERGE_APPROVE");
+        pMergeApp.setResource("BATCH");
+        pMergeApp.setAction("MERGE_APPROVE");
+        pMergeApp.setSourceService("ACD-04");
+        pMergeApp.setDescription("Approve or reject merging student batches across departments/campuses");
+        collegePermissions.put(pMergeApp.getId(), pMergeApp);
+
+        // Seed Registrar and Academic Admin roles with default grants (User Story 39)
+        CollegeRole registrarRole = new CollegeRole();
+        registrarRole.setId("ROLE_REGISTRAR");
+        registrarRole.setRoleCode("REGISTRAR");
+        registrarRole.setName("College Registrar");
+        registrarRole.setProtectedSystemRole(true);
+        registrarRole.setPermissions(new ArrayList<>(Arrays.asList("BATCH_SPLIT_APPROVE", "BATCH_MERGE_APPROVE")));
+        collegeRoles.put(registrarRole.getId(), registrarRole);
+
+        CollegeRole acadAdminRole = new CollegeRole();
+        acadAdminRole.setId("ROLE_ACADEMIC_ADMIN");
+        acadAdminRole.setRoleCode("ACADEMIC_ADMIN");
+        acadAdminRole.setName("Academic Administrator");
+        acadAdminRole.setProtectedSystemRole(true);
+        acadAdminRole.setPermissions(new ArrayList<>(Collections.singletonList("BATCH_SPLIT_REQUEST")));
+        collegeRoles.put(acadAdminRole.getId(), acadAdminRole);
     }
 
     /**
@@ -696,12 +752,6 @@ public class CollegeAdminDomainService {
     // Phase 1: College RBAC & Identity Management (User Story Lines 12–16)
     // =========================================================================
 
-    private final Map<String, CollegeUser> collegeUsers = new ConcurrentHashMap<>();
-    private final Map<String, CollegeRole> collegeRoles = new ConcurrentHashMap<>();
-    private final Map<String, CollegePermission> collegePermissions = new ConcurrentHashMap<>();
-    private final Map<String, CollegeRoleBinding> collegeRoleBindings = new ConcurrentHashMap<>();
-    private final Map<String, CollegeAccessReview> collegeAccessReviews = new ConcurrentHashMap<>();
-
     /**
      * User Story 12: Register a college-scoped admin user with department context.
      */
@@ -760,6 +810,9 @@ public class CollegeAdminDomainService {
                     throw new CollegeResourceConflictException("CollegeRole", "roleCode", role.getRoleCode());
                 }
             }
+
+            // Enforce separation of duties at role level (Story 39)
+            checkSeparationOfDuties(role.getPermissions(), "Role '" + role.getRoleCode() + "'");
 
             role.setId(UUID.randomUUID().toString());
             collegeRoles.put(role.getId(), role);
@@ -839,6 +892,22 @@ public class CollegeAdminDomainService {
             if (role == null) {
                 throw new CollegeResourceNotFoundException("CollegeRole", binding.getRoleId());
             }
+
+            // Enforce separation of duties at binding level (Story 39):
+            // Check that no role/principal holds both a *_REQUEST and its corresponding *_APPROVE permission
+            Set<String> effectivePermissions = new HashSet<>(role.getPermissions());
+            long now = System.currentTimeMillis();
+            for (CollegeRoleBinding existing : collegeRoleBindings.values()) {
+                if (existing.getPrincipalId().equals(binding.getPrincipalId())) {
+                    if (existing.getEffectiveTo() == 0 || existing.getEffectiveTo() > now) {
+                        CollegeRole existingRole = collegeRoles.get(existing.getRoleId());
+                        if (existingRole != null) {
+                            effectivePermissions.addAll(existingRole.getPermissions());
+                        }
+                    }
+                }
+            }
+            checkSeparationOfDuties(effectivePermissions, "Principal '" + binding.getPrincipalId() + "'");
 
             // Enforce uniqueness of (principalId, roleId, scopeType, scopeId)
             for (CollegeRoleBinding existing : collegeRoleBindings.values()) {
@@ -1086,6 +1155,18 @@ public class CollegeAdminDomainService {
 
         inboxEvents.put(dedupeKey, inbox);
         logger.info("[ADM-02 Inbox] Successfully processed inbound event [{}] from [{}]", eventId, sourceService);
+
+        // User Story 40 & 41: Cross-module ACD-04 batch approval event ingestion
+        if (payload != null && (payload.contains("BatchSplitApprovalRequested")
+                || payload.contains("BatchMergeApprovalRequested")
+                || "ACD-04".equalsIgnoreCase(sourceService))) {
+            try {
+                processBatchApprovalEvent(payload);
+            } catch (Exception e) {
+                logger.error("[ADM-02 Inbox] Error processing batch approval event payload: {}", e.getMessage(), e);
+            }
+        }
+
         return inbox;
     }
 
@@ -1575,5 +1656,536 @@ public class CollegeAdminDomainService {
 
     public List<CollegeWorkflowInstance> listCollegeWorkflows() {
         return new ArrayList<>(collegeWorkflows.values());
+    }
+
+    // =========================================================================
+    // User Stories 39–41: Cross-Module Batch Split/Merge Approvals & Governance
+    // =========================================================================
+
+    /**
+     * User Story 39: Enforces separation of duties by ensuring no role or principal
+     * holds both a *_REQUEST permission and its corresponding *_APPROVE permission simultaneously.
+     *
+     * @param permissions collection of permission codes
+     * @param entityName  descriptive name for error messages (e.g. role or principal)
+     */
+    public void checkSeparationOfDuties(Collection<String> permissions, String entityName) {
+        if (permissions == null || permissions.isEmpty()) return;
+        boolean hasSplitRequest = false;
+        boolean hasSplitApprove = false;
+        boolean hasMergeRequest = false;
+        boolean hasMergeApprove = false;
+
+        for (String p : permissions) {
+            if ("BATCH_SPLIT_REQUEST".equalsIgnoreCase(p)) hasSplitRequest = true;
+            if ("BATCH_SPLIT_APPROVE".equalsIgnoreCase(p)) hasSplitApprove = true;
+            if ("BATCH_MERGE_REQUEST".equalsIgnoreCase(p)) hasMergeRequest = true;
+            if ("BATCH_MERGE_APPROVE".equalsIgnoreCase(p)) hasMergeApprove = true;
+        }
+
+        if (hasSplitRequest && hasSplitApprove) {
+            throw new CollegeSecurityViolationException("ADM02_SEPARATION_OF_DUTIES_VIOLATION",
+                    "Separation of duties violation: " + entityName + " cannot hold both BATCH_SPLIT_REQUEST and BATCH_SPLIT_APPROVE permissions simultaneously");
+        }
+        if (hasMergeRequest && hasMergeApprove) {
+            throw new CollegeSecurityViolationException("ADM02_SEPARATION_OF_DUTIES_VIOLATION",
+                    "Separation of duties violation: " + entityName + " cannot hold both BATCH_MERGE_REQUEST and BATCH_MERGE_APPROVE permissions simultaneously");
+        }
+    }
+
+    /**
+     * User Story 39: Look up a college role by roleCode.
+     *
+     * @param roleCode the role code to find
+     * @return CollegeRole if found, null otherwise
+     */
+    public CollegeRole getRoleByCode(String roleCode) {
+        if (roleCode == null) return null;
+        for (CollegeRole r : collegeRoles.values()) {
+            if (roleCode.equalsIgnoreCase(r.getRoleCode())) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * User Story 39: Look up a college permission by permissionCode.
+     *
+     * @param permissionCode the permission code to find
+     * @return CollegePermission if found, null otherwise
+     */
+    public CollegePermission getPermissionByCode(String permissionCode) {
+        if (permissionCode == null) return null;
+        for (CollegePermission p : collegePermissions.values()) {
+            if (permissionCode.equalsIgnoreCase(p.getPermissionCode())) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * User Story 40 & 41: Ingest ACD-04 BatchSplitApprovalRequested or BatchMergeApprovalRequested event,
+     * deduplicating via ADM02_inbox_events and initializing workflow + approval records.
+     *
+     * @param eventId       the event ID from ACD-04 envelope
+     * @param eventType     event type ("BatchSplitApprovalRequested" or "BatchMergeApprovalRequested")
+     * @param eventVersion  event schema version ("1.0")
+     * @param tenantId      tenant ID
+     * @param institutionId institution ID
+     * @param correlationId correlation trace ID
+     * @param timestamp     event creation timestamp
+     * @param data          event data payload map
+     * @return populated BatchApprovalDetails
+     */
+    public BatchApprovalDetails processBatchApprovalEvent(String eventId, String eventType, String eventVersion,
+                                                          String tenantId, String institutionId, String correlationId,
+                                                          long timestamp, Map<String, Object> data) {
+        try (FlowTracker flow = logger.flow("ProcessBatchApprovalEvent", eventId != null ? eventId : "EVT-UNKNOWN")) {
+            if (eventId == null || eventId.trim().isEmpty()) {
+                throw new CollegeMalformedPayloadException("Mandatory field 'eventId' is required");
+            }
+            if (eventType == null || eventType.trim().isEmpty()) {
+                throw new CollegeMalformedPayloadException("Mandatory field 'eventType' is required");
+            }
+            if (data == null || data.isEmpty()) {
+                throw new CollegeMalformedPayloadException("Event 'data' payload cannot be empty");
+            }
+
+            // Deduplication via ADM02_inbox_events on eventId (Story 40 & 41)
+            String dedupeKey = "ACD-04:BATCH_APPROVAL:" + eventId;
+            if (inboxEvents.containsKey(dedupeKey)) {
+                logger.warn("[ADM-02 Inbox] Duplicate batch approval event ignored: eventId={}", eventId);
+                String reqId = (String) data.get("requestId");
+                if (reqId == null || reqId.trim().isEmpty()) {
+                    reqId = (String) data.get("eventId");
+                }
+                if (reqId == null || reqId.trim().isEmpty()) {
+                    reqId = eventId;
+                }
+                if (reqId != null && batchApprovals.containsKey(reqId)) {
+                    BatchApprovalDetails existing = batchApprovals.get(reqId);
+                    BatchApprovalDetails dup = new BatchApprovalDetails();
+                    dup.setRequestId(existing.getRequestId());
+                    dup.setRequestType(existing.getRequestType());
+                    dup.setWorkflowInstanceId(existing.getWorkflowInstanceId());
+                    dup.setApproverRole(existing.getApproverRole());
+                    dup.setStatus("DUPLICATE_IGNORED");
+                    return dup;
+                }
+                BatchApprovalDetails dup = new BatchApprovalDetails();
+                dup.setRequestId(reqId);
+                dup.setStatus("DUPLICATE_IGNORED");
+                return dup;
+            }
+
+            // Record in ADM02_inbox_events
+            InboxEvent inbox = new InboxEvent();
+            inbox.setId(UUID.randomUUID().toString());
+            inbox.setEventId(eventId);
+            inbox.setSourceService("ACD-04");
+            inbox.setConsumerGroup("ADM02_BATCH_WORKFLOW");
+            inbox.setStatus("PROCESSED");
+            inbox.setProcessedAt(System.currentTimeMillis());
+            inboxEvents.put(dedupeKey, inbox);
+
+            String requestId = (String) data.get("requestId");
+            if (requestId == null || requestId.trim().isEmpty()) {
+                requestId = (String) data.get("eventId");
+            }
+            if (requestId == null || requestId.trim().isEmpty()) {
+                requestId = eventId;
+            }
+            if (requestId == null || requestId.trim().isEmpty()) {
+                requestId = "REQ_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            }
+
+            String requestType = (String) data.get("requestType");
+            if (requestType == null || requestType.trim().isEmpty()) {
+                if (eventType != null && eventType.toLowerCase().contains("merge")) {
+                    requestType = "MERGE";
+                } else {
+                    requestType = "SPLIT";
+                }
+            }
+            requestType = requestType.toUpperCase();
+
+            BatchApprovalDetails details = new BatchApprovalDetails();
+            details.setRequestId(requestId);
+            details.setRequestType(requestType);
+            details.setTenantId(tenantId != null ? tenantId : "TENANT-001");
+            details.setInstitutionId(institutionId != null ? institutionId : "INST-001");
+            details.setCorrelationId(correlationId != null ? correlationId : LogContext.getTraceId());
+            details.setCampusId((String) data.get("campusId"));
+            details.setDepartmentId((String) data.get("departmentId"));
+
+            String reqBy = (String) data.get("requestedBy");
+            if (reqBy == null || reqBy.trim().isEmpty()) {
+                reqBy = (String) data.get("requesterId");
+            }
+            details.setRequestedBy(reqBy != null ? reqBy : "ACADEMIC_ADMIN");
+
+            Object reqAtObj = data.get("requestedAt");
+            if (reqAtObj instanceof Number) {
+                details.setRequestedAt(((Number) reqAtObj).longValue());
+            } else if (reqAtObj != null) {
+                try { details.setRequestedAt(Long.parseLong(reqAtObj.toString())); } catch (Exception ignored) {}
+            }
+            if (details.getRequestedAt() == 0) {
+                details.setRequestedAt(timestamp > 0 ? timestamp : System.currentTimeMillis());
+            }
+            details.setReason((String) data.get("reason"));
+            details.setApproverRole(data.get("approverRole") != null ? (String) data.get("approverRole") : "REGISTRAR");
+
+            if ("SPLIT".equalsIgnoreCase(requestType)) {
+                String srcBatchId = (String) data.get("sourceBatchId");
+                if (srcBatchId == null || srcBatchId.trim().isEmpty()) {
+                    srcBatchId = (String) data.get("batchId");
+                }
+                details.setSourceBatchId(srcBatchId);
+                details.setSourceBatchCode((String) data.get("sourceBatchCode"));
+                Object ps = data.get("proposedSections");
+                if (ps instanceof List) {
+                    for (Object item : (List<?>) ps) {
+                        details.getProposedSections().add(item.toString());
+                    }
+                }
+            } else { // MERGE
+                Object bIds = data.get("sourceBatchIds");
+                if (bIds == null) {
+                    bIds = data.get("batchIds");
+                }
+                if (bIds instanceof List) {
+                    for (Object b : (List<?>) bIds) {
+                        details.getSourceBatchIds().add(b.toString());
+                    }
+                }
+                Object deptIds = data.get("sourceBatchDepartmentIds");
+                if (deptIds instanceof List) {
+                    for (Object d : (List<?>) deptIds) {
+                        details.getSourceBatchDepartmentIds().add(d.toString());
+                    }
+                }
+                details.setTargetBatchId((String) data.get("targetBatchId"));
+            }
+
+            // Create ADM02_workflow_instances record (Story 40)
+            CollegeWorkflowInstance wf = new CollegeWorkflowInstance();
+            wf.setId("CWF_BATCH_" + requestId);
+            wf.setWorkflowType("BATCH_SPLIT_MERGE");
+            wf.setSubject(requestId + " (" + requestType + " batch "
+                    + (details.getSourceBatchId() != null ? details.getSourceBatchId() : details.getSourceBatchIds()) + ")");
+            wf.setCurrentState("RUNNING");
+            wf.getSteps().add("INITIATED");
+            wf.getSteps().add("PENDING_REGISTRAR_DECISION");
+            wf.setCompensationAction("REVERT_" + requestType + "_REQUEST");
+            wf.setStartedAt(System.currentTimeMillis());
+            collegeWorkflows.put(wf.getId(), wf);
+            details.setWorkflowInstanceId(wf.getId());
+
+            // Create ADM02_approval_requests record with approver chain resolved to Registrar (Story 40)
+            ApprovalRequest appReq = new ApprovalRequest();
+            appReq.setId(requestId);
+            appReq.setRequestType("BATCH_" + requestType);
+            appReq.setSubjectType("ACD04_BATCH");
+            appReq.setSubjectId(details.getSourceBatchId() != null ? details.getSourceBatchId() : String.join(",", details.getSourceBatchIds()));
+            appReq.setSubmittedBy(details.getRequestedBy() != null ? details.getRequestedBy() : "ACADEMIC_ADMIN");
+            appReq.getApproverChain().add("REGISTRAR");
+            appReq.setStatus("PENDING");
+            appReq.setSubmittedAt(details.getRequestedAt());
+            approvalRequests.put(appReq.getId(), appReq);
+
+            details.setStatus("PENDING");
+            batchApprovals.put(requestId, details);
+
+            flow.step("BatchApprovalWorkflowCreated");
+            logger.info("[ADM-02 Workflow] Registered batch {} workflow [{}] for requestId [{}], approver resolved to [REGISTRAR]",
+                    requestType, wf.getId(), requestId);
+
+            return details;
+        }
+    }
+
+    /**
+     * User Story 40: Overloaded method to process batch approval requested event directly from raw JSON string.
+     *
+     * @param rawJson JSON string representation of the event envelope and data
+     * @return populated BatchApprovalDetails
+     */
+    public BatchApprovalDetails processBatchApprovalEvent(String rawJson) {
+        if (rawJson == null || rawJson.trim().isEmpty()) {
+            throw new CollegeMalformedPayloadException("Event JSON body cannot be empty");
+        }
+        String eventId = extractRegex(rawJson, "eventId", UUID.randomUUID().toString());
+        String eventType = extractRegex(rawJson, "eventType", "BatchSplitApprovalRequested");
+        String eventVersion = extractRegex(rawJson, "eventVersion", "1.0");
+        String tenantId = extractRegex(rawJson, "tenantId", "TENANT-001");
+        String institutionId = extractRegex(rawJson, "institutionId", "INST-001");
+        String correlationId = extractRegex(rawJson, "correlationId", LogContext.getTraceId());
+        long timestamp = parseLongSafe(extractRegex(rawJson, "timestamp", "0"), System.currentTimeMillis());
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        String reqId = extractRegex(rawJson, "requestId", null);
+        if (reqId == null || reqId.trim().isEmpty()) {
+            reqId = extractRegex(rawJson, "eventId", null);
+        }
+        data.put("requestId", reqId);
+
+        String reqType = extractRegex(rawJson, "requestType", null);
+        if (reqType == null || reqType.trim().isEmpty()) {
+            if (eventType.toLowerCase().contains("merge")) {
+                reqType = "MERGE";
+            } else {
+                reqType = "SPLIT";
+            }
+        }
+        data.put("requestType", reqType);
+
+        String srcBatchId = extractRegex(rawJson, "sourceBatchId", null);
+        if (srcBatchId == null || srcBatchId.trim().isEmpty()) {
+            srcBatchId = extractRegex(rawJson, "batchId", null);
+        }
+        data.put("sourceBatchId", srcBatchId);
+        data.put("sourceBatchCode", extractRegex(rawJson, "sourceBatchCode", null));
+        data.put("departmentId", extractRegex(rawJson, "departmentId", null));
+        data.put("campusId", extractRegex(rawJson, "campusId", "MAIN"));
+
+        String reqBy = extractRegex(rawJson, "requestedBy", null);
+        if (reqBy == null || reqBy.trim().isEmpty()) {
+            reqBy = extractRegex(rawJson, "requesterId", null);
+        }
+        data.put("requestedBy", reqBy != null ? reqBy : "ACADEMIC_ADMIN");
+        data.put("requestedAt", parseLongSafe(extractRegex(rawJson, "requestedAt", "0"), timestamp));
+        data.put("reason", extractRegex(rawJson, "reason", ""));
+        data.put("approverRole", extractRegex(rawJson, "approverRole", "REGISTRAR"));
+        data.put("targetBatchId", extractRegex(rawJson, "targetBatchId", null));
+
+        List<String> sourceBatchIds = extractJsonArray(rawJson, "sourceBatchIds");
+        if (sourceBatchIds.isEmpty()) {
+            sourceBatchIds = extractJsonArray(rawJson, "batchIds");
+        }
+        if (!sourceBatchIds.isEmpty()) {
+            data.put("sourceBatchIds", sourceBatchIds);
+        }
+        List<String> sourceBatchDepartmentIds = extractJsonArray(rawJson, "sourceBatchDepartmentIds");
+        if (!sourceBatchDepartmentIds.isEmpty()) {
+            data.put("sourceBatchDepartmentIds", sourceBatchDepartmentIds);
+        }
+        List<String> proposedSections = extractJsonArray(rawJson, "proposedSections");
+        if (!proposedSections.isEmpty()) {
+            data.put("proposedSections", proposedSections);
+        }
+
+        return processBatchApprovalEvent(eventId, eventType, eventVersion, tenantId, institutionId, correlationId, timestamp, data);
+    }
+
+    /**
+     * User Story 40 & 41: Records the Registrar's approve or reject decision on a pending batch split/merge workflow instance.
+     * Emits an immutable tamper-evident ADM02_audit_logs record and publishes BatchSplitApprovalDecided / BatchMergeApprovalDecided outbox event.
+     *
+     * @param requestId requestId of the batch approval
+     * @param decision  "APPROVED" or "REJECTED"
+     * @param decidedBy identity of the deciding actor (Registrar)
+     * @param userRole  role of the deciding actor (must resolve to REGISTRAR)
+     * @param reason    justification or notes for the decision
+     * @return updated BatchApprovalDetails
+     */
+    public BatchApprovalDetails decideBatchApproval(String requestId, String decision, String decidedBy, String userRole, String reason) {
+        try (FlowTracker flow = logger.flow("DecideBatchApproval", "DECIDE-" + requestId)) {
+            if (requestId == null || requestId.trim().isEmpty()) {
+                throw new CollegeMalformedPayloadException("Mandatory field 'requestId' is required");
+            }
+            BatchApprovalDetails details = batchApprovals.get(requestId);
+            if (details == null) {
+                throw new CollegeResourceNotFoundException("BatchApprovalRequest", requestId);
+            }
+            if (!"PENDING".equalsIgnoreCase(details.getStatus())) {
+                throw new CollegeLifecycleException("Batch approval request '" + requestId + "' already settled with status: " + details.getStatus());
+            }
+
+            // Role / permission authorization check (Story 39 & 40)
+            boolean isRegistrar = "REGISTRAR".equalsIgnoreCase(userRole);
+            if (!isRegistrar && decidedBy != null) {
+                for (CollegeRoleBinding b : collegeRoleBindings.values()) {
+                    if (b.getPrincipalId().equalsIgnoreCase(decidedBy)) {
+                        CollegeRole r = collegeRoles.get(b.getRoleId());
+                        if (r != null && "REGISTRAR".equalsIgnoreCase(r.getRoleCode())) {
+                            isRegistrar = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!isRegistrar) {
+                throw new CollegeSecurityViolationException(403, "ADM02_UNAUTHORIZED_APPROVER",
+                        "Security violation: Only Registrar role can approve or reject batch split/merge requests");
+            }
+
+            // Separation of duties / Anti-Self-Certification (CSV Line 40 & Story 39)
+            if (decidedBy != null && decidedBy.equalsIgnoreCase(details.getRequestedBy())) {
+                throw new CollegeSecurityViolationException(400, "ADM02_SELF_CERTIFICATION_BLOCKED",
+                        "Self-certification violation: requester '" + decidedBy + "' cannot approve or reject their own batch " + details.getRequestType() + " request");
+            }
+
+            if (decision == null || (!decision.equalsIgnoreCase("APPROVED") && !decision.equalsIgnoreCase("REJECTED"))) {
+                throw new CollegeMalformedPayloadException("Decision must be either 'APPROVED' or 'REJECTED'");
+            }
+            decision = decision.toUpperCase();
+
+            long now = System.currentTimeMillis();
+            details.setStatus(decision);
+            details.setDecision(decision);
+            details.setDecidedBy(decidedBy != null ? decidedBy : "REGISTRAR");
+            details.setDecidedAt(now);
+            details.setDecisionReason(reason != null ? reason : "Decision recorded by Registrar");
+
+            // Update ApprovalRequest
+            ApprovalRequest appReq = approvalRequests.get(requestId);
+            if (appReq != null) {
+                appReq.setStatus(decision);
+                appReq.setDecidedBy(details.getDecidedBy());
+                appReq.setDecidedAt(now);
+                appReq.setDecisionNotes(details.getDecisionReason());
+            }
+
+            // Update CollegeWorkflowInstance
+            CollegeWorkflowInstance wf = collegeWorkflows.get(details.getWorkflowInstanceId());
+            if (wf != null) {
+                if ("APPROVED".equalsIgnoreCase(decision)) {
+                    wf.setCurrentState("COMPLETED");
+                    wf.getSteps().add("REGISTRAR_APPROVED");
+                } else {
+                    wf.setCurrentState("FAILED");
+                    wf.getSteps().add("REGISTRAR_REJECTED");
+                    wf.getSteps().add("COMPENSATION_EXECUTED:" + wf.getCompensationAction());
+                }
+                wf.setCompletedAt(now);
+            }
+
+            // Story 41: Capture batch split/merge approval decision in the immutable, tamper-evident audit trail
+            String batchIdsStr = details.getSourceBatchId() != null
+                    ? details.getSourceBatchId()
+                    : String.join(",", details.getSourceBatchIds());
+
+            AuditEvent audit = AuditEvent.builder()
+                    .action("BATCH_" + details.getRequestType() + "_APPROVAL_DECIDED")
+                    .principalId(details.getDecidedBy())
+                    .principalRole("REGISTRAR")
+                    .resourceType("ACD04_BATCH")
+                    .resourceId(batchIdsStr)
+                    .status(decision)
+                    .description("Registrar decision " + decision + " on batch " + details.getRequestType() + " request "
+                            + requestId + ": " + details.getDecisionReason())
+                    .build();
+            Map<String, Object> auditRecord = recordAudit(audit);
+
+            details.setAuditRecordId((String) auditRecord.get("eventId"));
+            details.setBeforeHash((String) auditRecord.get("beforeHash"));
+            details.setAfterHash((String) auditRecord.get("afterHash"));
+
+            // Story 40: Publish BatchSplitApprovalDecided / BatchMergeApprovalDecided payload back to ACD-04 via outbox
+            String eventType = "SPLIT".equalsIgnoreCase(details.getRequestType())
+                    ? "BatchSplitApprovalDecided"
+                    : "BatchMergeApprovalDecided";
+
+            String outboxPayload = "{"
+                    + "\"eventId\":\"" + UUID.randomUUID().toString() + "\","
+                    + "\"eventType\":\"" + eventType + "\","
+                    + "\"eventVersion\":\"1.0\","
+                    + "\"tenantId\":\"" + details.getTenantId() + "\","
+                    + "\"institutionId\":\"" + details.getInstitutionId() + "\","
+                    + "\"correlationId\":\"" + (details.getCorrelationId() != null ? details.getCorrelationId() : LogContext.getTraceId()) + "\","
+                    + "\"timestamp\":" + now + ","
+                    + "\"data\":{"
+                    + "\"requestId\":\"" + requestId + "\","
+                    + "\"decision\":\"" + decision + "\","
+                    + "\"decidedBy\":\"" + details.getDecidedBy() + "\","
+                    + "\"decidedAt\":" + now + ","
+                    + "\"reason\":\"" + (details.getDecisionReason() != null ? details.getDecisionReason().replace("\"", "\\\"") : "") + "\""
+                    + "}"
+                    + "}";
+
+            emitOutboxEvent(eventType, requestId, details.getTenantId(), outboxPayload);
+            logger.info("[ADM-02 Outbox] Published [{}] for requestId [{}] with decision [{}]", eventType, requestId, decision);
+
+            flow.step("BatchApprovalFinalized");
+            return details;
+        }
+    }
+
+    public BatchApprovalDetails getBatchApproval(String requestId) {
+        BatchApprovalDetails details = batchApprovals.get(requestId);
+        if (details == null) {
+            throw new CollegeResourceNotFoundException("BatchApprovalRequest", requestId);
+        }
+        return details;
+    }
+
+    public List<BatchApprovalDetails> listBatchApprovals(String status) {
+        List<BatchApprovalDetails> result = new ArrayList<>();
+        for (BatchApprovalDetails d : batchApprovals.values()) {
+            if (status != null && !status.isEmpty() && !status.equalsIgnoreCase(d.getStatus())) {
+                continue;
+            }
+            result.add(d);
+        }
+        return result;
+    }
+
+    public Map<String, BatchApprovalDetails> getBatchApprovals() {
+        return Collections.unmodifiableMap(batchApprovals);
+    }
+
+    // Helper regex extractors for internal event processing
+    private static String extractRegex(String json, String key, String defaultValue) {
+        if (json == null || json.isEmpty()) return defaultValue;
+        Pattern pStr = Pattern.compile("(?i)\"" + key + "\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+        Matcher mStr = pStr.matcher(json);
+        if (mStr.find()) {
+            return mStr.group(1).replace("\\\"", "\"").replace("\\\\", "\\");
+        }
+        Pattern pNum = Pattern.compile("(?i)\"" + key + "\"\\s*:\\s*(-?\\d+)");
+        Matcher mNum = pNum.matcher(json);
+        if (mNum.find()) return mNum.group(1);
+        Pattern pBool = Pattern.compile("(?i)\"" + key + "\"\\s*:\\s*(true|false)");
+        Matcher mBool = pBool.matcher(json);
+        if (mBool.find()) return mBool.group(1);
+        return defaultValue;
+    }
+
+    private static List<String> extractJsonArray(String json, String key) {
+        List<String> list = new ArrayList<>();
+        if (json == null || json.isEmpty()) return list;
+        Pattern pArr = Pattern.compile("(?i)\"" + key + "\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
+        Matcher mArr = pArr.matcher(json);
+        if (mArr.find()) {
+            String content = mArr.group(1).trim();
+            if (!content.isEmpty()) {
+                Pattern pItem = Pattern.compile("\"((?:\\\\.|[^\"\\\\])*)\"");
+                Matcher mItem = pItem.matcher(content);
+                boolean foundString = false;
+                while (mItem.find()) {
+                    foundString = true;
+                    list.add(mItem.group(1).replace("\\\"", "\"").replace("\\\\", "\\"));
+                }
+                if (!foundString && content.contains("{")) {
+                    Pattern pObj = Pattern.compile("\\{.*?\\}", Pattern.DOTALL);
+                    Matcher mObj = pObj.matcher(content);
+                    while (mObj.find()) {
+                        list.add(mObj.group(0));
+                    }
+                }
+            }
+        }
+        return list;
+    }
+
+    private static long parseLongSafe(String s, long defaultValue) {
+        try {
+            return Long.parseLong(s);
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 }

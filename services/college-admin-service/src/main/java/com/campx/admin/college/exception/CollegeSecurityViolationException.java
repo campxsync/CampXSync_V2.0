@@ -7,6 +7,17 @@ package com.campx.admin.college.exception;
 public class CollegeSecurityViolationException extends CollegeAdminException {
 
     /**
+     * Constructs a new {@code CollegeSecurityViolationException} with an explicit HTTP status, error code, and message.
+     *
+     * @param status    the HTTP status code (e.g. 400, 403)
+     * @param errorCode the machine-readable security error code
+     * @param message   the security violation description
+     */
+    public CollegeSecurityViolationException(int status, String errorCode, String message) {
+        super(status, errorCode, message);
+    }
+
+    /**
      * Constructs a new {@code CollegeSecurityViolationException} with an explicit error code and message.
      *
      * @param errorCode the machine-readable security error code
