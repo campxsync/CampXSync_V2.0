@@ -14,6 +14,7 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-01)</b>: Course Management Service on port 8083</li>
  *   <li><b>Academic Tier (ACD-02)</b>: Curriculum Management Service on port 8084</li>
  *   <li><b>Academic Tier (ACD-03)</b>: Subject Management Service on port 8085</li>
+ *   <li><b>Academic Tier (ACD-04)</b>: Batch Management Service on port 8086</li>
  * </ul>
  * </p>
  *
@@ -57,6 +58,12 @@ public class GatewayConfig {
         routeTable.put("/api/v1/subjects", "http://localhost:8085/api/v1/subjects");
         routeTable.put("/api/v1/academics/subjects", "http://localhost:8085/api/v1/academics/subjects");
 
+        // Academic Tier -> Batch Management Service (Port 8086)
+        routeTable.put("/api/v1/batches/metrics", "http://localhost:8086/metrics");
+        routeTable.put("/api/v1/academics/batches/metrics", "http://localhost:8086/metrics");
+        routeTable.put("/api/v1/batches", "http://localhost:8086/api/v1/academics/batches");
+        routeTable.put("/api/v1/academics/batches", "http://localhost:8086/api/v1/academics/batches");
+
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
@@ -89,6 +96,10 @@ public class GatewayConfig {
         // Academic Tier -> Subject Management Service (Port 8085)
         routeTable.put("/v1/subjects", "http://localhost:8085/api/v1/subjects");
         routeTable.put("/v1/subject-catalog", "http://localhost:8085/api/v1/academics/subjects/catalog");
+
+        // Academic Tier -> Batch Management Service (Port 8086)
+        routeTable.put("/v1/batches", "http://localhost:8086/api/v1/academics/batches");
+        routeTable.put("/v1/batch-catalog", "http://localhost:8086/api/v1/academics/batches");
     }
 
     /**

@@ -100,6 +100,8 @@ public class ApiGatewayRoutingTest {
         assertTrue(resp.contains("/api/v1/curricula"));
         assertTrue(resp.contains("/api/v1/subjects"));
         assertTrue(resp.contains("/v1/subject-catalog"));
+        assertTrue(resp.contains("/api/v1/batches"));
+        assertTrue(resp.contains("/v1/batch-catalog"));
     }
 
     /**

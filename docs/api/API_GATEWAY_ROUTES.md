@@ -29,21 +29,21 @@ The **CampXSync API Gateway** functions as the unified reverse proxy, perimeter 
 |  * Network Resilience (Connect: 5,000ms, Read: 10,000ms)                                          |
 |  * Downstream Error Pass-Through & RFC 7807 Fault Handling                                        |
 |  * Liveness & Route Introspection (/actuator/health, /api/v1/gateway/routes)                       |
-+--------+------------------+-------------------+-------------------+-------------------------------+
-         |                  |                   |                   |                               |
-    /api/v1/admin/**   /api/v1/college-    /api/v1/courses/**  /api/v1/curricula/**            /api/v1/subjects/**
-    /v1/institutes/**    admin/**          /v1/courses/**      /api/v1/academics/curricula/**  /api/v1/academics/subjects/**
-    /v1/platform-**    /v1/college-**      /v1/course-catalog  /api/v1/active, /metrics        /v1/subjects/**
-    /v1/billing-**     /v1/departments/**                      /v1/curricula/**                /v1/subject-catalog, /metrics
++--------+------------------+-------------------+-------------------+-------------------+---------------+
+         |                  |                   |                   |                   |               |
+    /api/v1/admin/**   /api/v1/college-    /api/v1/courses/**  /api/v1/curricula/**/api/v1/subjects//api/v1/batches
+    /v1/institutes/**    admin/**          /v1/courses/**      /api/v1/academics/  /v1/subjects/**  /v1/batches/**
+    /v1/platform-**    /v1/college-**      /v1/course-catalog    curricula/**      /v1/subject-     /v1/batch-catalog
+    /v1/billing-**     /v1/departments/**                      /v1/curricula/**      catalog        /metrics
     /v1/audit-logs     /v1/programs/**                         /v1/curriculum-catalog
-         |                  |                   |                   |                               |
-         v                  v                   v                   v                               v
-+------------------+ +------------------+ +------------------+ +------------------+            +------------------+
-| ADM-01 Institute | |  ADM-02 College  | |  ACD-01 Course   | | ACD-02 Curriculum|            |  ACD-03 Subject  |
-|  Admin Service   | |  Admin Service   | |Management Service| |Management Service|            |Management Service|
-|  (Platform Tier) | |  (College Tier)  | |  (Academic Tier) | |  (Academic Tier) |            |  (Academic Tier) |
-| Port: 8081       | | Port: 8082       | | Port: 8083       | | Port: 8084       |            | Port: 8085       |
-+------------------+ +------------------+ +------------------+ +------------------+            +------------------+
+         |                  |                   |                   |                   |               |
+         v                  v                   v                   v                   v               v
++------------------+ +------------------+ +------------------+ +------------------+ +---------------+ +---------------+
+| ADM-01 Institute | |  ADM-02 College  | |  ACD-01 Course   | | ACD-02 Curriculum| | ACD-03 Subject| | ACD-04 Batch  |
+|  Admin Service   | |  Admin Service   | |Management Service| |Management Service| |Management Svc | |Management Svc |
+|  (Platform Tier) | |  (College Tier)  | |  (Academic Tier) | |  (Academic Tier) | |(Academic Tier)| |(Academic Tier)|
+| Port: 8081       | | Port: 8082       | | Port: 8083       | | Port: 8084       | | Port: 8085    | | Port: 8086    |
++------------------+ +------------------+ +------------------+ +------------------+ +---------------+ +---------------+
 ```
 
 ---
@@ -91,6 +91,12 @@ The API Gateway provides two route surfaces:
 | **GW-33** | `/v1/college-roles` | `http://localhost:8082/api/v1/college-admin/roles` | ADM-02 College Admin | 8082 | College Role Master (with Separation of Duties) |
 | **GW-34** | `/v1/college-permissions` | `http://localhost:8082/api/v1/college-admin/permissions` | ADM-02 College Admin | 8082 | College Permissions Master (incl. Cross-Module Codes) |
 | **GW-35** | `/v1/college-audit-logs` | `http://localhost:8082/api/v1/college-admin/audit-logs` | ADM-02 College Admin | 8082 | Cryptographic Tamper-Evident Audit Trail |
+| **GW-36** | `/api/v1/batches/metrics` | `http://localhost:8086/metrics` | ACD-04 Batch Management | 8086 | Prometheus Metrics Endpoint |
+| **GW-37** | `/api/v1/academics/batches/metrics` | `http://localhost:8086/metrics` | ACD-04 Batch Management | 8086 | Prometheus Metrics Endpoint |
+| **GW-38** | `/api/v1/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Academic Tier (Direct Full Ingress) |
+| **GW-39** | `/api/v1/academics/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Academic Tier (Namespace Ingress) |
+| **GW-40** | `/v1/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Batch Management Canonical Alias |
+| **GW-41** | `/v1/batch-catalog` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Published Batch Catalog Alias |
 
 ---
 
@@ -1112,6 +1118,130 @@ All downstream microservice endpoints are fully accessible through the API Gatew
 
 ---
 
+### 4.5 ACD-04: Batch Management Service Endpoints (Academic Tier, Port 8086)
+
+The **Batch Management Service (ACD-04)** serves as the authoritative custodian of student cohort groupings, sections, configured capacity limits, authorized overrides, student roster enrollments, point-in-time audit history, and cross-module split/merge orchestrations gated by Registrar approval via ADM-02.
+
+```
+       +-------------------------------------------------------------+
+       |                  ACD-04 Batch Aggregate Root                |
+       |  (batchCode, courseId, semesterNo, capacity, status, ver)   |
+       +------------------------------+------------------------------+
+                                      |
+         +----------------------------+----------------------------+
+         |                            |                            |
+         v                            v                            v
++------------------+         +------------------+         +------------------+
+|   BatchSection   |         |   BatchRoster    |         | CapacityOverride |
+|  (secCode, cap,  |         | (studentId, stat,|         | (ovrCap, reason, |
+|    facultyId)    |         |   effectiveFrom) |         |  status: ACTIVE) |
++------------------+         +------------------+         +------------------+
+```
+
+#### 1. Create Draft Batch (Story 3)
+- **Gateway Path**: `POST /api/v1/academics/batches` or `POST /api/v1/batches`
+- **Target**: `POST http://localhost:8086/api/v1/academics/batches`
+- **Required Headers**: `Content-Type: application/json`, `X-User-Role: ACADEMIC_ADMIN`, `X-Trace-Id`, `X-Tenant-Id`
+- **Optional Header**: `Idempotency-Key` (Story 48)
+- **Request Body**:
+```json
+{
+  "batchCode": "CS-2024-A",
+  "name": "Computer Science Cohort 2024 Section A",
+  "courseId": "CRS-CS101",
+  "curriculumId": "CUR-9F8A2B1C",
+  "departmentId": "DEP-CS",
+  "campusId": "MAIN",
+  "academicYear": "2024-2025",
+  "semesterNo": 1,
+  "capacity": 60
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "batchId": "BATCH-101",
+    "batchCode": "CS-2024-A",
+    "name": "Computer Science Cohort 2024 Section A",
+    "status": "DRAFT",
+    "rosterCount": 0,
+    "capacity": 60,
+    "version": 1
+  },
+  "meta": {
+    "requestId": "REQ-7b89f012",
+    "correlationId": "TRACE-GW-BATCH-001",
+    "timestamp": 1789973000000
+  }
+}
+```
+
+#### 2. Search & Catalog Batches (Story 10)
+- **Gateway Path**: `GET /api/v1/academics/batches`, `GET /api/v1/batches`, or `GET /v1/batch-catalog`
+- **Target**: `GET http://localhost:8086/api/v1/academics/batches`
+- **Query Parameters**: `courseId`, `academicYear`, `semesterNo`, `departmentId`, `status`, `campusId`, `page`, `pageSize`
+- **Response**: `200 OK`
+
+#### 3. View Batch Detail (Story 8, 11)
+- **Gateway Path**: `GET /api/v1/academics/batches/{id}` or `GET /api/v1/batches/{id}`
+- **Target**: `GET http://localhost:8086/api/v1/academics/batches/{id}`
+- **Security Scoping**: Enforces Student view-own-batch and Parent read-only child batch context (Stories 11, 53).
+- **Response**: `200 OK`
+
+#### 4. Update Batch Details (Story 7, 49)
+- **Gateway Path**: `PUT /api/v1/academics/batches/{id}` or `PUT /api/v1/batches/{id}`
+- **Target**: `PUT http://localhost:8086/api/v1/academics/batches/{id}`
+- **Optimistic Concurrency**: Enforces version matching (BR-11, 409 `ACD_BATCH_VERSION_CONFLICT` on mismatch).
+- **Response**: `200 OK`
+
+#### 5. Batch Section Management (Stories 13-16)
+- **Create Section**: `POST /api/v1/batches/{id}/sections` &rarr; `201 Created`
+- **List Sections**: `GET /api/v1/batches/{id}/sections` &rarr; `200 OK`
+- **Assign Faculty (Optional)**: `POST /api/v1/batches/{id}/sections/{sectionId}/faculty` &rarr; `200 OK`
+
+#### 6. Capacity Management & Overrides (Stories 18-21, 72)
+- **Update Capacity**: `PUT /api/v1/academics/batches/{id}/capacity` (Must be positive and &ge; current `rosterCount`)
+- **Grant Capacity Override**: `POST /api/v1/academics/batches/{id}/capacity-override` (Story 20, 72)
+```json
+{
+  "overrideCapacity": 75,
+  "reason": "Dean approved expansion for transfer students",
+  "effectiveFrom": "2024-09-01",
+  "effectiveTo": "2025-12-31"
+}
+```
+- **Revoke Override**: `DELETE /api/v1/academics/batches/{id}/capacity-override/{overrideId}` &rarr; `200 OK`
+
+#### 7. Roster & Student Enrollment Management (Stories 23-29, 72, 73)
+- **Add Student to Roster**: `POST /api/v1/academics/batches/{id}/students`
+  - Validates student eligibility (BR-05; 422 if ineligible).
+  - Enforces duplicate assignment check (BR-06; 409 if already active).
+  - Enforces capacity limit (BR-04; 409 `ACD_BATCH_CAPACITY_EXCEEDED` unless active override).
+  - Blocks addition if batch is CLOSED/ARCHIVED (BR-07; 409 `ACD_BATCH_CLOSED`).
+- **Remove Student from Roster**: `DELETE /api/v1/academics/batches/{id}/students/{studentId}` (Soft-ends membership, preserves historical records).
+- **Get Current Active Roster**: `GET /api/v1/academics/batches/{id}/roster`
+- **View Point-in-Time Roster History**: `GET /api/v1/academics/batches/{id}/history?pointInTime=1789972800000`
+
+#### 8. Batch Lifecycle State Machine (Stories 31-35, 73)
+- **Open / Activate**: `POST /api/v1/academics/batches/{id}/open` &rarr; `ACTIVE`
+- **Close Batch**: `POST /api/v1/academics/batches/{id}/close` &rarr; `CLOSED`
+- **Reopen Batch**: `POST /api/v1/academics/batches/{id}/reopen` &rarr; `ACTIVE`
+- **Archive Batch**: `POST /api/v1/academics/batches/{id}/archive` &rarr; `ARCHIVED`
+
+#### 9. Batch Split & Merge Cross-Module Integration with ADM-02 (Stories 37-39, 75, 76, 77)
+- **Request Split**: `POST /api/v1/batches/{id}/split` (Academic Admin initiates, enters `PENDING_SPLIT_APPROVAL`, emits `BatchSplitApprovalRequested` to ADM-02).
+- **Request Merge**: `POST /api/v1/batches/merge` (Source batches enter `PENDING_MERGE_APPROVAL`, emits `BatchMergeApprovalRequested` to ADM-02).
+- **Consume ADM-02 Approval Decision**: `POST /api/v1/academics/batches/events/approval-decision` (Consumes `BatchSplitApprovalDecided` / `BatchMergeApprovalDecided` from ADM-02 workflow engine; executes split/merge with full student reassignment map or reverts status on rejection).
+
+#### 10. Service Prometheus Metrics & Roster Reconciliation (Stories 61, 62)
+- **Gateway Path**: `GET /api/v1/batches/metrics`
+- **Target**: `GET http://localhost:8086/metrics`
+- **Metrics Tracked**: `acd04_request_total`, `acd04_request_duration_seconds`, `acd04_error_total`, `acd04_capacity_conflicts_total`, `acd04_roster_reconciliation_mismatches`, `acd04_outbox_backlog`, `acd04_dlq_events_total`.
+
+---
+
 ## 5. Gateway Filter & Header Propagation Specification
 
 The gateway utilizes `CorrelationFilter` to inspect and forward distributed context tokens across microservice boundaries.
@@ -1296,4 +1426,76 @@ curl -X POST http://localhost:8080/v1/subjects \
 curl -X GET http://localhost:8080/api/v1/subjects/metrics \
   -H "X-Trace-Id: TRACE-TEST-008"
 ```
+
+### 7.11 Create Academic Batch via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/v1/batches \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-009" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "batchCode": "CS-2024-A",
+    "name": "Computer Science Cohort 2024 Section A",
+    "courseId": "CRS-CS101",
+    "curriculumId": "CUR-9F8A2B1C",
+    "departmentId": "DEP-CS",
+    "campusId": "MAIN",
+    "academicYear": "2024-2025",
+    "semesterNo": 1,
+    "capacity": 60
+  }'
+```
+
+### 7.12 Enroll Student into Batch via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/students \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-010" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "studentId": "STU-1001",
+    "effectiveFrom": "2024-09-01",
+    "membershipType": "REGULAR"
+  }'
+```
+
+### 7.13 Grant Governed Capacity Override via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/capacity-override \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-011" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "overrideCapacity": 75,
+    "reason": "Authorized transfer student enrollment increase",
+    "effectiveFrom": "2024-09-01",
+    "effectiveTo": "2025-12-31"
+  }'
+```
+
+### 7.14 Request Batch Split via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/split \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-012" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "reason": "Exceeded laboratory workstation capacity",
+    "proposedSections": [
+      { "sectionCode": "A1", "capacity": 35 },
+      { "sectionCode": "A2", "capacity": 35 }
+    ]
+  }'
+```
+
+### 7.15 Scrape Batch Management Prometheus Metrics via Gateway (ACD-04)
+```bash
+curl -X GET http://localhost:8080/api/v1/batches/metrics \
+  -H "X-Trace-Id: TRACE-TEST-013"
+```
+
 
