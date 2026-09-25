@@ -634,4 +634,51 @@ public class BatchServiceTest {
         assertTrue("Compensation hook must run on rollback", compensated[0]);
         assertFalse(tx.isActive());
     }
+
+    @Test
+    public void testCurriculumLifecycleEventsAndValidation() {
+        // 1. Creating batch with invalid/unknown curriculumId throws BatchValidationException
+        Batch b1 = new Batch();
+        b1.setBatchCode("CURR-VAL-01");
+        b1.setName("Curriculum Validation Batch");
+        b1.setCourseId("CRS-CS101");
+        b1.setCurriculumId("CURR-UNKNOWN-999");
+        b1.setAcademicYear("2024-2025");
+        b1.setSemesterNo(1);
+        b1.setCapacity(50);
+        try {
+            domainService.createBatch(b1, "admin-1", "ACADEMIC_ADMIN", null);
+            fail("Expected BatchValidationException for invalid curriculumId");
+        } catch (BatchValidationException e) {
+            assertTrue(e.getMessage().contains("CURR-UNKNOWN-999"));
+        }
+
+        // 2. Consume CurriculumPublished event
+        domainService.consumeCurriculumPublished("EVT-CURR-PUB-01", "CURR-NEP-2026");
+
+        // 3. Batch creation with newly published curriculum succeeds
+        b1.setCurriculumId("CURR-NEP-2026");
+        Batch created = domainService.createBatch(b1, "admin-1", "ACADEMIC_ADMIN", null);
+        assertNotNull(created);
+        assertEquals("CURR-NEP-2026", created.getCurriculumId());
+
+        // 4. Consume CurriculumRetired event
+        domainService.consumeCurriculumRetired("EVT-CURR-RET-01", "CURR-NEP-2026");
+
+        // 5. Creating another batch with the retired curriculum throws BatchValidationException
+        Batch b2 = new Batch();
+        b2.setBatchCode("CURR-VAL-02");
+        b2.setName("Curriculum Validation Batch 2");
+        b2.setCourseId("CRS-CS101");
+        b2.setCurriculumId("CURR-NEP-2026");
+        b2.setAcademicYear("2024-2025");
+        b2.setSemesterNo(1);
+        b2.setCapacity(50);
+        try {
+            domainService.createBatch(b2, "admin-1", "ACADEMIC_ADMIN", null);
+            fail("Expected BatchValidationException for retired curriculumId");
+        } catch (BatchValidationException e) {
+            assertTrue(e.getMessage().contains("retired or inactive"));
+        }
+    }
 }

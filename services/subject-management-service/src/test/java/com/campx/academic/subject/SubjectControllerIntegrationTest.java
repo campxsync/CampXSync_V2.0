@@ -600,6 +600,38 @@ public class SubjectControllerIntegrationTest {
         assertTrue(diffResp.contains("credits"));
     }
 
+    @Test
+    public void testDynamicDepartmentSyncViaHttp() throws Exception {
+        String syncNewDept = "{\"eventType\":\"DepartmentCreated\",\"departmentId\":\"DEPT-GENETICS\"}";
+        postHttp("/api/v1/subjects/events/department-sync", syncNewDept, "ACADEMIC_ADMIN", 200);
+
+        String createPayload = "{"
+                + "\"subjectCode\":\"GEN-101\","
+                + "\"name\":\"Introduction to Genetics\","
+                + "\"departmentId\":\"DEPT-GENETICS\","
+                + "\"subjectType\":\"CORE\","
+                + "\"classification\":\"THEORY\","
+                + "\"credits\":3.0,"
+                + "\"contactHours\":45.0"
+                + "}";
+        String created = postHttp("/api/v1/academics/subjects", createPayload, "ACADEMIC_ADMIN", 201);
+        assertTrue(created.contains("GEN-101"));
+
+        String deactDept = "{\"eventType\":\"DepartmentDeactivated\",\"departmentId\":\"DEPT-GENETICS\"}";
+        postHttp("/api/v1/subjects/events/department-sync", deactDept, "ACADEMIC_ADMIN", 200);
+
+        String createPayload2 = "{"
+                + "\"subjectCode\":\"GEN-102\","
+                + "\"name\":\"Advanced Genetics\","
+                + "\"departmentId\":\"DEPT-GENETICS\","
+                + "\"subjectType\":\"CORE\","
+                + "\"classification\":\"THEORY\","
+                + "\"credits\":3.0,"
+                + "\"contactHours\":45.0"
+                + "}";
+        postHttp("/api/v1/academics/subjects", createPayload2, "ACADEMIC_ADMIN", 422);
+    }
+
     // Helper utilities
     private String postHttp(String path, String payload, String role, int expectedStatus) throws Exception {
         URL url = new URL(BASE_URL + path);

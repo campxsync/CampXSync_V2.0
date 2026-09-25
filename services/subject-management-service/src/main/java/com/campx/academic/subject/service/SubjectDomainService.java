@@ -1752,4 +1752,28 @@ public class SubjectDomainService {
         }
         return s;
     }
+
+    /**
+     * Dynamically registers an active department synchronized from ADM-02.
+     *
+     * @param departmentId active department identifier
+     */
+    public void registerActiveDepartment(String departmentId) {
+        if (departmentId != null && !departmentId.trim().isEmpty()) {
+            activeDepartments.put(departmentId.trim(), true);
+            logger.info("[ACD-03] Synchronized active department from ADM-02: {}", departmentId.trim());
+        }
+    }
+
+    /**
+     * Deactivates a department synchronized from ADM-02.
+     *
+     * @param departmentId department identifier to mark inactive
+     */
+    public void deactivateDepartment(String departmentId) {
+        if (departmentId != null) {
+            activeDepartments.put(departmentId.trim(), false);
+            logger.warn("[ACD-03] Deactivated department reference: {}", departmentId.trim());
+        }
+    }
 }

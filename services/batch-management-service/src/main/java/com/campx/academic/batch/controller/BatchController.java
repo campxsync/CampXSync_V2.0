@@ -54,65 +54,70 @@ public class BatchController implements HttpHandler {
         String method = exchange.getRequestMethod();
         long startTime = System.currentTimeMillis();
 
-        // 1. Correlation Context Extraction (§51)
-        String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
-        if (traceId == null || traceId.trim().isEmpty()) {
-            traceId = LogContext.initTraceId();
-        } else {
-            LogContext.setTraceId(traceId);
-        }
+        try {
+            // 1. Correlation Context Extraction (§51)
+            String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+            if (traceId == null || traceId.trim().isEmpty()) {
+                traceId = exchange.getRequestHeaders().getFirst("X-Correlation-Id");
+            }
+            if (traceId == null || traceId.trim().isEmpty()) {
+                traceId = LogContext.initTraceId();
+            } else {
+                LogContext.setTraceId(traceId);
+            }
 
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
-        if (tenantId != null && !tenantId.trim().isEmpty()) {
-            LogContext.setTenantId(tenantId);
-        } else {
-            tenantId = "TENANT-001";
-        }
+            String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+            if (tenantId != null && !tenantId.trim().isEmpty()) {
+                LogContext.setTenantId(tenantId);
+            } else {
+                tenantId = "TENANT-001";
+            }
 
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
-        if (userId != null && !userId.trim().isEmpty()) {
-            LogContext.setUserId(userId);
-        } else {
-            userId = "admin-1";
-        }
+            String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+            if (userId != null && !userId.trim().isEmpty()) {
+                LogContext.setUserId(userId);
+            } else {
+                userId = "admin-1";
+            }
 
-        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
-        if (userRole != null && !userRole.trim().isEmpty()) {
-            LogContext.setUserRole(userRole);
-        } else {
-            userRole = "ACADEMIC_ADMIN";
-        }
+            String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+            if (userRole != null && !userRole.trim().isEmpty()) {
+                LogContext.setUserRole(userRole);
+            } else {
+                userRole = "ACADEMIC_ADMIN";
+            }
 
-        String idempotencyKey = exchange.getRequestHeaders().getFirst("Idempotency-Key");
+            String idempotencyKey = exchange.getRequestHeaders().getFirst("Idempotency-Key");
 
-        // External API Key check (Story 55)
-        String apiKey = exchange.getRequestHeaders().getFirst("X-API-Key");
-        if (apiKey != null && !apiKey.trim().isEmpty()) {
-            ApiKeyRecord keyRecord = domainService.validateApiKey(apiKey.trim(), tenantId);
-            if (keyRecord == null) {
-                sendError(exchange, 401, "ACD_UNAUTHORIZED", "Invalid, revoked, or expired API Key", fullPath);
+            // External API Key check (Story 55)
+            String apiKey = exchange.getRequestHeaders().getFirst("X-API-Key");
+            if (apiKey != null && !apiKey.trim().isEmpty()) {
+                ApiKeyRecord keyRecord = domainService.validateApiKey(apiKey.trim(), tenantId);
+                if (keyRecord == null) {
+                    sendError(exchange, 401, "ACD_UNAUTHORIZED", "Invalid, revoked, or expired API Key", fullPath);
+                    return;
+                }
+                userRole = "EXTERNAL_API";
+                userId = "api-consumer-" + keyRecord.getKeyId();
+                LogContext.setUserRole(userRole);
+                LogContext.setUserId(userId);
+
+                if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method)) {
+                    sendError(exchange, 403, "ACD_FORBIDDEN", "External API consumers have read-only access", fullPath);
+                    return;
+                }
+            }
+
+            LogContext.setService("ACD-04-BatchManagementService");
+            exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+            exchange.getResponseHeaders().set("X-Correlation-Id", traceId);
+
+            // Operational Endpoints
+            if ("/actuator/health".equals(fullPath) || fullPath.endsWith("/health")) {
+                sendJson(exchange, 200, "{\"status\":\"UP\",\"service\":\"ACD-04-BatchManagementService\"}");
                 return;
             }
-            userRole = "EXTERNAL_API";
-            userId = "api-consumer-" + keyRecord.getKeyId();
-            LogContext.setUserRole(userRole);
-            LogContext.setUserId(userId);
-
-            if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method)) {
-                sendError(exchange, 403, "ACD_FORBIDDEN", "External API consumers have read-only access", fullPath);
-                return;
-            }
-        }
-
-        LogContext.setService("ACD-04-BatchManagementService");
-        exchange.getResponseHeaders().set("X-Trace-Id", traceId);
-
-        // Operational Endpoints
-        if ("/actuator/health".equals(fullPath) || fullPath.endsWith("/health")) {
-            sendJson(exchange, 200, "{\"status\":\"UP\",\"service\":\"ACD-04-BatchManagementService\"}");
-            return;
-        }
-        if ("/metrics".equals(fullPath) || fullPath.endsWith("/metrics")) {
+            if ("/metrics".equals(fullPath) || fullPath.endsWith("/metrics")) {
             String prom = metricsCollector.toPrometheusFormat(domainService);
             byte[] bytes = prom.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=UTF-8");
@@ -188,7 +193,10 @@ public class BatchController implements HttpHandler {
                     .build();
             logger.info("StructuredAudit: {}", logEntry.toJson());
         }
+    } finally {
+        LogContext.clear();
     }
+}
 
     private void dispatchRoute(HttpExchange exchange, String method, String path, String body,
                                String userRole, String userId, String tenantId, String idempotencyKey, String fullPath) throws IOException {
@@ -264,8 +272,37 @@ public class BatchController implements HttpHandler {
             Map<String, String> payload = parseSimpleJson(body);
             String eventId = payload.get("eventId");
             String courseId = payload.get("courseId");
+            if (courseId == null || courseId.trim().isEmpty()) {
+                courseId = payload.get("id");
+            }
             domainService.consumeCourseDeactivated(eventId != null ? eventId : UUID.randomUUID().toString(), courseId);
-            sendJson(exchange, 200, formatSuccessResponse("{\"status\":\"ACK\"}", exchange));
+            sendJson(exchange, 200, formatSuccessResponse("{\"status\":\"ACK\",\"courseId\":\"" + (courseId != null ? courseId : "") + "\"}", exchange));
+            return;
+        }
+
+        // Endpoint: POST /events/curriculum-published (Event consumption from ACD-02)
+        if ("POST".equalsIgnoreCase(method) && ("/events/curriculum-published".equals(path) || "/api/v1/batches/events/curriculum-published".equals(path))) {
+            Map<String, String> payload = parseSimpleJson(body);
+            String eventId = payload.get("eventId");
+            String curriculumId = payload.get("curriculumId");
+            if (curriculumId == null || curriculumId.trim().isEmpty()) {
+                curriculumId = payload.get("id");
+            }
+            domainService.consumeCurriculumPublished(eventId != null ? eventId : UUID.randomUUID().toString(), curriculumId);
+            sendJson(exchange, 200, formatSuccessResponse("{\"status\":\"ACK\",\"curriculumId\":\"" + (curriculumId != null ? curriculumId : "") + "\"}", exchange));
+            return;
+        }
+
+        // Endpoint: POST /events/curriculum-retired (Event consumption from ACD-02)
+        if ("POST".equalsIgnoreCase(method) && ("/events/curriculum-retired".equals(path) || "/api/v1/batches/events/curriculum-retired".equals(path))) {
+            Map<String, String> payload = parseSimpleJson(body);
+            String eventId = payload.get("eventId");
+            String curriculumId = payload.get("curriculumId");
+            if (curriculumId == null || curriculumId.trim().isEmpty()) {
+                curriculumId = payload.get("id");
+            }
+            domainService.consumeCurriculumRetired(eventId != null ? eventId : UUID.randomUUID().toString(), curriculumId);
+            sendJson(exchange, 200, formatSuccessResponse("{\"status\":\"ACK\",\"curriculumId\":\"" + (curriculumId != null ? curriculumId : "") + "\"}", exchange));
             return;
         }
 
@@ -749,8 +786,10 @@ public class BatchController implements HttpHandler {
         if (traceId == null) traceId = LogContext.getTraceId();
         String reqId = "REQ-" + UUID.randomUUID().toString().substring(0, 8);
 
-        String json = "{\"success\":false,\"error\":{\"code\":\"" + errorCode
-                + "\",\"message\":\"" + escapeJson(message) + "\"},\"meta\":{\"requestId\":\"" + reqId
+        String json = "{\"success\":false,\"status\":" + statusCode + ",\"error\":{\"code\":\"" + errorCode
+                + "\",\"errorCode\":\"" + errorCode + "\",\"message\":\"" + escapeJson(message)
+                + "\",\"detail\":\"" + escapeJson(message) + "\"},\"code\":\"" + errorCode
+                + "\",\"errorCode\":\"" + errorCode + "\",\"meta\":{\"requestId\":\"" + reqId
                 + "\",\"correlationId\":\"" + traceId + "\",\"timestamp\":" + System.currentTimeMillis() + "}}";
 
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);

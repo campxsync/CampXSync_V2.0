@@ -868,6 +868,9 @@ public class CurriculumController implements HttpHandler {
             sendStandardResponse(exchange, 200, "{\"status\":\"PROCESSED\",\"eventType\":\"SubjectDeactivated\"}");
         } else if ("CourseDeactivated".equalsIgnoreCase(eventType) || "CourseArchived".equalsIgnoreCase(eventType)) {
             String courseId = extract(body, "courseId", null);
+            if (courseId == null || courseId.trim().isEmpty()) {
+                courseId = extract(body, "id", null);
+            }
             domainService.handleCourseDeactivatedEvent(eventId, courseId, "Course inactive");
             sendStandardResponse(exchange, 200, "{\"status\":\"PROCESSED\",\"eventType\":\"" + eventType + "\"}");
         } else {

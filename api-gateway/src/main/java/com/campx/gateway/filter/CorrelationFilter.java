@@ -53,8 +53,11 @@ public class CorrelationFilter {
     public String apply(HttpExchange exchange) {
         Headers headers = exchange.getRequestHeaders();
 
-        // 1. Trace ID
+        // 1. Trace ID (supporting both X-Trace-Id and X-Correlation-Id)
         String traceId = headers.getFirst(HEADER_TRACE_ID);
+        if (traceId == null || traceId.trim().isEmpty()) {
+            traceId = headers.getFirst("X-Correlation-Id");
+        }
         if (traceId == null || traceId.trim().isEmpty()) {
             traceId = UUID.randomUUID().toString().replace("-", "");
         }
@@ -81,6 +84,7 @@ public class CorrelationFilter {
 
         // Add correlation ID to outgoing response headers
         exchange.getResponseHeaders().set(HEADER_TRACE_ID, traceId);
+        exchange.getResponseHeaders().set("X-Correlation-Id", traceId);
 
         return traceId;
     }

@@ -219,8 +219,13 @@ public class ReverseProxyHandler implements HttpHandler {
 
         // Propagate trace identifier if not already explicitly present in incoming headers
         String traceId = LogContext.getTraceId();
-        if (traceId != null && !traceId.isEmpty() && conn.getRequestProperty(CorrelationFilter.HEADER_TRACE_ID) == null) {
-            conn.setRequestProperty(CorrelationFilter.HEADER_TRACE_ID, traceId);
+        if (traceId != null && !traceId.isEmpty()) {
+            if (conn.getRequestProperty(CorrelationFilter.HEADER_TRACE_ID) == null) {
+                conn.setRequestProperty(CorrelationFilter.HEADER_TRACE_ID, traceId);
+            }
+            if (conn.getRequestProperty("X-Correlation-Id") == null) {
+                conn.setRequestProperty("X-Correlation-Id", traceId);
+            }
         }
 
         // Forward caller IP address via X-Forwarded-For
@@ -268,8 +273,9 @@ public class ReverseProxyHandler implements HttpHandler {
         for (Map.Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
             String name = header.getKey();
             if (name != null && !"Transfer-Encoding".equalsIgnoreCase(name) && !"Content-Length".equalsIgnoreCase(name)) {
-                if (CorrelationFilter.HEADER_TRACE_ID.equalsIgnoreCase(name)) {
+                if (CorrelationFilter.HEADER_TRACE_ID.equalsIgnoreCase(name) || "X-Correlation-Id".equalsIgnoreCase(name)) {
                     outgoingHeaders.set(CorrelationFilter.HEADER_TRACE_ID, traceId != null ? traceId : header.getValue().get(0));
+                    outgoingHeaders.set("X-Correlation-Id", traceId != null ? traceId : header.getValue().get(0));
                 } else {
                     for (String val : header.getValue()) {
                         outgoingHeaders.add(name, val);

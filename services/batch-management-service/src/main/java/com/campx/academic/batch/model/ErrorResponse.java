@@ -62,6 +62,14 @@ public class ErrorResponse {
             this.code = code;
         }
 
+        public String getErrorCode() {
+            return code;
+        }
+
+        public void setErrorCode(String errorCode) {
+            this.code = errorCode;
+        }
+
         public String getMessage() {
             return message;
         }

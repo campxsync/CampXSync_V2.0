@@ -170,12 +170,30 @@ public class SubjectController implements HttpHandler {
                     .durationMs(duration)
                     .build();
             logger.debug("[AUDIT_LOG] {}", entry.toJson());
+            LogContext.clear();
         }
     }
 
     private void dispatch(HttpExchange exchange, String method, String path,
                           String tenantId, String userId, String userRole, String departmentId,
                           String idempotencyKey, String fullPath, long startTime) throws Exception {
+
+        // Inbound department sync from ADM-02
+        if ("POST".equalsIgnoreCase(method) && ("/api/v1/subjects/events/department-sync".equals(path) || "/events/department-sync".equals(path))) {
+            String body = readBody(exchange);
+            String eventType = extractJsonString(body, "eventType");
+            String deptId = extractJsonString(body, "departmentId");
+            if (deptId == null) deptId = extractJsonString(body, "id");
+            if (deptId != null && !deptId.trim().isEmpty()) {
+                if ("DepartmentDeactivated".equalsIgnoreCase(eventType) || "DepartmentRetired".equalsIgnoreCase(eventType)) {
+                    domainService.deactivateDepartment(deptId);
+                } else {
+                    domainService.registerActiveDepartment(deptId);
+                }
+            }
+            sendSuccess(exchange, 200, "{\"status\":\"ACK\",\"departmentId\":\"" + (deptId != null ? deptId : "") + "\"}");
+            return;
+        }
 
         // 1. Bulk Import: POST /api/v1/subjects/import
         if ("POST".equalsIgnoreCase(method) && "/api/v1/subjects/import".equals(path)) {

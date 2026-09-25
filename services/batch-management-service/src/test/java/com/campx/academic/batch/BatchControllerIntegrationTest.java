@@ -329,6 +329,68 @@ public class BatchControllerIntegrationTest {
         assertEquals(403, conn.getResponseCode());
         String err = readResponse(conn);
         assertTrue(err.contains("\"code\":\"ACD_FORBIDDEN\""));
+        assertTrue(err.contains("\"errorCode\":\"ACD_FORBIDDEN\""));
+    }
+
+    @Test
+    public void testCourseDeactivatedEventWithIdFallbackViaHttp() throws Exception {
+        // Event payload with legacy "id" instead of "courseId" (GAP-02)
+        String eventPayload = "{\"id\":\"CRS-MATH201\",\"eventId\":\"EVT-DEACT-HTTP-01\"}";
+        URL url = new URL(BASE_URL + "/api/v1/academics/batches/events/course-deactivated");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(eventPayload.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("\"status\":\"ACK\""));
+        assertTrue(resp.contains("CRS-MATH201"));
+    }
+
+    @Test
+    public void testCurriculumPublishedAndRetiredEventViaHttp() throws Exception {
+        // Publish event (GAP-08)
+        String pubPayload = "{\"curriculumId\":\"CURR-HTTP-2026\",\"eventId\":\"EVT-PUB-HTTP-01\"}";
+        URL pubUrl = new URL(BASE_URL + "/api/v1/academics/batches/events/curriculum-published");
+        HttpURLConnection conn = (HttpURLConnection) pubUrl.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(pubPayload.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, conn.getResponseCode());
+        String pubResp = readResponse(conn);
+        assertTrue(pubResp.contains("\"status\":\"ACK\""));
+        assertTrue(pubResp.contains("CURR-HTTP-2026"));
+
+        // Retire event (GAP-08)
+        String retPayload = "{\"curriculumId\":\"CURR-HTTP-2026\",\"eventId\":\"EVT-RET-HTTP-01\"}";
+        URL retUrl = new URL(BASE_URL + "/api/v1/academics/batches/events/curriculum-retired");
+        HttpURLConnection retConn = (HttpURLConnection) retUrl.openConnection();
+        retConn.setRequestMethod("POST");
+        retConn.setDoOutput(true);
+        retConn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = retConn.getOutputStream()) {
+            os.write(retPayload.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, retConn.getResponseCode());
+        String retResp = readResponse(retConn);
+        assertTrue(retResp.contains("\"status\":\"ACK\""));
+    }
+
+    @Test
+    public void testCorrelationIdHeaderAliasSymmetry() throws Exception {
+        URL url = new URL(BASE_URL + "/actuator/health");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("X-Correlation-Id", "CORR-ALIAS-TEST-999");
+        assertEquals(200, conn.getResponseCode());
+        assertEquals("CORR-ALIAS-TEST-999", conn.getHeaderField("X-Correlation-Id"));
+        assertEquals("CORR-ALIAS-TEST-999", conn.getHeaderField("X-Trace-Id"));
     }
 
     private String readResponse(HttpURLConnection conn) throws Exception {

@@ -154,6 +154,13 @@ public class CourseController implements HttpHandler {
                 return;
             }
 
+            // Inbound department sync from ADM-02
+            if (path.equals("/api/v1/courses/events/department-sync") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleDepartmentSyncEvent");
+                handleDepartmentSyncEvent(exchange);
+                return;
+            }
+
             // Phase 5 Collection Endpoints: Bulk, Accreditations & Archive
             if (path.equals("/api/v1/courses/bulk/import") && "POST".equalsIgnoreCase(method)) {
                 flow.step("handleBulkImportCourses");
@@ -176,9 +183,9 @@ public class CourseController implements HttpHandler {
                 return;
             }
 
-            // 4. Primary Collection: Create Course & List Courses
-            if (path.equals("/api/v1/courses")) {
-                if ("POST".equalsIgnoreCase(method)) {
+            // 4. Primary Collection: Create Course & List Courses / Catalog
+            if (path.equals("/api/v1/courses") || path.equals("/api/v1/courses/catalog")) {
+                if ("POST".equalsIgnoreCase(method) && path.equals("/api/v1/courses")) {
                     flow.step("handleCreateCourse");
                     handleCreateCourse(exchange);
                     return;
@@ -1148,5 +1155,22 @@ public class CourseController implements HttpHandler {
     private String escape(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+    }
+
+    private void handleDepartmentSyncEvent(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        String eventType = extract(body, "eventType", "DepartmentCreated");
+        String deptId = extract(body, "departmentId", null);
+        if (deptId == null) {
+            deptId = extract(body, "id", null);
+        }
+        if (deptId != null && !deptId.trim().isEmpty()) {
+            if ("DepartmentDeactivated".equalsIgnoreCase(eventType) || "DepartmentRetired".equalsIgnoreCase(eventType)) {
+                domainService.removeActiveDepartment(deptId);
+            } else {
+                domainService.registerActiveDepartment(deptId);
+            }
+        }
+        sendJson(exchange, 200, "{\"status\":\"ACK\",\"departmentId\":\"" + (deptId != null ? deptId : "") + "\"}");
     }
 }

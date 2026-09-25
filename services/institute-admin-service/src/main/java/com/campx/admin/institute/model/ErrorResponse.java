@@ -54,6 +54,7 @@ public class ErrorResponse {
                 + "\"timestamp\":" + timestamp + ","
                 + "\"status\":" + status + ","
                 + "\"error\":\"" + escape(error) + "\","
+                + "\"code\":\"" + escape(errorCode) + "\","
                 + "\"errorCode\":\"" + escape(errorCode) + "\","
                 + "\"message\":\"" + escape(message) + "\","
                 + "\"path\":\"" + escape(path) + "\","

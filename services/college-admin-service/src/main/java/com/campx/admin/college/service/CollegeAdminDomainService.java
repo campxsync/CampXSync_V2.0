@@ -266,6 +266,11 @@ public class CollegeAdminDomainService {
                     .description("Created department [" + dep.getDepartmentCode() + "] " + dep.getName() + " (HOD: " + dep.getHeadUserId() + ")")
                     .build();
             recordAudit(audit);
+            emitOutboxEvent("DepartmentCreated", dep.getId(), "COLLEGE",
+                    "{\"departmentId\":\"" + dep.getId() + "\",\"departmentCode\":\"" + dep.getDepartmentCode()
+                            + "\",\"name\":\"" + (dep.getName() != null ? dep.getName() : "")
+                            + "\",\"headUserId\":\"" + (dep.getHeadUserId() != null ? dep.getHeadUserId() : "")
+                            + "\",\"status\":\"ACTIVE\"}");
 
             return dep;
         }
@@ -301,6 +306,9 @@ public class CollegeAdminDomainService {
         }
 
         dep.setStatus("RETIRED");
+        emitOutboxEvent("DepartmentDeactivated", dep.getId(), "COLLEGE",
+                "{\"departmentId\":\"" + dep.getId() + "\",\"departmentCode\":\"" + dep.getDepartmentCode()
+                        + "\",\"status\":\"RETIRED\"}");
         logger.warn("Soft-retired department: {}", dep.getDepartmentCode());
     }
 
@@ -346,6 +354,12 @@ public class CollegeAdminDomainService {
         prog.setVersion(1);
         prog.setPublished(true);
         programs.put(prog.getId(), prog);
+
+        emitOutboxEvent("ProgramCreated", prog.getId(), "COLLEGE",
+                "{\"programId\":\"" + prog.getId() + "\",\"programCode\":\"" + prog.getProgramCode()
+                        + "\",\"name\":\"" + (prog.getName() != null ? prog.getName() : "")
+                        + "\",\"departmentId\":\"" + prog.getDepartmentId()
+                        + "\",\"durationYears\":" + prog.getDurationYears() + "}");
 
         logger.info("Published new program: [{}] {} under department: {}", prog.getProgramCode(), prog.getName(), parent.getName());
         return prog;

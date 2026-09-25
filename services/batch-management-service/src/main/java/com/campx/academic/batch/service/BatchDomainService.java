@@ -34,8 +34,9 @@ public class BatchDomainService {
     private final Map<String, BatchSplitRequest> splitRequests = new ConcurrentHashMap<>();
     private final Map<String, BatchMergeRequest> mergeRequests = new ConcurrentHashMap<>();
 
-    // Mock registries for upstream module validations (ACD-01 Courses, STM Students)
+    // Mock registries for upstream module validations (ACD-01 Courses, ACD-02 Curricula, STM Students)
     private final Map<String, Boolean> activeCourseRegistry = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> activeCurriculumRegistry = new ConcurrentHashMap<>();
     private final Map<String, Boolean> eligibleStudentRegistry = new ConcurrentHashMap<>();
 
     // Configuration flags
@@ -63,6 +64,13 @@ public class BatchDomainService {
         activeCourseRegistry.put("CRS-CS102", true);
         activeCourseRegistry.put("CRS-MATH201", true);
         activeCourseRegistry.put("CRS-INACTIVE", false);
+
+        // Active Curricula in ACD-02
+        activeCurriculumRegistry.put("CURR-MCA-2026", true);
+        activeCurriculumRegistry.put("CURR-001", true);
+        activeCurriculumRegistry.put("CURR-CS-2026", true);
+        activeCurriculumRegistry.put("CURR-527CDFA3", true);
+        activeCurriculumRegistry.put("CURR-RETIRED", false);
 
         // Eligible Students in STM
         eligibleStudentRegistry.put("STU-1001", true);
@@ -118,6 +126,15 @@ public class BatchDomainService {
         if (courseActive == null || !courseActive) {
             throw new BatchValidationException("ACD_BATCH_COURSE_INVALID",
                     "Course " + batch.getCourseId() + " is invalid or inactive in ACD-01");
+        }
+
+        // Validate curriculumId resolves to active curriculum in ACD-02 if specified
+        if (!isEmpty(batch.getCurriculumId())) {
+            Boolean currActive = activeCurriculumRegistry.get(batch.getCurriculumId());
+            if (currActive == null || !currActive) {
+                throw new BatchValidationException("ACD_BATCH_CURRICULUM_INVALID",
+                        "Curriculum " + batch.getCurriculumId() + " is retired or inactive in ACD-02");
+            }
         }
 
         // BR-02: Enforce batchCode uniqueness within scope (Story 5)
@@ -1246,6 +1263,30 @@ public class BatchDomainService {
             }
         }
         markEventProcessed(eventId, "CourseDeactivated", "ACD-01", "{\"courseId\":\"" + courseId + "\"}");
+    }
+
+    /**
+     * Consumes CurriculumPublished event from ACD-02.
+     */
+    public void consumeCurriculumPublished(String eventId, String curriculumId) {
+        if (isEventProcessed(eventId)) return;
+        if (curriculumId != null && !curriculumId.trim().isEmpty()) {
+            activeCurriculumRegistry.put(curriculumId.trim(), true);
+            logger.info("Synchronized active curriculum from ACD-02: {}", curriculumId);
+        }
+        markEventProcessed(eventId, "CurriculumPublished", "ACD-02", "{\"curriculumId\":\"" + curriculumId + "\"}");
+    }
+
+    /**
+     * Consumes CurriculumRetired event from ACD-02.
+     */
+    public void consumeCurriculumRetired(String eventId, String curriculumId) {
+        if (isEventProcessed(eventId)) return;
+        if (curriculumId != null && !curriculumId.trim().isEmpty()) {
+            activeCurriculumRegistry.put(curriculumId.trim(), false);
+            logger.warn("Marked curriculum retired from ACD-02: {}", curriculumId);
+        }
+        markEventProcessed(eventId, "CurriculumRetired", "ACD-02", "{\"curriculumId\":\"" + curriculumId + "\"}");
     }
 
     /**

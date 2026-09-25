@@ -113,10 +113,14 @@ public class ErrorResponse {
 
     public String toJson() {
         StringBuilder sb = new StringBuilder();
+        String errCode = error != null ? error.getCode() : "INTERNAL_ERROR";
         sb.append("{");
         sb.append("\"success\":false,");
+        sb.append("\"code\":").append(quote(errCode)).append(",");
+        sb.append("\"errorCode\":").append(quote(errCode)).append(",");
         sb.append("\"error\":{");
-        sb.append("\"code\":").append(quote(error != null ? error.getCode() : "INTERNAL_ERROR")).append(",");
+        sb.append("\"code\":").append(quote(errCode)).append(",");
+        sb.append("\"errorCode\":").append(quote(errCode)).append(",");
         sb.append("\"message\":").append(quote(error != null ? error.getMessage() : "Unknown error"));
         sb.append("},");
         sb.append("\"meta\":{");

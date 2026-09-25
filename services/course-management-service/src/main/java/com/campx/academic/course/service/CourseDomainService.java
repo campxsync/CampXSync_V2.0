@@ -497,8 +497,8 @@ public class CourseDomainService {
             courseCatalog.remove(c.getId());
 
             recordHistory(c.getId(), "DEACTIVATE", old, "DEACTIVATED", "Course deactivated");
-            emitOutboxEvent("CourseDeactivated", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
-            emitOutboxEvent("CourseCatalogUpdated", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
+            emitOutboxEvent("CourseDeactivated", c.getId(), c.getTenantId(), "{\"courseId\":\"" + c.getId() + "\",\"id\":\"" + c.getId() + "\"}");
+            emitOutboxEvent("CourseCatalogUpdated", c.getId(), c.getTenantId(), "{\"courseId\":\"" + c.getId() + "\",\"id\":\"" + c.getId() + "\"}");
             recordAudit("DEACTIVATE", "COURSE", c.getId(), "SUCCESS", "Deactivated course: " + c.getCourseCode());
             return c;
         }
@@ -517,7 +517,7 @@ public class CourseDomainService {
         c.setUpdatedAt(System.currentTimeMillis());
         courseCatalog.remove(c.getId());
         recordHistory(c.getId(), "ARCHIVE", old, "ARCHIVED", "Course archived into historical repository");
-        emitOutboxEvent("CourseArchived", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
+        emitOutboxEvent("CourseArchived", c.getId(), c.getTenantId(), "{\"courseId\":\"" + c.getId() + "\",\"id\":\"" + c.getId() + "\"}");
         return c;
     }
 
@@ -1331,5 +1331,29 @@ public class CourseDomainService {
             }
         }
         return result;
+    }
+
+    /**
+     * Dynamically registers an active department synchronized from ADM-02.
+     *
+     * @param departmentId active department identifier
+     */
+    public void registerActiveDepartment(String departmentId) {
+        if (departmentId != null && !departmentId.trim().isEmpty()) {
+            activeDepartments.add(departmentId.trim());
+            logger.info("[ACD-01] Synchronized active department from ADM-02: {}", departmentId.trim());
+        }
+    }
+
+    /**
+     * Deactivates or removes a retired department.
+     *
+     * @param departmentId retired department identifier
+     */
+    public void removeActiveDepartment(String departmentId) {
+        if (departmentId != null) {
+            activeDepartments.remove(departmentId.trim());
+            logger.warn("[ACD-01] Deactivated department reference: {}", departmentId.trim());
+        }
     }
 }
