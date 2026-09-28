@@ -73,6 +73,12 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.campx</groupId>
+            <artifactId>academic-calendar-service</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Testing -->
         <dependency>

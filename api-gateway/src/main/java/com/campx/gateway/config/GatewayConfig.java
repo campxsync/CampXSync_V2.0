@@ -16,6 +16,8 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-03)</b>: Subject Management Service on port 8085</li>
  *   <li><b>Academic Tier (ACD-04)</b>: Batch Management Service on port 8086</li>
  *   <li><b>Academic Tier (ACD-05)</b>: Timetable Management Service on port 8087</li>
+ *   <li><b>Academic Tier (ACD-06)</b>: Attendance Management Service on port 8088</li>
+ *   <li><b>Academic Tier (ACD-07)</b>: Academic Calendar Service on port 8089</li>
  * </ul>
  * </p>
  *
@@ -78,6 +80,16 @@ public class GatewayConfig {
         routeTable.put("/api/v1/attendance", "http://localhost:8088/api/v1/academics/attendance");
         routeTable.put("/api/v1/academics/attendance", "http://localhost:8088/api/v1/academics/attendance");
 
+        // Academic Tier -> Academic Calendar Service (Port 8089)
+        routeTable.put("/api/v1/calendars/metrics", "http://localhost:8089/metrics");
+        routeTable.put("/api/v1/academics/calendars/metrics", "http://localhost:8089/metrics");
+        routeTable.put("/api/v1/calendars", "http://localhost:8089/api/v1/academics/calendars");
+        routeTable.put("/api/v1/academics/calendars", "http://localhost:8089/api/v1/academics/calendars");
+        routeTable.put("/api/v1/terms", "http://localhost:8089/api/v1/academics/terms");
+        routeTable.put("/api/v1/academics/terms", "http://localhost:8089/api/v1/academics/terms");
+        routeTable.put("/api/v1/events", "http://localhost:8089/api/v1/academics/events");
+        routeTable.put("/api/v1/academics/events", "http://localhost:8089/api/v1/academics/events");
+
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
@@ -124,6 +136,12 @@ public class GatewayConfig {
         routeTable.put("/v1/attendance-sessions", "http://localhost:8088/api/v1/academics/attendance/sessions");
         routeTable.put("/v1/attendance-summaries", "http://localhost:8088/api/v1/academics/attendance/summaries");
         routeTable.put("/v1/attendance-reports", "http://localhost:8088/api/v1/academics/attendance/report");
+
+        // Academic Tier -> Academic Calendar Service (Port 8089)
+        routeTable.put("/v1/calendars", "http://localhost:8089/api/v1/academics/calendars");
+        routeTable.put("/v1/calendar-terms", "http://localhost:8089/api/v1/academics/terms");
+        routeTable.put("/v1/calendar-events", "http://localhost:8089/api/v1/academics/events");
+        routeTable.put("/v1/calendar-catalog", "http://localhost:8089/api/v1/academics/calendars");
     }
 
     /**

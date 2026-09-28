@@ -112,6 +112,18 @@ The API Gateway provides two route surfaces:
 | **GW-54** | `/v1/attendance-sessions` | `http://localhost:8088/api/v1/academics/attendance/sessions` | ACD-06 Attendance Management | 8088 | Attendance Sessions Alias |
 | **GW-55** | `/v1/attendance-summaries` | `http://localhost:8088/api/v1/academics/attendance/summaries` | ACD-06 Attendance Management | 8088 | Attendance Summaries Alias |
 | **GW-56** | `/v1/attendance-reports` | `http://localhost:8088/api/v1/academics/attendance/report` | ACD-06 Attendance Management | 8088 | Attendance Reports Alias |
+| **GW-57** | `/api/v1/calendars/metrics` | `http://localhost:8089/metrics` | ACD-07 Academic Calendar | 8089 | Prometheus Metrics Endpoint |
+| **GW-58** | `/api/v1/academics/calendars/metrics` | `http://localhost:8089/metrics` | ACD-07 Academic Calendar | 8089 | Prometheus Metrics Endpoint |
+| **GW-59** | `/api/v1/calendars` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Academic Tier (Direct Ingress) |
+| **GW-60** | `/api/v1/academics/calendars` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Academic Tier (Namespace Ingress) |
+| **GW-61** | `/api/v1/terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Academic Terms Ingress |
+| **GW-62** | `/api/v1/academics/terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Academic Terms Namespace Ingress |
+| **GW-63** | `/api/v1/events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Academic Events Ingress |
+| **GW-64** | `/api/v1/academics/events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Academic Events Namespace Ingress |
+| **GW-65** | `/v1/calendars` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Academic Calendar Canonical Alias |
+| **GW-66** | `/v1/calendar-terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Calendar Terms Canonical Alias |
+| **GW-67** | `/v1/calendar-events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Calendar Events Canonical Alias |
+| **GW-68** | `/v1/calendar-catalog` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Published Calendar Catalog Alias |
 
 ---
 
@@ -1782,6 +1794,138 @@ curl -X POST http://localhost:8080/api/v1/academics/attendance/device/capture \
 curl -X GET http://localhost:8080/api/v1/attendance/metrics \
   -H "X-Trace-Id: TRACE-ATT-009"
 ```
+
+### 7.30 Create Academic Calendar Draft via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "calendarCode": "CAL_2026_2027_ENG",
+    "name": "Engineering Academic Calendar 2026-2027",
+    "description": "Annual academic calendar for College of Engineering",
+    "academicYear": "2026-2027",
+    "campusId": "CAMPUS_MAIN",
+    "effectiveFrom": "2026-08-01",
+    "effectiveTo": "2027-05-31"
+  }'
+```
+
+### 7.31 Add Academic Term to Calendar via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/terms \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "termCode": "FALL-2026",
+    "name": "Fall Semester 2026",
+    "sequenceNo": 1,
+    "startDate": "2026-08-15",
+    "endDate": "2026-12-15",
+    "instructionalStartDate": "2026-08-20",
+    "instructionalEndDate": "2026-12-05"
+  }'
+```
+
+### 7.32 Add Calendar Event / Holiday via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/events \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "termId": "TERM-FALL-2026",
+    "eventCode": "HOL-DIWALI-2026",
+    "eventType": "HOLIDAY",
+    "title": "Diwali Vacation",
+    "startDate": "2026-11-01",
+    "endDate": "2026-11-05",
+    "allDay": true,
+    "workingDayImpact": "NON_WORKING",
+    "category": "FESTIVAL"
+  }'
+```
+
+### 7.33 Run Calendar Conflict Validation via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/validate \
+  -H "X-Trace-Id: TRACE-CAL-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.34 Submit Calendar for Approval via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/submit \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "reason": "Ready for Registrar review and approval"
+  }'
+```
+
+### 7.35 Record Registrar Approval Decision (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/approval \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-006" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: REGISTRAR" \
+  -H "X-User-Id: REGISTRAR-001" \
+  -d '{
+    "decision": "APPROVED",
+    "reason": "Senate academic calendar schedule verified and ratified"
+  }'
+```
+
+### 7.36 Publish Calendar via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: REGISTRAR" \
+  -H "X-User-Id: REGISTRAR-001" \
+  -d '{
+    "expectedVersion": 1,
+    "effectiveFrom": "2026-08-01",
+    "effectiveTo": "2027-05-31"
+  }'
+```
+
+### 7.37 Resolve Effective Date & Instructional Day Status (ACD-07)
+```bash
+curl -X GET "http://localhost:8080/api/v1/academics/calendars/CAL-1001/effective-date?date=2026-11-02" \
+  -H "X-Trace-Id: TRACE-CAL-008" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY"
+```
+
+### 7.38 Query Calendar Analytics via Gateway (ACD-07)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/calendars/CAL-1001/analytics \
+  -H "X-Trace-Id: TRACE-CAL-009" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: DEAN"
+```
+
+### 7.39 Scrape Academic Calendar Prometheus Metrics via Gateway (ACD-07)
+```bash
+curl -X GET http://localhost:8080/api/v1/calendars/metrics \
+  -H "X-Trace-Id: TRACE-CAL-010"
+```
+
 
 
 
