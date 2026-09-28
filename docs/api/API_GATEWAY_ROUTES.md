@@ -97,6 +97,21 @@ The API Gateway provides two route surfaces:
 | **GW-39** | `/api/v1/academics/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Academic Tier (Namespace Ingress) |
 | **GW-40** | `/v1/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Batch Management Canonical Alias |
 | **GW-41** | `/v1/batch-catalog` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Published Batch Catalog Alias |
+| **GW-42** | `/api/v1/timetables/metrics` | `http://localhost:8087/metrics` | ACD-05 Timetable Management | 8087 | Prometheus Metrics Endpoint |
+| **GW-43** | `/api/v1/academics/timetables/metrics` | `http://localhost:8087/metrics` | ACD-05 Timetable Management | 8087 | Prometheus Metrics Endpoint |
+| **GW-44** | `/api/v1/timetables` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Academic Tier (Direct Ingress) |
+| **GW-45** | `/api/v1/academics/timetables` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Academic Tier (Namespace Ingress) |
+| **GW-46** | `/api/v1/export` | `http://localhost:8087/api/v1/academics/timetables/export` | ACD-05 Timetable Management | 8087 | Timetable Export Ingress |
+| **GW-47** | `/v1/timetables` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Timetable Management Canonical Alias |
+| **GW-48** | `/v1/timetable-catalog` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Published Timetable Catalog Alias |
+| **GW-49** | `/api/v1/attendance/metrics` | `http://localhost:8088/metrics` | ACD-06 Attendance Management | 8088 | Prometheus Metrics Endpoint |
+| **GW-50** | `/api/v1/academics/attendance/metrics` | `http://localhost:8088/metrics` | ACD-06 Attendance Management | 8088 | Prometheus Metrics Endpoint |
+| **GW-51** | `/api/v1/attendance` | `http://localhost:8088/api/v1/academics/attendance` | ACD-06 Attendance Management | 8088 | Academic Tier (Direct Ingress) |
+| **GW-52** | `/api/v1/academics/attendance` | `http://localhost:8088/api/v1/academics/attendance` | ACD-06 Attendance Management | 8088 | Academic Tier (Namespace Ingress) |
+| **GW-53** | `/v1/attendance` | `http://localhost:8088/api/v1/academics/attendance` | ACD-06 Attendance Management | 8088 | Attendance Management Canonical Alias |
+| **GW-54** | `/v1/attendance-sessions` | `http://localhost:8088/api/v1/academics/attendance/sessions` | ACD-06 Attendance Management | 8088 | Attendance Sessions Alias |
+| **GW-55** | `/v1/attendance-summaries` | `http://localhost:8088/api/v1/academics/attendance/summaries` | ACD-06 Attendance Management | 8088 | Attendance Summaries Alias |
+| **GW-56** | `/v1/attendance-reports` | `http://localhost:8088/api/v1/academics/attendance/report` | ACD-06 Attendance Management | 8088 | Attendance Reports Alias |
 
 ---
 
@@ -1242,6 +1257,95 @@ The **Batch Management Service (ACD-04)** serves as the authoritative custodian 
 
 ---
 
+### 4.7 ACD-05 Timetable Management Service Endpoints (`http://localhost:8087`)
+
+ACD-05 serves as the authoritative weekly timetable service, owning draft aggregates, slot entries, version freeze snapshots, deterministic conflict detection (faculty, room, batch, calendar, availability, duplicate-entry), and atomic publication state machines.
+
+#### 1. Create Timetable Draft (Story 1, FR-01)
+- **Gateway Path**: `POST /api/v1/academics/timetables` or `POST /v1/timetables`
+- **Target**: `POST http://localhost:8087/api/v1/academics/timetables`
+- **Headers**: `X-Trace-Id`, `X-Tenant-Id: TENANT-001`, `X-User-Role: ACADEMIC_ADMIN`, `X-User-Id`
+- **Request Body**:
+```json
+{
+  "timetableCode": "TT_CSE_2026_S1",
+  "name": "B.Tech Computer Science Weekly Schedule 2026",
+  "academicYear": "2026-2027",
+  "semester": "1",
+  "departmentId": "DEP-CSE",
+  "programId": "PROG-BTECH-CSE",
+  "effectiveFrom": "2026-08-15",
+  "effectiveTo": "2026-12-15"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "message": "Timetable draft created successfully",
+  "data": {
+    "id": "TT-4CC5F01B",
+    "timetableCode": "TT_CSE_2026_S1",
+    "name": "B.Tech Computer Science Weekly Schedule 2026",
+    "status": "DRAFT",
+    "currentVersionNo": 1,
+    "version": 1
+  },
+  "meta": { "requestId": "TRACE-001", "correlationId": "TRACE-001" }
+}
+```
+
+#### 2. Query and Filter Timetables Catalog (Story 5, FR-11)
+- **Gateway Path**: `GET /api/v1/academics/timetables?departmentId=DEP-CSE&academicYear=2026-2027&status=PUBLISHED`
+- **Target**: `GET http://localhost:8087/api/v1/academics/timetables?...`
+- **Response**: `200 OK`
+
+#### 3. Manage Slot Entries (Stories 11-15, FR-02)
+- **Add Slot Entry**: `POST /api/v1/academics/timetables/{id}/entries` &rarr; `201 Created`
+  - Validates upstream batch (ACD-04), subject (ACD-03), faculty (HRM), room (Facilities) references.
+  - Enforces cross-tenant prohibition (BR-09; 422 if foreign tenant).
+  - Enforces faculty lab qualification rights for `entryType=LAB` (Story 36; 422 `ACD_TIMETABLE_LAB_RIGHTS_MISSING`).
+- **Update Slot Entry**: `PUT /api/v1/academics/timetables/{id}/entries/{entryId}` &rarr; `200 OK`
+- **Remove Slot Entry**: `DELETE /api/v1/academics/timetables/{id}/entries/{entryId}` &rarr; `200 OK`
+- **Bulk Slot Entries**: `POST /api/v1/academics/timetables/{id}/entries/bulk` &rarr; `201 Created` (Row-level errors reported without aborting entire batch).
+
+#### 4. Run Deterministic Conflict Detection Engine (Stories 19-27, FR-04, FR-10, BR-01, BR-02, BR-03, BR-06, BR-07, BR-11)
+- **Gateway Path**: `POST /api/v1/academics/timetables/{id}/validate`
+- **Target**: `POST http://localhost:8087/api/v1/academics/timetables/{id}/validate`
+- **Conflict Checks**:
+  - `FACULTY`: Faculty double-booked in same day + period slot.
+  - `ROOM`: Room double-booked in same day + period slot.
+  - `BATCH`: Batch double-booked in same day + period slot.
+  - `DUPLICATE_ENTRY`: Redundant identical timetable + slot + subject/batch key.
+  - `CALENDAR`: Effective date outside institutional academic calendar window.
+  - `AVAILABILITY`: Faculty or room scheduled inside blocked unavailability periods.
+- **State Transition**: Transitions to `VALIDATING` then `VALIDATED` (if 0 blocking conflicts) or `INVALID` (if conflicts exist).
+- **Diagnostics**: `GET /api/v1/academics/timetables/{id}/conflicts`
+
+#### 5. Immutable Publication & Atomic Supersession (Stories 28-35, FR-06, BR-05, BR-08, BR-12)
+- **Gateway Path**: `POST /api/v1/academics/timetables/{id}/publish`
+- **Target**: `POST http://localhost:8087/api/v1/academics/timetables/{id}/publish`
+- **Guards**: Strictly blocks unvalidated or conflicting drafts (422 `ACD_TIMETABLE_UNVALIDATED` / `ACD_TIMETABLE_CONFLICT`).
+- **Outcome**: Freezes immutable version entries snapshot marked `PUBLISHED`, atomically marks prior effective version `SUPERSEDED`, and emits `TimetablePublished`, `TimetableSuperseded`, and `TimetableChanged` domain events to transactional outbox.
+
+#### 6. Mid-Term Change Workflow (Story 39)
+- **Clone Published Version**: `POST /api/v1/academics/timetables/{id}/clone`
+- Pre-populates new draft version (v2) with all slots from current effective version for mid-term adjustments without disrupting live operations.
+
+#### 7. Operational Role & Resource Views (Stories 6-9)
+- **Batch Schedule**: `GET /api/v1/academics/timetables/batch/{batchId}` (Only published effective schedule).
+- **Faculty Schedule**: `GET /api/v1/academics/timetables/faculty/{facultyId}` (Assigned teaching schedule).
+- **Room Utilization**: `GET /api/v1/academics/timetables/room/{roomId}` (Room allocation and maintenance view).
+- **Department View**: `GET /api/v1/academics/timetables/department/{departmentId}`
+- **Export Timetable**: `GET /api/v1/export?timetableId={id}&format=pdf` (Story 10, emits `TimetableExported`).
+
+#### 8. Service Prometheus Metrics & Outbox Observability (Stories 54, 55)
+- **Gateway Path**: `GET /api/v1/timetables/metrics` or `GET /api/v1/academics/timetables/metrics`
+- **Target**: `GET http://localhost:8087/metrics`
+- **Metrics Tracked**: `acd05_request_total`, `acd05_request_duration_seconds`, `acd05_error_total`, `acd05_conflicts_total`, `acd05_publish_total`, `acd05_validation_duration_seconds`, `acd05_outbox_backlog`, `acd05_dlq_events_total`, `acd05_stale_drafts_total`.
+
+---
+
 ## 5. Gateway Filter & Header Propagation Specification
 
 The gateway utilizes `CorrelationFilter` to inspect and forward distributed context tokens across microservice boundaries.
@@ -1497,5 +1601,188 @@ curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/split \
 curl -X GET http://localhost:8080/api/v1/batches/metrics \
   -H "X-Trace-Id: TRACE-TEST-013"
 ```
+
+### 7.16 Create Timetable Draft via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/v1/timetables \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TT-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "timetableCode": "TT_CSE_2026_S1",
+    "name": "B.Tech Computer Science Weekly Schedule 2026",
+    "academicYear": "2026-2027",
+    "semester": "1",
+    "departmentId": "DEP_CSE_01",
+    "programId": "PROG_BTECH_CSE",
+    "effectiveFrom": "2026-08-15",
+    "effectiveTo": "2026-12-15"
+  }'
+```
+
+### 7.17 Add Timetable Slot Entry via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/timetables/TT-001/entries \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TT-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "batchId": "BATCH-001",
+    "subjectId": "SUB-201",
+    "facultyId": "FAC-100",
+    "roomId": "ROOM-12",
+    "dayOfWeek": "MONDAY",
+    "period": 2,
+    "entryType": "TH"
+  }'
+```
+
+### 7.18 Run Conflict Validation via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/timetables/TT-001/validate \
+  -H "X-Trace-Id: TRACE-TT-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.19 Publish Validated Timetable via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/timetables/TT-001/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TT-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "effectiveFrom": "2026-08-15"
+  }'
+```
+
+### 7.20 Scrape Timetable Prometheus Metrics via Gateway (ACD-05)
+```bash
+curl -X GET http://localhost:8080/api/v1/timetables/metrics \
+  -H "X-Trace-Id: TRACE-TT-005"
+```
+
+### 7.21 Create Attendance Session via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100" \
+  -d '{
+    "batchId": "BATCH-001",
+    "subjectId": "SUB-201",
+    "timetableEntryId": "SLOT-001",
+    "attendanceDate": "2026-10-15",
+    "periodNo": 1,
+    "startTime": "09:00",
+    "endTime": "10:00"
+  }'
+```
+
+### 7.22 Mark Attendance for Roster via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/records \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100" \
+  -d '{
+    "submittedBy": "FAC-100",
+    "records": [
+      { "studentId": "STU-001", "status": "PRESENT" },
+      { "studentId": "STU-002", "status": "ABSENT" },
+      { "studentId": "STU-003", "status": "LEAVE", "statusReason": "Medical appointment" }
+    ]
+  }'
+```
+
+### 7.23 Correct Attendance Record with Mandatory Audit Reason (ACD-06)
+```bash
+curl -X PUT http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/records/STU-002/correct \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100" \
+  -d '{
+    "newStatus": "PRESENT",
+    "reason": "Late arrival due to laboratory setup approved by instructor",
+    "expectedVersion": 1
+  }'
+```
+
+### 7.24 Submit Attendance Session (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/submit \
+  -H "X-Trace-Id: TRACE-ATT-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100"
+```
+
+### 7.25 Lock Attendance Session (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/lock \
+  -H "X-Trace-Id: TRACE-ATT-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001"
+```
+
+### 7.26 Query Student Attendance Summary & Shortage via Gateway (ACD-06)
+```bash
+curl -X GET http://localhost:8080/v1/attendance-summaries/student/STU-001 \
+  -H "X-Trace-Id: TRACE-ATT-006" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.27 Bulk Import External Attendance Records via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/import \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '[
+    {
+      "batchId": "BATCH-001",
+      "subjectId": "SUB-201",
+      "attendanceDate": "2026-10-15",
+      "periodNo": 1,
+      "studentId": "STU-001",
+      "status": "PRESENT"
+    }
+  ]'
+```
+
+### 7.28 Ingest RFID / Biometric Device Capture via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/device/capture \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-008" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: SYSTEM" \
+  -d '{
+    "deviceId": "READER-LH-101",
+    "cardUid": "RFID-992384",
+    "studentId": "STU-001",
+    "readerLocation": "Lecture Hall 101"
+  }'
+```
+
+### 7.29 Scrape Attendance Prometheus Metrics via Gateway (ACD-06)
+```bash
+curl -X GET http://localhost:8080/api/v1/attendance/metrics \
+  -H "X-Trace-Id: TRACE-ATT-009"
+```
+
+
 
 

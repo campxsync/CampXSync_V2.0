@@ -1277,6 +1277,22 @@ public class CollegeAdminServiceTest {
         assertNotNull(acadAdmin);
         assertTrue(acadAdmin.getPermissions().contains("BATCH_SPLIT_REQUEST"));
         assertFalse(acadAdmin.getPermissions().contains("BATCH_SPLIT_APPROVE"));
+
+        // Verify ACD-05 timetable cross-module permissions
+        CollegeModels.CollegePermission pTtCreate = domainService.getPermissionByCode("TIMETABLE_CREATE");
+        assertNotNull(pTtCreate);
+        assertEquals("ACD-05", pTtCreate.getSourceService());
+        assertEquals("TIMETABLE", pTtCreate.getResource());
+
+        CollegeModels.CollegePermission pTtPub = domainService.getPermissionByCode("TIMETABLE_PUBLISH");
+        assertNotNull(pTtPub);
+        assertEquals("ACD-05", pTtPub.getSourceService());
+
+        assertTrue(registrar.getPermissions().contains("TIMETABLE_PUBLISH"));
+        assertTrue(registrar.getPermissions().contains("TIMETABLE_VIEW"));
+        assertTrue(acadAdmin.getPermissions().contains("TIMETABLE_CREATE"));
+        assertTrue(acadAdmin.getPermissions().contains("TIMETABLE_EDIT"));
+        assertTrue(acadAdmin.getPermissions().contains("TIMETABLE_VALIDATE"));
     }
 
     @Test

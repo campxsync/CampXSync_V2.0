@@ -15,6 +15,7 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-02)</b>: Curriculum Management Service on port 8084</li>
  *   <li><b>Academic Tier (ACD-03)</b>: Subject Management Service on port 8085</li>
  *   <li><b>Academic Tier (ACD-04)</b>: Batch Management Service on port 8086</li>
+ *   <li><b>Academic Tier (ACD-05)</b>: Timetable Management Service on port 8087</li>
  * </ul>
  * </p>
  *
@@ -64,6 +65,19 @@ public class GatewayConfig {
         routeTable.put("/api/v1/batches", "http://localhost:8086/api/v1/academics/batches");
         routeTable.put("/api/v1/academics/batches", "http://localhost:8086/api/v1/academics/batches");
 
+        // Academic Tier -> Timetable Management Service (Port 8087)
+        routeTable.put("/api/v1/timetables/metrics", "http://localhost:8087/metrics");
+        routeTable.put("/api/v1/academics/timetables/metrics", "http://localhost:8087/metrics");
+        routeTable.put("/api/v1/timetables", "http://localhost:8087/api/v1/academics/timetables");
+        routeTable.put("/api/v1/academics/timetables", "http://localhost:8087/api/v1/academics/timetables");
+        routeTable.put("/api/v1/export", "http://localhost:8087/api/v1/academics/timetables/export");
+
+        // Academic Tier -> Attendance Management Service (Port 8088)
+        routeTable.put("/api/v1/attendance/metrics", "http://localhost:8088/metrics");
+        routeTable.put("/api/v1/academics/attendance/metrics", "http://localhost:8088/metrics");
+        routeTable.put("/api/v1/attendance", "http://localhost:8088/api/v1/academics/attendance");
+        routeTable.put("/api/v1/academics/attendance", "http://localhost:8088/api/v1/academics/attendance");
+
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
@@ -100,6 +114,16 @@ public class GatewayConfig {
         // Academic Tier -> Batch Management Service (Port 8086)
         routeTable.put("/v1/batches", "http://localhost:8086/api/v1/academics/batches");
         routeTable.put("/v1/batch-catalog", "http://localhost:8086/api/v1/academics/batches");
+
+        // Academic Tier -> Timetable Management Service (Port 8087)
+        routeTable.put("/v1/timetables", "http://localhost:8087/api/v1/academics/timetables");
+        routeTable.put("/v1/timetable-catalog", "http://localhost:8087/api/v1/academics/timetables");
+
+        // Academic Tier -> Attendance Management Service (Port 8088)
+        routeTable.put("/v1/attendance", "http://localhost:8088/api/v1/academics/attendance");
+        routeTable.put("/v1/attendance-sessions", "http://localhost:8088/api/v1/academics/attendance/sessions");
+        routeTable.put("/v1/attendance-summaries", "http://localhost:8088/api/v1/academics/attendance/summaries");
+        routeTable.put("/v1/attendance-reports", "http://localhost:8088/api/v1/academics/attendance/report");
     }
 
     /**

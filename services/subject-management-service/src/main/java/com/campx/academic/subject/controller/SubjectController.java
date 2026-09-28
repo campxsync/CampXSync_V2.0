@@ -169,7 +169,7 @@ public class SubjectController implements HttpHandler {
                     .outcome("COMPLETED")
                     .durationMs(duration)
                     .build();
-            logger.debug("[AUDIT_LOG] {}", entry.toJson());
+            logger.info("[AUDIT_LOG] {}", entry.toJson());
             LogContext.clear();
         }
     }

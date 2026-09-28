@@ -168,7 +168,8 @@ public class CollegeAdminDomainService {
         registrarRole.setRoleCode("REGISTRAR");
         registrarRole.setName("College Registrar");
         registrarRole.setProtectedSystemRole(true);
-        registrarRole.setPermissions(new ArrayList<>(Arrays.asList("BATCH_SPLIT_APPROVE", "BATCH_MERGE_APPROVE")));
+        registrarRole.setPermissions(new ArrayList<>(Arrays.asList(
+                "BATCH_SPLIT_APPROVE", "BATCH_MERGE_APPROVE", "TIMETABLE_VIEW", "TIMETABLE_PUBLISH", "TIMETABLE_EXPORT")));
         collegeRoles.put(registrarRole.getId(), registrarRole);
 
         CollegeRole acadAdminRole = new CollegeRole();
@@ -176,8 +177,64 @@ public class CollegeAdminDomainService {
         acadAdminRole.setRoleCode("ACADEMIC_ADMIN");
         acadAdminRole.setName("Academic Administrator");
         acadAdminRole.setProtectedSystemRole(true);
-        acadAdminRole.setPermissions(new ArrayList<>(Collections.singletonList("BATCH_SPLIT_REQUEST")));
+        acadAdminRole.setPermissions(new ArrayList<>(Arrays.asList(
+                "BATCH_SPLIT_REQUEST", "TIMETABLE_CREATE", "TIMETABLE_EDIT", "TIMETABLE_VALIDATE", "TIMETABLE_VIEW", "TIMETABLE_EXPORT")));
         collegeRoles.put(acadAdminRole.getId(), acadAdminRole);
+
+        // ACD-05: Register cross-module timetable permission codes referencing ACD-05
+        CollegePermission pTtCreate = new CollegePermission();
+        pTtCreate.setId("PERM_TIMETABLE_CREATE");
+        pTtCreate.setPermissionCode("TIMETABLE_CREATE");
+        pTtCreate.setResource("TIMETABLE");
+        pTtCreate.setAction("CREATE");
+        pTtCreate.setSourceService("ACD-05");
+        pTtCreate.setDescription("Create and draft academic timetables");
+        collegePermissions.put(pTtCreate.getId(), pTtCreate);
+
+        CollegePermission pTtPublish = new CollegePermission();
+        pTtPublish.setId("PERM_TIMETABLE_PUBLISH");
+        pTtPublish.setPermissionCode("TIMETABLE_PUBLISH");
+        pTtPublish.setResource("TIMETABLE");
+        pTtPublish.setAction("PUBLISH");
+        pTtPublish.setSourceService("ACD-05");
+        pTtPublish.setDescription("Approve and publish institutional timetables");
+        collegePermissions.put(pTtPublish.getId(), pTtPublish);
+
+        CollegePermission pTtView = new CollegePermission();
+        pTtView.setId("PERM_TIMETABLE_VIEW");
+        pTtView.setPermissionCode("TIMETABLE_VIEW");
+        pTtView.setResource("TIMETABLE");
+        pTtView.setAction("VIEW");
+        pTtView.setSourceService("ACD-05");
+        pTtView.setDescription("View published and draft timetables");
+        collegePermissions.put(pTtView.getId(), pTtView);
+
+        CollegePermission pTtEdit = new CollegePermission();
+        pTtEdit.setId("PERM_TIMETABLE_EDIT");
+        pTtEdit.setPermissionCode("TIMETABLE_EDIT");
+        pTtEdit.setResource("TIMETABLE");
+        pTtEdit.setAction("EDIT");
+        pTtEdit.setSourceService("ACD-05");
+        pTtEdit.setDescription("Add, update, or remove timetable slot entries");
+        collegePermissions.put(pTtEdit.getId(), pTtEdit);
+
+        CollegePermission pTtValidate = new CollegePermission();
+        pTtValidate.setId("PERM_TIMETABLE_VALIDATE");
+        pTtValidate.setPermissionCode("TIMETABLE_VALIDATE");
+        pTtValidate.setResource("TIMETABLE");
+        pTtValidate.setAction("VALIDATE");
+        pTtValidate.setSourceService("ACD-05");
+        pTtValidate.setDescription("Validate timetables for hard conflicts and room compliance");
+        collegePermissions.put(pTtValidate.getId(), pTtValidate);
+
+        CollegePermission pTtExport = new CollegePermission();
+        pTtExport.setId("PERM_TIMETABLE_EXPORT");
+        pTtExport.setPermissionCode("TIMETABLE_EXPORT");
+        pTtExport.setResource("TIMETABLE");
+        pTtExport.setAction("EXPORT");
+        pTtExport.setSourceService("ACD-05");
+        pTtExport.setDescription("Export timetables to PDF, Excel, and iCal formats");
+        collegePermissions.put(pTtExport.getId(), pTtExport);
     }
 
     /**
