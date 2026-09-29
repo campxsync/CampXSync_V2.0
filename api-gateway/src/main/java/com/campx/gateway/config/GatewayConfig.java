@@ -18,6 +18,7 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-05)</b>: Timetable Management Service on port 8087</li>
  *   <li><b>Academic Tier (ACD-06)</b>: Attendance Management Service on port 8088</li>
  *   <li><b>Academic Tier (ACD-07)</b>: Academic Calendar Service on port 8089</li>
+ *   <li><b>Academic Tier (ACD-08)</b>: Learning Resource Service on port 8090</li>
  * </ul>
  * </p>
  *
@@ -90,6 +91,20 @@ public class GatewayConfig {
         routeTable.put("/api/v1/events", "http://localhost:8089/api/v1/academics/events");
         routeTable.put("/api/v1/academics/events", "http://localhost:8089/api/v1/academics/events");
 
+        // Academic Tier -> Learning Resource Service (Port 8090)
+        routeTable.put("/api/v1/resources/metrics", "http://localhost:8090/metrics");
+        routeTable.put("/api/v1/academics/resources/metrics", "http://localhost:8090/metrics");
+        routeTable.put("/api/v1/resources", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/api/v1/academics/resources", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/api/v1/versions", "http://localhost:8090/api/v1/academics/versions");
+        routeTable.put("/api/v1/academics/versions", "http://localhost:8090/api/v1/academics/versions");
+
+        // Academic Tier -> Assessment Mapping Service (Port 8091)
+        routeTable.put("/api/v1/assessments/metrics", "http://localhost:8091/metrics");
+        routeTable.put("/api/v1/academics/assessments/metrics", "http://localhost:8091/metrics");
+        routeTable.put("/api/v1/assessments", "http://localhost:8091/api/v1/academics/assessments");
+        routeTable.put("/api/v1/academics/assessments", "http://localhost:8091/api/v1/academics/assessments");
+
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
@@ -142,6 +157,16 @@ public class GatewayConfig {
         routeTable.put("/v1/calendar-terms", "http://localhost:8089/api/v1/academics/terms");
         routeTable.put("/v1/calendar-events", "http://localhost:8089/api/v1/academics/events");
         routeTable.put("/v1/calendar-catalog", "http://localhost:8089/api/v1/academics/calendars");
+
+        // Academic Tier -> Learning Resource Service (Port 8090)
+        routeTable.put("/v1/resources", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/v1/resource-catalog", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/v1/resource-versions", "http://localhost:8090/api/v1/academics/versions");
+
+        // Academic Tier -> Assessment Mapping Service (Port 8091)
+        routeTable.put("/v1/assessments", "http://localhost:8091/api/v1/academics/assessments");
+        routeTable.put("/v1/assessment-catalog", "http://localhost:8091/api/v1/academics/assessments");
+        routeTable.put("/v1/assessment-mappings", "http://localhost:8091/api/v1/academics/assessments");
     }
 
     /**

@@ -124,6 +124,22 @@ The API Gateway provides two route surfaces:
 | **GW-66** | `/v1/calendar-terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Calendar Terms Canonical Alias |
 | **GW-67** | `/v1/calendar-events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Calendar Events Canonical Alias |
 | **GW-68** | `/v1/calendar-catalog` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Published Calendar Catalog Alias |
+| **GW-69** | `/api/v1/resources/metrics` | `http://localhost:8090/metrics` | ACD-08 Learning Resources | 8090 | Prometheus Metrics Endpoint |
+| **GW-70** | `/api/v1/academics/resources/metrics` | `http://localhost:8090/metrics` | ACD-08 Learning Resources | 8090 | Prometheus Metrics Endpoint |
+| **GW-71** | `/api/v1/resources` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Academic Tier (Direct Ingress) |
+| **GW-72** | `/api/v1/academics/resources` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Academic Tier (Namespace Ingress) |
+| **GW-73** | `/api/v1/versions` | `http://localhost:8090/api/v1/academics/versions` | ACD-08 Learning Resources | 8090 | Resource Versions Direct Ingress |
+| **GW-74** | `/api/v1/academics/versions` | `http://localhost:8090/api/v1/academics/versions` | ACD-08 Learning Resources | 8090 | Resource Versions Namespace Ingress |
+| **GW-75** | `/v1/resources` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Learning Resources Canonical Alias |
+| **GW-76** | `/v1/resource-catalog` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Published Resource Catalog Alias |
+| **GW-77** | `/v1/resource-versions` | `http://localhost:8090/api/v1/academics/versions` | ACD-08 Learning Resources | 8090 | Resource Versions Canonical Alias |
+| **GW-78** | `/api/v1/assessments/metrics` | `http://localhost:8091/metrics` | ACD-09 Assessment Mapping | 8091 | Prometheus Metrics Endpoint |
+| **GW-79** | `/api/v1/academics/assessments/metrics` | `http://localhost:8091/metrics` | ACD-09 Assessment Mapping | 8091 | Prometheus Metrics Endpoint |
+| **GW-80** | `/api/v1/assessments` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Academic Tier (Direct Ingress) |
+| **GW-81** | `/api/v1/academics/assessments` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Academic Tier (Namespace Ingress) |
+| **GW-82** | `/v1/assessments` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Assessment Mapping Canonical Alias |
+| **GW-83** | `/v1/assessment-catalog` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Published Assessment Catalog Alias |
+| **GW-84** | `/v1/assessment-mappings` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Outcome Mappings Canonical Alias |
 
 ---
 
@@ -181,7 +197,16 @@ These endpoints are handled directly by the API Gateway process itself without p
     { "prefix": "/v1/curricula", "target": "http://localhost:8084/api/v1/curricula" },
     { "prefix": "/v1/curriculum-catalog", "target": "http://localhost:8084/api/v1/curricula/active" },
     { "prefix": "/v1/subjects", "target": "http://localhost:8085/api/v1/subjects" },
-    { "prefix": "/v1/subject-catalog", "target": "http://localhost:8085/api/v1/academics/subjects/catalog" }
+    { "prefix": "/v1/subject-catalog", "target": "http://localhost:8085/api/v1/academics/subjects/catalog" },
+    { "prefix": "/api/v1/resources/metrics", "target": "http://localhost:8090/metrics" },
+    { "prefix": "/api/v1/academics/resources/metrics", "target": "http://localhost:8090/metrics" },
+    { "prefix": "/api/v1/resources", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/api/v1/academics/resources", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/api/v1/versions", "target": "http://localhost:8090/api/v1/academics/versions" },
+    { "prefix": "/api/v1/academics/versions", "target": "http://localhost:8090/api/v1/academics/versions" },
+    { "prefix": "/v1/resources", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/v1/resource-catalog", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/v1/resource-versions", "target": "http://localhost:8090/api/v1/academics/versions" }
   ]
 }
 ```
@@ -1353,8 +1378,190 @@ ACD-05 serves as the authoritative weekly timetable service, owning draft aggreg
 
 #### 8. Service Prometheus Metrics & Outbox Observability (Stories 54, 55)
 - **Gateway Path**: `GET /api/v1/timetables/metrics` or `GET /api/v1/academics/timetables/metrics`
-- **Target**: `GET http://localhost:8087/metrics`
 - **Metrics Tracked**: `acd05_request_total`, `acd05_request_duration_seconds`, `acd05_error_total`, `acd05_conflicts_total`, `acd05_publish_total`, `acd05_validation_duration_seconds`, `acd05_outbox_backlog`, `acd05_dlq_events_total`, `acd05_stale_drafts_total`.
+
+---
+
+### 4.8 ACD-08 Learning Resource Service Endpoints (`http://localhost:8090`)
+
+The **ACD-08 Learning Resource Service** owns academic resource metadata and lifecycle for syllabi, study materials, lecture slides, lab manuals, reference links, and question banks. Binary bytes remain in shared object/document storage; ACD-08 enforces immutable versioning, policy-driven ABAC/RBAC access control with strict DENY precedence, and reliable transactional outbox event dissemination.
+
+#### 1. Register Academic Learning Resource
+- **Gateway Path**: `POST /api/v1/academics/resources` or `POST /v1/resources`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources`
+- **Headers**:
+  - `Content-Type: application/json`
+  - `X-Tenant-Id: VIT_CAMPUS`
+  - `X-User-Id: PROF_01`
+  - `X-User-Role: FACULTY`
+  - `Idempotency-Key: IDEMP-RES-2026-001` (optional)
+- **Request Body**:
+```json
+{
+  "resourceCode": "RES-CS201-SYL",
+  "title": "Data Structures and Algorithms Authoritative Syllabus",
+  "resourceType": "SYLLABUS",
+  "subjectId": "SUB_CS201",
+  "courseId": "CRS_CS201",
+  "curriculumId": "CUR_CSE_2026",
+  "departmentId": "DEP_CS",
+  "description": "Comprehensive course syllabus and unit breakdown",
+  "tags": ["syllabus", "algorithms", "data-structures"],
+  "storageObjectRef": "syllabi/2026/cs201_syllabus_v1.pdf",
+  "storageProvider": "SHARED_BLOB",
+  "fileName": "cs201_syllabus.pdf",
+  "mimeType": "application/pdf",
+  "fileSize": 245760,
+  "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Resource registered successfully",
+  "traceId": "9b1deb4d3b7d4bad9bdd2b0d7b3dcb6d",
+  "data": {
+    "id": "RES-C0FABCCD-B",
+    "tenantId": "VIT_CAMPUS",
+    "resourceCode": "RES-CS201-SYL",
+    "title": "Data Structures and Algorithms Authoritative Syllabus",
+    "resourceType": "SYLLABUS",
+    "status": "DRAFT",
+    "currentVersion": 1,
+    "publishedVersion": null,
+    "tags": ["syllabus", "algorithms", "data-structures"],
+    "createdAt": "2026-09-29T10:45:00Z"
+  }
+}
+```
+
+#### 2. Search & Catalog Query (Policy-Filtered)
+- **Gateway Path**: `GET /api/v1/academics/resources` or `GET /v1/resource-catalog`
+- **Target**: `GET http://localhost:8090/api/v1/academics/resources`
+- **Query Parameters**: `?resourceType=SYLLABUS&subjectId=SUB_CS201&page=1&limit=20`
+- **Response**: `200 OK`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Resources retrieved successfully",
+  "traceId": "9b1deb4d3b7d4bad9bdd2b0d7b3dcb6d",
+  "data": [
+    {
+      "id": "RES-C0FABCCD-B",
+      "resourceCode": "RES-CS201-SYL",
+      "title": "Data Structures and Algorithms Authoritative Syllabus",
+      "resourceType": "SYLLABUS",
+      "status": "PUBLISHED",
+      "currentVersion": 1
+    }
+  ]
+}
+```
+
+#### 3. Create New Monotonic Version
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/versions`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/versions`
+- **Request Body**:
+```json
+{
+  "storageObjectRef": "syllabi/2026/cs201_syllabus_v2.pdf",
+  "storageProvider": "SHARED_BLOB",
+  "fileName": "cs201_syllabus_v2.pdf",
+  "mimeType": "application/pdf",
+  "fileSize": 280000,
+  "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "changeSummary": "Added Unit 5 Graph Theory update",
+  "expectedVersion": 1
+}
+```
+- **Response**: `200 OK`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Resource version created successfully",
+  "data": {
+    "id": "VER-A1B2C3D4",
+    "resourceId": "RES-C0FABCCD-B",
+    "versionNo": 2,
+    "status": "DRAFT",
+    "fileName": "cs201_syllabus_v2.pdf",
+    "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+  }
+}
+```
+
+#### 4. Restore Historical Version
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/versions/{versionNo}/restore`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/versions/{versionNo}/restore`
+- **Request Body**: `{"reason":"Rollback to verified stable syllabus"}`
+- **Response**: `200 OK`
+
+#### 5. Publish Resource Version (with Dual Syllabus Event Dispatch)
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/publish`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/publish`
+- **Request Body**:
+```json
+{
+  "expectedVersion": 2,
+  "approvalRef": "APP-BOD-2026-09",
+  "comment": "Approved by Board of Studies"
+}
+```
+- **Response**: `200 OK`
+- **Events Emitted**: `LearningResourcePublished` and `SyllabusPublished` (for syllabus types) via Transactional Outbox.
+
+#### 6. Authorize & Download Content via Short-Lived Retrieval Reference
+- **Gateway Path**: `GET /api/v1/academics/resources/{id}/download?version=2`
+- **Target**: `GET http://localhost:8090/api/v1/academics/resources/{id}/download?version=2`
+- **Enforcement**: Policy evaluation verifies user role, department, batch, and date window. Rejects with `403 ACD_RESOURCE_POLICY_DENIED` if explicit DENY rule matches.
+- **Response**: `200 OK`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Download reference authorized",
+  "data": {
+    "resourceId": "RES-C0FABCCD-B",
+    "versionNo": 2,
+    "fileName": "cs201_syllabus_v2.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 280000,
+    "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "downloadUrl": "https://storage.campx.internal/shared_blob/syllabi/2026/cs201_syllabus_v2.pdf?token=a8e9f...&expires=1789973500&tenant=VIT_CAMPUS",
+    "expiresInSeconds": 300
+  }
+}
+```
+
+#### 7. Define & Revoke Policy-Driven Access Grants
+- **Create Grant**: `POST /api/v1/academics/resources/{id}/access`
+- **Update Grant**: `PUT /api/v1/academics/resources/{id}/access/{accessId}`
+- **Revoke Grant**: `DELETE /api/v1/academics/resources/{id}/access/{accessId}`
+- **Request Body**:
+```json
+{
+  "principalType": "ROLE",
+  "principalId": "STUDENT",
+  "scopeType": "DEPARTMENT",
+  "scopeId": "DEP_CS",
+  "permission": "DOWNLOAD",
+  "effect": "ALLOW",
+  "validFrom": "2026-08-01T00:00:00Z",
+  "validTo": "2027-05-31T23:59:59Z"
+}
+```
+
+#### 8. Archive Resource
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/archive`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/archive`
+- **Request Body**: `{"reason":"Superseded by 2027 revised curriculum"}`
+- **Response**: `200 OK`
+- **Events Emitted**: `LearningResourceArchived` via Transactional Outbox.
+
+#### 9. Service Prometheus Metrics & Outbox Observability
+- **Gateway Path**: `GET /api/v1/resources/metrics` or `GET /api/v1/academics/resources/metrics`
+- **Target**: `GET http://localhost:8090/metrics`
+- **Metrics Tracked**: `acd08_resource_registrations_total`, `acd08_resource_publications_total`, `acd08_resource_archives_total`, `acd08_resource_downloads_total`, `acd08_resource_versions_total`, `acd08_policy_denials_total`, `acd08_outbox_lag`, `acd08_dlq_depth`, `acd08_http_requests_total`.
 
 ---
 
@@ -1924,6 +2131,195 @@ curl -X GET http://localhost:8080/api/v1/academics/calendars/CAL-1001/analytics 
 ```bash
 curl -X GET http://localhost:8080/api/v1/calendars/metrics \
   -H "X-Trace-Id: TRACE-CAL-010"
+```
+
+### 7.40 Register Learning Resource via Gateway (ACD-08)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/resources \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-RES-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Id: PROF_01" \
+  -H "X-User-Role: FACULTY" \
+  -H "Idempotency-Key: IDEMP-RES-2026-001" \
+  -d '{
+    "resourceCode": "RES-CS201-SYL",
+    "title": "Data Structures and Algorithms Authoritative Syllabus",
+    "resourceType": "SYLLABUS",
+    "subjectId": "SUB_CS201",
+    "courseId": "CRS_CS201",
+    "curriculumId": "CUR_CSE_2026",
+    "departmentId": "DEP_CS",
+    "description": "Comprehensive course syllabus and unit breakdown",
+    "tags": ["syllabus", "algorithms", "data-structures"],
+    "storageObjectRef": "syllabi/2026/cs201_syllabus_v1.pdf",
+    "storageProvider": "SHARED_BLOB",
+    "fileName": "cs201_syllabus.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 245760,
+    "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }'
+```
+
+### 7.41 Query Learning Resources Catalog via Gateway (ACD-08)
+```bash
+curl -X GET "http://localhost:8080/v1/resources?resourceType=SYLLABUS&departmentId=DEP_CS" \
+  -H "X-Trace-Id: TRACE-RES-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.42 Create Monotonic Version via Gateway (ACD-08)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/resources/RES-CS201-SYL/versions \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-RES-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -d '{
+    "storageObjectRef": "syllabi/2026/cs201_syllabus_v2.pdf",
+    "storageProvider": "SHARED_BLOB",
+    "fileName": "cs201_syllabus_v2.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 280000,
+    "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "changeSummary": "Added Unit 5 Graph Theory update",
+    "expectedVersion": 1
+  }'
+```
+
+### 7.43 Publish Resource Version & Emit Dual Syllabus Event (ACD-08)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/resources/RES-CS201-SYL/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-RES-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "expectedVersion": 2,
+    "approvalRef": "APP-BOD-2026-09",
+    "comment": "Approved by Board of Studies"
+  }'
+```
+
+### 7.44 Request Secure Short-Lived Download Retrieval Reference (ACD-08)
+```bash
+curl -X GET "http://localhost:8080/api/v1/academics/resources/RES-CS201-SYL/download?version=2" \
+  -H "X-Trace-Id: TRACE-RES-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: STUDENT" \
+  -H "X-Department-Id: DEP_CS"
+```
+
+### 7.45 Scrape Learning Resource Prometheus Metrics via Gateway (ACD-08)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/resources/metrics \
+  -H "X-Trace-Id: TRACE-RES-006"
+```
+
+### 7.46 Create Assessment Structure via Gateway (ACD-09)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/assessments \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "Idempotency-Key: IDEMP-ASM-2026-001" \
+  -d '{
+    "assessmentCode": "ASM-CS201-2026",
+    "assessmentName": "Data Structures Continuous & Endterm Assessment",
+    "subjectId": "SUB-CS101",
+    "courseId": "COURSE-CS-BS",
+    "curriculumId": "CURR-2026-CS",
+    "academicYear": "2026-2027",
+    "termId": "TERM-1",
+    "assessmentType": "INTERNAL",
+    "totalMarks": 100.0,
+    "totalWeightage": 100.0
+  }'
+```
+
+### 7.47 Add Assessment Component with Weightage via Gateway (ACD-09)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/components \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -d '{
+    "componentCode": "QUIZ-1",
+    "componentName": "Arrays and Linked Lists Quiz",
+    "componentType": "QUIZ",
+    "sequenceNo": 1,
+    "maxMarks": 20.0,
+    "passingMarks": 8.0,
+    "weightage": 20.0,
+    "evaluationMethod": "AUTOMATED",
+    "attemptPolicy": "SINGLE"
+  }'
+```
+
+### 7.48 Add Outcome Mapping (CO/PO) via Gateway (ACD-09)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/mappings \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -d '{
+    "outcomeType": "CO",
+    "outcomeCode": "CO1",
+    "mappingLevel": "HIGH",
+    "weight": 3.0,
+    "attainmentPolicyRef": "NBA-TIER1-DIRECT"
+  }'
+```
+
+### 7.49 Reconcile Weightage & Validate Assessment via Gateway (ACD-09)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/validate \
+  -H "X-Trace-Id: TRACE-ASM-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.50 Approve & Publish Assessment Mapping via Gateway (ACD-09)
+```bash
+# 1. Submit for Review
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/submit-review \
+  -H "X-Trace-Id: TRACE-ASM-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY"
+
+# 2. Approve by Department Head
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/approve \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-006" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: DEPT_HEAD" \
+  -d '{"approvalRef": "HOD-CS-2026-09", "comments": "Approved assessment weightage distribution"}'
+
+# 3. Publish Structure & Emit Canonical Outbox Event
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{"expectedVersion": 1, "reason": "Published for Academic Year 2026-2027"}'
+```
+
+### 7.51 Query Effective Assessment Structure for Subject / EXM (ACD-09)
+```bash
+curl -X GET "http://localhost:8080/api/v1/academics/assessments/subject/SUB-CS101?academicYear=2026-2027&termId=TERM-1" \
+  -H "X-Trace-Id: TRACE-ASM-008" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: EXAMINATION_COORDINATOR"
+```
+
+### 7.52 Scrape Assessment Mapping Prometheus Metrics via Gateway (ACD-09)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/assessments/metrics \
+  -H "X-Trace-Id: TRACE-ASM-009"
 ```
 
 
