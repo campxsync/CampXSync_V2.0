@@ -11,10 +11,18 @@ import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import com.campx.admin.institute.model.UserProfileModels.*;
+import static com.campx.admin.institute.model.UserProfileModels.*;
+import com.campx.admin.institute.repository.UserProfileRepository;
+import com.campx.admin.institute.security.UserSecurityContext;
+
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -34,14 +42,40 @@ public class InstituteAdminController implements HttpHandler {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(InstituteAdminController.class);
     private final InstituteAdminDomainService domainService;
+    private final UserProfileRepository userProfileRepository;
+    private final com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier;
 
     /**
-     * Initializes the controller with the backing business domain service.
+     * Initializes the controller with default UserProfileRepository and GatewayHmacVerifier.
      *
      * @param domainService domain service instance
      */
     public InstituteAdminController(InstituteAdminDomainService domainService) {
+        this(domainService, new UserProfileRepository(), new com.campx.admin.institute.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Initializes the controller with custom UserProfileRepository (for testing and DI).
+     *
+     * @param domainService         domain service instance
+     * @param userProfileRepository user profile repository instance
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository) {
+        this(domainService, userProfileRepository, new com.campx.admin.institute.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Initializes the controller with custom UserProfileRepository and custom GatewayHmacVerifier.
+     *
+     * @param domainService         domain service instance
+     * @param userProfileRepository user profile repository instance
+     * @param gatewayHmacVerifier   HMAC verifier instance
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
+                                    com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
+        this.userProfileRepository = userProfileRepository != null ? userProfileRepository : new UserProfileRepository();
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier : new com.campx.admin.institute.security.GatewayHmacVerifier();
     }
 
     /**
@@ -54,6 +88,22 @@ public class InstituteAdminController implements HttpHandler {
     public void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod();
+        String methodOverride = exchange.getRequestHeaders().getFirst("X-HTTP-Method-Override");
+        if (methodOverride != null && !methodOverride.trim().isEmpty()) {
+            method = methodOverride.trim().toUpperCase(Locale.ROOT);
+        }
+
+        // Cache raw request body bytes for both HMAC verification and downstream handlers
+        byte[] bodyBytes = readRequestBodyBytes(exchange);
+        exchange.setAttribute("campx.request.body", bodyBytes);
+
+        // Platform Trust Boundary: Verify Gateway HMAC signature before extracting identity or processing endpoints
+        com.campx.admin.institute.security.GatewayHmacVerifier.VerificationResult authResult =
+                gatewayHmacVerifier.verify(exchange, method, path, bodyBytes);
+        if (!authResult.isSuccess()) {
+            sendError(exchange, authResult.getStatus(), authResult.getError(), authResult.getErrorCode(), authResult.getMessage(), path);
+            return;
+        }
 
         // 1. Trace & Tenant Correlation Context
         String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
@@ -62,15 +112,15 @@ public class InstituteAdminController implements HttpHandler {
         } else {
             LogContext.setTraceId(traceId);
         }
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        String tenantId = authResult.getTenantId();
         if (tenantId != null && !tenantId.trim().isEmpty()) {
             LogContext.setTenantId(tenantId);
         }
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String userId = authResult.getUserId();
         if (userId != null && !userId.trim().isEmpty()) {
             LogContext.setUserId(userId);
         }
-        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        String userRole = authResult.getUserRole();
         if (userRole != null && !userRole.trim().isEmpty()) {
             LogContext.setUserRole(userRole);
         }
@@ -149,22 +199,33 @@ public class InstituteAdminController implements HttpHandler {
             // Phase 1: RBAC & Identity Endpoints (User Story Lines 17–21)
             // =====================================================================
 
-            // 7. Admin Users Endpoint
+            // 7. User Profile Management (ADM-01 Step 1)
             if (path.equals("/api/v1/admin/users")) {
                 if ("POST".equalsIgnoreCase(method)) {
-                    flow.step("handleCreateAdminUser");
-                    handleCreateAdminUser(exchange);
+                    flow.step("handleCreateUser");
+                    handleCreateUser(exchange);
                     return;
                 } else if ("GET".equalsIgnoreCase(method)) {
-                    flow.step("handleListAdminUsers");
-                    handleListAdminUsers(exchange);
+                    flow.step("handleListUsers");
+                    handleListUsers(exchange);
                     return;
                 }
             } else if (path.startsWith("/api/v1/admin/users/")) {
-                String adminUserId = path.substring("/api/v1/admin/users/".length());
-                if ("PUT".equalsIgnoreCase(method)) {
-                    flow.step("handleUpdateAdminUser");
-                    handleUpdateAdminUser(exchange, adminUserId);
+                if (path.endsWith("/status") && "PATCH".equalsIgnoreCase(method)) {
+                    String idStr = path.substring("/api/v1/admin/users/".length(), path.length() - "/status".length());
+                    flow.step("handleUpdateUserStatus");
+                    handleUpdateUserStatus(exchange, idStr);
+                    return;
+                }
+
+                String idStr = path.substring("/api/v1/admin/users/".length());
+                if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetUserById");
+                    handleGetUserById(exchange, idStr);
+                    return;
+                } else if ("PUT".equalsIgnoreCase(method)) {
+                    flow.step("handleUpdateUser");
+                    handleUpdateUser(exchange, idStr);
                     return;
                 }
             }
@@ -557,6 +618,26 @@ public class InstituteAdminController implements HttpHandler {
             // Not found
             logger.warn("[InstituteAdminService] Route not found: [{}] {}", method, path);
             sendError(exchange, 404, "Not Found", "ADM01_ROUTE_NOT_FOUND", "Resource not found in Institute Admin Service: " + path, path);
+        } catch (UserProfileNotFoundException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] User profile not found [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Not Found", e.getErrorCode(), e.getMessage(), path);
+        } catch (UserProfileConflictException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] User profile conflict [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Conflict", e.getErrorCode(), e.getMessage(), path);
+        } catch (UserProfileAccessDeniedException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] User profile access denied [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Forbidden", e.getErrorCode(), e.getMessage(), path);
+        } catch (InvalidStatusTransitionException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Invalid status transition [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Unprocessable Entity", e.getErrorCode(), e.getMessage(), path);
+        } catch (InvalidUserReferenceException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Invalid reference [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
         } catch (InstituteNotFoundException e) {
             flow.markFailed(e);
             logger.warn("[InstituteAdminService] Resource not found [{} {}]: {}", method, path, e.getMessage());
@@ -588,7 +669,9 @@ public class InstituteAdminController implements HttpHandler {
         } catch (Exception e) {
             flow.markFailed(e);
             logger.error("[InstituteAdminService] Internal server error [{} {}]: {}", method, path, e.getMessage(), e);
-            sendError(exchange, 500, "Internal Server Error", "ADM01_INTERNAL_SERVER_ERROR", "An unexpected server error occurred: " + escape(e.getMessage()), path);
+            String activeTraceId = LogContext.getTraceId() != null ? LogContext.getTraceId() : traceId;
+            sendError(exchange, 500, "Internal Server Error", "ADM01_INTERNAL_SERVER_ERROR",
+                    "An unexpected internal error occurred. Reference trace ID: " + (activeTraceId != null ? activeTraceId : ""), path);
         } finally {
             if (flow != null) {
                 flow.close();
@@ -748,40 +831,349 @@ public class InstituteAdminController implements HttpHandler {
     // Phase 1: RBAC & Identity Handler Methods (User Story Lines 17–21)
     // =========================================================================
 
-    private void handleCreateAdminUser(HttpExchange exchange) throws IOException {
-        String body = readBody(exchange);
-        AdminUser user = new AdminUser();
-        user.setUserId(extract(body, "userId", null));
-        user.setDisplayName(extract(body, "displayName", "Platform Admin"));
-        user.setEmail(extract(body, "email", null));
+    private static final Set<String> FORBIDDEN_CREATE_FIELDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "tenant_id", "tenantid", "created_at", "createdat", "created_by", "createdby",
+            "updated_at", "updatedat", "updated_by", "updatedby", "deleted_at", "deletedat",
+            "row_version", "rowversion"
+    )));
 
-        AdminUser created = domainService.registerAdminUser(user);
-        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"userId\":\"" + created.getUserId()
-                + "\",\"displayName\":\"" + escape(created.getDisplayName()) + "\",\"status\":\"" + created.getStatus() + "\"}");
-    }
+    private static final Set<String> FORBIDDEN_UPDATE_FIELDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "id", "userid", "user_id", "tenant_id", "tenantid", "created_at", "createdat",
+            "created_by", "createdby", "updated_at", "updatedat", "updated_by", "updatedby",
+            "deleted_at", "deletedat", "status"
+    )));
 
-    private void handleListAdminUsers(HttpExchange exchange) throws IOException {
-        List<AdminUser> list = domainService.listAdminUsers();
-        StringBuilder sb = new StringBuilder("{\"users\":[");
-        for (int i = 0; i < list.size(); i++) {
-            if (i > 0) sb.append(",");
-            AdminUser u = list.get(i);
-            sb.append("{\"id\":\"").append(u.getId()).append("\",\"userId\":\"").append(u.getUserId())
-              .append("\",\"displayName\":\"").append(escape(u.getDisplayName()))
-              .append("\",\"status\":\"").append(u.getStatus())
-              .append("\",\"riskState\":\"").append(u.getRiskState()).append("\"}");
+    private void validateNoForbiddenFields(String json, Set<String> forbiddenKeys) {
+        if (json == null || json.isEmpty()) return;
+        for (String key : forbiddenKeys) {
+            Pattern p = Pattern.compile("(?i)\"" + Pattern.quote(key) + "\"\\s*:");
+            if (p.matcher(json).find()) {
+                throw new SecurityViolationException("Client cannot supply server-managed or immutable field: '" + key + "'");
+            }
         }
-        sb.append("]}");
-        sendJson(exchange, 200, sb.toString());
     }
 
-    private void handleUpdateAdminUser(HttpExchange exchange, String id) throws IOException {
+    private UserSecurityContext extractSecurityContext(HttpExchange exchange) {
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        return UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
+    private Integer extractRowVersion(HttpExchange exchange, String body) {
+        String ifMatch = exchange.getRequestHeaders().getFirst("If-Match");
+        if (ifMatch != null && !ifMatch.trim().isEmpty()) {
+            String clean = ifMatch.trim().replace("\"", "").replace("W/", "").trim();
+            try {
+                return Integer.parseInt(clean);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid If-Match header value (must be integer): " + ifMatch);
+            }
+        }
+        String bodyVal = extract(body, "row_version", null);
+        if (bodyVal == null) {
+            bodyVal = extract(body, "rowVersion", null);
+        }
+        if (bodyVal != null && !bodyVal.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(bodyVal.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid row_version format (must be integer): " + bodyVal);
+            }
+        }
+        return null;
+    }
+
+    private String extractJsonObject(String json, String key) {
+        if (json == null || json.isEmpty()) return null;
+        Pattern p = Pattern.compile("(?i)\"" + Pattern.quote(key) + "\"\\s*:\\s*(\\{)");
+        Matcher m = p.matcher(json);
+        if (!m.find()) return null;
+        int start = m.start(1);
+        int depth = 0;
+        boolean inQuotes = false;
+        boolean escapeNext = false;
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (escapeNext) {
+                escapeNext = false;
+                continue;
+            }
+            if (c == '\\') {
+                escapeNext = true;
+                continue;
+            }
+            if (c == '"') {
+                inQuotes = !inQuotes;
+                continue;
+            }
+            if (!inQuotes) {
+                if (c == '{') depth++;
+                else if (c == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        return json.substring(start, i + 1);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private Map<String, String> parseQueryParams(HttpExchange exchange) {
+        Map<String, String> params = new HashMap<>();
+        String rawQuery = exchange.getRequestURI().getRawQuery();
+        if (rawQuery == null || rawQuery.trim().isEmpty()) {
+            return params;
+        }
+        String[] pairs = rawQuery.split("&");
+        for (String pair : pairs) {
+            if (pair.isEmpty()) continue;
+            int idx = pair.indexOf('=');
+            try {
+                if (idx > 0) {
+                    String key = URLDecoder.decode(pair.substring(0, idx), "UTF-8");
+                    String value = URLDecoder.decode(pair.substring(idx + 1), "UTF-8");
+                    params.put(key, value);
+                } else if (idx < 0) {
+                    String key = URLDecoder.decode(pair, "UTF-8");
+                    params.put(key, "");
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return params;
+    }
+
+    private void handleCreateUser(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
+        validateNoForbiddenFields(body, FORBIDDEN_CREATE_FIELDS);
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+
+        CreateUserProfileRequest req = new CreateUserProfileRequest();
+        req.setId(extract(body, "id", null));
+        req.setEmail(extract(body, "email", null));
+        String fullName = extract(body, "fullName", null);
+        if (fullName == null) fullName = extract(body, "full_name", null);
+        req.setFullName(fullName);
+        String status = extract(body, "status", "ACTIVE");
+        if ("LOCKED".equalsIgnoreCase(status) || "SUSPENDED".equalsIgnoreCase(status)) {
+            throw new SecurityViolationException("Initial user creation cannot specify status '" + status + "'. Allowed: ACTIVE, INACTIVE");
+        }
+        req.setStatus(status);
+        String collegeId = extract(body, "collegeId", null);
+        if (collegeId == null) collegeId = extract(body, "college_id", null);
+        req.setCollegeId(collegeId);
+        String departmentId = extract(body, "departmentId", null);
+        if (departmentId == null) departmentId = extract(body, "department_id", null);
+        req.setDepartmentId(departmentId);
+        String personId = extract(body, "personId", null);
+        if (personId == null) personId = extract(body, "person_id", null);
+        req.setPersonId(personId);
+
+        String preferences = extractJsonObject(body, "preferences");
+        if (preferences == null) {
+            preferences = extract(body, "preferences", null);
+        }
+        req.setPreferences(preferences);
+
+        UserProfile created = userProfileRepository.createUser(ctx, req);
+        exchange.getResponseHeaders().set("ETag", "\"" + created.getRowVersion() + "\"");
+        exchange.getResponseHeaders().set("Location", "/api/v1/admin/users/" + created.getId());
+        sendJson(exchange, 201, created.toJson());
+    }
+
+    private void handleListUsers(HttpExchange exchange) throws IOException {
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+        Map<String, String> queryParams = parseQueryParams(exchange);
+
+        UserProfileFilter filter = new UserProfileFilter();
+        if (queryParams.containsKey("status")) {
+            filter.setStatus(queryParams.get("status"));
+        }
+        if (queryParams.containsKey("college_id")) {
+            filter.setCollegeId(queryParams.get("college_id"));
+        } else if (queryParams.containsKey("collegeId")) {
+            filter.setCollegeId(queryParams.get("collegeId"));
+        }
+        if (queryParams.containsKey("department_id")) {
+            filter.setDepartmentId(queryParams.get("department_id"));
+        } else if (queryParams.containsKey("departmentId")) {
+            filter.setDepartmentId(queryParams.get("departmentId"));
+        }
+        if (queryParams.containsKey("q")) {
+            filter.setQuery(queryParams.get("q"));
+        }
+        if (queryParams.containsKey("sort")) {
+            String sort = queryParams.get("sort");
+            if (sort != null && !sort.trim().isEmpty()) {
+                if (!SORT_FIELD_WHITELIST.containsKey(sort.trim().toLowerCase(Locale.ROOT))) {
+                    throw new IllegalArgumentException("Invalid sort field: '" + sort + "'. Whitelisted fields: " + SORT_FIELD_WHITELIST.keySet());
+                }
+                filter.setSortField(sort.trim());
+            }
+        }
+        if (queryParams.containsKey("order")) {
+            String order = queryParams.get("order");
+            if (order != null && !order.trim().isEmpty()) {
+                if (!"asc".equalsIgnoreCase(order) && !"desc".equalsIgnoreCase(order)) {
+                    throw new IllegalArgumentException("Invalid sort order: '" + order + "'. Allowed: ASC, DESC");
+                }
+                filter.setSortOrder(order.trim().toUpperCase(Locale.ROOT));
+            }
+        }
+        if (queryParams.containsKey("page")) {
+            try {
+                int page = Integer.parseInt(queryParams.get("page"));
+                if (page < 1) {
+                    throw new IllegalArgumentException("Page number must be >= 1");
+                }
+                filter.setPage(page);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid page number parameter: " + queryParams.get("page"));
+            }
+        }
+        if (queryParams.containsKey("limit")) {
+            try {
+                int limit = Integer.parseInt(queryParams.get("limit"));
+                if (limit < 1 || limit > 100) {
+                    throw new IllegalArgumentException("Page limit must be between 1 and 100");
+                }
+                filter.setLimit(limit);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid limit parameter: " + queryParams.get("limit"));
+            }
+        }
+
+        UserProfilePage page = userProfileRepository.listUsers(ctx, filter);
+        sendJson(exchange, 200, page.toJson());
+    }
+
+    private void handleGetUserById(HttpExchange exchange, String idStr) throws IOException {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required user ID path parameter");
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format (must be UUID): " + idStr);
+        }
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+        UserProfile profile = userProfileRepository.getUserById(ctx, userId);
+        exchange.getResponseHeaders().set("ETag", "\"" + profile.getRowVersion() + "\"");
+        sendJson(exchange, 200, profile.toJson());
+    }
+
+    private void handleUpdateUser(HttpExchange exchange, String idStr) throws IOException {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required user ID path parameter");
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format (must be UUID): " + idStr);
+        }
+
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
+        validateNoForbiddenFields(body, FORBIDDEN_UPDATE_FIELDS);
+
+        Integer rowVersion = extractRowVersion(exchange, body);
+        if (rowVersion == null) {
+            throw new MalformedPayloadException("Missing required optimistic lock field 'row_version' (or If-Match header)");
+        }
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+
+        UpdateUserProfileRequest req = new UpdateUserProfileRequest();
+        req.setRowVersion(rowVersion);
+        String fullName = extract(body, "fullName", null);
+        if (fullName == null) fullName = extract(body, "full_name", null);
+        req.setFullName(fullName);
+        req.setEmail(extract(body, "email", null));
+        req.setUsername(extract(body, "username", null));
+        String collegeId = extract(body, "collegeId", null);
+        if (collegeId == null) collegeId = extract(body, "college_id", null);
+        req.setCollegeId(collegeId);
+        String departmentId = extract(body, "departmentId", null);
+        if (departmentId == null) departmentId = extract(body, "department_id", null);
+        req.setDepartmentId(departmentId);
+        String personId = extract(body, "personId", null);
+        if (personId == null) personId = extract(body, "person_id", null);
+        req.setPersonId(personId);
+
+        String preferences = extractJsonObject(body, "preferences");
+        if (preferences == null) {
+            preferences = extract(body, "preferences", null);
+        }
+        req.setPreferences(preferences);
+
+        UserProfile updated = userProfileRepository.updateUser(ctx, userId, req);
+        exchange.getResponseHeaders().set("ETag", "\"" + updated.getRowVersion() + "\"");
+        sendJson(exchange, 200, updated.toJson());
+    }
+
+    private void handleUpdateUserStatus(HttpExchange exchange, String idStr) throws IOException {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required user ID path parameter");
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format (must be UUID): " + idStr);
+        }
+
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
         String status = extract(body, "status", null);
-        String riskState = extract(body, "riskState", null);
-        AdminUser updated = domainService.updateAdminUserStatus(id, status, riskState);
-        sendJson(exchange, 200, "{\"id\":\"" + updated.getId() + "\",\"status\":\"" + updated.getStatus()
-                + "\",\"riskState\":\"" + updated.getRiskState() + "\"}");
+        if (status == null || status.trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'status'");
+        }
+
+        Integer rowVersion = extractRowVersion(exchange, body);
+        if (rowVersion == null) {
+            throw new MalformedPayloadException("Missing required optimistic lock field 'row_version' (or If-Match header)");
+        }
+
+        String rawReason = extract(body, "reason", null);
+        String reason = null;
+        if (rawReason != null) {
+            // Strip CR and LF to prevent log injection and sanitize
+            reason = rawReason.replace("\r", " ").replace("\n", " ").trim();
+            if (reason.length() > 500) {
+                throw new SecurityViolationException("Field 'reason' exceeds maximum allowed length of 500 characters");
+            }
+        }
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+
+        // Note: The 'reason' field is an administrative audit annotation that is logged
+        // with actor and trace context. It is not persisted in iam.user_profiles.
+        logger.info("[ADM-01 StatusTransition] Actor: {} transitioning user: {} to status: {} in tenant: {} | traceId: {} | reason: {}",
+                ctx.getUserId(), userId, status, ctx.getTenantId(), LogContext.getTraceId(), reason != null ? reason : "NONE");
+
+        UpdateUserStatusRequest req = new UpdateUserStatusRequest();
+        req.setStatus(status);
+        req.setRowVersion(rowVersion);
+        req.setReason(reason);
+
+        UserProfile updated = userProfileRepository.updateUserStatus(ctx, userId, req);
+        exchange.getResponseHeaders().set("ETag", "\"" + updated.getRowVersion() + "\"");
+        sendJson(exchange, 200, updated.toJson());
     }
 
     private void handleCreateRole(HttpExchange exchange) throws IOException {
@@ -1579,7 +1971,22 @@ public class InstituteAdminController implements HttpHandler {
         sendJson(exchange, 200, sb.toString());
     }
 
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        InputStream is = exchange.getRequestBody();
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] data = new byte[4096];
+        int nRead;
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        return buffer.toByteArray();
+    }
+
     private String readBody(HttpExchange exchange) throws IOException {
+        byte[] cached = (byte[]) exchange.getAttribute("campx.request.body");
+        if (cached != null) {
+            return new String(cached, StandardCharsets.UTF_8).trim();
+        }
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
             String line;

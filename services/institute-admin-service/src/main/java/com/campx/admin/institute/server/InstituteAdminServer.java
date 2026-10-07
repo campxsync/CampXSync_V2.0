@@ -22,27 +22,44 @@ public class InstituteAdminServer {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(InstituteAdminServer.class);
 
+    private final String host;
     private final int port;
     private final InstituteAdminDomainService domainService;
     private HttpServer server;
     private boolean running = false;
 
     /**
-     * Initializes the server with default port 8081 and a new domain service instance.
+     * Initializes the server with resolved bind host, default port 8081, and a new domain service instance.
      */
     public InstituteAdminServer() {
-        this(8081, new InstituteAdminDomainService());
+        this(resolveBindHost(), 8081, new InstituteAdminDomainService());
     }
 
     /**
-     * Initializes the server with custom port and domain service.
+     * Initializes the server with resolved bind host, custom port, and domain service.
      *
      * @param port          TCP port to listen on
      * @param domainService business domain service instance
      */
     public InstituteAdminServer(int port, InstituteAdminDomainService domainService) {
+        this(resolveBindHost(), port, domainService);
+    }
+
+    /**
+     * Initializes the server with custom bind host, custom port, and domain service.
+     *
+     * @param host          bind address (default: 127.0.0.1)
+     * @param port          TCP port to listen on
+     * @param domainService business domain service instance
+     */
+    public InstituteAdminServer(String host, int port, InstituteAdminDomainService domainService) {
+        this.host = (host != null && !host.trim().isEmpty()) ? host.trim() : resolveBindHost();
         this.port = port;
         this.domainService = domainService;
+    }
+
+    private static String resolveBindHost() {
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getBindHost();
     }
 
     /**
@@ -55,7 +72,7 @@ public class InstituteAdminServer {
             return;
         }
 
-        server = HttpServer.create(new InetSocketAddress(port), 0);
+        server = HttpServer.create(new InetSocketAddress(host, port), 0);
         server.setExecutor(null);
 
         InstituteAdminController controller = new InstituteAdminController(domainService);
@@ -63,7 +80,25 @@ public class InstituteAdminServer {
 
         server.start();
         running = true;
-        logger.info("ADM-01 Institute Admin Service started on port {}", port);
+        logger.info("ADM-01 Institute Admin Service started on {}:{}", host, port);
+    }
+
+    /**
+     * Returns the host address bound to this server.
+     *
+     * @return host address
+     */
+    public String getHost() {
+        return host;
+    }
+
+    /**
+     * Returns the TCP port bound to this server.
+     *
+     * @return bound TCP port
+     */
+    public int getPort() {
+        return server != null ? server.getAddress().getPort() : port;
     }
 
     /**
@@ -86,14 +121,6 @@ public class InstituteAdminServer {
         return running;
     }
 
-    /**
-     * Returns the TCP port bound to this server.
-     *
-     * @return port number
-     */
-    public int getPort() {
-        return port;
-    }
 
     /**
      * Returns the underlying domain service instance managing platform state.

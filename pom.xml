@@ -25,6 +25,7 @@
         <module>services/academic-calendar-service</module>
         <module>services/learning-resource-service</module>
         <module>services/assessment-mapping-service</module>
+        <module>services/analytics-service</module>
         <module>api-gateway</module>
     </modules>
 

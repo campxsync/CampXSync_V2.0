@@ -11,36 +11,17 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>institute-admin-service</artifactId>
+    <artifactId>analytics-service</artifactId>
     <packaging>jar</packaging>
 
-    <name>CampXSync Institute Admin Service (ADM-01)</name>
-    <description>Platform Tier Governance and Master Administration for CampXSync ERP</description>
-
-    <properties>
-        <postgresql.version>42.7.3</postgresql.version>
-        <hikaricp.version>4.0.3</hikaricp.version>
-    </properties>
+    <name>CampXSync Reporting &amp; Analytics Service (ACD-10)</name>
+    <description>Enterprise Read-Optimized Academic Reporting, Projection Engine, KPI and Risk Signal Engine, Governed Feeds, and Audited Exports for CampXSync ERP</description>
 
     <dependencies>
         <!-- Platform Logger Integration -->
         <dependency>
             <groupId>com.campx.platform</groupId>
             <artifactId>campx-logger</artifactId>
-        </dependency>
-
-        <!-- PostgreSQL JDBC Driver -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>${postgresql.version}</version>
-        </dependency>
-
-        <!-- HikariCP Connection Pool -->
-        <dependency>
-            <groupId>com.zaxxer</groupId>
-            <artifactId>HikariCP</artifactId>
-            <version>${hikaricp.version}</version>
         </dependency>
 
         <!-- Testing -->

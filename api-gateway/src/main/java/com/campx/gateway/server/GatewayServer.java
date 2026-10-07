@@ -62,7 +62,12 @@ public class GatewayServer {
             return;
         }
 
+        if (config.isInternalAuthEnabled()) {
+            config.validateSecurityConfiguration();
+        }
+
         server = HttpServer.create(new InetSocketAddress(config.getPort()), 0);
+        config.setPort(server.getAddress().getPort());
         server.setExecutor(null); // default executor
 
         ReverseProxyHandler proxyHandler = new ReverseProxyHandler(config);
@@ -99,6 +104,9 @@ public class GatewayServer {
      * @return The integer port number.
      */
     public int getPort() {
+        if (server != null) {
+            return server.getAddress().getPort();
+        }
         return config.getPort();
     }
 }

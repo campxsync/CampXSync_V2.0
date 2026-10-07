@@ -48,6 +48,7 @@ public class InstituteAdminServiceTest {
      */
     @BeforeClass
     public static void setup() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         domainService = new InstituteAdminDomainService();
         server = new InstituteAdminServer(TEST_PORT, domainService);
         server.start();
@@ -61,6 +62,7 @@ public class InstituteAdminServiceTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
         CampXLoggerFactory.flush();
     }
 
@@ -260,7 +262,7 @@ public class InstituteAdminServiceTest {
     // =========================================================================
 
     @Test
-    public void testRegisterAdminUser() throws Exception {
+    public void testLegacyDisplayNameRequestCannotBypassSecurityContext() throws Exception {
         String payload = "{"
                 + "\"userId\":\"iam_super_admin_01\","
                 + "\"displayName\":\"Super Admin\","
@@ -276,31 +278,38 @@ public class InstituteAdminServiceTest {
             os.write(payload.getBytes(StandardCharsets.UTF_8));
         }
 
-        assertEquals(201, conn.getResponseCode());
+        assertEquals(403, conn.getResponseCode());
         String resp = readResponse(conn);
-        assertTrue(resp.contains("\"userId\":\"iam_super_admin_01\""));
-        assertTrue(resp.contains("\"status\":\"ACTIVE\""));
+        assertTrue(resp.contains("ADM01_ACCESS_DENIED"));
+        assertTrue(resp.contains("X-User-Id"));
     }
 
     @Test
-    public void testRegisterAdminUserUnresolvableIAM() throws Exception {
-        String payload = "{"
-                + "\"userId\":\"unknown_iam_user\","
-                + "\"displayName\":\"Unknown User\""
-                + "}";
+    public void testRegisterAdminUserDirectDomainCall() {
+        com.campx.admin.institute.model.InstituteModels.AdminUser user =
+                new com.campx.admin.institute.model.InstituteModels.AdminUser();
+        user.setUserId("iam_super_admin_01");
+        user.setDisplayName("Super Admin");
+        user.setEmail("superadmin@campx.edu");
 
-        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/users");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(payload.getBytes(StandardCharsets.UTF_8));
+        com.campx.admin.institute.model.InstituteModels.AdminUser created = domainService.registerAdminUser(user);
+        assertEquals("iam_super_admin_01", created.getUserId());
+        assertEquals("ACTIVE", created.getStatus());
+    }
+
+    @Test
+    public void testRegisterAdminUserUnresolvableIAMDirectDomainCall() {
+        com.campx.admin.institute.model.InstituteModels.AdminUser user =
+                new com.campx.admin.institute.model.InstituteModels.AdminUser();
+        user.setUserId("unknown_iam_user");
+        user.setDisplayName("Unknown User");
+
+        try {
+            domainService.registerAdminUser(user);
+            org.junit.Assert.fail("Expected SecurityViolationException for unresolvable IAM user");
+        } catch (com.campx.admin.institute.exception.SecurityViolationException e) {
+            assertEquals("ADM01_IAM_REFERENCE_UNRESOLVABLE", e.getErrorCode());
         }
-
-        assertEquals(400, conn.getResponseCode());
-        String resp = readResponse(conn);
-        assertTrue(resp.contains("ADM01_IAM_REFERENCE_UNRESOLVABLE"));
     }
 
     @Test

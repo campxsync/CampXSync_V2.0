@@ -3,6 +3,8 @@ package com.campx.gateway.router;
 import com.campx.gateway.config.GatewayConfig;
 import com.campx.gateway.filter.CorrelationFilter;
 import com.campx.gateway.model.ErrorResponse;
+import com.campx.gateway.security.SupabaseJwtValidator;
+import com.campx.gateway.security.JwtValidationException;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -119,8 +121,22 @@ public class ReverseProxyHandler implements HttpHandler {
                 return;
             }
 
+            // 4. Validate incoming Supabase JWT at Gateway boundary when security is enabled
+            SupabaseJwtValidator.VerifiedClaims verifiedClaims = null;
+            if (config.isInternalAuthEnabled()) {
+                String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+                try {
+                    verifiedClaims = SupabaseJwtValidator.validate(
+                            authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
+                } catch (JwtValidationException e) {
+                    logger.warn("Gateway rejected unauthenticated request to [{} {}]: {}", method, path, e.getMessage());
+                    sendError(exchange, e.getStatusCode(), e.getError(), e.getErrorCode(), e.getMessage(), path);
+                    return;
+                }
+            }
+
             logger.debug("Proxying [{}] {} -> {}", method, path, destinationUrlStr);
-            proxyRequest(exchange, destinationUrlStr, method);
+            proxyRequest(exchange, destinationUrlStr, method, verifiedClaims);
         } catch (ConnectException e) {
             logger.error("Downstream service unreachable for path [{}]: {}", path, e.getMessage());
             sendError(exchange, 503, "Service Unavailable", "GATEWAY_SERVICE_UNAVAILABLE",
@@ -198,7 +214,8 @@ public class ReverseProxyHandler implements HttpHandler {
      * @param method             The HTTP method (e.g. GET, POST, PUT, DELETE).
      * @throws IOException If a communication or stream transfer error occurs.
      */
-    private void proxyRequest(HttpExchange clientExchange, String destinationUrlStr, String method) throws IOException {
+    private void proxyRequest(HttpExchange clientExchange, String destinationUrlStr, String method,
+                              SupabaseJwtValidator.VerifiedClaims verifiedClaims) throws IOException {
         URL targetUrl = new URL(destinationUrlStr);
         HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
         conn.setRequestMethod(method);
@@ -206,15 +223,40 @@ public class ReverseProxyHandler implements HttpHandler {
         conn.setReadTimeout(10000);
         conn.setInstanceFollowRedirects(false);
 
-        // Copy incoming headers to target connection
+        // Read request body bytes up-front to calculate body SHA-256 for canonical HMAC
+        byte[] body = readAllBytes(clientExchange.getRequestBody());
+
+        // 1. Copy incoming headers to target connection EXCEPT Host, Content-Length,
+        // and untrusted client identity/gateway headers which MUST be stripped
         Headers incomingHeaders = clientExchange.getRequestHeaders();
         for (Map.Entry<String, List<String>> header : incomingHeaders.entrySet()) {
             String name = header.getKey();
-            if (!"Host".equalsIgnoreCase(name) && !"Content-Length".equalsIgnoreCase(name)) {
+            if (name == null) continue;
+            String lowerName = name.toLowerCase(java.util.Locale.ROOT);
+            boolean isStripped = config.isInternalAuthEnabled()
+                    && com.campx.logger.security.GatewayHmacProtocol.STRIPPED_INBOUND_HEADERS.contains(lowerName);
+            if (!"host".equals(lowerName) && !"content-length".equals(lowerName) && !isStripped) {
                 for (String val : header.getValue()) {
                     conn.addRequestProperty(name, val);
                 }
             }
+        }
+
+        // 2. Gateway HMAC Signing & Verified Identity Injection
+        if (config.isInternalAuthEnabled() && verifiedClaims != null) {
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            String path = targetUrl.getPath();
+            String bodySha256 = com.campx.logger.security.GatewayHmacProtocol.sha256Hex(body);
+            String canonicalPayload = com.campx.logger.security.GatewayHmacProtocol.buildCanonicalPayload(
+                    timestamp, method, path, verifiedClaims.getUserId(), verifiedClaims.getTenantId(), bodySha256);
+            String signature = com.campx.logger.security.GatewayHmacProtocol.calculateHmac(
+                    canonicalPayload, config.getInternalSecret());
+
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ID, verifiedClaims.getUserId());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID, verifiedClaims.getTenantId());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ROLE, verifiedClaims.getRole());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TIMESTAMP, timestamp);
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_SIGNATURE, signature);
         }
 
         // Propagate trace identifier if not already explicitly present in incoming headers
@@ -237,13 +279,10 @@ public class ReverseProxyHandler implements HttpHandler {
         }
 
         // Forward body if present
-        if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) {
+        if (("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) && body.length > 0) {
             conn.setDoOutput(true);
-            byte[] body = readAllBytes(clientExchange.getRequestBody());
-            if (body.length > 0) {
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(body);
-                }
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body);
             }
         }
 

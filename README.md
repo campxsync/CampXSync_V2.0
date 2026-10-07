@@ -7,11 +7,13 @@
 - **[`api-gateway`](api-gateway/)**: Unified edge API Gateway with reverse-proxy routing, correlation header injection (`X-Trace-Id`), dynamic route resolution, and network resilience.
 - **[`services/institute-admin-service`](services/institute-admin-service/)**: ADM-01 Institute Admin Service for platform-tier multi-tenant onboarding, college registry, provisioning state machine, and global configuration.
 - **[`services/college-admin-service`](services/college-admin-service/)**: ADM-02 College Admin Service for college-level operational profiles, department/program lifecycle masters, bulk data ingestion, and document governance.
+- **[`services/analytics-service`](services/analytics-service/)**: ACD-10 Reporting & Analytics Service for read-optimized academic dashboards, attendance/timetable/progression projections, risk signals, and audited exports.
 - **[`logger`](logger/)**: `campx-logger` enterprise logging framework with asynchronous background dispatching, microsecond step flow latency profiling (`FlowTracker`), distributed trace context propagation, automatic sensitive data masking, and compliance audit logging.
 
 ## Comprehensive Technical Documentation
 
 For complete technical specifications, architectural diagrams, API contracts, error code mappings, and verification procedures, please refer to:
+- **[ACD-10 Reporting & Analytics Service Specification](docs/architecture/ACD-10_REPORTING_ANALYTICS_SPECIFICATION.md)**
 - **[Architecture & Technical Walkthrough](docs/architecture/WALKTHROUGH.md)**
 
 ## Quick Start & Build

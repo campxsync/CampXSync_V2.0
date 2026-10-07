@@ -19,6 +19,8 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-06)</b>: Attendance Management Service on port 8088</li>
  *   <li><b>Academic Tier (ACD-07)</b>: Academic Calendar Service on port 8089</li>
  *   <li><b>Academic Tier (ACD-08)</b>: Learning Resource Service on port 8090</li>
+ *   <li><b>Academic Tier (ACD-09)</b>: Assessment Mapping Service on port 8091</li>
+ *   <li><b>Academic Tier (ACD-10)</b>: Reporting & Analytics Service on port 8092</li>
  * </ul>
  * </p>
  *
@@ -105,6 +107,19 @@ public class GatewayConfig {
         routeTable.put("/api/v1/assessments", "http://localhost:8091/api/v1/academics/assessments");
         routeTable.put("/api/v1/academics/assessments", "http://localhost:8091/api/v1/academics/assessments");
 
+        // Academic Tier -> Reporting & Analytics Service (ACD-10, Port 8092)
+        routeTable.put("/api/v1/academics/analytics/metrics", "http://localhost:8092/metrics");
+        routeTable.put("/api/v1/analytics/metrics", "http://localhost:8092/metrics");
+        routeTable.put("/api/v1/academics/analytics", "http://localhost:8092/api/v1/academics/analytics");
+        routeTable.put("/api/v1/analytics/attendance", "http://localhost:8092/api/v1/academics/analytics/attendance");
+        routeTable.put("/api/v1/analytics/performance", "http://localhost:8092/api/v1/academics/analytics/progression");
+        routeTable.put("/api/v1/analytics/schedules", "http://localhost:8092/api/v1/academics/analytics/timetable");
+        routeTable.put("/api/v1/analytics/exports", "http://localhost:8092/api/v1/academics/analytics/export");
+        routeTable.put("/api/v1/analytics", "http://localhost:8092/api/v1/academics/analytics");
+        routeTable.put("/api/v1/dashboards", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+        routeTable.put("/api/v1/kpis", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+        routeTable.put("/api/v1/reports", "http://localhost:8092/api/v1/academics/analytics/export");
+
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
@@ -167,6 +182,12 @@ public class GatewayConfig {
         routeTable.put("/v1/assessments", "http://localhost:8091/api/v1/academics/assessments");
         routeTable.put("/v1/assessment-catalog", "http://localhost:8091/api/v1/academics/assessments");
         routeTable.put("/v1/assessment-mappings", "http://localhost:8091/api/v1/academics/assessments");
+
+        // Academic Tier -> Reporting & Analytics Service (ACD-10, Port 8092)
+        routeTable.put("/v1/analytics", "http://localhost:8092/api/v1/academics/analytics");
+        routeTable.put("/v1/dashboards", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+        routeTable.put("/v1/reports", "http://localhost:8092/api/v1/academics/analytics/export");
+        routeTable.put("/v1/kpis", "http://localhost:8092/api/v1/academics/analytics/dashboard");
     }
 
     /**
@@ -204,5 +225,121 @@ public class GatewayConfig {
      */
     public void addRoute(String pathPrefix, String targetBaseUrl) {
         this.routeTable.put(pathPrefix, targetBaseUrl);
+    }
+
+    // =========================================================================
+    // Security & Cryptographic Trust Boundary Configuration
+    // =========================================================================
+
+    private Boolean internalAuthEnabled;
+    private String internalSecret;
+    private Long replayWindowSeconds;
+    private String supabaseJwtSecret;
+    private String supabaseJwtIssuer;
+    private String supabaseJwksUrl;
+    private volatile com.campx.gateway.security.JwksClient jwksClient;
+
+    public boolean isInternalAuthEnabled() {
+        if (internalAuthEnabled != null) {
+            return internalAuthEnabled;
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.isInternalAuthEnabled();
+    }
+
+    public void setInternalAuthEnabled(boolean internalAuthEnabled) {
+        this.internalAuthEnabled = internalAuthEnabled;
+    }
+
+    public String getInternalSecret() {
+        if (internalSecret != null && !internalSecret.trim().isEmpty()) {
+            return internalSecret.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getInternalSecret();
+    }
+
+    public void setInternalSecret(String internalSecret) {
+        this.internalSecret = internalSecret;
+    }
+
+    public long getReplayWindowSeconds() {
+        if (replayWindowSeconds != null) {
+            return replayWindowSeconds;
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getReplayWindowSeconds();
+    }
+
+    public void setReplayWindowSeconds(long replayWindowSeconds) {
+        this.replayWindowSeconds = replayWindowSeconds;
+    }
+
+    public String getSupabaseJwtSecret() {
+        if (supabaseJwtSecret != null && !supabaseJwtSecret.trim().isEmpty()) {
+            return supabaseJwtSecret.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getSupabaseJwtSecret();
+    }
+
+    public void setSupabaseJwtSecret(String supabaseJwtSecret) {
+        this.supabaseJwtSecret = supabaseJwtSecret;
+    }
+
+    public String getSupabaseJwtIssuer() {
+        if (supabaseJwtIssuer != null && !supabaseJwtIssuer.trim().isEmpty()) {
+            return supabaseJwtIssuer.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getSupabaseJwtIssuer();
+    }
+
+    public void setSupabaseJwtIssuer(String supabaseJwtIssuer) {
+        this.supabaseJwtIssuer = supabaseJwtIssuer;
+    }
+
+    public String getSupabaseJwksUrl() {
+        if (supabaseJwksUrl != null && !supabaseJwksUrl.trim().isEmpty()) {
+            return supabaseJwksUrl.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getSupabaseJwksUrl(getSupabaseJwtIssuer());
+    }
+
+    public void setSupabaseJwksUrl(String supabaseJwksUrl) {
+        this.supabaseJwksUrl = supabaseJwksUrl;
+    }
+
+    public com.campx.gateway.security.JwksClient getJwksClient() {
+        if (jwksClient == null) {
+            synchronized (this) {
+                if (jwksClient == null) {
+                    String url = getSupabaseJwksUrl();
+                    if (url != null && !url.trim().isEmpty()) {
+                        jwksClient = new com.campx.gateway.security.JwksClient(url);
+                    }
+                }
+            }
+        }
+        return jwksClient;
+    }
+
+    public void setJwksClient(com.campx.gateway.security.JwksClient jwksClient) {
+        this.jwksClient = jwksClient;
+    }
+
+    /**
+     * Validates that all required security credentials are present when internal authentication is enabled.
+     *
+     * @throws IllegalStateException if any required secret or issuer is missing
+     */
+    public void validateSecurityConfiguration() {
+        if (isInternalAuthEnabled()) {
+            String internal = getInternalSecret();
+            if (internal == null || internal.trim().isEmpty()) {
+                throw new IllegalStateException("CAMPX_INTERNAL_SECRET is required when platform internal auth is enabled. "
+                        + "Set environment variable CAMPX_INTERNAL_SECRET or JVM system property campx.internal.secret.");
+            }
+            String jwtIssuer = getSupabaseJwtIssuer();
+            if (jwtIssuer == null || jwtIssuer.trim().isEmpty()) {
+                throw new IllegalStateException("CAMPX_SUPABASE_JWT_ISSUER is required when Gateway security is enabled. "
+                        + "Set environment variable CAMPX_SUPABASE_JWT_ISSUER or JVM system property campx.supabase.jwt.issuer.");
+            }
+        }
     }
 }
