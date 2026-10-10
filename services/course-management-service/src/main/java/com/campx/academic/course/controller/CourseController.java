@@ -448,6 +448,11 @@ public class CourseController implements HttpHandler {
 
     private void handleCreateCourse(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantHeader = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        com.campx.academic.course.security.UserSecurityContext context =
+                com.campx.academic.course.security.UserSecurityContext.fromHeaders(userId, tenantHeader);
+
         Course c = new Course();
         c.setCourseCode(extract(body, "courseCode", null));
         c.setCourseName(extract(body, "courseName", null));
@@ -470,12 +475,11 @@ public class CourseController implements HttpHandler {
             c.setDurationYears(1);
         }
 
-        String tenantHeader = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
         if (tenantHeader != null && !tenantHeader.trim().isEmpty()) {
             c.setTenantId(tenantHeader.trim());
         }
 
-        Course created = domainService.createDraftCourse(c);
+        Course created = domainService.createDraftCourse(context, c);
         String resp = "{"
                 + "\"id\":\"" + created.getId() + "\","
                 + "\"courseCode\":\"" + created.getCourseCode() + "\","
@@ -489,7 +493,12 @@ public class CourseController implements HttpHandler {
     }
 
     private void handleListCourses(HttpExchange exchange) throws IOException {
-        List<Course> list = domainService.listCourses();
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantHeader = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        com.campx.academic.course.security.UserSecurityContext context =
+                com.campx.academic.course.security.UserSecurityContext.fromHeaders(userId, tenantHeader);
+
+        List<Course> list = domainService.listCourses(context);
         StringBuilder sb = new StringBuilder("{\"courses\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
@@ -497,7 +506,7 @@ public class CourseController implements HttpHandler {
             sb.append("{\"id\":\"").append(c.getId()).append("\",\"code\":\"").append(c.getCourseCode())
               .append("\",\"name\":\"").append(escape(c.getCourseName()))
               .append("\",\"status\":\"").append(c.getStatus())
-              .append("\",\"departmentId\":\"").append(c.getDepartmentId())
+              .append("\",\"departmentId\":\"").append(c.getDepartmentId() != null ? c.getDepartmentId() : "")
               .append("\",\"credits\":").append(c.getTotalCredits()).append("}");
         }
         sb.append("]}");
@@ -505,13 +514,18 @@ public class CourseController implements HttpHandler {
     }
 
     private void handleGetCourse(HttpExchange exchange, String id) throws IOException {
-        Course c = domainService.getCourse(id);
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantHeader = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        com.campx.academic.course.security.UserSecurityContext context =
+                com.campx.academic.course.security.UserSecurityContext.fromHeaders(userId, tenantHeader);
+
+        Course c = domainService.getCourse(context, id);
         String resp = "{"
                 + "\"id\":\"" + c.getId() + "\","
                 + "\"courseCode\":\"" + c.getCourseCode() + "\","
                 + "\"courseName\":\"" + escape(c.getCourseName()) + "\","
                 + "\"description\":\"" + escape(c.getDescription()) + "\","
-                + "\"departmentId\":\"" + c.getDepartmentId() + "\","
+                + "\"departmentId\":\"" + (c.getDepartmentId() != null ? c.getDepartmentId() : "") + "\","
                 + "\"durationYears\":" + c.getDurationYears() + ","
                 + "\"totalCredits\":" + c.getTotalCredits() + ","
                 + "\"courseType\":\"" + c.getCourseType() + "\","

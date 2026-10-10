@@ -342,4 +342,38 @@ public class GatewayConfig {
             }
         }
     }
+
+    private java.util.List<String> allowedOrigins;
+
+    /**
+     * Resolves the list of trusted frontend origins permitted to execute cross-origin requests.
+     */
+    public java.util.List<String> getAllowedOrigins() {
+        if (allowedOrigins != null) {
+            return allowedOrigins;
+        }
+        String configured = System.getProperty("campx.cors.allowed-origins");
+        if (configured == null || configured.trim().isEmpty()) {
+            configured = System.getenv("CAMPX_ALLOWED_ORIGINS");
+        }
+        if (configured != null && !configured.trim().isEmpty()) {
+            java.util.List<String> list = new java.util.ArrayList<>();
+            for (String origin : configured.split(",")) {
+                if (!origin.trim().isEmpty()) {
+                    list.add(origin.trim());
+                }
+            }
+            return list;
+        }
+        return java.util.Arrays.asList(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+        );
+    }
+
+    public void setAllowedOrigins(java.util.List<String> allowedOrigins) {
+        this.allowedOrigins = allowedOrigins;
+    }
 }

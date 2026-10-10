@@ -690,7 +690,8 @@ public class InstituteAdminController implements HttpHandler {
         inst.setLocale(extract(body, "locale", "en_IN"));
         inst.setDefaultCurrency(extract(body, "defaultCurrency", "INR"));
 
-        Institute created = domainService.registerInstitute(inst);
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        Institute created = domainService.registerInstitute(context, inst);
         String resp = "{"
                 + "\"id\":\"" + created.getId() + "\","
                 + "\"instituteCode\":\"" + created.getInstituteCode() + "\","
@@ -703,7 +704,8 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleListInstitutes(HttpExchange exchange) throws IOException {
-        List<Institute> list = domainService.listInstitutes();
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        List<Institute> list = domainService.listInstitutes(context);
         StringBuilder sb = new StringBuilder("{\"institutes\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
@@ -716,13 +718,26 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleUpdateInstitute(HttpExchange exchange, String id) throws IOException {
+        if (id == null || id.trim().isEmpty()) {
+            throw new InstituteNotFoundException("Institute", id);
+        }
+        // Safe UUID format check: safely translate invalid UUID input into InstituteNotFoundException/HTTP 404
+        try {
+            UUID.fromString(id.trim());
+        } catch (IllegalArgumentException e) {
+            throw new InstituteNotFoundException("Institute", id);
+        }
+
         String body = readBody(exchange);
         Institute update = new Institute();
         update.setDisplayName(extract(body, "displayName", null));
         update.setStatus(extract(body, "status", null));
         update.setTimezone(extract(body, "timezone", null));
 
-        Institute updated = domainService.updateInstitute(id, update);
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        Integer expectedVersion = extractRowVersion(exchange, body);
+
+        Institute updated = domainService.updateInstitute(context, id, update, expectedVersion);
         sendJson(exchange, 200, "{\"status\":\"UPDATED\",\"version\":" + updated.getVersion() + ",\"instituteId\":\"" + id + "\"}");
     }
 
@@ -733,7 +748,8 @@ public class InstituteAdminController implements HttpHandler {
         c.setName(extract(body, "name", null));
         c.setInstituteId(extract(body, "instituteId", null));
 
-        College registered = domainService.registerCollege(c);
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        College registered = domainService.registerCollege(context, c);
         sendJson(exchange, 201, "{\"id\":\"" + registered.getId() + "\",\"collegeCode\":\"" + registered.getCollegeCode() + "\",\"status\":\"" + registered.getStatus() + "\"}");
     }
 
@@ -805,21 +821,27 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleGetAuditLogs(HttpExchange exchange) throws IOException {
-        List<Map<String, Object>> logs = domainService.getAuditTrail();
+        String tenantId = LogContext.getTenantId();
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = exchange.getRequestHeaders().getFirst(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID);
+        }
+        List<Map<String, Object>> logs = (tenantId != null && !tenantId.trim().isEmpty())
+                ? domainService.getAuditTrailForTenant(tenantId.trim())
+                : domainService.getAuditTrail();
         StringBuilder sb = new StringBuilder("{\"auditLogs\":[");
         for (int i = 0; i < logs.size(); i++) {
             if (i > 0) sb.append(",");
             Map<String, Object> log = logs.get(i);
             sb.append("{");
-            sb.append("\"eventId\":\"").append(log.get("eventId")).append("\",");
-            sb.append("\"action\":\"").append(log.get("action")).append("\",");
-            sb.append("\"principalId\":\"").append(log.get("principalId")).append("\",");
-            sb.append("\"principalRole\":\"").append(log.get("principalRole")).append("\",");
-            sb.append("\"resourceType\":\"").append(log.get("resourceType")).append("\",");
-            sb.append("\"resourceId\":\"").append(log.get("resourceId")).append("\",");
-            sb.append("\"status\":\"").append(log.get("status")).append("\",");
-            sb.append("\"description\":\"").append(escape((String) log.get("description"))).append("\",");
-            sb.append("\"traceId\":\"").append(log.get("traceId") != null ? log.get("traceId") : "").append("\",");
+            sb.append("\"eventId\":\"").append(escape(log.get("eventId"))).append("\",");
+            sb.append("\"action\":\"").append(escape(log.get("action"))).append("\",");
+            sb.append("\"principalId\":\"").append(escape(log.get("principalId"))).append("\",");
+            sb.append("\"principalRole\":\"").append(escape(log.get("principalRole"))).append("\",");
+            sb.append("\"resourceType\":\"").append(escape(log.get("resourceType"))).append("\",");
+            sb.append("\"resourceId\":\"").append(escape(log.get("resourceId"))).append("\",");
+            sb.append("\"status\":\"").append(escape(log.get("status"))).append("\",");
+            sb.append("\"description\":\"").append(escape(log.get("description"))).append("\",");
+            sb.append("\"traceId\":\"").append(escape(log.get("traceId"))).append("\",");
             sb.append("\"timestamp\":").append(log.get("timestamp"));
             sb.append("}");
         }
@@ -857,6 +879,18 @@ public class InstituteAdminController implements HttpHandler {
         String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
         String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
         return UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
+    private UserSecurityContext extractPlatformSecurityContext(HttpExchange exchange) {
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        if (userId == null || userId.trim().isEmpty()) {
+            userId = LogContext.getUserId();
+        }
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = LogContext.getTenantId();
+        }
+        return UserSecurityContext.fromPlatformHeaders(userId, tenantId);
     }
 
     private Integer extractRowVersion(HttpExchange exchange, String body) {
@@ -1937,37 +1971,104 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleSearchAuditLogs(HttpExchange exchange) throws IOException {
-        String query = exchange.getRequestURI().getQuery();
-        List<Map<String, Object>> results;
-        if (query != null && query.contains("correlationId=")) {
-            String correlationId = query.split("correlationId=")[1].split("&")[0];
-            results = domainService.searchAuditByCorrelationId(correlationId);
-        } else if (query != null && query.contains("actorId=")) {
-            String actorId = query.split("actorId=")[1].split("&")[0];
-            long fromDate = 0;
-            long toDate = Long.MAX_VALUE;
-            if (query.contains("fromDate=")) {
-                fromDate = Long.parseLong(query.split("fromDate=")[1].split("&")[0]);
-            }
-            if (query.contains("toDate=")) {
-                toDate = Long.parseLong(query.split("toDate=")[1].split("&")[0]);
-            }
-            results = domainService.searchAuditByActor(actorId, fromDate, toDate);
-        } else {
-            results = domainService.getAuditTrail();
+        String tenantId = LogContext.getTenantId();
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = exchange.getRequestHeaders().getFirst(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID);
         }
+        if (tenantId != null) {
+            tenantId = tenantId.trim();
+        }
+
+        Map<String, String> queryParams = parseQueryParams(exchange);
+        List<Map<String, Object>> results;
+
+        boolean hasCorrelationId = queryParams.containsKey("correlationId");
+        boolean hasActorId = queryParams.containsKey("actorId");
+        boolean hasFromDate = queryParams.containsKey("fromDate");
+        boolean hasToDate = queryParams.containsKey("toDate");
+
+        String correlationId = null;
+        if (hasCorrelationId) {
+            correlationId = queryParams.get("correlationId");
+            if (correlationId == null || correlationId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'correlationId' cannot be empty");
+            }
+            correlationId = correlationId.trim();
+            if (correlationId.length() > 256) {
+                throw new IllegalArgumentException("Query parameter 'correlationId' exceeds maximum length of 256 characters");
+            }
+        }
+
+        String actorId = null;
+        if (hasActorId) {
+            actorId = queryParams.get("actorId");
+            if (actorId == null || actorId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'actorId' cannot be empty");
+            }
+            actorId = actorId.trim();
+            if (actorId.length() > 256) {
+                throw new IllegalArgumentException("Query parameter 'actorId' exceeds maximum length of 256 characters");
+            }
+        }
+
+        long fromDate = 0L;
+        if (hasFromDate) {
+            String fromStr = queryParams.get("fromDate");
+            if (fromStr == null || fromStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'fromDate' cannot be empty");
+            }
+            try {
+                fromDate = Long.parseLong(fromStr.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid non-numeric parameter 'fromDate': " + fromStr);
+            }
+            if (fromDate < 0) {
+                throw new IllegalArgumentException("Parameter 'fromDate' must be non-negative");
+            }
+        }
+
+        long toDate = Long.MAX_VALUE;
+        if (hasToDate) {
+            String toStr = queryParams.get("toDate");
+            if (toStr == null || toStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'toDate' cannot be empty");
+            }
+            try {
+                toDate = Long.parseLong(toStr.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid non-numeric parameter 'toDate': " + toStr);
+            }
+            if (toDate < 0) {
+                throw new IllegalArgumentException("Parameter 'toDate' must be non-negative");
+            }
+        }
+
+        if (fromDate > toDate) {
+            throw new IllegalArgumentException("Parameter 'fromDate' cannot be greater than 'toDate'");
+        }
+
+        if (hasCorrelationId) {
+            results = domainService.searchAuditByCorrelationId(tenantId, correlationId);
+        } else if (hasActorId) {
+            results = domainService.searchAuditByActor(tenantId, actorId, fromDate, toDate);
+        } else if (hasFromDate || hasToDate) {
+            results = domainService.searchAuditByDateRange(tenantId, fromDate, toDate);
+        } else {
+            results = domainService.getAuditTrailForTenant(tenantId);
+        }
+
         StringBuilder sb = new StringBuilder("{\"auditEntries\":[");
         for (int i = 0; i < results.size(); i++) {
             if (i > 0) sb.append(",");
             Map<String, Object> entry = results.get(i);
-            sb.append("{\"eventId\":\"").append(entry.getOrDefault("eventId", "")).append("\"")
-              .append(",\"action\":\"").append(entry.getOrDefault("action", "")).append("\"")
-              .append(",\"principalId\":\"").append(entry.getOrDefault("principalId", "")).append("\"")
-              .append(",\"resourceType\":\"").append(entry.getOrDefault("resourceType", "")).append("\"")
-              .append(",\"resourceId\":\"").append(entry.getOrDefault("resourceId", "")).append("\"")
-              .append(",\"traceId\":\"").append(entry.getOrDefault("traceId", "")).append("\"}");
+            sb.append("{\"eventId\":\"").append(escape(entry.get("eventId"))).append("\"")
+              .append(",\"action\":\"").append(escape(entry.get("action"))).append("\"")
+              .append(",\"principalId\":\"").append(escape(entry.get("principalId"))).append("\"")
+              .append(",\"resourceType\":\"").append(escape(entry.get("resourceType"))).append("\"")
+              .append(",\"resourceId\":\"").append(escape(entry.get("resourceId"))).append("\"")
+              .append(",\"traceId\":\"").append(escape(entry.get("traceId"))).append("\"}");
         }
-        sb.append("],\"count\":" + results.size() + "}");
+        sb.append("],\"count\":").append(results.size()).append("}");
         sendJson(exchange, 200, sb.toString());
     }
 
@@ -2026,8 +2127,18 @@ public class InstituteAdminController implements HttpHandler {
         return defaultValue;
     }
 
+    private String escape(Object obj) {
+        if (obj == null) return "";
+        return escape(obj.toString());
+    }
+
     private String escape(String s) {
-        return s != null ? s.replace("\"", "\\\"") : "";
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {

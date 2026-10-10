@@ -70,9 +70,12 @@ public final class InstituteModels {
         private String collegeCode;
         private String name;
         private String instituteId;
+        private String legalName;
         private List<String> campusIds = new ArrayList<>();
         private String status = "ACTIVE";
+        private int version = 1;
         private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -80,13 +83,20 @@ public final class InstituteModels {
         public void setCollegeCode(String collegeCode) { this.collegeCode = collegeCode; }
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
+        public String getLegalName() { return legalName; }
+        public void setLegalName(String legalName) { this.legalName = legalName; }
         public String getInstituteId() { return instituteId; }
         public void setInstituteId(String instituteId) { this.instituteId = instituteId; }
         public List<String> getCampusIds() { return campusIds; }
         public void setCampusIds(List<String> campusIds) { this.campusIds = campusIds; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+        public int getVersion() { return version; }
+        public void setVersion(int version) { this.version = version; }
         public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
     }
 
     /**
@@ -538,6 +548,7 @@ public final class InstituteModels {
         public boolean isGloballyLocked() { return globallyLocked; }
         public void setGloballyLocked(boolean globallyLocked) { this.globallyLocked = globallyLocked; }
         public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
     }
 
     /**
@@ -571,6 +582,7 @@ public final class InstituteModels {
         public long getPublishedAt() { return publishedAt; }
         public void setPublishedAt(long publishedAt) { this.publishedAt = publishedAt; }
         public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
     }
 
     /**

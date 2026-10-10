@@ -2,6 +2,17 @@ package com.campx.admin.institute.service;
 
 import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.InstituteModels.*;
+import com.campx.admin.institute.repository.CollegeRepository;
+import com.campx.admin.institute.repository.GlobalSettingRepository;
+import com.campx.admin.institute.repository.InMemoryGlobalSettingRepository;
+import com.campx.admin.institute.repository.InMemoryTenantProvisioningRepository;
+import com.campx.admin.institute.repository.PostgresCollegeRepository;
+import com.campx.admin.institute.repository.PostgresGlobalSettingRepository;
+import com.campx.admin.institute.repository.PostgresTenantProvisioningRepository;
+import com.campx.admin.institute.repository.PostgresTenantRepository;
+import com.campx.admin.institute.repository.TenantProvisioningRepository;
+import com.campx.admin.institute.repository.TenantRepository;
+import com.campx.admin.institute.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -24,9 +35,11 @@ public class InstituteAdminDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(InstituteAdminDomainService.class);
 
-    // In-memory thread-safe repositories
-    private final Map<String, Institute> institutes = new ConcurrentHashMap<>();
-    private final Map<String, College> colleges = new ConcurrentHashMap<>();
+    // Repositories
+    private final TenantRepository tenantRepository;
+    private final CollegeRepository collegeRepository;
+    private final TenantProvisioningRepository tenantProvisioningRepository;
+    private final GlobalSettingRepository globalSettingRepository;
     private final Map<String, TenantProvisioning> provisioningJobs = new ConcurrentHashMap<>();
     private final Map<String, GlobalSetting> globalSettings = new ConcurrentHashMap<>();
     private final Map<String, CommercialPlan> commercialPlans = new ConcurrentHashMap<>();
@@ -88,10 +101,122 @@ public class InstituteAdminDomainService {
     }
 
     /**
+     * Returns a thread-safe snapshot copy of the platform audit trail ledger scoped to a specific tenant.
+     *
+     * @param tenantId tenant identifier to scope audit entries to
+     * @return copy of audit records belonging to the specified tenant
+     */
+    public List<Map<String, Object>> getAuditTrailForTenant(String tenantId) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        synchronized (auditTrail) {
+            for (Map<String, Object> entry : auditTrail) {
+                if (matchesTenant(entry, tenantId)) {
+                    results.add(new LinkedHashMap<>(entry));
+                }
+            }
+        }
+        return results;
+    }
+
+    /**
      * Constructs the domain service and seeds default platform plans and configuration settings.
      */
     public InstituteAdminDomainService() {
+        this(resolveDefaultRepository(), resolveDefaultCollegeRepository(),
+             resolveDefaultTenantProvisioningRepository(), resolveDefaultGlobalSettingRepository());
+    }
+
+    private static TenantRepository resolveDefaultRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresTenantRepository();
+        }
+        return new com.campx.admin.institute.repository.InMemoryTenantRepository();
+    }
+
+    private static CollegeRepository resolveDefaultCollegeRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresCollegeRepository();
+        }
+        return new com.campx.admin.institute.repository.InMemoryCollegeRepository();
+    }
+
+    private static TenantProvisioningRepository resolveDefaultTenantProvisioningRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresTenantProvisioningRepository();
+        }
+        return new InMemoryTenantProvisioningRepository();
+    }
+
+    private static GlobalSettingRepository resolveDefaultGlobalSettingRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresGlobalSettingRepository();
+        }
+        return new InMemoryGlobalSettingRepository();
+    }
+
+    private static boolean isDatabaseConfigured() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if ("postgres".equalsIgnoreCase(mode)) return true;
+        if ("in_memory".equalsIgnoreCase(mode)) return false;
+
+        String dbEnabled = System.getProperty("campx.db.enabled");
+        if ("true".equalsIgnoreCase(dbEnabled)) return true;
+
+        String sysUrl = System.getProperty("campx.db.url");
+        if (sysUrl != null && !sysUrl.trim().isEmpty()) return true;
+
+        String envPersistence = System.getenv("CAMPX_PERSISTENCE_MODE");
+        if ("postgres".equalsIgnoreCase(envPersistence)) return true;
+
+        return false;
+    }
+
+    public InstituteAdminDomainService(TenantRepository tenantRepository) {
+        this(tenantRepository, resolveDefaultCollegeRepository(),
+             resolveDefaultTenantProvisioningRepository(), resolveDefaultGlobalSettingRepository());
+    }
+
+    public InstituteAdminDomainService(TenantRepository tenantRepository, CollegeRepository collegeRepository) {
+        this(tenantRepository, collegeRepository,
+             resolveDefaultTenantProvisioningRepository(), resolveDefaultGlobalSettingRepository());
+    }
+
+    public InstituteAdminDomainService(TenantRepository tenantRepository, CollegeRepository collegeRepository,
+                                       TenantProvisioningRepository tenantProvisioningRepository,
+                                       GlobalSettingRepository globalSettingRepository) {
+        this.tenantRepository = Objects.requireNonNull(tenantRepository, "tenantRepository cannot be null");
+        this.collegeRepository = Objects.requireNonNull(collegeRepository, "collegeRepository cannot be null");
+        this.tenantProvisioningRepository = tenantProvisioningRepository != null ? tenantProvisioningRepository : resolveDefaultTenantProvisioningRepository();
+        this.globalSettingRepository = globalSettingRepository != null ? globalSettingRepository : resolveDefaultGlobalSettingRepository();
         seedDefaults();
+    }
+
+    public TenantRepository getTenantRepository() {
+        return tenantRepository;
+    }
+
+    public CollegeRepository getCollegeRepository() {
+        return collegeRepository;
+    }
+
+    private UserSecurityContext resolveSecurityContext() {
+        String userIdStr = LogContext.getUserId();
+        String tenantIdStr = LogContext.getTenantId();
+        if (userIdStr == null || userIdStr.trim().isEmpty()) {
+            userIdStr = UserSecurityContext.DEFAULT_PLATFORM_ADMIN_ID;
+        }
+        try {
+            UUID userUuid = UUID.fromString(userIdStr.trim());
+            UUID tenantUuid = null;
+            if (tenantIdStr != null && !tenantIdStr.trim().isEmpty()) {
+                try {
+                    tenantUuid = UUID.fromString(tenantIdStr.trim());
+                } catch (IllegalArgumentException ignored) {}
+            }
+            return new UserSecurityContext(userUuid, tenantUuid, true);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private void seedDefaults() {
@@ -118,8 +243,13 @@ public class InstituteAdminDomainService {
     /**
      * User Story 3: Register a new institute (tenant) on the platform
      */
-    public Institute registerInstitute(Institute institute) {
-        try (FlowTracker flow = logger.flow("RegisterInstituteWorkflow", "INST-" + institute.getInstituteCode())) {
+    public Institute registerInstitute(UserSecurityContext context, Institute institute) {
+        try (FlowTracker flow = logger.flow("RegisterInstituteWorkflow", "INST-" + (institute != null ? institute.getInstituteCode() : "UNKNOWN"))) {
+            if (institute == null) {
+                MalformedPayloadException ex = new MalformedPayloadException("Request body cannot be null");
+                flow.markFailed(ex);
+                throw ex;
+            }
             logger.info("Initiating institute registration for: {} (code: {})", institute.getLegalName(), institute.getInstituteCode());
 
             if (institute.getInstituteCode() == null || institute.getInstituteCode().trim().isEmpty()) {
@@ -128,160 +258,165 @@ public class InstituteAdminDomainService {
                 throw ex;
             }
 
-            // Check uniqueness
-            for (Institute existing : institutes.values()) {
-                if (existing.getInstituteCode().equalsIgnoreCase(institute.getInstituteCode())) {
-                    InstituteAlreadyExistsException ex = new InstituteAlreadyExistsException("Institute", "instituteCode", institute.getInstituteCode());
-                    flow.markFailed(ex);
-                    throw ex;
-                }
-            }
-
-            flow.step("ValidateInstituteDetails");
-
-            institute.setId(UUID.randomUUID().toString());
-            institute.setStatus("ACTIVE");
-            institute.setVersion(1);
-            institutes.put(institute.getId(), institute);
-
             flow.step("PersistInstituteRecord");
+            Institute created = tenantRepository.createInstitute(context, institute);
 
             // Record and publish Audit event
             AuditEvent event = AuditEvent.builder()
                     .action("INSTITUTE_CREATED")
-                    .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN")
+                    .principalId(context != null && context.getUserId() != null ? context.getUserId().toString()
+                            : (LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN"))
                     .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "SUPER_ADMIN")
                     .resourceType("INSTITUTE")
-                    .resourceId(institute.getId())
+                    .resourceId(created.getId())
                     .status("SUCCESS")
-                    .description("Registered institute: " + institute.getDisplayName() + " [" + institute.getInstituteCode() + "]")
+                    .description("Registered institute: " + created.getDisplayName() + " [" + created.getInstituteCode() + "]")
                     .build();
             recordAudit(event);
 
-            return institute;
+            return created;
         }
+    }
+
+    public Institute registerInstitute(Institute institute) {
+        return registerInstitute(resolveSecurityContext(), institute);
     }
 
     /**
      * User Story 4: Update institute profile while protecting published identity keys
      */
-    public Institute updateInstitute(String id, Institute updateReq) {
+    public Institute updateInstitute(UserSecurityContext context, String id, Institute updateReq, Integer expectedVersion) {
         try (FlowTracker flow = logger.flow("UpdateInstituteWorkflow", "INST-" + id)) {
-            Institute existing = institutes.get(id);
-            if (existing == null) {
+            if (id == null || id.trim().isEmpty()) {
                 InstituteNotFoundException ex = new InstituteNotFoundException("Institute", id);
                 flow.markFailed(ex);
                 throw ex;
             }
-
-            // Prevent modifying immutable identity keys
-            if (updateReq.getInstituteCode() != null && !updateReq.getInstituteCode().equals(existing.getInstituteCode())) {
-                SecurityViolationException ex = new SecurityViolationException("ADM01_IMMUTABLE_KEY_MODIFICATION",
-                        "Modification of immutable identity key 'instituteCode' is prohibited");
+            if (updateReq == null) {
+                MalformedPayloadException ex = new MalformedPayloadException("Request body cannot be null");
                 flow.markFailed(ex);
                 throw ex;
             }
 
-            flow.step("ValidateUpdateParameters");
-            if (updateReq.getDisplayName() != null) existing.setDisplayName(updateReq.getDisplayName());
-            if (updateReq.getTimezone() != null) existing.setTimezone(updateReq.getTimezone());
-            if (updateReq.getLocale() != null) existing.setLocale(updateReq.getLocale());
-            if (updateReq.getStatus() != null) existing.setStatus(updateReq.getStatus());
-            existing.setVersion(existing.getVersion() + 1);
-            existing.setUpdatedAt(System.currentTimeMillis());
-
             flow.step("PersistUpdatedInstitute");
-            logger.info("Updated institute id={} to version={}", id, existing.getVersion());
+            Institute updated = tenantRepository.updateInstitute(context, id, updateReq, expectedVersion);
+            logger.info("Updated institute id={} to version={}", id, updated.getVersion());
 
             AuditEvent audit = AuditEvent.builder()
                     .action("INSTITUTE_UPDATED")
-                    .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN")
+                    .principalId(context != null && context.getUserId() != null ? context.getUserId().toString()
+                            : (LogContext.getUserId() != null ? LogContext.getUserId() : "SUPER_ADMIN"))
                     .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "SUPER_ADMIN")
                     .resourceType("INSTITUTE")
                     .resourceId(id)
                     .status("SUCCESS")
-                    .description("Updated institute " + existing.getDisplayName() + " to version " + existing.getVersion())
+                    .description("Updated institute " + updated.getDisplayName() + " to version " + updated.getVersion())
                     .build();
             recordAudit(audit);
 
-            return existing;
+            return updated;
         }
+    }
+
+    public Institute updateInstitute(String id, Institute updateReq) {
+        return updateInstitute(resolveSecurityContext(), id, updateReq, null);
+    }
+
+    public List<Institute> listInstitutes(UserSecurityContext context) {
+        return tenantRepository.listInstitutes(context);
+    }
+
+    public List<Institute> listInstitutes(UserSecurityContext context, String status, int page, int size) {
+        return tenantRepository.listInstitutes(context, status, page, size);
     }
 
     public List<Institute> listInstitutes() {
-        return new ArrayList<>(institutes.values());
+        return listInstitutes(resolveSecurityContext());
     }
 
     public List<Institute> listInstitutes(String status, int page, int size) {
-        List<Institute> filtered = new ArrayList<>();
-        for (Institute inst : institutes.values()) {
-            if (status == null || status.trim().isEmpty() || status.equalsIgnoreCase(inst.getStatus())) {
-                filtered.add(inst);
-            }
-        }
-        if (page <= 0) page = 1;
-        if (size <= 0) size = 50;
-        int fromIndex = (page - 1) * size;
-        if (fromIndex >= filtered.size()) {
-            return Collections.emptyList();
-        }
-        int toIndex = Math.min(fromIndex + size, filtered.size());
-        return filtered.subList(fromIndex, toIndex);
+        return listInstitutes(resolveSecurityContext(), status, page, size);
+    }
+
+    public Optional<Institute> getInstitute(UserSecurityContext context, String id) {
+        return tenantRepository.getInstituteById(context, id);
+    }
+
+    public Optional<Institute> getInstitute(String id) {
+        return getInstitute(resolveSecurityContext(), id);
     }
 
     /**
      * User Story 6 & 7: Register a college under an institute with active-state check
      */
     public College registerCollege(College college) {
+        return registerCollege(resolveSecurityContext(), college);
+    }
+
+    public College registerCollege(UserSecurityContext context, College college) {
         try (FlowTracker flow = logger.flow("RegisterCollegeUnderInstitute", "COLLEGE-" + college.getCollegeCode())) {
+            if (context == null) {
+                context = resolveSecurityContext();
+            }
             if (college.getCollegeCode() == null || college.getCollegeCode().trim().isEmpty()) {
                 MalformedPayloadException ex = new MalformedPayloadException("Mandatory field 'collegeCode' is required");
                 flow.markFailed(ex);
                 throw ex;
             }
 
-            if (college.getInstituteId() == null || !institutes.containsKey(college.getInstituteId())) {
+            if (college.getInstituteId() == null || college.getInstituteId().trim().isEmpty()) {
                 InstituteNotFoundException ex = new InstituteNotFoundException("Parent Institute", college.getInstituteId());
                 flow.markFailed(ex);
                 throw ex;
             }
 
-            Institute parent = institutes.get(college.getInstituteId());
+            Optional<Institute> parentOpt = tenantRepository.getInstituteById(context, college.getInstituteId());
+            if (!parentOpt.isPresent()) {
+                InstituteNotFoundException ex = new InstituteNotFoundException("Parent Institute", college.getInstituteId());
+                flow.markFailed(ex);
+                throw ex;
+            }
+
+            Institute parent = parentOpt.get();
             if (!"ACTIVE".equalsIgnoreCase(parent.getStatus())) {
                 InvalidTenantStateException ex = new InvalidTenantStateException("Institute", parent.getStatus(), "ACTIVE");
                 flow.markFailed(ex);
                 throw ex;
             }
 
-            flow.step("ValidateCollegeUniqueness");
-            for (College c : colleges.values()) {
-                if (c.getCollegeCode().equalsIgnoreCase(college.getCollegeCode())) {
-                    InstituteAlreadyExistsException ex = new InstituteAlreadyExistsException("College", "collegeCode", college.getCollegeCode());
-                    flow.markFailed(ex);
-                    throw ex;
-                }
-            }
-
-            college.setId(UUID.randomUUID().toString());
-            college.setStatus("ACTIVE");
-            colleges.put(college.getId(), college);
-
             flow.step("PersistCollegeRecord");
-            logger.info("Successfully registered college {} under institute {}", college.getName(), parent.getDisplayName());
+            College persisted = collegeRepository.createCollege(context, college);
+            logger.info("Successfully registered college {} under institute {}", persisted.getName(), parent.getDisplayName());
 
             AuditEvent audit = AuditEvent.builder()
                     .action("COLLEGE_REGISTERED")
                     .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "INSTITUTE_ADMIN")
                     .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "INSTITUTE_ADMIN")
                     .resourceType("COLLEGE")
-                    .resourceId(college.getId())
+                    .resourceId(persisted.getId())
                     .status("SUCCESS")
-                    .description("Registered college: " + college.getName() + " [" + college.getCollegeCode() + "] under institute " + parent.getDisplayName())
+                    .description("Registered college: " + persisted.getName() + " [" + persisted.getCollegeCode() + "] under institute " + parent.getDisplayName())
                     .build();
             recordAudit(audit);
 
-            return college;
+            return persisted;
         }
+    }
+
+    public Optional<College> getCollege(UserSecurityContext context, String id) {
+        return collegeRepository.getCollegeById(context, id);
+    }
+
+    public Optional<College> getCollegeByCode(UserSecurityContext context, String instituteId, String code) {
+        return collegeRepository.getCollegeByCode(context, instituteId, code);
+    }
+
+    public List<College> listColleges(UserSecurityContext context, String instituteId) {
+        return collegeRepository.listColleges(context, instituteId);
+    }
+
+    public College updateCollege(UserSecurityContext context, String id, College update, Integer expectedVersion) {
+        return collegeRepository.updateCollege(context, id, update, expectedVersion);
     }
 
     /**
@@ -319,6 +454,14 @@ public class InstituteAdminDomainService {
             req.setCompletedAt(System.currentTimeMillis());
 
             provisioningJobs.put(req.getProvisioningId(), req);
+            if (tenantProvisioningRepository != null) {
+                try {
+                    UserSecurityContext ctx = UserSecurityContext.fromPlatformHeaders(LogContext.getUserId(), LogContext.getTenantId());
+                    tenantProvisioningRepository.createProvisioningJob(ctx, req);
+                } catch (Exception dbEx) {
+                    logger.warn("Could not persist provisioning job to PostgreSQL: {}", dbEx.getMessage());
+                }
+            }
             if (idempotencyKey != null && !idempotencyKey.trim().isEmpty()) {
                 completeIdempotency(idempotencyKey, req.getProvisioningId());
             }
@@ -341,6 +484,17 @@ public class InstituteAdminDomainService {
     }
 
     public List<TenantProvisioning> getProvisioningJobs() {
+        if (tenantProvisioningRepository != null && isDatabaseConfigured()) {
+            try {
+                UserSecurityContext ctx = UserSecurityContext.fromPlatformHeaders(LogContext.getUserId(), LogContext.getTenantId());
+                List<TenantProvisioning> dbJobs = tenantProvisioningRepository.listProvisioningJobs(ctx, ctx.getTenantId());
+                if (dbJobs != null && !dbJobs.isEmpty()) {
+                    return dbJobs;
+                }
+            } catch (Exception dbEx) {
+                logger.warn("Could not read provisioning jobs from PostgreSQL, using in-memory: {}", dbEx.getMessage());
+            }
+        }
         return new ArrayList<>(provisioningJobs.values());
     }
 
@@ -353,6 +507,14 @@ public class InstituteAdminDomainService {
                     "Security Violation: Plaintext secrets are rejected. Must supply vault or KMS reference.");
         }
         globalSettings.put(setting.getKey(), setting);
+        if (globalSettingRepository != null) {
+            try {
+                UserSecurityContext ctx = UserSecurityContext.fromPlatformHeaders(LogContext.getUserId(), LogContext.getTenantId());
+                globalSettingRepository.saveSetting(ctx, setting);
+            } catch (Exception dbEx) {
+                logger.warn("Could not persist global setting to PostgreSQL: {}", dbEx.getMessage());
+            }
+        }
         logger.info("Saved global configuration key: {} for scope: {}", setting.getKey(), setting.getScope());
 
         AuditEvent audit = AuditEvent.builder()
@@ -1781,15 +1943,76 @@ public class InstituteAdminDomainService {
         return new ArrayList<>(exportRequests.values());
     }
 
+    private boolean matchesTenant(Map<String, Object> entry, String tenantId) {
+        Object entryTenant = entry.get("tenantId");
+        if (tenantId != null && !tenantId.trim().isEmpty()) {
+            return entryTenant != null && entryTenant.toString().equalsIgnoreCase(tenantId.trim());
+        } else {
+            return entryTenant == null || entryTenant.toString().trim().isEmpty();
+        }
+    }
+
+    /**
+     * Search audit trail by tenantId and correlationId (traceId). Returns all entries matching both (GAP-03).
+     *
+     * @param tenantId tenant identifier
+     * @param correlationId correlation/trace ID
+     * @return entries matching tenant and correlationId
+     */
+    public List<Map<String, Object>> searchAuditByCorrelationId(String tenantId, String correlationId) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            return results;
+        }
+        synchronized (auditTrail) {
+            for (Map<String, Object> entry : auditTrail) {
+                Object traceId = entry.get("traceId");
+                if (traceId != null && traceId.toString().equalsIgnoreCase(correlationId.trim())) {
+                    if (matchesTenant(entry, tenantId)) {
+                        results.add(new LinkedHashMap<>(entry));
+                    }
+                }
+            }
+        }
+        return results;
+    }
+
     /**
      * Search audit trail by correlationId (traceId). Returns all entries matching the trace (CSV Line 37).
      */
     public List<Map<String, Object>> searchAuditByCorrelationId(String correlationId) {
+        return searchAuditByCorrelationId(null, correlationId);
+    }
+
+    /**
+     * Search audit trail by tenantId and actor (principalId) within a date range (CSV Line 37, GAP-03).
+     *
+     * @param tenantId tenant identifier
+     * @param actorId principal identifier
+     * @param fromDate start timestamp (inclusive)
+     * @param toDate end timestamp (inclusive)
+     * @return entries matching tenant, actor, and date range
+     */
+    public List<Map<String, Object>> searchAuditByActor(String tenantId, String actorId, long fromDate, long toDate) {
         List<Map<String, Object>> results = new ArrayList<>();
-        for (Map<String, Object> entry : auditTrail) {
-            Object traceId = entry.get("traceId");
-            if (traceId != null && traceId.toString().equalsIgnoreCase(correlationId)) {
-                results.add(entry);
+        if (actorId == null || actorId.trim().isEmpty()) {
+            return results;
+        }
+        synchronized (auditTrail) {
+            for (Map<String, Object> entry : auditTrail) {
+                Object principal = entry.get("principalId");
+                Object timestamp = entry.get("timestamp");
+                if (principal != null && principal.toString().equalsIgnoreCase(actorId.trim()) && timestamp != null) {
+                    try {
+                        long ts = Long.parseLong(timestamp.toString());
+                        if (ts >= fromDate && ts <= toDate) {
+                            if (matchesTenant(entry, tenantId)) {
+                                results.add(new LinkedHashMap<>(entry));
+                            }
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
             }
         }
         return results;
@@ -1799,17 +2022,36 @@ public class InstituteAdminDomainService {
      * Search audit trail by actor (principalId) within a date range (CSV Line 37).
      */
     public List<Map<String, Object>> searchAuditByActor(String actorId, long fromDate, long toDate) {
+        return searchAuditByActor(null, actorId, fromDate, toDate);
+    }
+
+    /**
+     * Search audit trail by tenantId within a date range.
+     *
+     * @param tenantId tenant identifier
+     * @param fromDate start timestamp (inclusive)
+     * @param toDate end timestamp (inclusive)
+     * @return entries matching tenant and date range
+     */
+    public List<Map<String, Object>> searchAuditByDateRange(String tenantId, long fromDate, long toDate) {
         List<Map<String, Object>> results = new ArrayList<>();
-        for (Map<String, Object> entry : auditTrail) {
-            Object principal = entry.get("principalId");
-            Object timestamp = entry.get("timestamp");
-            if (principal != null && principal.toString().equalsIgnoreCase(actorId) && timestamp != null) {
-                long ts = Long.parseLong(timestamp.toString());
-                if (ts >= fromDate && ts <= toDate) {
-                    results.add(entry);
+        synchronized (auditTrail) {
+            for (Map<String, Object> entry : auditTrail) {
+                Object timestamp = entry.get("timestamp");
+                if (timestamp != null) {
+                    try {
+                        long ts = Long.parseLong(timestamp.toString());
+                        if (ts >= fromDate && ts <= toDate) {
+                            if (matchesTenant(entry, tenantId)) {
+                                results.add(new LinkedHashMap<>(entry));
+                            }
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
         return results;
     }
 }
+

@@ -222,12 +222,25 @@ public final class CollegeModels {
          */
         public void setStatus(String status) { this.status = status; }
 
-        /**
-         * Returns the creation epoch timestamp in milliseconds.
-         *
-         * @return creation epoch millis
-         */
+        private String tenantId;
+        private String collegeId;
+        private int rowVersion = 1;
+        private long updatedAt = System.currentTimeMillis();
+
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+
         public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
     }
 
     /**

@@ -43,8 +43,30 @@ public class CourseDomainService {
     private final List<CourseSubjectMapping> subjectMappings = Collections.synchronizedList(new ArrayList<>());
     private final List<CourseArchiveRecord> archiveRecords = Collections.synchronizedList(new ArrayList<>());
 
+    private final com.campx.academic.course.repository.CourseRepository courseRepository;
+
     public CourseDomainService() {
+        this(resolveDefaultCourseRepository());
+    }
+
+    public CourseDomainService(com.campx.academic.course.repository.CourseRepository courseRepository) {
+        this.courseRepository = courseRepository != null ? courseRepository : new com.campx.academic.course.repository.InMemoryCourseRepository();
         seedInitialData();
+    }
+
+    private static com.campx.academic.course.repository.CourseRepository resolveDefaultCourseRepository() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new com.campx.academic.course.repository.PostgresCourseRepository();
+            } catch (Exception e) {
+                logger.warn("Failed to initialize PostgresCourseRepository, falling back to InMemory: {}", e.getMessage());
+            }
+        }
+        return new com.campx.academic.course.repository.InMemoryCourseRepository();
     }
 
     private void seedInitialData() {
@@ -121,6 +143,10 @@ public class CourseDomainService {
      * @throws CourseCodeConflictException if the course code already exists within the tenant
      */
     public Course createDraftCourse(Course course) {
+        return createDraftCourse(null, course);
+    }
+
+    public Course createDraftCourse(com.campx.academic.course.security.UserSecurityContext context, Course course) {
         try (FlowTracker flow = logger.flow("CourseCreate", "createDraftCourse")) {
             if (course == null) {
                 throw new CourseValidationException("Course payload cannot be null");
@@ -147,26 +173,48 @@ public class CourseDomainService {
                 throw new CourseValidationException("departmentId is mandatory");
             }
             if (!activeDepartments.contains(course.getDepartmentId())) {
-                throw new CourseValidationException("ACD_INVALID_DEPARTMENT",
-                        "Department with identifier [" + course.getDepartmentId() + "] does not exist or is inactive");
-            }
-
-            // Scoped uniqueness (BR-01)
-            for (Course existing : courses.values()) {
-                if (existing.getCourseCode().equalsIgnoreCase(normalizedCode)
-                        && existing.getTenantId().equals(course.getTenantId())) {
-                    throw new CourseCodeConflictException(normalizedCode);
+                try {
+                    UUID.fromString(course.getDepartmentId());
+                    activeDepartments.add(course.getDepartmentId());
+                } catch (IllegalArgumentException e) {
+                    throw new CourseValidationException("ACD_INVALID_DEPARTMENT",
+                            "Department with identifier [" + course.getDepartmentId() + "] does not exist or is inactive");
                 }
             }
 
-            // Assign identity
-            if (course.getId() == null || course.getId().trim().isEmpty()) {
-                course.setId("CRS_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
+            if (context == null && LogContext.getTenantId() != null) {
+                context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                        LogContext.getUserId(), LogContext.getTenantId());
             }
-            course.setStatus("DRAFT");
-            course.setCurrentVersion(1);
-            course.setCreatedAt(System.currentTimeMillis());
-            course.setUpdatedAt(System.currentTimeMillis());
+
+            // Persist through repository if tenant context is available
+            if (context != null && context.getTenantId() != null) {
+                course.setTenantId(context.getTenantId().toString());
+                Course saved = courseRepository.createCourse(context, course);
+                course.setId(saved.getId());
+                course.setStatus(saved.getStatus());
+                course.setTenantId(saved.getTenantId());
+                course.setCreatedAt(saved.getCreatedAt());
+                course.setUpdatedAt(saved.getUpdatedAt());
+                course.setCurrentVersion(saved.getCurrentVersion());
+            } else {
+                // Scoped uniqueness (BR-01)
+                for (Course existing : courses.values()) {
+                    if (existing.getCourseCode().equalsIgnoreCase(normalizedCode)
+                            && (course.getTenantId() == null || Objects.equals(existing.getTenantId(), course.getTenantId()))) {
+                        throw new CourseCodeConflictException(normalizedCode);
+                    }
+                }
+
+                // Assign identity
+                if (course.getId() == null || course.getId().trim().isEmpty()) {
+                    course.setId("CRS_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
+                }
+                course.setStatus("DRAFT");
+                course.setCurrentVersion(1);
+                course.setCreatedAt(System.currentTimeMillis());
+                course.setUpdatedAt(System.currentTimeMillis());
+            }
 
             courses.put(course.getId(), course);
 
@@ -193,6 +241,24 @@ public class CourseDomainService {
      * @throws CourseNotFoundException if no matching course is found
      */
     public Course getCourse(String id) {
+        return getCourse(null, id);
+    }
+
+    public Course getCourse(com.campx.academic.course.security.UserSecurityContext context, String id) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                Optional<Course> opt = courseRepository.findById(context, id);
+                if (opt.isPresent()) {
+                    return opt.get();
+                }
+            } catch (Exception e) {
+                logger.warn("Error finding course from repository: {}", e.getMessage());
+            }
+        }
         Course c = courses.get(id);
         if (c == null) {
             // Check lookup by course code as well
@@ -212,6 +278,24 @@ public class CourseDomainService {
      * @return list of courses
      */
     public List<Course> listCourses() {
+        return listCourses(null);
+    }
+
+    public List<Course> listCourses(com.campx.academic.course.security.UserSecurityContext context) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                List<Course> dbCourses = courseRepository.listCourses(context, null);
+                if (!dbCourses.isEmpty()) {
+                    return dbCourses;
+                }
+            } catch (Exception e) {
+                logger.warn("Error fetching courses from repository: {}", e.getMessage());
+            }
+        }
         return new ArrayList<>(courses.values());
     }
 

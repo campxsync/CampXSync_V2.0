@@ -94,11 +94,30 @@ public class CollegeAdminDomainService {
         return new ArrayList<>(auditTrail);
     }
 
-    /**
-     * Constructs a new {@code CollegeAdminDomainService} initializing default seed data.
-     */
+    private final com.campx.admin.college.repository.DepartmentRepository departmentRepository;
+
     public CollegeAdminDomainService() {
+        this(resolveDefaultDepartmentRepository());
+    }
+
+    public CollegeAdminDomainService(com.campx.admin.college.repository.DepartmentRepository departmentRepository) {
+        this.departmentRepository = departmentRepository != null ? departmentRepository : new com.campx.admin.college.repository.InMemoryDepartmentRepository();
         seedDefaults();
+    }
+
+    private static com.campx.admin.college.repository.DepartmentRepository resolveDefaultDepartmentRepository() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new com.campx.admin.college.repository.PostgresDepartmentRepository();
+            } catch (Exception e) {
+                logger.warn("Failed to initialize PostgresDepartmentRepository, falling back to InMemory: {}", e.getMessage());
+            }
+        }
+        return new com.campx.admin.college.repository.InMemoryDepartmentRepository();
     }
 
     private void seedDefaults() {
@@ -291,6 +310,10 @@ public class CollegeAdminDomainService {
      * @throws CollegeResourceConflictException if departmentCode already exists
      */
     public Department createDepartment(Department dep) {
+        return createDepartment(null, dep);
+    }
+
+    public Department createDepartment(com.campx.admin.college.security.UserSecurityContext context, Department dep) {
         try (FlowTracker flow = logger.flow("CreateDepartmentWorkflow", "DEP-" + dep.getDepartmentCode())) {
             if (dep.getDepartmentCode() == null || dep.getDepartmentCode().trim().isEmpty()) {
                 CollegeMalformedPayloadException ex = new CollegeMalformedPayloadException("Mandatory field 'departmentCode' is required");
@@ -298,16 +321,35 @@ public class CollegeAdminDomainService {
                 throw ex;
             }
 
-            for (Department existing : departments.values()) {
-                if (existing.getDepartmentCode().equalsIgnoreCase(dep.getDepartmentCode())) {
-                    CollegeResourceConflictException ex = new CollegeResourceConflictException("Department", "departmentCode", dep.getDepartmentCode());
-                    flow.markFailed(ex);
-                    throw ex;
-                }
+            if (context == null && LogContext.getTenantId() != null) {
+                context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                        LogContext.getUserId(), LogContext.getTenantId());
             }
 
-            dep.setId(UUID.randomUUID().toString());
-            dep.setStatus("ACTIVE");
+            // Persist through repository if tenant context is available
+            if (context != null && context.getTenantId() != null) {
+                Department saved = departmentRepository.createDepartment(context, dep);
+                dep.setId(saved.getId());
+                dep.setStatus(saved.getStatus());
+                dep.setTenantId(saved.getTenantId());
+                dep.setCollegeId(saved.getCollegeId());
+                dep.setCreatedAt(saved.getCreatedAt());
+                dep.setUpdatedAt(saved.getUpdatedAt());
+                dep.setRowVersion(saved.getRowVersion());
+            } else {
+                for (Department existing : departments.values()) {
+                    if (existing.getDepartmentCode().equalsIgnoreCase(dep.getDepartmentCode())) {
+                        CollegeResourceConflictException ex = new CollegeResourceConflictException("Department", "departmentCode", dep.getDepartmentCode());
+                        flow.markFailed(ex);
+                        throw ex;
+                    }
+                }
+                if (dep.getId() == null || dep.getId().trim().isEmpty()) {
+                    dep.setId(UUID.randomUUID().toString());
+                }
+                dep.setStatus("ACTIVE");
+            }
+
             departments.put(dep.getId(), dep);
 
             flow.step("ValidateAndPersistDepartment");
@@ -341,6 +383,10 @@ public class CollegeAdminDomainService {
      * @throws CollegeLifecycleException        if active academic programs still reference the department
      */
     public void retireDepartment(String departmentId) {
+        retireDepartment(null, departmentId);
+    }
+
+    public void retireDepartment(com.campx.admin.college.security.UserSecurityContext context, String departmentId) {
         Department dep = departments.get(departmentId);
         if (dep == null) {
             for (Department d : departments.values()) {
@@ -363,6 +409,19 @@ public class CollegeAdminDomainService {
         }
 
         dep.setStatus("RETIRED");
+
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                departmentRepository.retireDepartment(context, departmentId);
+            } catch (Exception e) {
+                logger.warn("Could not retire department in repository: {}", e.getMessage());
+            }
+        }
+
         emitOutboxEvent("DepartmentDeactivated", dep.getId(), "COLLEGE",
                 "{\"departmentId\":\"" + dep.getId() + "\",\"departmentCode\":\"" + dep.getDepartmentCode()
                         + "\",\"status\":\"RETIRED\"}");
@@ -375,6 +434,24 @@ public class CollegeAdminDomainService {
      * @return list of department models
      */
     public List<Department> listDepartments() {
+        return listDepartments(null);
+    }
+
+    public List<Department> listDepartments(com.campx.admin.college.security.UserSecurityContext context) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                List<Department> dbDeps = departmentRepository.listDepartments(context, null);
+                if (!dbDeps.isEmpty()) {
+                    return dbDeps;
+                }
+            } catch (Exception e) {
+                logger.warn("Error fetching departments from repository: {}", e.getMessage());
+            }
+        }
         return new ArrayList<>(departments.values());
     }
 

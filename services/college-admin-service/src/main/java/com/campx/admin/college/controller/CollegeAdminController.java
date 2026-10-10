@@ -609,28 +609,50 @@ public class CollegeAdminController implements HttpHandler {
 
     private void handleCreateDepartment(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        com.campx.admin.college.security.UserSecurityContext context =
+                com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+
         Department d = new Department();
         d.setDepartmentCode(extract(body, "departmentCode", null));
         d.setName(extract(body, "name", null));
         d.setHeadUserId(extract(body, "headUserId", "FACULTY_HOD"));
+        d.setCollegeId(extract(body, "collegeId", null));
+        if (tenantId != null && !tenantId.trim().isEmpty()) {
+            d.setTenantId(tenantId.trim());
+        }
 
-        Department created = domainService.createDepartment(d);
-        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getDepartmentCode() + "\",\"status\":\"" + created.getStatus() + "\"}");
+        Department created = domainService.createDepartment(context, d);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getDepartmentCode()
+                + "\",\"name\":\"" + escape(created.getName()) + "\",\"status\":\"" + created.getStatus() + "\"}");
     }
 
     private void handleRetireDepartment(HttpExchange exchange, String depId) throws IOException {
-        domainService.retireDepartment(depId);
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        com.campx.admin.college.security.UserSecurityContext context =
+                com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+
+        domainService.retireDepartment(context, depId);
         sendJson(exchange, 200, "{\"status\":\"RETIRED\",\"id\":\"" + depId + "\"}");
     }
 
     private void handleListDepartments(HttpExchange exchange) throws IOException {
-        List<Department> list = domainService.listDepartments();
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        com.campx.admin.college.security.UserSecurityContext context =
+                com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+
+        List<Department> list = domainService.listDepartments(context);
         StringBuilder sb = new StringBuilder("{\"departments\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
             Department d = list.get(i);
             sb.append("{\"id\":\"").append(d.getId()).append("\",\"code\":\"").append(d.getDepartmentCode())
-              .append("\",\"name\":\"").append(escape(d.getName())).append("\",\"status\":\"").append(d.getStatus()).append("\"}");
+              .append("\",\"name\":\"").append(escape(d.getName()))
+              .append("\",\"collegeId\":\"").append(d.getCollegeId() != null ? d.getCollegeId() : "")
+              .append("\",\"status\":\"").append(d.getStatus()).append("\"}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());

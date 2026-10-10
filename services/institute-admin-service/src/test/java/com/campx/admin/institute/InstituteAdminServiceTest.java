@@ -20,19 +20,21 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
  * End-to-end integration test suite for ADM-01 Institute Admin Service.
  * <p>
- * Boots the embedded HTTP server on test port 8091 and tests all platform capabilities:
+ * Boots the embedded HTTP server on test port 8091 and tests all platform
+ * capabilities:
  * <ul>
- *   <li>Institute & College tenant onboarding lifecycle</li>
- *   <li>Commercial pricing plans and tenant subscriptions</li>
- *   <li>Global configuration settings and versioning</li>
- *   <li>Transactional outbox/inbox reliability and dead letter queue</li>
- *   <li>RBAC role bindings and privileged access reviews</li>
- *   <li>Tamper-evident audit chain integrity verification</li>
+ * <li>Institute & College tenant onboarding lifecycle</li>
+ * <li>Commercial pricing plans and tenant subscriptions</li>
+ * <li>Global configuration settings and versioning</li>
+ * <li>Transactional outbox/inbox reliability and dead letter queue</li>
+ * <li>RBAC role bindings and privileged access reviews</li>
+ * <li>Tamper-evident audit chain integrity verification</li>
  * </ul>
  */
 public class InstituteAdminServiceTest {
@@ -42,7 +44,8 @@ public class InstituteAdminServiceTest {
     private static final int TEST_PORT = 8091;
 
     /**
-     * Initializes domain service, starts the HTTP server on test port 8091, and awaits readiness.
+     * Initializes domain service, starts the HTTP server on test port 8091, and
+     * awaits readiness.
      *
      * @throws Exception if socket creation or server bootstrap fails
      */
@@ -55,7 +58,8 @@ public class InstituteAdminServiceTest {
     }
 
     /**
-     * Halts the HTTP server and flushes asynchronous log appenders upon test suite completion.
+     * Halts the HTTP server and flushes asynchronous log appenders upon test suite
+     * completion.
      */
     @AfterClass
     public static void teardown() {
@@ -286,8 +290,7 @@ public class InstituteAdminServiceTest {
 
     @Test
     public void testRegisterAdminUserDirectDomainCall() {
-        com.campx.admin.institute.model.InstituteModels.AdminUser user =
-                new com.campx.admin.institute.model.InstituteModels.AdminUser();
+        com.campx.admin.institute.model.InstituteModels.AdminUser user = new com.campx.admin.institute.model.InstituteModels.AdminUser();
         user.setUserId("iam_super_admin_01");
         user.setDisplayName("Super Admin");
         user.setEmail("superadmin@campx.edu");
@@ -299,8 +302,7 @@ public class InstituteAdminServiceTest {
 
     @Test
     public void testRegisterAdminUserUnresolvableIAMDirectDomainCall() {
-        com.campx.admin.institute.model.InstituteModels.AdminUser user =
-                new com.campx.admin.institute.model.InstituteModels.AdminUser();
+        com.campx.admin.institute.model.InstituteModels.AdminUser user = new com.campx.admin.institute.model.InstituteModels.AdminUser();
         user.setUserId("unknown_iam_user");
         user.setDisplayName("Unknown User");
 
@@ -407,7 +409,9 @@ public class InstituteAdminServiceTest {
         conn1.setRequestMethod("POST");
         conn1.setDoOutput(true);
         conn1.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn1.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn1.getOutputStream()) {
+            os.write(payload.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn1.getResponseCode());
 
         // Second creation — should fail
@@ -415,7 +419,9 @@ public class InstituteAdminServiceTest {
         conn2.setRequestMethod("POST");
         conn2.setDoOutput(true);
         conn2.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn2.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn2.getOutputStream()) {
+            os.write(payload.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(409, conn2.getResponseCode());
     }
 
@@ -513,7 +519,9 @@ public class InstituteAdminServiceTest {
         conn1.setRequestMethod("POST");
         conn1.setDoOutput(true);
         conn1.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn1.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn1.getOutputStream()) {
+            os.write(payload.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, conn1.getResponseCode());
         String resp1 = readResponse(conn1);
         assertTrue(resp1.contains("\"status\":\"PROCESSED\""));
@@ -523,7 +531,9 @@ public class InstituteAdminServiceTest {
         conn2.setRequestMethod("POST");
         conn2.setDoOutput(true);
         conn2.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn2.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn2.getOutputStream()) {
+            os.write(payload.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, conn2.getResponseCode());
         String resp2 = readResponse(conn2);
         assertTrue(resp2.contains("\"status\":\"PROCESSED\""));
@@ -549,7 +559,8 @@ public class InstituteAdminServiceTest {
         String dlqId = resp.substring(idStart, idEnd);
 
         // Replay DLQ event
-        URL replayUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/events/dead-letter/" + dlqId + "/replay");
+        URL replayUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/events/dead-letter/" + dlqId + "/replay");
         HttpURLConnection replayConn = (HttpURLConnection) replayUrl.openConnection();
         replayConn.setRequestMethod("POST");
         assertEquals(200, replayConn.getResponseCode());
@@ -594,7 +605,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(flagJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(flagJson.getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(201, conn.getResponseCode());
         String resp = readResponse(conn);
@@ -602,12 +615,15 @@ public class InstituteAdminServiceTest {
 
         // Add tenant override
         String overrideJson = "{\"tenantId\":\"TENANT_CAMPUS_A\",\"overrideValue\":\"true\",\"reason\":\"Pilot launch\"}";
-        URL overUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/feature-flags/FEATURE_AI_ASSISTANT/overrides");
+        URL overUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/feature-flags/FEATURE_AI_ASSISTANT/overrides");
         HttpURLConnection overConn = (HttpURLConnection) overUrl.openConnection();
         overConn.setRequestMethod("POST");
         overConn.setDoOutput(true);
         overConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = overConn.getOutputStream()) { os.write(overrideJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = overConn.getOutputStream()) {
+            os.write(overrideJson.getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(200, overConn.getResponseCode());
         String overResp = readResponse(overConn);
@@ -622,17 +638,22 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(flagJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(flagJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
 
         // Override attempt should be blocked
         String overrideJson = "{\"tenantId\":\"TENANT_ROGUE\",\"overrideValue\":\"false\"}";
-        URL overUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/feature-flags/CORE_AUDIT_LOCK/overrides");
+        URL overUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/feature-flags/CORE_AUDIT_LOCK/overrides");
         HttpURLConnection overConn = (HttpURLConnection) overUrl.openConnection();
         overConn.setRequestMethod("POST");
         overConn.setDoOutput(true);
         overConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = overConn.getOutputStream()) { os.write(overrideJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = overConn.getOutputStream()) {
+            os.write(overrideJson.getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(400, overConn.getResponseCode());
         String errResp = readResponse(overConn);
@@ -647,7 +668,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(policyJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(policyJson.getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(201, conn.getResponseCode());
 
@@ -663,7 +686,9 @@ public class InstituteAdminServiceTest {
         appConn.setRequestMethod("POST");
         appConn.setDoOutput(true);
         appConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = appConn.getOutputStream()) { os.write("{\"approvedBy\":\"CISO_OFFICER\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = appConn.getOutputStream()) {
+            os.write("{\"approvedBy\":\"CISO_OFFICER\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, appConn.getResponseCode());
 
         // Now publish succeeds
@@ -681,7 +706,9 @@ public class InstituteAdminServiceTest {
         snapConn.setRequestMethod("POST");
         snapConn.setDoOutput(true);
         snapConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = snapConn.getOutputStream()) { os.write("{\"scope\":\"GLOBAL\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = snapConn.getOutputStream()) {
+            os.write("{\"scope\":\"GLOBAL\"}".getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(201, snapConn.getResponseCode());
         String snapResp = readResponse(snapConn);
@@ -694,7 +721,9 @@ public class InstituteAdminServiceTest {
         rbConn.setRequestMethod("POST");
         rbConn.setDoOutput(true);
         rbConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = rbConn.getOutputStream()) { os.write("{\"scope\":\"GLOBAL\",\"targetVersion\":1}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = rbConn.getOutputStream()) {
+            os.write("{\"scope\":\"GLOBAL\",\"targetVersion\":1}".getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(200, rbConn.getResponseCode());
         String rbResp = readResponse(rbConn);
@@ -713,7 +742,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(planJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(planJson.getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(201, conn.getResponseCode());
         String resp = readResponse(conn);
@@ -721,7 +752,8 @@ public class InstituteAdminServiceTest {
         assertTrue(resp.contains("\"published\":false"));
 
         // Publish plan
-        URL pubUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/billing/plans/CAMPUS_STARTER_2026/publish");
+        URL pubUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/billing/plans/CAMPUS_STARTER_2026/publish");
         HttpURLConnection pubConn = (HttpURLConnection) pubUrl.openConnection();
         pubConn.setRequestMethod("POST");
         assertEquals(200, pubConn.getResponseCode());
@@ -737,7 +769,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(subJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(subJson.getBytes(StandardCharsets.UTF_8));
+        }
 
         assertEquals(201, conn.getResponseCode());
         String resp = readResponse(conn);
@@ -753,7 +787,9 @@ public class InstituteAdminServiceTest {
         transConn.setRequestMethod("PUT");
         transConn.setDoOutput(true);
         transConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = transConn.getOutputStream()) { os.write("{\"status\":\"SUSPENDED\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = transConn.getOutputStream()) {
+            os.write("{\"status\":\"SUSPENDED\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, transConn.getResponseCode());
 
         // Transition to CANCELLED
@@ -761,7 +797,9 @@ public class InstituteAdminServiceTest {
         cancelConn.setRequestMethod("PUT");
         cancelConn.setDoOutput(true);
         cancelConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = cancelConn.getOutputStream()) { os.write("{\"status\":\"CANCELLED\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = cancelConn.getOutputStream()) {
+            os.write("{\"status\":\"CANCELLED\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, cancelConn.getResponseCode());
 
         // Attempt transition from CANCELLED to ACTIVE -> should fail with 422
@@ -769,7 +807,9 @@ public class InstituteAdminServiceTest {
         reactivateConn.setRequestMethod("PUT");
         reactivateConn.setDoOutput(true);
         reactivateConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = reactivateConn.getOutputStream()) { os.write("{\"status\":\"ACTIVE\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = reactivateConn.getOutputStream()) {
+            os.write("{\"status\":\"ACTIVE\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(422, reactivateConn.getResponseCode());
     }
 
@@ -782,7 +822,9 @@ public class InstituteAdminServiceTest {
         subConn.setRequestMethod("POST");
         subConn.setDoOutput(true);
         subConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = subConn.getOutputStream()) { os.write(subJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = subConn.getOutputStream()) {
+            os.write(subJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, subConn.getResponseCode());
         String subResp = readResponse(subConn);
         int subIdStart = subResp.indexOf("\"id\":\"") + 6;
@@ -794,7 +836,10 @@ public class InstituteAdminServiceTest {
         invConn.setRequestMethod("POST");
         invConn.setDoOutput(true);
         invConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = invConn.getOutputStream()) { os.write(("{\"subscriptionId\":\"" + subId + "\",\"billingPeriod\":\"2026-09\"}").getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = invConn.getOutputStream()) {
+            os.write(("{\"subscriptionId\":\"" + subId + "\",\"billingPeriod\":\"2026-09\"}")
+                    .getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, invConn.getResponseCode());
         String invResp = readResponse(invConn);
         assertTrue(invResp.contains("\"status\":\"ISSUED\""));
@@ -804,13 +849,16 @@ public class InstituteAdminServiceTest {
         String invId = invResp.substring(invIdStart, invResp.indexOf("\"", invIdStart));
 
         // Reconcile payment via gateway transaction webhook
-        String txnJson = "{\"gatewayTransactionId\":\"RAZORPAY_TXN_001\",\"invoiceId\":\"" + invId + "\",\"amount\":1416000.0,\"currency\":\"INR\"}";
+        String txnJson = "{\"gatewayTransactionId\":\"RAZORPAY_TXN_001\",\"invoiceId\":\"" + invId
+                + "\",\"amount\":1416000.0,\"currency\":\"INR\"}";
         URL txnUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/billing/transactions");
         HttpURLConnection txnConn = (HttpURLConnection) txnUrl.openConnection();
         txnConn.setRequestMethod("POST");
         txnConn.setDoOutput(true);
         txnConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = txnConn.getOutputStream()) { os.write(txnJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = txnConn.getOutputStream()) {
+            os.write(txnJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, txnConn.getResponseCode());
         String txnResp = readResponse(txnConn);
         assertTrue(txnResp.contains("\"status\":\"SUCCESS\""));
@@ -820,7 +868,9 @@ public class InstituteAdminServiceTest {
         txnReplayConn.setRequestMethod("POST");
         txnReplayConn.setDoOutput(true);
         txnReplayConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = txnReplayConn.getOutputStream()) { os.write(txnJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = txnReplayConn.getOutputStream()) {
+            os.write(txnJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, txnReplayConn.getResponseCode());
     }
 
@@ -832,7 +882,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(usageJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(usageJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
 
         // Query usage
@@ -857,7 +909,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(healthJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(healthJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
 
         URL getUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/operations/health");
@@ -877,7 +931,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(alertJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(alertJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
         String alertResp = readResponse(conn);
         int idIdx = alertResp.indexOf("\"id\":\"") + 6;
@@ -889,30 +945,38 @@ public class InstituteAdminServiceTest {
         dedupConn.setRequestMethod("POST");
         dedupConn.setDoOutput(true);
         dedupConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = dedupConn.getOutputStream()) { os.write(alertJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = dedupConn.getOutputStream()) {
+            os.write(alertJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, dedupConn.getResponseCode());
         String dedupResp = readResponse(dedupConn);
         assertTrue("Duplicate alert must return identical ID", dedupResp.contains(alertId));
 
         // Acknowledge alert
-        URL ackUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/operations/alerts/" + alertId + "/acknowledge");
+        URL ackUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/operations/alerts/" + alertId + "/acknowledge");
         HttpURLConnection ackConn = (HttpURLConnection) ackUrl.openConnection();
         ackConn.setRequestMethod("POST");
         ackConn.setDoOutput(true);
         ackConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = ackConn.getOutputStream()) { os.write("{\"assignee\":\"ENG_SRE_TEAM\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = ackConn.getOutputStream()) {
+            os.write("{\"assignee\":\"ENG_SRE_TEAM\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, ackConn.getResponseCode());
         String ackResp = readResponse(ackConn);
         assertTrue(ackResp.contains("\"status\":\"ACKNOWLEDGED\""));
         assertTrue(ackResp.contains("ENG_SRE_TEAM"));
 
         // Resolve alert
-        URL resUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/operations/alerts/" + alertId + "/resolve");
+        URL resUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/operations/alerts/" + alertId + "/resolve");
         HttpURLConnection resConn = (HttpURLConnection) resUrl.openConnection();
         resConn.setRequestMethod("POST");
         resConn.setDoOutput(true);
         resConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = resConn.getOutputStream()) { os.write("{\"resolutionNotes\":\"Node restarted\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = resConn.getOutputStream()) {
+            os.write("{\"resolutionNotes\":\"Node restarted\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, resConn.getResponseCode());
         String resResp = readResponse(resConn);
         assertTrue(resResp.contains("\"status\":\"RESOLVED\""));
@@ -926,7 +990,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(wfJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(wfJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
         String createResp = readResponse(conn);
         int idIdx = createResp.indexOf("\"id\":\"") + 6;
@@ -939,7 +1005,9 @@ public class InstituteAdminServiceTest {
         putConn.setRequestMethod("PUT");
         putConn.setDoOutput(true);
         putConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = putConn.getOutputStream()) { os.write("{\"status\":\"COMPLETED\",\"stepName\":\"DNS_CONFIGURED\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = putConn.getOutputStream()) {
+            os.write("{\"status\":\"COMPLETED\",\"stepName\":\"DNS_CONFIGURED\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, putConn.getResponseCode());
         String putResp = readResponse(putConn);
         assertTrue(putResp.contains("\"status\":\"COMPLETED\""));
@@ -958,14 +1026,17 @@ public class InstituteAdminServiceTest {
 
     @Test
     public void testRetentionPolicyLegalMinimumEnforcement() throws Exception {
-        // Attempt creating retention policy where retentionDays < legalMinimumDays -> 400 Bad Request
+        // Attempt creating retention policy where retentionDays < legalMinimumDays ->
+        // 400 Bad Request
         String invalidPolicyJson = "{\"policyCode\":\"RET_VIOLATION_01\",\"dataClass\":\"STUDENT_PII\",\"retentionDays\":30,\"legalMinimumDays\":90}";
         URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/data-governance/retention");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(invalidPolicyJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(invalidPolicyJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(400, conn.getResponseCode());
 
         // Valid policy where retentionDays >= legalMinimumDays -> 201 Created
@@ -974,7 +1045,9 @@ public class InstituteAdminServiceTest {
         validConn.setRequestMethod("POST");
         validConn.setDoOutput(true);
         validConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = validConn.getOutputStream()) { os.write(validPolicyJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = validConn.getOutputStream()) {
+            os.write(validPolicyJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, validConn.getResponseCode());
         String resp = readResponse(validConn);
         assertTrue(resp.contains("RET_VALID_01"));
@@ -989,7 +1062,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(classJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(classJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
         String resp = readResponse(conn);
         assertTrue(resp.contains("\"classCode\":\"RESTRICTED_PII\""));
@@ -1012,7 +1087,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(invalidExportJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(invalidExportJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(400, conn.getResponseCode());
 
         // Valid request with future expiresAt -> 201 Created
@@ -1021,7 +1098,9 @@ public class InstituteAdminServiceTest {
         validConn.setRequestMethod("POST");
         validConn.setDoOutput(true);
         validConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = validConn.getOutputStream()) { os.write(validExportJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = validConn.getOutputStream()) {
+            os.write(validExportJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, validConn.getResponseCode());
         String validResp = readResponse(validConn);
         assertTrue(validResp.contains("\"status\":\"PENDING\""));
@@ -1036,7 +1115,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(exportJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(exportJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
         String resp = readResponse(conn);
         int idIdx = resp.indexOf("\"id\":\"") + 6;
@@ -1048,7 +1129,9 @@ public class InstituteAdminServiceTest {
         approveConn.setRequestMethod("POST");
         approveConn.setDoOutput(true);
         approveConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = approveConn.getOutputStream()) { os.write("{\"approvedBy\":\"CHIEF_DPO\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = approveConn.getOutputStream()) {
+            os.write("{\"approvedBy\":\"CHIEF_DPO\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, approveConn.getResponseCode());
         String approveResp = readResponse(approveConn);
         assertTrue(approveResp.contains("\"status\":\"APPROVED\""));
@@ -1060,7 +1143,10 @@ public class InstituteAdminServiceTest {
         completeConn.setRequestMethod("POST");
         completeConn.setDoOutput(true);
         completeConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = completeConn.getOutputStream()) { os.write("{\"objectRef\":\"s3://campx-exports/export-001.json\",\"checksum\":\"SHA256-abcdef012345\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = completeConn.getOutputStream()) {
+            os.write("{\"objectRef\":\"s3://campx-exports/export-001.json\",\"checksum\":\"SHA256-abcdef012345\"}"
+                    .getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(200, completeConn.getResponseCode());
         String completeResp = readResponse(completeConn);
         assertTrue(completeResp.contains("\"status\":\"COMPLETED\""));
@@ -1076,7 +1162,9 @@ public class InstituteAdminServiceTest {
         cConn.setRequestMethod("POST");
         cConn.setDoOutput(true);
         cConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = cConn.getOutputStream()) { os.write(classJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = cConn.getOutputStream()) {
+            os.write(classJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, cConn.getResponseCode());
 
         // Create export with that data class
@@ -1086,7 +1174,9 @@ public class InstituteAdminServiceTest {
         expConn.setRequestMethod("POST");
         expConn.setDoOutput(true);
         expConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = expConn.getOutputStream()) { os.write(expJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = expConn.getOutputStream()) {
+            os.write(expJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, expConn.getResponseCode());
         String expResp = readResponse(expConn);
         int idIdx = expResp.indexOf("\"id\":\"") + 6;
@@ -1098,25 +1188,31 @@ public class InstituteAdminServiceTest {
         appConn.setRequestMethod("POST");
         appConn.setDoOutput(true);
         appConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = appConn.getOutputStream()) { os.write("{\"approvedBy\":\"DPO\"}".getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = appConn.getOutputStream()) {
+            os.write("{\"approvedBy\":\"DPO\"}".getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(400, appConn.getResponseCode());
     }
 
     @Test
     public void testAuditSearchByCorrelationId() throws Exception {
         String traceId = "TRACE-AUDIT-CORR-" + UUID.randomUUID().toString().substring(0, 8);
-        String instJson = "{\"instituteCode\":\"INST_CORR_" + UUID.randomUUID().toString().substring(0, 6) + "\",\"instituteName\":\"Corr Search Test\",\"domain\":\"corr.edu\",\"tier\":\"ENTERPRISE\"}";
+        String instJson = "{\"instituteCode\":\"INST_CORR_" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"instituteName\":\"Corr Search Test\",\"domain\":\"corr.edu\",\"tier\":\"ENTERPRISE\"}";
         URL instUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
         HttpURLConnection instConn = (HttpURLConnection) instUrl.openConnection();
         instConn.setRequestMethod("POST");
         instConn.setRequestProperty("X-Trace-Id", traceId);
         instConn.setRequestProperty("Content-Type", "application/json");
         instConn.setDoOutput(true);
-        try (OutputStream os = instConn.getOutputStream()) { os.write(instJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = instConn.getOutputStream()) {
+            os.write(instJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, instConn.getResponseCode());
 
         // Search audit by correlationId
-        URL searchUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?correlationId=" + traceId);
+        URL searchUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?correlationId=" + traceId);
         HttpURLConnection searchConn = (HttpURLConnection) searchUrl.openConnection();
         searchConn.setRequestMethod("GET");
         assertEquals(200, searchConn.getResponseCode());
@@ -1126,7 +1222,8 @@ public class InstituteAdminServiceTest {
 
     @Test
     public void testAuditSearchByActorAndDateRange() throws Exception {
-        URL searchUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?actorId=SUPER_ADMIN&fromDate=0&toDate=9999999999999");
+        URL searchUrl = new URL("http://localhost:" + TEST_PORT
+                + "/api/v1/admin/audit-logs/search?actorId=SUPER_ADMIN&fromDate=0&toDate=9999999999999");
         HttpURLConnection searchConn = (HttpURLConnection) searchUrl.openConnection();
         searchConn.setRequestMethod("GET");
         assertEquals(200, searchConn.getResponseCode());
@@ -1143,7 +1240,9 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = conn.getOutputStream()) { os.write(policyJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(policyJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(201, conn.getResponseCode());
 
         // Second creation with same policyCode -> 409 Conflict
@@ -1151,13 +1250,244 @@ public class InstituteAdminServiceTest {
         dupConn.setRequestMethod("POST");
         dupConn.setDoOutput(true);
         dupConn.setRequestProperty("Content-Type", "application/json");
-        try (OutputStream os = dupConn.getOutputStream()) { os.write(policyJson.getBytes(StandardCharsets.UTF_8)); }
+        try (OutputStream os = dupConn.getOutputStream()) {
+            os.write(policyJson.getBytes(StandardCharsets.UTF_8));
+        }
         assertEquals(409, dupConn.getResponseCode());
+    }
+
+    // =========================================================================
+    // GAP-03 Security Audit Regression Tests (Tenant Isolation & Safe Parsing)
+    // =========================================================================
+
+    @Test
+    public void testGap03TenantIsolationByCorrelationId() throws Exception {
+        String tenantA = "TENANT_ISO_A";
+        String tenantB = "TENANT_ISO_B";
+        String traceId = "TRACE-SHARED-" + UUID.randomUUID().toString().substring(0, 8);
+
+        // Tenant B records an event with traceId
+        URL instUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection instConn = (HttpURLConnection) instUrl.openConnection();
+        instConn.setRequestMethod("POST");
+        instConn.setRequestProperty("X-Trace-Id", traceId);
+        instConn.setRequestProperty("X-Tenant-Id", tenantB);
+        instConn.setRequestProperty("Content-Type", "application/json");
+        instConn.setDoOutput(true);
+        String instJson = "{\"instituteCode\":\"INST_TB_" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"instituteName\":\"Tenant B Institute\",\"domain\":\"tb.edu\",\"tier\":\"ENTERPRISE\"}";
+        try (OutputStream os = instConn.getOutputStream()) {
+            os.write(instJson.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, instConn.getResponseCode());
+
+        // A. Tenant A attempts to search with Tenant B's traceId -> Must NOT see Tenant
+        // B event
+        URL searchUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?correlationId=" + traceId);
+        HttpURLConnection searchConnA = (HttpURLConnection) searchUrl.openConnection();
+        searchConnA.setRequestMethod("GET");
+        searchConnA.setRequestProperty("X-Tenant-Id", tenantA);
+        assertEquals(200, searchConnA.getResponseCode());
+        String respA = readResponse(searchConnA);
+        assertTrue(respA.contains("\"count\":0"));
+        assertFalse("Tenant A must not see Tenant B event", respA.contains(traceId));
+
+        // Tenant B searching with same traceId -> Must find it
+        HttpURLConnection searchConnB = (HttpURLConnection) searchUrl.openConnection();
+        searchConnB.setRequestMethod("GET");
+        searchConnB.setRequestProperty("X-Tenant-Id", tenantB);
+        assertEquals(200, searchConnB.getResponseCode());
+        String respB = readResponse(searchConnB);
+        assertTrue(respB.contains(traceId));
+    }
+
+    @Test
+    public void testGap03TenantIsolationByActorId() throws Exception {
+        String tenantA = "TENANT_ACTOR_A";
+        String tenantB = "TENANT_ACTOR_B";
+        String actorId = UUID.randomUUID().toString();
+
+        // Tenant B records an event with actorId
+        URL instUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection instConn = (HttpURLConnection) instUrl.openConnection();
+        instConn.setRequestMethod("POST");
+        instConn.setRequestProperty("X-Tenant-Id", tenantB);
+        instConn.setRequestProperty("X-User-Id", actorId);
+        instConn.setRequestProperty("Content-Type", "application/json");
+        instConn.setDoOutput(true);
+        String instJson = "{\"instituteCode\":\"INST_ACT_" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"instituteName\":\"Actor Inst\",\"domain\":\"act.edu\",\"tier\":\"ENTERPRISE\"}";
+        try (OutputStream os = instConn.getOutputStream()) {
+            os.write(instJson.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, instConn.getResponseCode());
+
+        // B. Tenant A searches by Tenant B's actorId -> Must NOT see Tenant B events
+        URL searchUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?actorId=" + actorId);
+        HttpURLConnection searchConnA = (HttpURLConnection) searchUrl.openConnection();
+        searchConnA.setRequestMethod("GET");
+        searchConnA.setRequestProperty("X-Tenant-Id", tenantA);
+        assertEquals(200, searchConnA.getResponseCode());
+        String respA = readResponse(searchConnA);
+        assertTrue(respA.contains("\"count\":0"));
+        assertFalse("Tenant A must not see Tenant B events by actorId", respA.contains(actorId));
+
+        // Tenant B searching by actorId -> Must see it
+        HttpURLConnection searchConnB = (HttpURLConnection) searchUrl.openConnection();
+        searchConnB.setRequestMethod("GET");
+        searchConnB.setRequestProperty("X-Tenant-Id", tenantB);
+        assertEquals(200, searchConnB.getResponseCode());
+        String respB = readResponse(searchConnB);
+        assertTrue(respB.contains(actorId));
+    }
+
+    @Test
+    public void testGap03TenantIsolationUnfilteredEmptySearch() throws Exception {
+        String tenantA = "TENANT_EMPTY_A";
+        String tenantB = "TENANT_EMPTY_B";
+        String uniqueMarkerB = "MARKER_B_" + UUID.randomUUID().toString().substring(0, 8);
+
+        // Tenant B creates an institute
+        URL instUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection instConn = (HttpURLConnection) instUrl.openConnection();
+        instConn.setRequestMethod("POST");
+        instConn.setRequestProperty("X-Tenant-Id", tenantB);
+        instConn.setRequestProperty("X-Trace-Id", uniqueMarkerB);
+        instConn.setRequestProperty("Content-Type", "application/json");
+        instConn.setDoOutput(true);
+        String instJson = "{\"instituteCode\":\"INST_M_" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"instituteName\":\"Inst Marker\",\"domain\":\"marker.edu\",\"tier\":\"ENTERPRISE\"}";
+        try (OutputStream os = instConn.getOutputStream()) {
+            os.write(instJson.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, instConn.getResponseCode());
+
+        // C. Tenant A performs unfiltered / empty search -> Must NOT receive Tenant B
+        // events
+        URL searchUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search");
+        HttpURLConnection searchConnA = (HttpURLConnection) searchUrl.openConnection();
+        searchConnA.setRequestMethod("GET");
+        searchConnA.setRequestProperty("X-Tenant-Id", tenantA);
+        assertEquals(200, searchConnA.getResponseCode());
+        String respA = readResponse(searchConnA);
+        assertFalse("Tenant A unfiltered search must not expose Tenant B data", respA.contains(uniqueMarkerB));
+    }
+
+    @Test
+    public void testGap03EmptyCorrelationIdReturns400() throws Exception {
+        // D. Empty correlationId returns 400
+        URL searchUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?correlationId=");
+        HttpURLConnection conn = (HttpURLConnection) searchUrl.openConnection();
+        conn.setRequestMethod("GET");
+        assertEquals(400, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("ADM01_VALIDATION_ERROR") || resp.contains("Bad Request"));
+    }
+
+    @Test
+    public void testGap03NonNumericFromDateReturns400() throws Exception {
+        // E. Non-numeric fromDate returns 400
+        URL searchUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?actorId=SUPER_ADMIN&fromDate=abc");
+        HttpURLConnection conn = (HttpURLConnection) searchUrl.openConnection();
+        conn.setRequestMethod("GET");
+        assertEquals(400, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("ADM01_VALIDATION_ERROR") || resp.contains("Bad Request"));
+    }
+
+    @Test
+    public void testGap03NonNumericToDateReturns400() throws Exception {
+        // F. Non-numeric toDate returns 400
+        URL searchUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?actorId=SUPER_ADMIN&toDate=xyz");
+        HttpURLConnection conn = (HttpURLConnection) searchUrl.openConnection();
+        conn.setRequestMethod("GET");
+        assertEquals(400, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("ADM01_VALIDATION_ERROR") || resp.contains("Bad Request"));
+    }
+
+    @Test
+    public void testGap03FromDateGreaterThanToDateReturns400() throws Exception {
+        // G. fromDate > toDate returns 400
+        URL searchUrl = new URL("http://localhost:" + TEST_PORT
+                + "/api/v1/admin/audit-logs/search?actorId=SUPER_ADMIN&fromDate=5000&toDate=2000");
+        HttpURLConnection conn = (HttpURLConnection) searchUrl.openConnection();
+        conn.setRequestMethod("GET");
+        assertEquals(400, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("ADM01_VALIDATION_ERROR") || resp.contains("Bad Request"));
+    }
+
+    @Test
+    public void testGap03ValidTenantScopedAuditSearchWorks() throws Exception {
+        // H. Valid tenant-scoped audit search still works
+        String tenantId = "TENANT_VALID_SEARCH";
+        String traceId = "TRACE-VALID-" + UUID.randomUUID().toString().substring(0, 8);
+
+        URL instUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection instConn = (HttpURLConnection) instUrl.openConnection();
+        instConn.setRequestMethod("POST");
+        instConn.setRequestProperty("X-Tenant-Id", tenantId);
+        instConn.setRequestProperty("X-Trace-Id", traceId);
+        instConn.setRequestProperty("Content-Type", "application/json");
+        instConn.setDoOutput(true);
+        String instJson = "{\"instituteCode\":\"INST_V_" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"instituteName\":\"Valid Inst\",\"domain\":\"v.edu\",\"tier\":\"ENTERPRISE\"}";
+        try (OutputStream os = instConn.getOutputStream()) {
+            os.write(instJson.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, instConn.getResponseCode());
+
+        URL searchUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?correlationId=" + traceId);
+        HttpURLConnection searchConn = (HttpURLConnection) searchUrl.openConnection();
+        searchConn.setRequestMethod("GET");
+        searchConn.setRequestProperty("X-Tenant-Id", tenantId);
+        assertEquals(200, searchConn.getResponseCode());
+        String searchResp = readResponse(searchConn);
+        assertTrue(searchResp.contains("auditEntries"));
+        assertTrue(searchResp.contains(traceId));
+    }
+
+    @Test
+    public void testGap03JsonSpecialCharactersEscaped() throws Exception {
+        // I. JSON special characters are correctly escaped
+        String tenantId = "TENANT_ESCAPE_TEST";
+        String traceId = "TRACE-ESC-" + UUID.randomUUID().toString().substring(0, 8);
+
+        URL instUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/admin/institutes");
+        HttpURLConnection instConn = (HttpURLConnection) instUrl.openConnection();
+        instConn.setRequestMethod("POST");
+        instConn.setRequestProperty("X-Tenant-Id", tenantId);
+        instConn.setRequestProperty("X-Trace-Id", traceId);
+        instConn.setRequestProperty("Content-Type", "application/json");
+        instConn.setDoOutput(true);
+        String instJson = "{\"instituteCode\":\"INST_ESC_" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"instituteName\":\"Escape \\\"Inst\\\" Name\\nLine2\",\"domain\":\"esc.edu\",\"tier\":\"ENTERPRISE\"}";
+        try (OutputStream os = instConn.getOutputStream()) {
+            os.write(instJson.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, instConn.getResponseCode());
+
+        URL searchUrl = new URL(
+                "http://localhost:" + TEST_PORT + "/api/v1/admin/audit-logs/search?correlationId=" + traceId);
+        HttpURLConnection searchConn = (HttpURLConnection) searchUrl.openConnection();
+        searchConn.setRequestMethod("GET");
+        searchConn.setRequestProperty("X-Tenant-Id", tenantId);
+        assertEquals(200, searchConn.getResponseCode());
+        String searchResp = readResponse(searchConn);
+        assertTrue("Search response must be valid parseable JSON", searchResp.startsWith("{\"auditEntries\":["));
+        assertTrue(searchResp.endsWith("}"));
+        assertTrue(searchResp.contains(traceId));
     }
 
     private String readResponse(HttpURLConnection conn) throws Exception {
         InputStream stream = conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream();
-        if (stream == null) return "";
+        if (stream == null)
+            return "";
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
@@ -1168,4 +1498,3 @@ public class InstituteAdminServiceTest {
         return sb.toString();
     }
 }
-

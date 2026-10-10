@@ -115,6 +115,7 @@
                 <configuration>
                     <systemPropertyVariables>
                         <campx.internal.auth.enabled>false</campx.internal.auth.enabled>
+                        <sun.net.http.allowRestrictedHeaders>true</sun.net.http.allowRestrictedHeaders>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>

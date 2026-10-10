@@ -93,7 +93,36 @@ public class ReverseProxyHandler implements HttpHandler {
         try (FlowTracker flow = logger.flow("GatewayRouteDispatch", "GW-" + traceId)) {
             logger.info("Incoming Gateway request: [{}] {} from {}", method, path, exchange.getRemoteAddress());
 
-            // 2. Health & Route Info endpoints handled directly
+            // 2. Handle CORS preflight and origin verification
+            String origin = exchange.getRequestHeaders().getFirst("Origin");
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                if (origin != null && !origin.trim().isEmpty()) {
+                    origin = origin.trim();
+                    java.util.List<String> allowed = config.getAllowedOrigins();
+                    if (allowed.contains(origin) || allowed.contains("*")) {
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
+                                "Authorization, Content-Type, X-Trace-Id, X-Tenant-Id, X-User-Id, X-User-Role, X-Correlation-Id");
+                        exchange.getResponseHeaders().set("Access-Control-Max-Age", "86400");
+                        exchange.getResponseHeaders().add("Vary", "Origin");
+                        exchange.sendResponseHeaders(204, -1);
+                        return;
+                    } else {
+                        logger.warn("Gateway rejected preflight CORS from unauthorized origin: {}", origin);
+                        sendError(exchange, 403, "Forbidden", "GATEWAY_CORS_ORIGIN_DENIED", "Origin not permitted: " + origin, path);
+                        return;
+                    }
+                } else {
+                    // Standard OPTIONS request without Origin header
+                    exchange.getResponseHeaders().set("Allow", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+                    exchange.sendResponseHeaders(204, -1);
+                    return;
+                }
+            }
+
+            // 3. Health & Route Info endpoints handled directly
             if ("/actuator/health".equals(path)) {
                 sendJson(exchange, 200, "{\"status\":\"UP\",\"gateway\":\"CampXSync-API-Gateway\"}");
                 return;
@@ -323,6 +352,7 @@ public class ReverseProxyHandler implements HttpHandler {
             }
         }
 
+        applyCorsHeaders(clientExchange);
         byte[] respBytes = (respStream != null) ? readAllBytes(respStream) : new byte[0];
         clientExchange.sendResponseHeaders(responseCode, respBytes.length);
 
@@ -363,6 +393,7 @@ public class ReverseProxyHandler implements HttpHandler {
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {
         byte[] bytes = responseJson.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        applyCorsHeaders(exchange);
         exchange.sendResponseHeaders(statusCode, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
@@ -388,6 +419,7 @@ public class ReverseProxyHandler implements HttpHandler {
             ErrorResponse errorResponse = new ErrorResponse(status, error, errorCode, message, path, traceId);
             byte[] bytes = errorResponse.toBytes();
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            applyCorsHeaders(exchange);
             if (traceId != null && !traceId.isEmpty()) {
                 exchange.getResponseHeaders().set("X-Trace-Id", traceId);
             }
@@ -397,6 +429,22 @@ public class ReverseProxyHandler implements HttpHandler {
             }
         } catch (IOException ioException) {
             logger.warn("Failed to send error response to client: {}", ioException.getMessage());
+        }
+    }
+
+    /**
+     * Injects strict origin-verified CORS headers for permitted frontend callers.
+     */
+    private void applyCorsHeaders(HttpExchange exchange) {
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin != null && !origin.trim().isEmpty()) {
+            origin = origin.trim();
+            java.util.List<String> allowed = config.getAllowedOrigins();
+            if (allowed.contains(origin) || allowed.contains("*")) {
+                exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
+                exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
+                exchange.getResponseHeaders().add("Vary", "Origin");
+            }
         }
     }
 }
