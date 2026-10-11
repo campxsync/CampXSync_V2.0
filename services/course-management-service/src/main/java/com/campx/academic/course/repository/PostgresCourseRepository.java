@@ -139,6 +139,35 @@ public class PostgresCourseRepository implements CourseRepository {
                         course.setCreatedAt(cat != null ? cat.getTime() : System.currentTimeMillis());
                         Timestamp uat = rs.getTimestamp("updated_at");
                         course.setUpdatedAt(uat != null ? uat.getTime() : System.currentTimeMillis());
+
+                        // Map to program in acd.course_program_map if programId is provided
+                        if (course.getProgramId() != null && !course.getProgramId().trim().isEmpty()) {
+                            try {
+                                UUID progUuid = UUID.fromString(course.getProgramId().trim());
+                                try (PreparedStatement progPs = conn.prepareStatement(
+                                        "SELECT id FROM acd.programs WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL")) {
+                                    progPs.setObject(1, tenantUuid);
+                                    progPs.setObject(2, progUuid);
+                                    try (ResultSet prs = progPs.executeQuery()) {
+                                        if (prs.next()) {
+                                            try (PreparedStatement mapPs = conn.prepareStatement(
+                                                    "INSERT INTO acd.course_program_map (id, tenant_id, course_id, program_id, created_at) " +
+                                                    "VALUES (?, ?, ?, ?, now())")) {
+                                                mapPs.setObject(1, UUID.randomUUID());
+                                                mapPs.setObject(2, tenantUuid);
+                                                mapPs.setObject(3, finalCourseId);
+                                                mapPs.setObject(4, progUuid);
+                                                mapPs.executeUpdate();
+                                                logger.info("Mapped course [{}] to program [{}] in acd.course_program_map", finalCourseId, progUuid);
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                logger.warn("Could not map course to program: {}", ex.getMessage());
+                            }
+                        }
+
                         logger.info("Persisted course [{}] id={} in acd.courses", code, course.getId());
                         return course;
                     }
@@ -162,8 +191,10 @@ public class PostgresCourseRepository implements CourseRepository {
         }
 
         return context.executeInTransaction(connectionManager, conn -> {
-            String sql = "SELECT id, tenant_id, department_id, code, name, description, credits, status, created_at, updated_at, row_version " +
-                    "FROM acd.courses WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL";
+            String sql = "SELECT c.id, c.tenant_id, c.department_id, c.code, c.name, c.description, c.credits, c.status, c.created_at, c.updated_at, c.row_version, m.program_id " +
+                    "FROM acd.courses c " +
+                    "LEFT JOIN acd.course_program_map m ON m.tenant_id = c.tenant_id AND m.course_id = c.id " +
+                    "WHERE c.id = ? AND c.tenant_id = ? AND c.deleted_at IS NULL";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setObject(1, courseUuid);
                 ps.setObject(2, context.getTenantId());
@@ -184,8 +215,10 @@ public class PostgresCourseRepository implements CourseRepository {
         }
 
         return context.executeInTransaction(connectionManager, conn -> {
-            String sql = "SELECT id, tenant_id, department_id, code, name, description, credits, status, created_at, updated_at, row_version " +
-                    "FROM acd.courses WHERE code = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1";
+            String sql = "SELECT c.id, c.tenant_id, c.department_id, c.code, c.name, c.description, c.credits, c.status, c.created_at, c.updated_at, c.row_version, m.program_id " +
+                    "FROM acd.courses c " +
+                    "LEFT JOIN acd.course_program_map m ON m.tenant_id = c.tenant_id AND m.course_id = c.id " +
+                    "WHERE c.code = ? AND c.tenant_id = ? AND c.deleted_at IS NULL LIMIT 1";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, code.trim().toUpperCase(Locale.ROOT));
                 ps.setObject(2, context.getTenantId());
@@ -215,10 +248,12 @@ public class PostgresCourseRepository implements CourseRepository {
 
         return context.executeInTransaction(connectionManager, conn -> {
             List<Course> list = new ArrayList<>();
-            String sql = "SELECT id, tenant_id, department_id, code, name, description, credits, status, created_at, updated_at, row_version " +
-                    "FROM acd.courses WHERE tenant_id = ? AND deleted_at IS NULL " +
-                    (finalDepUuid != null ? "AND department_id = ? " : "") +
-                    "ORDER BY code ASC";
+            String sql = "SELECT c.id, c.tenant_id, c.department_id, c.code, c.name, c.description, c.credits, c.status, c.created_at, c.updated_at, c.row_version, m.program_id " +
+                    "FROM acd.courses c " +
+                    "LEFT JOIN acd.course_program_map m ON m.tenant_id = c.tenant_id AND m.course_id = c.id " +
+                    "WHERE c.tenant_id = ? AND c.deleted_at IS NULL " +
+                    (finalDepUuid != null ? "AND c.department_id = ? " : "") +
+                    "ORDER BY c.code ASC";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setObject(1, context.getTenantId());
                 if (finalDepUuid != null) {
@@ -305,6 +340,12 @@ public class PostgresCourseRepository implements CourseRepository {
         c.setCreatedAt(cat != null ? cat.getTime() : System.currentTimeMillis());
         Timestamp uat = rs.getTimestamp("updated_at");
         c.setUpdatedAt(uat != null ? uat.getTime() : System.currentTimeMillis());
+        try {
+            UUID prog = (UUID) rs.getObject("program_id");
+            if (prog != null) {
+                c.setProgramId(prog.toString());
+            }
+        } catch (SQLException ignored) {}
         return c;
     }
 }

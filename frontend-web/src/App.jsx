@@ -17,7 +17,14 @@ import {
   Sparkles,
   Server,
   KeyRound,
-  X
+  X,
+  Calendar,
+  Hash,
+  Shield,
+  Clock,
+  Zap,
+  Tag,
+  FileText
 } from 'lucide-react';
 import { api, DEFAULT_CONTEXT } from './services/api';
 
@@ -34,6 +41,17 @@ export default function App() {
   const [gatewayStatus, setGatewayStatus] = useState('CHECKING');
   const [gatewayRoutes, setGatewayRoutes] = useState([]);
 
+  // ADM-01 Platform Extension States
+  const [calendars, setCalendars] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState('');
+  const [numberSequences, setNumberSequences] = useState([]);
+  const [generatedNumberResult, setGeneratedNumberResult] = useState(null);
+  const [lookupTypes, setLookupTypes] = useState([]);
+  const [accessEvents, setAccessEvents] = useState([]);
+  const [changeLogs, setChangeLogs] = useState([]);
+  const [retentionPolicies, setRetentionPolicies] = useState([]);
+
   // Selected Filters
   const [selectedCollegeId, setSelectedCollegeId] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
@@ -41,7 +59,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals
-  const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | null
+  const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | 'calendar' | 'calendar-event' | 'sequence' | null
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: '' }
@@ -49,14 +67,34 @@ export default function App() {
   // Load Initial Data
   const loadData = async () => {
     try {
-      const [gwHealth, gwRoutes, instData, colData, depData, progData, crsData] = await Promise.all([
+      const [
+        gwHealth,
+        gwRoutes,
+        instData,
+        colData,
+        depData,
+        progData,
+        crsData,
+        calData,
+        seqData,
+        lkpData,
+        accData,
+        chgData,
+        retData
+      ] = await Promise.all([
         api.getGatewayHealth(),
         api.getGatewayRoutes(),
         api.getInstitutes(context),
         api.getColleges(context),
         api.getDepartments(context),
         api.getPrograms(context),
-        api.getCourses(context)
+        api.getCourses(context),
+        api.getCalendars(context),
+        api.getNumberSequences(context),
+        api.getLookupTypes(context),
+        api.getAccessEvents(25, context),
+        api.getChangeLogs(25, context),
+        api.getRetentionPolicies(context)
       ]);
 
       setGatewayStatus(gwHealth.status === 'UP' ? 'ONLINE' : 'STANDBY');
@@ -66,12 +104,44 @@ export default function App() {
       setDepartments(depData.departments || []);
       setPrograms(progData.programs || []);
       setCourses(crsData.courses || []);
+      setCalendars(calData.calendars || []);
+      setNumberSequences(seqData.sequences || []);
+      setLookupTypes(lkpData.lookupTypes || []);
+      setAccessEvents(accData.accessEvents || []);
+      setChangeLogs(chgData.changeLogs || []);
+      setRetentionPolicies(retData.retentionPolicies || []);
 
       if (colData.colleges && colData.colleges.length > 0 && !selectedCollegeId) {
         setSelectedCollegeId(colData.colleges[0].id);
       }
+      if (calData.calendars && calData.calendars.length > 0) {
+        const initCalId = selectedCalendarId || calData.calendars[0].id;
+        setSelectedCalendarId(initCalId);
+        loadCalendarEvents(initCalId);
+      }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
+    }
+  };
+
+  const loadCalendarEvents = async (calId) => {
+    if (!calId) return;
+    try {
+      const res = await api.getCalendarEvents(calId, context);
+      setCalendarEvents(res.events || []);
+    } catch (e) {
+      console.warn('Error loading calendar events:', e);
+    }
+  };
+
+  const handleGenerateNextNumber = async (scopeKey) => {
+    try {
+      const res = await api.generateNextNumber(scopeKey, context, selectedCollegeId);
+      setGeneratedNumberResult({ scopeKey, number: res.generatedNumber, timestamp: new Date().toLocaleTimeString() });
+      const seqData = await api.getNumberSequences(context);
+      setNumberSequences(seqData.sequences || []);
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Error generating next number' });
     }
   };
 
@@ -146,6 +216,57 @@ export default function App() {
         const res = await api.createCourse(payload, context);
         setCourses(prev => [...prev, { ...payload, id: res.id || 'crs-' + Date.now(), status: 'PUBLISHED' }]);
         setFeedback({ type: 'success', message: `Course ${payload.code} successfully registered in Academic Catalog!` });
+      } else if (modalType === 'edit-department') {
+        const payload = {
+          name: formData.name,
+          status: formData.status || 'ACTIVE'
+        };
+        const res = await api.updateDepartment(formData.id, payload, context);
+        setDepartments(prev => prev.map(d => d.id === formData.id ? { ...d, name: res.name || formData.name, status: res.status || formData.status } : d));
+        setFeedback({ type: 'success', message: `Department ${formData.code} updated in Supabase core.departments!` });
+      } else if (modalType === 'edit-course') {
+        const payload = {
+          title: formData.name,
+          name: formData.name,
+          credits: parseFloat(formData.credits || '3.0'),
+          description: formData.description || ''
+        };
+        const res = await api.updateCourse(formData.id, payload, context);
+        setCourses(prev => prev.map(c => c.id === formData.id ? { ...c, name: res.name || res.title || formData.name, credits: payload.credits, description: payload.description } : c));
+        setFeedback({ type: 'success', message: `Course ${formData.code} updated in Supabase acd.courses!` });
+      } else if (modalType === 'calendar') {
+        const payload = {
+          code: formData.code?.toUpperCase(),
+          name: formData.name,
+          calendarType: formData.calendarType || 'ACADEMIC',
+          collegeId: selectedCollegeId || colleges[0]?.id,
+          status: 'DRAFT'
+        };
+        const res = await api.createCalendar(payload, context);
+        setCalendars(prev => [...prev, { ...payload, id: res.id || 'cal-' + Date.now() }]);
+        setSelectedCalendarId(res.id || payload.id);
+        setFeedback({ type: 'success', message: `Academic Calendar ${payload.code} registered in Supabase!` });
+      } else if (modalType === 'calendar-event') {
+        const payload = {
+          title: formData.name || formData.title,
+          eventType: formData.eventType || 'EVENT',
+          isHoliday: !!formData.isHoliday,
+          startDate: Date.now(),
+          endDate: Date.now() + 86400000
+        };
+        const res = await api.createCalendarEvent(selectedCalendarId, payload, context);
+        setCalendarEvents(prev => [...prev, { ...payload, id: res.id || 'evt-' + Date.now() }]);
+        setFeedback({ type: 'success', message: `Event "${payload.title}" scheduled on Academic Calendar!` });
+      } else if (modalType === 'sequence') {
+        const payload = {
+          scopeKey: formData.code?.toUpperCase() || formData.scopeKey?.toUpperCase(),
+          prefix: formData.prefix || '',
+          nextValue: parseInt(formData.nextValue || '1001', 10),
+          padding: parseInt(formData.padding || '6', 10)
+        };
+        const res = await api.createNumberSequence(payload, context);
+        setNumberSequences(prev => [...prev, { ...payload, id: res.id || 'seq-' + Date.now() }]);
+        setFeedback({ type: 'success', message: `Number Sequence ${payload.scopeKey} registered for atomic generation!` });
       }
 
       setModalType(null);
@@ -219,7 +340,36 @@ export default function App() {
             <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{courses.length}</span>
           </button>
 
-          <div className="nav-label" style={{ marginTop: '20px' }}>Platform Diagnostics</div>
+          <div className="nav-label" style={{ marginTop: '20px' }}>Platform Foundations</div>
+          <button
+            id="nav-tab-calendars"
+            className={`nav-item ${activeTab === 'calendars' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendars')}
+          >
+            <Calendar size={18} />
+            <span>Academic Calendars</span>
+            <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{calendars.length}</span>
+          </button>
+          <button
+            id="nav-tab-sequences"
+            className={`nav-item ${activeTab === 'sequences' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sequences')}
+          >
+            <Hash size={18} />
+            <span>Number Sequences</span>
+            <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{numberSequences.length}</span>
+          </button>
+          <button
+            id="nav-tab-governance"
+            className={`nav-item ${activeTab === 'governance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('governance')}
+          >
+            <Shield size={18} />
+            <span>Audit & Governance</span>
+            <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{retentionPolicies.length}</span>
+          </button>
+
+          <div className="nav-label" style={{ marginTop: '20px' }}>System Diagnostics</div>
           <button
             id="nav-tab-diagnostics"
             className={`nav-item ${activeTab === 'diagnostics' ? 'active' : ''}`}
@@ -259,6 +409,9 @@ export default function App() {
               {activeTab === 'departments' && 'Department Operations (core.departments)'}
               {activeTab === 'programs' && 'Curriculum & Academic Programs (acd.programs)'}
               {activeTab === 'courses' && 'Course Catalog Management (acd.courses)'}
+              {activeTab === 'calendars' && 'Academic Calendars & Term Schedules (ADM-01 Item 23)'}
+              {activeTab === 'sequences' && 'Atomic Number Sequences & ID Generation (ADM-01 Item 24)'}
+              {activeTab === 'governance' && 'Data Governance, Retention & Audit Trails (ADM-01 Items 26-28)'}
               {activeTab === 'diagnostics' && 'API Gateway & Security Trust Boundary'}
             </h1>
           </div>
@@ -733,15 +886,27 @@ export default function App() {
                           <span className="badge badge-emerald">{dept.status}</span>
                         </td>
                         <td>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              setSelectedDeptId(dept.id);
-                              setActiveTab('programs');
-                            }}
-                          >
-                            Manage Programs
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              id={`btn-edit-dept-${dept.code}`}
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setFormData({ id: dept.id, code: dept.code, name: dept.name, status: dept.status, headUserId: dept.headUserId });
+                                setModalType('edit-department');
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setSelectedDeptId(dept.id);
+                                setActiveTab('programs');
+                              }}
+                            >
+                              Programs
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -859,6 +1024,7 @@ export default function App() {
                       <th>Level</th>
                       <th>Status</th>
                       <th>Database Reference</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -889,10 +1055,500 @@ export default function App() {
                             acd.courses ({crs.id?.substring(0, 8)}...)
                           </span>
                         </td>
+                        <td>
+                          <button
+                            id={`btn-edit-course-${crs.code}`}
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setFormData({
+                                id: crs.id,
+                                code: crs.code,
+                                name: crs.name || crs.title,
+                                credits: crs.credits,
+                                description: crs.description
+                              });
+                              setModalType('edit-course');
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: ACADEMIC CALENDARS */}
+          {activeTab === 'calendars' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>Academic Calendars & Term Schedules (ADM-01)</h2>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                    Multi-tier institutional calendars, semester dates, holidays, examination windows, and key milestone tracking.
+                  </p>
+                </div>
+                <button
+                  id="btn-add-calendar"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFormData({ calendarType: 'ACADEMIC', status: 'DRAFT' });
+                    setModalType('calendar');
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>New Calendar</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(420px, 1.6fr)', gap: '24px' }}>
+                {/* Calendar List */}
+                <div className="glass-panel" style={{ padding: '20px' }}>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Calendar size={16} color="var(--accent-primary)" />
+                    <span>Registered Calendars ({calendars.length})</span>
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {calendars.map((cal) => {
+                      const isSelected = cal.id === selectedCalendarId;
+                      return (
+                        <div
+                          key={cal.id}
+                          id={`card-calendar-${cal.code || cal.calendarCode}`}
+                          onClick={() => {
+                            setSelectedCalendarId(cal.id);
+                            loadCalendarEvents(cal.id);
+                          }}
+                          style={{
+                            padding: '16px',
+                            borderRadius: 'var(--radius-md)',
+                            border: isSelected ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                            background: isSelected ? 'rgba(99,102,241,0.12)' : 'rgba(0,0,0,0.2)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                            <span style={{ fontWeight: '700', color: isSelected ? 'var(--text-accent)' : '#fff', fontSize: '0.95rem' }}>
+                              {cal.code || cal.calendarCode}
+                            </span>
+                            <span className={`badge ${cal.status === 'PUBLISHED' || cal.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {cal.status || 'DRAFT'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                            {cal.name}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span className="badge badge-indigo">{cal.calendarType || 'ACADEMIC'}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              ID: {cal.id?.substring(0, 8)}...
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Event Schedule for Selected Calendar */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Clock size={16} color="var(--accent-cyan)" />
+                        <span>Scheduled Milestones & Events</span>
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Calendar Scope: {calendars.find(c => c.id === selectedCalendarId)?.code || calendars.find(c => c.id === selectedCalendarId)?.calendarCode || 'Selected Calendar'}
+                      </p>
+                    </div>
+                    {selectedCalendarId && (
+                      <button
+                        id="btn-add-calendar-event"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          setFormData({ eventType: 'EVENT', isHoliday: false });
+                          setModalType('calendar-event');
+                        }}
+                      >
+                        <Plus size={14} />
+                        <span>Add Event</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="table-container">
+                    <table className="data-table" id="table-calendar-events">
+                      <thead>
+                        <tr>
+                          <th>Event Milestone</th>
+                          <th>Category</th>
+                          <th>Holiday Status</th>
+                          <th>Working Day</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {calendarEvents.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                              No events scheduled for this calendar yet. Click "Add Event" to create one.
+                            </td>
+                          </tr>
+                        ) : (
+                          calendarEvents.map((evt) => (
+                            <tr key={evt.id || evt.title}>
+                              <td>
+                                <div style={{ fontWeight: '600', color: '#fff' }}>{evt.title}</div>
+                              </td>
+                              <td>
+                                <span className="badge badge-indigo">{evt.eventType || 'EVENT'}</span>
+                              </td>
+                              <td>
+                                {evt.isHoliday ? (
+                                  <span className="badge badge-rose">Official Holiday</span>
+                                ) : (
+                                  <span className="badge badge-gray">Instructional Day</span>
+                                )}
+                              </td>
+                              <td>
+                                <span style={{ fontSize: '0.8rem', color: evt.isHoliday ? 'var(--accent-rose)' : 'var(--accent-emerald)' }}>
+                                  {evt.isHoliday ? '✕ Suspended' : '✓ Active Session'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: NUMBER SEQUENCES */}
+          {activeTab === 'sequences' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>Atomic Number Sequences & ID Generation (ADM-01)</h2>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                    ACID-compliant atomic numbering engine with dual-mode persistence (Postgres row-level locks + Java thread-safe in-memory fallback).
+                  </p>
+                </div>
+                <button
+                  id="btn-add-sequence"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFormData({ nextValue: '1001', padding: '6' });
+                    setModalType('sequence');
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>New Sequence</span>
+                </button>
+              </div>
+
+              {/* Real-time ID Generation Banner */}
+              {generatedNumberResult && (
+                <div style={{
+                  padding: '18px 24px',
+                  background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.15))',
+                  border: '1px solid rgba(99,102,241,0.4)',
+                  borderRadius: 'var(--radius-lg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  boxShadow: 'var(--shadow-glow)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap size={20} color="#fff" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Atomic ID Generated Successfully ({generatedNumberResult.timestamp})
+                      </div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff', letterSpacing: '0.03em', fontFamily: 'monospace' }}>
+                        {generatedNumberResult.number}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="badge badge-emerald" style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
+                    Scope: {generatedNumberResult.scopeKey}
+                  </span>
+                </div>
+              )}
+
+              {/* Sequences Table */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Hash size={18} color="var(--accent-primary)" />
+                  <span>Configured Atomic Scope Sequences ({numberSequences.length})</span>
+                </h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-number-sequences">
+                    <thead>
+                      <tr>
+                        <th>Scope Key</th>
+                        <th>Prefix</th>
+                        <th>Next Counter Value</th>
+                        <th>Zero Padding</th>
+                        <th>Format Preview</th>
+                        <th>Thread-Safe Mode</th>
+                        <th>Live Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {numberSequences.map((seq) => {
+                        const previewNum = (seq.prefix || '') + String(seq.nextValue || 1).padStart(seq.padding || 4, '0');
+                        return (
+                          <tr key={seq.id || seq.scopeKey}>
+                            <td>
+                              <span style={{ fontWeight: '700', color: 'var(--text-accent)', fontSize: '0.95rem' }}>
+                                {seq.scopeKey}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', color: '#fff' }}>{seq.prefix || '—'}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontWeight: '700', color: 'var(--accent-emerald)', fontSize: '0.95rem' }}>
+                                {seq.nextValue}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge badge-gray">{seq.padding || 6} digits</span>
+                            </td>
+                            <td>
+                              <code style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px', color: '#c7d2fe' }}>
+                                {previewNum}
+                              </code>
+                            </td>
+                            <td>
+                              <span className="badge badge-indigo">RLS + In-Memory Fallback</span>
+                            </td>
+                            <td>
+                              <button
+                                id={`btn-generate-${seq.scopeKey}`}
+                                className="btn btn-secondary btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                                onClick={() => handleGenerateNextNumber(seq.scopeKey)}
+                                title="Atomically increment counter and generate formatted ID"
+                              >
+                                <Zap size={13} color="var(--accent-amber)" />
+                                <span>Generate Next</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: DATA GOVERNANCE & AUDIT TRAILS */}
+          {activeTab === 'governance' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>Data Governance & Security Audit Trails (ADM-01)</h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  Institutional regulatory retention policies, access monitoring, immutable mutation logs, and reference lookup configurations.
+                </p>
+              </div>
+
+              {/* Row 1: Retention Policies & Reference Lookups */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+                {/* Retention Policies Card */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '1.05rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Shield size={16} color="var(--accent-primary)" />
+                    <span>Data Retention Policies (core.retention_policies)</span>
+                  </h3>
+                  <div className="table-container">
+                    <table className="data-table" id="table-retention-policies">
+                      <thead>
+                        <tr>
+                          <th>Policy Scope</th>
+                          <th>Data Class</th>
+                          <th>Retention Period</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {retentionPolicies.map((pol) => (
+                          <tr key={pol.id || pol.policyCode}>
+                            <td>
+                              <div style={{ fontWeight: '600', color: '#fff' }}>{pol.policyCode}</div>
+                            </td>
+                            <td>
+                              <span className={`badge ${pol.dataClass === 'RESTRICTED' ? 'badge-rose' : pol.dataClass === 'CONFIDENTIAL' ? 'badge-amber' : 'badge-indigo'}`}>
+                                {pol.dataClass}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.85rem' }}>{pol.retentionDays} Days</span>
+                            </td>
+                            <td>
+                              <span className="badge badge-emerald">{pol.status || 'ACTIVE'}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Reference Lookups Card */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '1.05rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Tag size={16} color="var(--accent-cyan)" />
+                    <span>Reference Lookups (cfg.lookup_types)</span>
+                  </h3>
+                  <div className="table-container">
+                    <table className="data-table" id="table-lookup-types">
+                      <thead>
+                        <tr>
+                          <th>Lookup Code</th>
+                          <th>Category Name</th>
+                          <th>Tier</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lookupTypes.map((lkp) => (
+                          <tr key={lkp.id || lkp.code}>
+                            <td>
+                              <span style={{ fontWeight: '700', color: 'var(--text-accent)' }}>{lkp.code}</span>
+                            </td>
+                            <td>
+                              <span style={{ color: '#fff' }}>{lkp.name}</span>
+                            </td>
+                            <td>
+                              <span className="badge badge-gray">System Lookups</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Live Access Events Audit Log */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '1.05rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={16} color="var(--accent-emerald)" />
+                  <span>Real-Time Principal Access Events (audit.access_events)</span>
+                </h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-access-events">
+                    <thead>
+                      <tr>
+                        <th>Principal (User)</th>
+                        <th>Resource Type</th>
+                        <th>Resource ID</th>
+                        <th>Access Mode</th>
+                        <th>Client IP</th>
+                        <th>Correlation Trace ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accessEvents.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                            Access log streaming active. Authorized requests are recorded in real time.
+                          </td>
+                        </tr>
+                      ) : (
+                        accessEvents.map((evt, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', color: '#fff' }}>{evt.principalId?.substring(0, 12)}...</span>
+                            </td>
+                            <td>
+                              <span className="badge badge-indigo">{evt.resourceType}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{evt.resourceId}</span>
+                            </td>
+                            <td>
+                              <span className="badge badge-emerald">{evt.accessType || 'READ'}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{evt.ip || '127.0.0.1'}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {evt.traceId?.substring(0, 8)}...
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Row 3: Audit Change Log Mutation Trail */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '1.05rem', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={16} color="var(--accent-amber)" />
+                  <span>Transactional Change Log Audit Trail (audit.change_log)</span>
+                </h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-change-logs">
+                    <thead>
+                      <tr>
+                        <th>Target Schema</th>
+                        <th>Target Table</th>
+                        <th>Record ID</th>
+                        <th>Mutation Action</th>
+                        <th>Actor ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changeLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                            Mutation log streaming active. Database inserts, updates, and deletes are captured.
+                          </td>
+                        </tr>
+                      ) : (
+                        changeLogs.map((chg, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <span className="badge badge-gray">{chg.tableSchema}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontWeight: '600', color: '#fff' }}>{chg.tableName}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{chg.recordId}</span>
+                            </td>
+                            <td>
+                              <span className={`badge ${chg.action === 'D' ? 'badge-rose' : chg.action === 'U' ? 'badge-amber' : 'badge-emerald'}`}>
+                                {chg.action === 'I' ? 'INSERT' : chg.action === 'U' ? 'UPDATE' : chg.action === 'D' ? 'DELETE' : chg.action}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                {chg.actorId?.substring(0, 12)}...
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -1024,6 +1680,11 @@ export default function App() {
                 {modalType === 'department' && 'Add College Department (ADM-02)'}
                 {modalType === 'program' && 'Add Degree Program (ADM-02)'}
                 {modalType === 'course' && 'Register New Catalog Course (ACD-01)'}
+                {modalType === 'edit-department' && 'Edit College Department (ADM-02)'}
+                {modalType === 'edit-course' && 'Edit Course Details (ACD-01)'}
+                {modalType === 'calendar' && 'Create Academic Calendar (ADM-01)'}
+                {modalType === 'calendar-event' && 'Schedule Calendar Milestone / Event (ADM-01)'}
+                {modalType === 'sequence' && 'Define Atomic Number Sequence (ADM-01)'}
               </h3>
               <button
                 className="btn btn-secondary btn-sm"
@@ -1036,30 +1697,40 @@ export default function App() {
 
             <form onSubmit={handleCreate}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">
-                    {modalType === 'college' && 'College Code (e.g. SOET)'}
-                    {modalType === 'department' && 'Department Code (e.g. CSE)'}
-                    {modalType === 'program' && 'Program Code (e.g. BTECH_CSE)'}
-                    {modalType === 'course' && 'Course Code (e.g. CS101)'}
-                  </label>
-                  <input
-                    id="input-create-code"
-                    type="text"
-                    required
-                    className="form-input"
-                    placeholder="Enter uppercase unique code"
-                    value={formData.code || ''}
-                    onChange={e => setFormData({ ...formData, code: e.target.value })}
-                  />
-                </div>
+                {modalType !== 'calendar-event' && (
+                  <div className="form-group">
+                    <label className="form-label">
+                      {modalType === 'college' && 'College Code (e.g. SOET)'}
+                      {modalType === 'department' && 'Department Code (e.g. CSE)'}
+                      {modalType === 'program' && 'Program Code (e.g. BTECH_CSE)'}
+                      {modalType === 'course' && 'Course Code (e.g. CS101)'}
+                      {modalType === 'edit-department' && 'Department Code (Read-Only)'}
+                      {modalType === 'edit-course' && 'Course Code (Read-Only)'}
+                      {modalType === 'calendar' && 'Calendar Code (e.g. AY2026_FALL)'}
+                      {modalType === 'sequence' && 'Scope Key (e.g. STU_ID, APP_NUM)'}
+                    </label>
+                    <input
+                      id="input-create-code"
+                      type="text"
+                      required
+                      disabled={modalType === 'edit-department' || modalType === 'edit-course'}
+                      className="form-input"
+                      placeholder="Enter uppercase unique code"
+                      value={formData.code || ''}
+                      onChange={e => setFormData({ ...formData, code: e.target.value })}
+                    />
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">
                     {modalType === 'college' && 'College Name / Title'}
-                    {modalType === 'department' && 'Department Name'}
+                    {(modalType === 'department' || modalType === 'edit-department') && 'Department Name'}
                     {modalType === 'program' && 'Degree Program Name'}
-                    {modalType === 'course' && 'Course Title'}
+                    {(modalType === 'course' || modalType === 'edit-course') && 'Course Title'}
+                    {modalType === 'calendar' && 'Calendar Display Name'}
+                    {modalType === 'calendar-event' && 'Event Milestone Title'}
+                    {modalType === 'sequence' && 'Scope Description / Label'}
                   </label>
                   <input
                     id="input-create-name"
@@ -1138,11 +1809,12 @@ export default function App() {
                   </>
                 )}
 
-                {modalType === 'course' && (
+                {(modalType === 'course' || modalType === 'edit-course') && (
                   <>
                     <div className="form-group">
                       <label className="form-label">Credits</label>
                       <input
+                        id="input-create-credits"
                         type="number"
                         step="0.5"
                         className="form-input"
@@ -1154,11 +1826,95 @@ export default function App() {
                     <div className="form-group">
                       <label className="form-label">Catalog Description</label>
                       <textarea
+                        id="input-create-description"
                         rows="3"
                         className="form-textarea"
                         placeholder="Summary of course scope and prerequisites"
                         value={formData.description || ''}
                         onChange={e => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'calendar' && (
+                  <div className="form-group">
+                    <label className="form-label">Calendar Category</label>
+                    <select
+                      className="form-select"
+                      value={formData.calendarType || 'ACADEMIC'}
+                      onChange={e => setFormData({ ...formData, calendarType: e.target.value })}
+                    >
+                      <option value="ACADEMIC">Academic Calendar</option>
+                      <option value="HOLIDAY">Holiday Schedule</option>
+                      <option value="EXAM">Examination Calendar</option>
+                      <option value="ADMINISTRATIVE">Administrative</option>
+                    </select>
+                  </div>
+                )}
+
+                {modalType === 'calendar-event' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Event Milestone Type</label>
+                      <select
+                        className="form-select"
+                        value={formData.eventType || 'EVENT'}
+                        onChange={e => setFormData({ ...formData, eventType: e.target.value })}
+                      >
+                        <option value="EVENT">General Event / Milestone</option>
+                        <option value="TERM_START">Term / Semester Start</option>
+                        <option value="TERM_END">Term / Semester End</option>
+                        <option value="EXAM">Examination Session</option>
+                        <option value="COMMENCEMENT">Convocation / Commencement</option>
+                        <option value="HOLIDAY">Institutional Holiday</option>
+                        <option value="DEADLINE">Academic Deadline</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
+                      <input
+                        type="checkbox"
+                        id="chk-holiday"
+                        checked={!!formData.isHoliday}
+                        onChange={e => setFormData({ ...formData, isHoliday: e.target.checked })}
+                      />
+                      <label htmlFor="chk-holiday" className="form-label" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                        Mark as Official Non-Working Holiday
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'sequence' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Prefix (e.g. STU-, FAC-)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. STU-"
+                        value={formData.prefix || ''}
+                        onChange={e => setFormData({ ...formData, prefix: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Starting Counter Value</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="1001"
+                        value={formData.nextValue || '1001'}
+                        onChange={e => setFormData({ ...formData, nextValue: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Zero-Padding Width (Digits)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="6"
+                        value={formData.padding || '6'}
+                        onChange={e => setFormData({ ...formData, padding: e.target.value })}
                       />
                     </div>
                   </>
@@ -1180,7 +1936,7 @@ export default function App() {
                   className="btn btn-primary"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Saving to Database...' : 'Create & Persist'}
+                  {isSubmitting ? 'Saving to Database...' : (modalType && modalType.startsWith('edit-') ? 'Update & Persist' : 'Create & Persist')}
                 </button>
               </div>
             </form>

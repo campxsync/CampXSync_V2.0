@@ -260,6 +260,49 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
     }
 
     @Override
+    public Department updateDepartment(UserSecurityContext context, Department dep) {
+        if (context == null || context.getTenantId() == null) {
+            throw new CollegeSecurityViolationException("Missing required security context: tenantId");
+        }
+        if (dep == null || dep.getId() == null || dep.getId().trim().isEmpty()) {
+            throw new CollegeMalformedPayloadException("Department ID is required for update");
+        }
+
+        UUID depUuid;
+        try {
+            depUuid = UUID.fromString(dep.getId().trim());
+        } catch (IllegalArgumentException e) {
+            throw new CollegeResourceNotFoundException("Department", dep.getId());
+        }
+
+        return context.executeInTransaction(connectionManager, conn -> {
+            String sql = "UPDATE core.departments SET " +
+                    "name = COALESCE(?, name), " +
+                    "status = COALESCE(?, status), " +
+                    "updated_by = ?, " +
+                    "updated_at = now(), " +
+                    "row_version = row_version + 1 " +
+                    "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL " +
+                    "RETURNING id, tenant_id, college_id, code, name, head_employee_id, status, created_at, updated_at, row_version";
+
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, dep.getName() != null && !dep.getName().trim().isEmpty() ? dep.getName().trim() : null);
+                ps.setString(2, dep.getStatus() != null && !dep.getStatus().trim().isEmpty() ? dep.getStatus().trim().toUpperCase(Locale.ROOT) : null);
+                ps.setObject(3, context.getUserId());
+                ps.setObject(4, depUuid);
+                ps.setObject(5, context.getTenantId());
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return mapRow(rs);
+                    }
+                }
+            }
+            throw new CollegeResourceNotFoundException("Department", dep.getId());
+        });
+    }
+
+    @Override
     public void retireDepartment(UserSecurityContext context, String id) {
         if (context == null || context.getTenantId() == null || id == null || id.trim().isEmpty()) {
             return;

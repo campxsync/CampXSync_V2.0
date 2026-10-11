@@ -254,6 +254,14 @@ public final class CollegeModels {
         private int durationYears;
         private int version = 1;
         private boolean published = true;
+        private String tenantId;
+        private String collegeId;
+        private String level = "UG";
+        private Integer totalTerms = 8;
+        private String status = "ACTIVE";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
 
         /**
          * Returns the primary program identifier.
@@ -352,6 +360,30 @@ public final class CollegeModels {
          * @param published published flag
          */
         public void setPublished(boolean published) { this.published = published; }
+
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+
+        public String getLevel() { return level; }
+        public void setLevel(String level) { this.level = level; }
+
+        public Integer getTotalTerms() { return totalTerms; }
+        public void setTotalTerms(Integer totalTerms) { this.totalTerms = totalTerms; }
+
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
     }
 
     /**

@@ -50,6 +50,15 @@ public interface DepartmentRepository {
     List<Department> listDepartments(UserSecurityContext context, String collegeId);
 
     /**
+     * Updates department fields (e.g. name, status) under caller's tenant.
+     *
+     * @param context    authenticated caller security context
+     * @param department department entity containing updated fields and non-null ID
+     * @return updated department entity
+     */
+    Department updateDepartment(UserSecurityContext context, Department department);
+
+    /**
      * Soft-retires a department by setting status to 'RETIRED'.
      *
      * @param context authenticated caller security context

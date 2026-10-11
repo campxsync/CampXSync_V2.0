@@ -43,12 +43,30 @@ public class CollegeAdminController implements HttpHandler {
     private final CollegeAdminDomainService domainService;
 
     /**
+     * Edge gateway cryptographic HMAC verifier enforcing platform trust boundary.
+     */
+    private final com.campx.admin.college.security.GatewayHmacVerifier gatewayHmacVerifier;
+
+    /**
      * Constructs a {@code CollegeAdminController} with the specified domain business service.
      *
      * @param domainService the backing domain service
      */
     public CollegeAdminController(CollegeAdminDomainService domainService) {
+        this(domainService, new com.campx.admin.college.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Constructs a {@code CollegeAdminController} with domain service and explicit gateway verifier.
+     *
+     * @param domainService      the backing domain service
+     * @param gatewayHmacVerifier the gateway HMAC verifier
+     */
+    public CollegeAdminController(CollegeAdminDomainService domainService,
+                                  com.campx.admin.college.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier :
+                new com.campx.admin.college.security.GatewayHmacVerifier();
     }
 
     /**
@@ -63,6 +81,19 @@ public class CollegeAdminController implements HttpHandler {
         String path = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod();
 
+        // Cache raw request body bytes for both HMAC verification and downstream handlers
+        byte[] bodyBytes = readRequestBodyBytes(exchange);
+        exchange.setAttribute("campx.request.body", bodyBytes);
+
+        // Platform Trust Boundary: Verify Gateway HMAC signature before extracting identity or processing endpoints
+        com.campx.admin.college.security.GatewayHmacVerifier.VerificationResult authResult =
+                gatewayHmacVerifier.verify(exchange, method, path, bodyBytes);
+        if (!authResult.isSuccess()) {
+            sendError(exchange, authResult.getStatus(), authResult.getError(), authResult.getErrorCode(), authResult.getMessage(), path);
+            return;
+        }
+        exchange.setAttribute("campx.auth.result", authResult);
+
         // 1. Trace & Tenant Correlation Context
         String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
         if (traceId == null || traceId.trim().isEmpty()) {
@@ -70,15 +101,15 @@ public class CollegeAdminController implements HttpHandler {
         } else {
             LogContext.setTraceId(traceId);
         }
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        String tenantId = authResult.getTenantId();
         if (tenantId != null && !tenantId.trim().isEmpty()) {
             LogContext.setTenantId(tenantId);
         }
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String userId = authResult.getUserId();
         if (userId != null && !userId.trim().isEmpty()) {
             LogContext.setUserId(userId);
         }
-        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        String userRole = authResult.getUserRole();
         if (userRole != null && !userRole.trim().isEmpty()) {
             LogContext.setUserRole(userRole);
         }
@@ -116,6 +147,14 @@ public class CollegeAdminController implements HttpHandler {
                 if ("DELETE".equalsIgnoreCase(method)) {
                     flow.step("handleRetireDepartment");
                     handleRetireDepartment(exchange, depId);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetDepartment");
+                    handleGetDepartment(exchange, depId);
+                    return;
+                } else if ("PUT".equalsIgnoreCase(method)) {
+                    flow.step("handleUpdateDepartment");
+                    handleUpdateDepartment(exchange, depId);
                     return;
                 }
             }
@@ -609,10 +648,8 @@ public class CollegeAdminController implements HttpHandler {
 
     private void handleCreateDepartment(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
-        com.campx.admin.college.security.UserSecurityContext context =
-                com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        String tenantId = context.getTenantId() != null ? context.getTenantId().toString() : null;
 
         Department d = new Department();
         d.setDepartmentCode(extract(body, "departmentCode", null));
@@ -629,20 +666,41 @@ public class CollegeAdminController implements HttpHandler {
     }
 
     private void handleRetireDepartment(HttpExchange exchange, String depId) throws IOException {
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
-        com.campx.admin.college.security.UserSecurityContext context =
-                com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
 
         domainService.retireDepartment(context, depId);
         sendJson(exchange, 200, "{\"status\":\"RETIRED\",\"id\":\"" + depId + "\"}");
     }
 
+    private void handleGetDepartment(HttpExchange exchange, String depId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        Department dep = domainService.getDepartment(depId, context);
+        if (dep == null) {
+            sendError(exchange, 404, "Not Found", "DEPARTMENT_NOT_FOUND", "Department not found: " + depId, exchange.getRequestURI().getPath());
+            return;
+        }
+        sendJson(exchange, 200, "{\"id\":\"" + dep.getId() + "\",\"code\":\"" + dep.getDepartmentCode()
+                + "\",\"name\":\"" + escape(dep.getName()) + "\",\"status\":\"" + dep.getStatus()
+                + "\",\"headUserId\":\"" + (dep.getHeadUserId() != null ? escape(dep.getHeadUserId()) : "")
+                + "\",\"collegeId\":\"" + (dep.getCollegeId() != null ? escape(dep.getCollegeId()) : "") + "\"}");
+    }
+
+    private void handleUpdateDepartment(HttpExchange exchange, String depId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        String body = readBody(exchange);
+        Department dep = new Department();
+        dep.setId(depId);
+        dep.setName(extract(body, "name", null));
+        dep.setStatus(extract(body, "status", null));
+        Department updated = domainService.updateDepartment(context, dep);
+        sendJson(exchange, 200, "{\"id\":\"" + updated.getId() + "\",\"code\":\"" + updated.getDepartmentCode()
+                + "\",\"name\":\"" + escape(updated.getName()) + "\",\"status\":\"" + updated.getStatus()
+                + "\",\"headUserId\":\"" + (updated.getHeadUserId() != null ? escape(updated.getHeadUserId()) : "")
+                + "\",\"collegeId\":\"" + (updated.getCollegeId() != null ? escape(updated.getCollegeId()) : "") + "\"}");
+    }
+
     private void handleListDepartments(HttpExchange exchange) throws IOException {
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
-        com.campx.admin.college.security.UserSecurityContext context =
-                com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
 
         List<Department> list = domainService.listDepartments(context);
         StringBuilder sb = new StringBuilder("{\"departments\":[");
@@ -661,9 +719,15 @@ public class CollegeAdminController implements HttpHandler {
     private void handleCreateProgram(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         Program p = new Program();
-        p.setProgramCode(extract(body, "programCode", null));
+        String code = extract(body, "programCode", null);
+        if (code == null) {
+            code = extract(body, "code", null);
+        }
+        p.setProgramCode(code);
         p.setName(extract(body, "name", null));
         p.setDepartmentId(extract(body, "departmentId", null));
+        p.setCollegeId(extract(body, "collegeId", null));
+        p.setLevel(extract(body, "level", "UG"));
         String dur = extract(body, "durationYears", "4");
         try {
             p.setDurationYears(Integer.parseInt(dur));
@@ -672,7 +736,14 @@ public class CollegeAdminController implements HttpHandler {
         }
 
         Program created = domainService.createProgram(p);
-        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getProgramCode() + "\",\"published\":true}");
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getProgramCode()
+                + "\",\"programCode\":\"" + created.getProgramCode()
+                + "\",\"name\":\"" + escape(created.getName())
+                + "\",\"departmentId\":\"" + escape(created.getDepartmentId())
+                + "\",\"collegeId\":\"" + escape(created.getCollegeId())
+                + "\",\"durationYears\":" + created.getDurationYears()
+                + ",\"published\":" + created.isPublished()
+                + ",\"status\":\"" + escape(created.getStatus()) + "\"}");
     }
 
     private void handleListPrograms(HttpExchange exchange) throws IOException {
@@ -681,8 +752,17 @@ public class CollegeAdminController implements HttpHandler {
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
             Program p = list.get(i);
-            sb.append("{\"id\":\"").append(p.getId()).append("\",\"code\":\"").append(p.getProgramCode())
-              .append("\",\"name\":\"").append(escape(p.getName())).append("\"}");
+            sb.append("{\"id\":\"").append(p.getId())
+              .append("\",\"code\":\"").append(p.getProgramCode())
+              .append("\",\"programCode\":\"").append(p.getProgramCode())
+              .append("\",\"name\":\"").append(escape(p.getName()))
+              .append("\",\"departmentId\":\"").append(escape(p.getDepartmentId()))
+              .append("\",\"collegeId\":\"").append(escape(p.getCollegeId()))
+              .append("\",\"durationYears\":").append(p.getDurationYears())
+              .append(",\"level\":\"").append(escape(p.getLevel()))
+              .append("\",\"status\":\"").append(escape(p.getStatus()))
+              .append("\",\"published\":").append(p.isPublished())
+              .append("}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
@@ -1524,7 +1604,33 @@ public class CollegeAdminController implements HttpHandler {
         return null;
     }
 
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        java.io.InputStream is = exchange.getRequestBody();
+        java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+        int nRead;
+        byte[] data = new byte[4096];
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        return buffer.toByteArray();
+    }
+
+    private com.campx.admin.college.security.UserSecurityContext getSecurityContext(HttpExchange exchange) {
+        com.campx.admin.college.security.GatewayHmacVerifier.VerificationResult auth =
+                (com.campx.admin.college.security.GatewayHmacVerifier.VerificationResult) exchange.getAttribute("campx.auth.result");
+        if (auth != null && auth.getUserId() != null) {
+            return com.campx.admin.college.security.UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+        }
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        return com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
     private String readBody(HttpExchange exchange) throws IOException {
+        byte[] cached = (byte[]) exchange.getAttribute("campx.request.body");
+        if (cached != null) {
+            return new String(cached, StandardCharsets.UTF_8).trim();
+        }
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
             String line;

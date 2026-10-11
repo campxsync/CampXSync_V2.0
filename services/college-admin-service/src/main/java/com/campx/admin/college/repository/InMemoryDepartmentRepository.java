@@ -81,6 +81,24 @@ public class InMemoryDepartmentRepository implements DepartmentRepository {
     }
 
     @Override
+    public Department updateDepartment(UserSecurityContext context, Department dep) {
+        if (dep == null || dep.getId() == null) return null;
+        Department existing = store.get(dep.getId());
+        if (existing == null) {
+            throw new com.campx.admin.college.exception.CollegeResourceNotFoundException("Department", dep.getId());
+        }
+        if (dep.getName() != null && !dep.getName().trim().isEmpty()) {
+            existing.setName(dep.getName().trim());
+        }
+        if (dep.getStatus() != null && !dep.getStatus().trim().isEmpty()) {
+            existing.setStatus(dep.getStatus().trim());
+        }
+        existing.setUpdatedAt(System.currentTimeMillis());
+        existing.setRowVersion(existing.getRowVersion() + 1);
+        return existing;
+    }
+
+    @Override
     public void retireDepartment(UserSecurityContext context, String id) {
         Department d = store.get(id);
         if (d != null) {

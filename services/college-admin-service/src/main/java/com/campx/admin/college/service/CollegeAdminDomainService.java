@@ -95,13 +95,20 @@ public class CollegeAdminDomainService {
     }
 
     private final com.campx.admin.college.repository.DepartmentRepository departmentRepository;
+    private final com.campx.admin.college.repository.ProgramRepository programRepository;
 
     public CollegeAdminDomainService() {
-        this(resolveDefaultDepartmentRepository());
+        this(resolveDefaultDepartmentRepository(), resolveDefaultProgramRepository());
     }
 
     public CollegeAdminDomainService(com.campx.admin.college.repository.DepartmentRepository departmentRepository) {
+        this(departmentRepository, resolveDefaultProgramRepository());
+    }
+
+    public CollegeAdminDomainService(com.campx.admin.college.repository.DepartmentRepository departmentRepository,
+                                     com.campx.admin.college.repository.ProgramRepository programRepository) {
         this.departmentRepository = departmentRepository != null ? departmentRepository : new com.campx.admin.college.repository.InMemoryDepartmentRepository();
+        this.programRepository = programRepository != null ? programRepository : new com.campx.admin.college.repository.InMemoryProgramRepository();
         seedDefaults();
     }
 
@@ -118,6 +125,21 @@ public class CollegeAdminDomainService {
             }
         }
         return new com.campx.admin.college.repository.InMemoryDepartmentRepository();
+    }
+
+    private static com.campx.admin.college.repository.ProgramRepository resolveDefaultProgramRepository() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new com.campx.admin.college.repository.PostgresProgramRepository();
+            } catch (Exception e) {
+                logger.warn("Failed to initialize PostgresProgramRepository, falling back to InMemory: {}", e.getMessage());
+            }
+        }
+        return new com.campx.admin.college.repository.InMemoryProgramRepository();
     }
 
     private void seedDefaults() {
@@ -403,9 +425,26 @@ public class CollegeAdminDomainService {
 
         // Prevent retirement / hard delete if referenced by programs
         for (Program prog : programs.values()) {
-            if (departmentId.equals(prog.getDepartmentId())) {
+            if (departmentId.equals(prog.getDepartmentId()) && !"DISCONTINUED".equalsIgnoreCase(prog.getStatus())) {
                 throw new CollegeLifecycleException("Cannot retire department " + dep.getName() + " because it is actively referenced by program " + prog.getName());
             }
+        }
+
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                List<Program> dbProgs = programRepository.listPrograms(context, null, departmentId);
+                for (Program prog : dbProgs) {
+                    if (!"DISCONTINUED".equalsIgnoreCase(prog.getStatus())) {
+                        throw new CollegeLifecycleException("Cannot retire department " + dep.getName() + " because it is actively referenced by program " + prog.getName());
+                    }
+                }
+            } catch (CollegeLifecycleException le) {
+                throw le;
+            } catch (Exception ignored) {}
         }
 
         dep.setStatus("RETIRED");
@@ -455,6 +494,66 @@ public class CollegeAdminDomainService {
         return new ArrayList<>(departments.values());
     }
 
+    public Department getDepartment(String id, com.campx.admin.college.security.UserSecurityContext context) {
+        if (id == null) return null;
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                Optional<Department> opt = departmentRepository.findById(context, id);
+                if (opt.isPresent()) return opt.get();
+            } catch (Exception e) {
+                logger.warn("Error finding department in repository: {}", e.getMessage());
+            }
+        }
+        return departments.get(id);
+    }
+
+    public Department updateDepartment(com.campx.admin.college.security.UserSecurityContext context, Department dep) {
+        if (dep == null || dep.getId() == null) {
+            throw new CollegeMalformedPayloadException("Department and ID are required for update");
+        }
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Department updated = null;
+        if (context != null && context.getTenantId() != null) {
+            try {
+                updated = departmentRepository.updateDepartment(context, dep);
+            } catch (Exception e) {
+                logger.warn("Error updating department in repository: {}", e.getMessage());
+            }
+        }
+        if (updated == null) {
+            Department existing = departments.get(dep.getId());
+            if (existing == null) {
+                throw new CollegeResourceNotFoundException("Department", dep.getId());
+            }
+            if (dep.getName() != null) existing.setName(dep.getName());
+            if (dep.getStatus() != null) existing.setStatus(dep.getStatus());
+            existing.setUpdatedAt(System.currentTimeMillis());
+            updated = existing;
+        } else {
+            departments.put(updated.getId(), updated);
+        }
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("DEPARTMENT_UPDATED")
+                .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                .resourceType("DEPARTMENT")
+                .resourceId(updated.getId())
+                .status("SUCCESS")
+                .description("Updated department [" + updated.getDepartmentCode() + "] " + updated.getName())
+                .build();
+        recordAudit(audit);
+
+        return updated;
+    }
+
     /**
      * User Story 5: Create a program under an active department with immutable versioning.
      *
@@ -469,13 +568,18 @@ public class CollegeAdminDomainService {
             throw new CollegeMalformedPayloadException("Mandatory field 'programCode' is required");
         }
 
-        for (Program existing : programs.values()) {
-            if (existing.getProgramCode().equalsIgnoreCase(prog.getProgramCode())) {
-                throw new CollegeResourceConflictException("Program", "programCode", prog.getProgramCode());
-            }
+        com.campx.admin.college.security.UserSecurityContext context = null;
+        if (LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
         }
 
         Department parent = departments.get(prog.getDepartmentId());
+        if (parent == null && context != null && context.getTenantId() != null) {
+            try {
+                parent = departmentRepository.findById(context, prog.getDepartmentId()).orElse(null);
+            } catch (Exception ignored) {}
+        }
         if (parent == null || !"ACTIVE".equalsIgnoreCase(parent.getStatus())) {
             throw new CollegeLifecycleException("Program must reference an existing ACTIVE department");
         }
@@ -484,7 +588,30 @@ public class CollegeAdminDomainService {
             throw new CollegeMalformedPayloadException("Field 'durationYears' must be positive");
         }
 
-        prog.setId(UUID.randomUUID().toString());
+        if (context != null && context.getTenantId() != null) {
+            if (prog.getCollegeId() == null || prog.getCollegeId().trim().isEmpty()) {
+                prog.setCollegeId(parent.getCollegeId());
+            }
+            Program saved = programRepository.createProgram(context, prog);
+            prog.setId(saved.getId());
+            prog.setTenantId(saved.getTenantId());
+            prog.setCollegeId(saved.getCollegeId());
+            prog.setStatus(saved.getStatus());
+            prog.setCreatedAt(saved.getCreatedAt());
+            prog.setUpdatedAt(saved.getUpdatedAt());
+            prog.setRowVersion(saved.getRowVersion());
+        } else {
+            for (Program existing : programs.values()) {
+                if (existing.getProgramCode().equalsIgnoreCase(prog.getProgramCode())) {
+                    throw new CollegeResourceConflictException("Program", "programCode", prog.getProgramCode());
+                }
+            }
+            if (prog.getId() == null || prog.getId().trim().isEmpty()) {
+                prog.setId(UUID.randomUUID().toString());
+            }
+            prog.setStatus("ACTIVE");
+        }
+
         prog.setVersion(1);
         prog.setPublished(true);
         programs.put(prog.getId(), prog);
@@ -505,6 +632,15 @@ public class CollegeAdminDomainService {
      * @return list of program models
      */
     public List<Program> listPrograms() {
+        if (LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<Program> repoList = programRepository.listPrograms(context, null, null);
+            if (!repoList.isEmpty()) {
+                return repoList;
+            }
+        }
         return new ArrayList<>(programs.values());
     }
 

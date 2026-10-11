@@ -64,6 +64,7 @@ public class CollegeAdminServiceTest {
      */
     @BeforeClass
     public static void setup() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         domainService = new CollegeAdminDomainService();
         server = new CollegeAdminServer(TEST_PORT, domainService);
         server.start();
@@ -77,6 +78,7 @@ public class CollegeAdminServiceTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
         CampXLoggerFactory.flush();
     }
 

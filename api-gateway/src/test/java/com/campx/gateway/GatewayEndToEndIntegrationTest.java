@@ -12,9 +12,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
@@ -35,9 +37,16 @@ public class GatewayEndToEndIntegrationTest {
     private static CollegeAdminServer collegeServer;
     private static GatewayServer gatewayServer;
 
-    private static final int GW_PORT = 8080;
-    private static final int INST_PORT = 8081;
-    private static final int COL_PORT = 8082;
+    private static int GW_PORT;
+    private static int INST_PORT;
+    private static int COL_PORT;
+
+    private static int findFreePort() throws IOException {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            socket.setReuseAddress(true);
+            return socket.getLocalPort();
+        }
+    }
 
     /**
      * Boots the Institute Admin Service, College Admin Service, and the API Gateway.
@@ -46,6 +55,10 @@ public class GatewayEndToEndIntegrationTest {
      */
     @BeforeClass
     public static void startAll() throws Exception {
+        INST_PORT = findFreePort();
+        COL_PORT = findFreePort();
+        GW_PORT = findFreePort();
+
         // 1. Start Institute Admin Service
         instituteServer = new InstituteAdminServer(INST_PORT, new InstituteAdminDomainService());
         instituteServer.start();

@@ -618,18 +618,89 @@ public final class InstituteModels {
     // =========================================================================
 
     /**
+     * ADM01_subscription_plans — Commercial subscription plans defining pricing and billing cycles.
+     */
+    public static class SubscriptionPlan {
+        private String id;
+        private String planCode;
+        private String name;
+        private String billingCycle = "MONTHLY"; // MONTHLY, QUARTERLY, ANNUALLY
+        private double price = 0.0;
+        private String currencyCode = "INR";
+        private boolean published = true;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getPlanCode() { return planCode; }
+        public void setPlanCode(String planCode) { this.planCode = planCode; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getBillingCycle() { return billingCycle; }
+        public void setBillingCycle(String billingCycle) { this.billingCycle = billingCycle; }
+        public double getPrice() { return price; }
+        public void setPrice(double price) { this.price = price; }
+        public String getCurrencyCode() { return currencyCode; }
+        public void setCurrencyCode(String currencyCode) { this.currencyCode = currencyCode; }
+        public boolean isPublished() { return published; }
+        public void setPublished(boolean published) { this.published = published; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+    }
+
+    /**
+     * ADM01_plan_entitlements — Entitlements and numeric limits for commercial subscription plans (CSV Line 23).
+     */
+    public static class PlanEntitlement {
+        private String id;
+        private String planId;
+        private String entitlementKey;
+        private Long limitValue;
+        private boolean enabled = true;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getPlanId() { return planId; }
+        public void setPlanId(String planId) { this.planId = planId; }
+        public String getEntitlementKey() { return entitlementKey; }
+        public void setEntitlementKey(String entitlementKey) { this.entitlementKey = entitlementKey; }
+        public Long getLimitValue() { return limitValue; }
+        public void setLimitValue(Long limitValue) { this.limitValue = limitValue; }
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+    }
+
+    /**
      * ADM01_subscriptions — Tenant subscriptions with entitlement snapshots (CSV Line 24).
      */
     public static class Subscription {
         private String id;
         private String tenantId;
         private String planId;
-        private String status = "ACTIVE"; // ACTIVE, SUSPENDED, RENEWED, CANCELLED
+        private String status = "ACTIVE"; // TRIAL, ACTIVE, PAST_DUE, SUSPENDED, CANCELLED
         private int seatCount = 50;
         private List<String> entitlementSnapshot = new ArrayList<>();
         private long startDate = System.currentTimeMillis();
         private long endDate = System.currentTimeMillis() + 31536000000L; // 1 year
+        private boolean autoRenew = true;
         private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -647,8 +718,14 @@ public final class InstituteModels {
         public void setStartDate(long startDate) { this.startDate = startDate; }
         public long getEndDate() { return endDate; }
         public void setEndDate(long endDate) { this.endDate = endDate; }
+        public boolean isAutoRenew() { return autoRenew; }
+        public void setAutoRenew(boolean autoRenew) { this.autoRenew = autoRenew; }
         public long getCreatedAt() { return createdAt; }
         public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
     }
 
     /**
@@ -666,7 +743,13 @@ public final class InstituteModels {
         private String status = "DRAFT"; // DRAFT, ISSUED, PAID, VOID
         private long issuedAt;
         private long paidAt;
+        private String currencyCode = "INR";
+        private long issuedOn;
+        private long dueDate;
         private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
+        private List<InvoiceLine> lines = new ArrayList<>();
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -690,8 +773,57 @@ public final class InstituteModels {
         public void setIssuedAt(long issuedAt) { this.issuedAt = issuedAt; }
         public long getPaidAt() { return paidAt; }
         public void setPaidAt(long paidAt) { this.paidAt = paidAt; }
+        public String getCurrencyCode() { return currencyCode; }
+        public void setCurrencyCode(String currencyCode) { this.currencyCode = currencyCode; }
+        public long getIssuedOn() { return issuedOn; }
+        public void setIssuedOn(long issuedOn) { this.issuedOn = issuedOn; }
+        public long getDueDate() { return dueDate; }
+        public void setDueDate(long dueDate) { this.dueDate = dueDate; }
         public long getCreatedAt() { return createdAt; }
         public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public List<InvoiceLine> getLines() { return lines; }
+        public void setLines(List<InvoiceLine> lines) { this.lines = lines; }
+    }
+
+    /**
+     * ADM01_invoice_lines — Itemized breakdown lines for issued invoices (CSV Line 25).
+     */
+    public static class InvoiceLine {
+        private String id;
+        private String tenantId;
+        private String invoiceId;
+        private String description;
+        private double quantity = 1.0;
+        private double unitPrice = 0.0;
+        private double amount = 0.0;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getInvoiceId() { return invoiceId; }
+        public void setInvoiceId(String invoiceId) { this.invoiceId = invoiceId; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public double getQuantity() { return quantity; }
+        public void setQuantity(double quantity) { this.quantity = quantity; }
+        public double getUnitPrice() { return unitPrice; }
+        public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
+        public double getAmount() { return amount; }
+        public void setAmount(double amount) { this.amount = amount; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
     }
 
     /**
@@ -703,11 +835,14 @@ public final class InstituteModels {
         private String invoiceId;
         private String tenantId;
         private double amount;
+        private String gateway = "RAZORPAY";
         private String currency = "INR";
         private String rawReference;
         private String status = "PENDING"; // PENDING, SUCCESS, FAILED
         private long reconciledAt;
         private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -717,6 +852,8 @@ public final class InstituteModels {
         public void setInvoiceId(String invoiceId) { this.invoiceId = invoiceId; }
         public String getTenantId() { return tenantId; }
         public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getGateway() { return gateway; }
+        public void setGateway(String gateway) { this.gateway = gateway; }
         public double getAmount() { return amount; }
         public void setAmount(double amount) { this.amount = amount; }
         public String getCurrency() { return currency; }
@@ -729,6 +866,10 @@ public final class InstituteModels {
         public void setReconciledAt(long reconciledAt) { this.reconciledAt = reconciledAt; }
         public long getCreatedAt() { return createdAt; }
         public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
     }
 
     /**
@@ -741,6 +882,8 @@ public final class InstituteModels {
         private String period;     // YYYY-MM
         private long value;
         private long calculatedAt = System.currentTimeMillis();
+        private String dimension;
+        private String recordedOn;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -754,6 +897,10 @@ public final class InstituteModels {
         public void setValue(long value) { this.value = value; }
         public long getCalculatedAt() { return calculatedAt; }
         public void setCalculatedAt(long calculatedAt) { this.calculatedAt = calculatedAt; }
+        public String getDimension() { return dimension; }
+        public void setDimension(String dimension) { this.dimension = dimension; }
+        public String getRecordedOn() { return recordedOn; }
+        public void setRecordedOn(String recordedOn) { this.recordedOn = recordedOn; }
     }
 
     // =========================================================================
@@ -882,24 +1029,34 @@ public final class InstituteModels {
     public static class DataRetentionPolicy {
         private String id;
         private String policyCode;          // e.g., "RET_STUDENT_PII", "RET_FINANCIAL_LOGS"
+        private String entityType = "STUDENT_RECORD";
         private String dataClass;           // Maps to DataClassification.classCode
-        private int retentionDays;          // Business-defined retention window
+        private int retentionDays = 365;    // Business-defined retention window
+        private String action = "ARCHIVE";  // ARCHIVE, DELETE, ANONYMIZE
         private int archiveAfterDays;       // Move to cold storage after this threshold
         private String legalHoldBehavior;   // SUSPEND_PURGE, EXTEND_RETENTION
         private int legalMinimumDays;       // Floor — retentionDays cannot go below this
         private int version = 1;
+        private int rowVersion = 1;
         private String status = "ACTIVE";   // ACTIVE, SUPERSEDED
         private long createdAt = System.currentTimeMillis();
-        private long updatedAt;
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private Long deletedAt;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
         public String getPolicyCode() { return policyCode; }
         public void setPolicyCode(String policyCode) { this.policyCode = policyCode; }
+        public String getEntityType() { return entityType; }
+        public void setEntityType(String entityType) { this.entityType = entityType; }
         public String getDataClass() { return dataClass; }
         public void setDataClass(String dataClass) { this.dataClass = dataClass; }
         public int getRetentionDays() { return retentionDays; }
         public void setRetentionDays(int retentionDays) { this.retentionDays = retentionDays; }
+        public String getAction() { return action; }
+        public void setAction(String action) { this.action = action; }
         public int getArchiveAfterDays() { return archiveAfterDays; }
         public void setArchiveAfterDays(int archiveAfterDays) { this.archiveAfterDays = archiveAfterDays; }
         public String getLegalHoldBehavior() { return legalHoldBehavior; }
@@ -908,12 +1065,20 @@ public final class InstituteModels {
         public void setLegalMinimumDays(int legalMinimumDays) { this.legalMinimumDays = legalMinimumDays; }
         public int getVersion() { return version; }
         public void setVersion(int version) { this.version = version; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
         public long getCreatedAt() { return createdAt; }
         public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
         public long getUpdatedAt() { return updatedAt; }
         public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
     }
 
     /**
@@ -923,29 +1088,50 @@ public final class InstituteModels {
     public static class DataClassification {
         private String id;
         private String classCode;           // PUBLIC, INTERNAL, RESTRICTED, HIGHLY_RESTRICTED
+        private String classificationCode;  // Maps to cfg.data_classifications.classification_code
         private String sensitivity;         // LOW, MEDIUM, HIGH, CRITICAL
+        private String sensitivityLevel = "LOW"; // LOW, MEDIUM, HIGH, RESTRICTED
+        private boolean encryptionRequired = false;
         private String handlingRules;       // Encryption requirements, access logging, etc.
         private String exportRules;         // ALLOWED, APPROVAL_REQUIRED, PROHIBITED
         private int version = 1;
+        private int rowVersion = 1;
         private long createdAt = System.currentTimeMillis();
-        private long updatedAt;
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private Long deletedAt;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
-        public String getClassCode() { return classCode; }
-        public void setClassCode(String classCode) { this.classCode = classCode; }
-        public String getSensitivity() { return sensitivity; }
-        public void setSensitivity(String sensitivity) { this.sensitivity = sensitivity; }
+        public String getClassCode() { return classCode != null ? classCode : classificationCode; }
+        public void setClassCode(String classCode) { this.classCode = classCode; this.classificationCode = classCode; }
+        public String getClassificationCode() { return classificationCode != null ? classificationCode : classCode; }
+        public void setClassificationCode(String classificationCode) { this.classificationCode = classificationCode; this.classCode = classificationCode; }
+        public String getSensitivity() { return sensitivity != null ? sensitivity : sensitivityLevel; }
+        public void setSensitivity(String sensitivity) { this.sensitivity = sensitivity; this.sensitivityLevel = sensitivity; }
+        public String getSensitivityLevel() { return sensitivityLevel != null ? sensitivityLevel : sensitivity; }
+        public void setSensitivityLevel(String sensitivityLevel) { this.sensitivityLevel = sensitivityLevel; this.sensitivity = sensitivityLevel; }
+        public boolean isEncryptionRequired() { return encryptionRequired; }
+        public void setEncryptionRequired(boolean encryptionRequired) { this.encryptionRequired = encryptionRequired; }
         public String getHandlingRules() { return handlingRules; }
         public void setHandlingRules(String handlingRules) { this.handlingRules = handlingRules; }
         public String getExportRules() { return exportRules; }
         public void setExportRules(String exportRules) { this.exportRules = exportRules; }
         public int getVersion() { return version; }
         public void setVersion(int version) { this.version = version; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
         public long getCreatedAt() { return createdAt; }
         public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
         public long getUpdatedAt() { return updatedAt; }
         public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
     }
 
     /**
@@ -995,4 +1181,828 @@ public final class InstituteModels {
         public long getCompletedAt() { return completedAt; }
         public void setCompletedAt(long completedAt) { this.completedAt = completedAt; }
     }
+
+    /**
+     * Platform administrator identity aggregate mapping to plat.platform_admins.
+     */
+    public static class PlatformAdmin {
+        private String id;
+        private String userId;
+        private String fullName;
+        private String roleCode = "SYSTEM_ADMIN";
+        private String status = "ACTIVE";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        public String getFullName() { return fullName; }
+        public void setFullName(String fullName) { this.fullName = fullName; }
+        public String getRoleCode() { return roleCode; }
+        public void setRoleCode(String roleCode) { this.roleCode = roleCode; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * API Client aggregate mapping to iam.api_clients.
+     */
+    public static class ApiClient {
+        private String id;
+        private String tenantId;
+        private String userId;
+        private String name;
+        private String ownerUserId;
+        private String description;
+        private String status = "ACTIVE";
+        private List<String> allowedIps = new ArrayList<>();
+        private Long expiresAt;
+        private Long lastUsedAt;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getOwnerUserId() { return ownerUserId; }
+        public void setOwnerUserId(String ownerUserId) { this.ownerUserId = ownerUserId; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public List<String> getAllowedIps() { return allowedIps; }
+        public void setAllowedIps(List<String> allowedIps) { this.allowedIps = allowedIps != null ? allowedIps : new ArrayList<>(); }
+        public Long getExpiresAt() { return expiresAt; }
+        public void setExpiresAt(Long expiresAt) { this.expiresAt = expiresAt; }
+        public Long getLastUsedAt() { return lastUsedAt; }
+        public void setLastUsedAt(Long lastUsedAt) { this.lastUsedAt = lastUsedAt; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * Scoped grant assignment mapping to iam.api_client_grants.
+     */
+    public static class ApiClientGrant {
+        private String id;
+        private String tenantId;
+        private String clientId;
+        private String permissionId;
+        private String collegeId;
+        private String departmentId;
+        private String resourceScope = "{}";
+        private Long validTo;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getClientId() { return clientId; }
+        public void setClientId(String clientId) { this.clientId = clientId; }
+        public String getPermissionId() { return permissionId; }
+        public void setPermissionId(String permissionId) { this.permissionId = permissionId; }
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+        public String getDepartmentId() { return departmentId; }
+        public void setDepartmentId(String departmentId) { this.departmentId = departmentId; }
+        public String getResourceScope() { return resourceScope; }
+        public void setResourceScope(String resourceScope) { this.resourceScope = resourceScope; }
+        public Long getValidTo() { return validTo; }
+        public void setValidTo(Long validTo) { this.validTo = validTo; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_delegations — Temporary role authority delegation mapping to iam.delegations.
+     */
+    public static class Delegation {
+        private String id;
+        private String tenantId;
+        private String fromUserId;
+        private String toUserId;
+        private String roleId;
+        private long validFrom = System.currentTimeMillis();
+        private long validTo = System.currentTimeMillis() + 86400000L;
+        private String reason;
+        private String status = "ACTIVE";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getFromUserId() { return fromUserId; }
+        public void setFromUserId(String fromUserId) { this.fromUserId = fromUserId; }
+        public String getToUserId() { return toUserId; }
+        public void setToUserId(String toUserId) { this.toUserId = toUserId; }
+        public String getRoleId() { return roleId; }
+        public void setRoleId(String roleId) { this.roleId = roleId; }
+        public long getValidFrom() { return validFrom; }
+        public void setValidFrom(long validFrom) { this.validFrom = validFrom; }
+        public long getValidTo() { return validTo; }
+        public void setValidTo(long validTo) { this.validTo = validTo; }
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_user_groups — User grouping mapping to iam.user_groups.
+     */
+    public static class UserGroup {
+        private String id;
+        private String tenantId;
+        private String code;
+        private String name;
+        private String description;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_user_group_members — Member user assignment mapping to iam.user_group_members.
+     */
+    public static class UserGroupMember {
+        private String id;
+        private String tenantId;
+        private String groupId;
+        private String userId;
+        private long createdAt = System.currentTimeMillis();
+        private String createdBy;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getGroupId() { return groupId; }
+        public void setGroupId(String groupId) { this.groupId = groupId; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    }
+
+    /**
+     * ADM01_role_templates — Standard role templates mapping to iam.role_templates.
+     */
+    public static class RoleTemplate {
+        private String id;
+        private String code;
+        private String name;
+        private String catalogueId;
+        private String kind;
+        private String scopeNote;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getCatalogueId() { return catalogueId; }
+        public void setCatalogueId(String catalogueId) { this.catalogueId = catalogueId; }
+        public String getKind() { return kind; }
+        public void setKind(String kind) { this.kind = kind; }
+        public String getScopeNote() { return scopeNote; }
+        public void setScopeNote(String scopeNote) { this.scopeNote = scopeNote; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_role_template_permissions — Template permission bindings mapping to iam.role_template_permissions.
+     */
+    public static class RoleTemplatePermission {
+        private String id;
+        private String roleCode;
+        private String permissionCode;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getRoleCode() { return roleCode; }
+        public void setRoleCode(String roleCode) { this.roleCode = roleCode; }
+        public String getPermissionCode() { return permissionCode; }
+        public void setPermissionCode(String permissionCode) { this.permissionCode = permissionCode; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_campuses — Campus facility mapping to core.campuses.
+     */
+    public static class Campus {
+        private String id;
+        private String tenantId;
+        private String collegeId;
+        private String code;
+        private String name;
+        private String addressId;
+        private boolean isPrimary = false;
+        private String status = "ACTIVE";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getAddressId() { return addressId; }
+        public void setAddressId(String addressId) { this.addressId = addressId; }
+        public boolean isPrimary() { return isPrimary; }
+        public void setPrimary(boolean primary) { isPrimary = primary; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_academic_years — Academic year definition mapping to core.academic_years.
+     */
+    public static class AcademicYear {
+        private String id;
+        private String tenantId;
+        private String code;
+        private long startDate = System.currentTimeMillis();
+        private long endDate = System.currentTimeMillis() + 31536000000L; // +365 days
+        private boolean isCurrent = false;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public long getStartDate() { return startDate; }
+        public void setStartDate(long startDate) { this.startDate = startDate; }
+        public long getEndDate() { return endDate; }
+        public void setEndDate(long endDate) { this.endDate = endDate; }
+        public boolean isCurrent() { return isCurrent; }
+        public void setCurrent(boolean current) { isCurrent = current; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_calendars — Institutional calendars mapping to core.calendars.
+     */
+    public static class Calendar {
+        private String id;
+        private String tenantId;
+        private String collegeId;
+        private String academicYearId;
+        private String code;
+        private String name;
+        private String calendarType = "ACADEMIC";
+        private String status = "DRAFT";
+        private Long publishedAt;
+        private short weekStartDay = 1;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+        public String getAcademicYearId() { return academicYearId; }
+        public void setAcademicYearId(String academicYearId) { this.academicYearId = academicYearId; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getCalendarType() { return calendarType; }
+        public void setCalendarType(String calendarType) { this.calendarType = calendarType; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public Long getPublishedAt() { return publishedAt; }
+        public void setPublishedAt(Long publishedAt) { this.publishedAt = publishedAt; }
+        public short getWeekStartDay() { return weekStartDay; }
+        public void setWeekStartDay(short weekStartDay) { this.weekStartDay = weekStartDay; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_calendar_events — Events associated with a calendar mapping to core.calendar_events.
+     */
+    public static class CalendarEvent {
+        private String id;
+        private String tenantId;
+        private String calendarId;
+        private String eventType = "EVENT";
+        private String title;
+        private String description;
+        private long startDate = System.currentTimeMillis();
+        private long endDate = System.currentTimeMillis();
+        private boolean isHoliday = false;
+        private String appliesTo = "{}";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCalendarId() { return calendarId; }
+        public void setCalendarId(String calendarId) { this.calendarId = calendarId; }
+        public String getEventType() { return eventType; }
+        public void setEventType(String eventType) { this.eventType = eventType; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public long getStartDate() { return startDate; }
+        public void setStartDate(long startDate) { this.startDate = startDate; }
+        public long getEndDate() { return endDate; }
+        public void setEndDate(long endDate) { this.endDate = endDate; }
+        public boolean isHoliday() { return isHoliday; }
+        public void setHoliday(boolean holiday) { isHoliday = holiday; }
+        public String getAppliesTo() { return appliesTo; }
+        public void setAppliesTo(String appliesTo) { this.appliesTo = appliesTo; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_calendar_working_days — Working day rules mapping to core.calendar_working_days.
+     */
+    public static class CalendarWorkingDay {
+        private String id;
+        private String tenantId;
+        private String calendarId;
+        private short dayOfWeek = 1; // 0=Sunday..6=Saturday
+        private boolean isWorking = true;
+        private boolean isHalfDay = false;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCalendarId() { return calendarId; }
+        public void setCalendarId(String calendarId) { this.calendarId = calendarId; }
+        public short getDayOfWeek() { return dayOfWeek; }
+        public void setDayOfWeek(short dayOfWeek) { this.dayOfWeek = dayOfWeek; }
+        public boolean isWorking() { return isWorking; }
+        public void setWorking(boolean working) { isWorking = working; }
+        public boolean isHalfDay() { return isHalfDay; }
+        public void setHalfDay(boolean halfDay) { isHalfDay = halfDay; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_number_sequences — Configurable sequence generators mapping to core.number_sequences.
+     */
+    public static class NumberSequence {
+        private String id;
+        private String tenantId;
+        private String scopeKey;
+        private String prefix;
+        private String suffix;
+        private long nextValue = 1;
+        private short padding = 6;
+        private String resetPolicy = "NEVER"; // NEVER, YEARLY, MONTHLY, ACADEMIC_YEAR
+        private Long lastResetOn;
+        private String requiredPermission;
+        private String collegeId;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getScopeKey() { return scopeKey; }
+        public void setScopeKey(String scopeKey) { this.scopeKey = scopeKey; }
+        public String getPrefix() { return prefix; }
+        public void setPrefix(String prefix) { this.prefix = prefix; }
+        public String getSuffix() { return suffix; }
+        public void setSuffix(String suffix) { this.suffix = suffix; }
+        public long getNextValue() { return nextValue; }
+        public void setNextValue(long nextValue) { this.nextValue = nextValue; }
+        public short getPadding() { return padding; }
+        public void setPadding(short padding) { this.padding = padding; }
+        public String getResetPolicy() { return resetPolicy; }
+        public void setResetPolicy(String resetPolicy) { this.resetPolicy = resetPolicy; }
+        public Long getLastResetOn() { return lastResetOn; }
+        public void setLastResetOn(Long lastResetOn) { this.lastResetOn = lastResetOn; }
+        public String getRequiredPermission() { return requiredPermission; }
+        public void setRequiredPermission(String requiredPermission) { this.requiredPermission = requiredPermission; }
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_lookup_types — Reference domain categories mapping to core.lookup_types.
+     */
+    public static class LookupType {
+        private String id;
+        private String tenantId;
+        private String code;
+        private String name;
+        private boolean isSystem = false;
+        private String description;
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public boolean isSystem() { return isSystem; }
+        public void setSystem(boolean system) { isSystem = system; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_lookup_values — Reference lookup items mapping to core.lookup_values.
+     */
+    public static class LookupValue {
+        private String id;
+        private String tenantId;
+        private String lookupTypeId;
+        private String code;
+        private String label;
+        private int sortOrder = 0;
+        private boolean isActive = true;
+        private String attrs = "{}";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private String createdBy;
+        private String updatedBy;
+        private int rowVersion = 1;
+        private Long deletedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getLookupTypeId() { return lookupTypeId; }
+        public void setLookupTypeId(String lookupTypeId) { this.lookupTypeId = lookupTypeId; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
+        public int getSortOrder() { return sortOrder; }
+        public void setSortOrder(int sortOrder) { this.sortOrder = sortOrder; }
+        public boolean isActive() { return isActive; }
+        public void setActive(boolean active) { isActive = active; }
+        public String getAttrs() { return attrs; }
+        public void setAttrs(String attrs) { this.attrs = attrs; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+    }
+
+    /**
+     * ADM01_access_events — Granular access audit events mapping to audit.access_events.
+     */
+    public static class AccessEvent {
+        private String id;
+        private String tenantId;
+        private String principalId;
+        private String resourceType;
+        private String resourceId;
+        private String accessType; // READ, EXPORT, PRINT, DOWNLOAD
+        private String sensitivity;
+        private String ip;
+        private String reason;
+        private long createdAt = System.currentTimeMillis();
+        private String createdBy;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getPrincipalId() { return principalId; }
+        public void setPrincipalId(String principalId) { this.principalId = principalId; }
+        public String getResourceType() { return resourceType; }
+        public void setResourceType(String resourceType) { this.resourceType = resourceType; }
+        public String getResourceId() { return resourceId; }
+        public void setResourceId(String resourceId) { this.resourceId = resourceId; }
+        public String getAccessType() { return accessType; }
+        public void setAccessType(String accessType) { this.accessType = accessType; }
+        public String getSensitivity() { return sensitivity; }
+        public void setSensitivity(String sensitivity) { this.sensitivity = sensitivity; }
+        public String getIp() { return ip; }
+        public void setIp(String ip) { this.ip = ip; }
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    }
+
+    /**
+     * ADM01_change_log — Row-level change audit log mapping to audit.change_log.
+     */
+    public static class AuditChangeLog {
+        private String id;
+        private String tenantId;
+        private String tableSchema;
+        private String tableName;
+        private String recordId;
+        private String action; // I, U, D
+        private java.util.List<String> changedFields;
+        private String oldData;
+        private String newData;
+        private String actorId;
+        private String requestId;
+        private long createdAt = System.currentTimeMillis();
+        private String createdBy;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getTableSchema() { return tableSchema; }
+        public void setTableSchema(String tableSchema) { this.tableSchema = tableSchema; }
+        public String getTableName() { return tableName; }
+        public void setTableName(String tableName) { this.tableName = tableName; }
+        public String getRecordId() { return recordId; }
+        public void setRecordId(String recordId) { this.recordId = recordId; }
+        public String getAction() { return action; }
+        public void setAction(String action) { this.action = action; }
+        public java.util.List<String> getChangedFields() { return changedFields; }
+        public void setChangedFields(java.util.List<String> changedFields) { this.changedFields = changedFields; }
+        public String getOldData() { return oldData; }
+        public void setOldData(String oldData) { this.oldData = oldData; }
+        public String getNewData() { return newData; }
+        public void setNewData(String newData) { this.newData = newData; }
+        public String getActorId() { return actorId; }
+        public void setActorId(String actorId) { this.actorId = actorId; }
+        public String getRequestId() { return requestId; }
+        public void setRequestId(String requestId) { this.requestId = requestId; }
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+        public String getCreatedBy() { return createdBy; }
+        public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    }
 }
+
+
+
+
+

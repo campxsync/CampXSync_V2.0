@@ -2,16 +2,8 @@ package com.campx.admin.institute.service;
 
 import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.InstituteModels.*;
-import com.campx.admin.institute.repository.CollegeRepository;
-import com.campx.admin.institute.repository.GlobalSettingRepository;
-import com.campx.admin.institute.repository.InMemoryGlobalSettingRepository;
-import com.campx.admin.institute.repository.InMemoryTenantProvisioningRepository;
-import com.campx.admin.institute.repository.PostgresCollegeRepository;
-import com.campx.admin.institute.repository.PostgresGlobalSettingRepository;
-import com.campx.admin.institute.repository.PostgresTenantProvisioningRepository;
-import com.campx.admin.institute.repository.PostgresTenantRepository;
-import com.campx.admin.institute.repository.TenantProvisioningRepository;
-import com.campx.admin.institute.repository.TenantRepository;
+import com.campx.admin.institute.model.InstituteModels.Calendar;
+import com.campx.admin.institute.repository.*;
 import com.campx.admin.institute.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -40,6 +32,15 @@ public class InstituteAdminDomainService {
     private final CollegeRepository collegeRepository;
     private final TenantProvisioningRepository tenantProvisioningRepository;
     private final GlobalSettingRepository globalSettingRepository;
+    private final UsageMetricRepository usageMetricRepository;
+    private final ServiceHealthRepository serviceHealthRepository;
+    private final OperationalAlertRepository operationalAlertRepository;
+    private final CalendarRepository calendarRepository;
+    private final NumberSequenceRepository numberSequenceRepository;
+    private final LookupRepository lookupRepository;
+    private final DataGovernanceRepository dataGovernanceRepository;
+    private final AccessEventRepository accessEventRepository;
+    private final AuditChangeLogRepository auditChangeLogRepository;
     private final Map<String, TenantProvisioning> provisioningJobs = new ConcurrentHashMap<>();
     private final Map<String, GlobalSetting> globalSettings = new ConcurrentHashMap<>();
     private final Map<String, CommercialPlan> commercialPlans = new ConcurrentHashMap<>();
@@ -154,6 +155,69 @@ public class InstituteAdminDomainService {
         return new InMemoryGlobalSettingRepository();
     }
 
+    private static UsageMetricRepository resolveDefaultUsageMetricRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresUsageMetricRepository();
+        }
+        return new InMemoryUsageMetricRepository();
+    }
+
+    private static ServiceHealthRepository resolveDefaultServiceHealthRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresServiceHealthRepository();
+        }
+        return new InMemoryServiceHealthRepository();
+    }
+
+    private static OperationalAlertRepository resolveDefaultOperationalAlertRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresOperationalAlertRepository();
+        }
+        return new InMemoryOperationalAlertRepository();
+    }
+
+    private static CalendarRepository resolveDefaultCalendarRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresCalendarRepository();
+        }
+        return new InMemoryCalendarRepository();
+    }
+
+    private static NumberSequenceRepository resolveDefaultNumberSequenceRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresNumberSequenceRepository();
+        }
+        return new InMemoryNumberSequenceRepository();
+    }
+
+    private static LookupRepository resolveDefaultLookupRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresLookupRepository();
+        }
+        return new InMemoryLookupRepository();
+    }
+
+    private static DataGovernanceRepository resolveDefaultDataGovernanceRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresDataGovernanceRepository();
+        }
+        return new InMemoryDataGovernanceRepository();
+    }
+
+    private static AccessEventRepository resolveDefaultAccessEventRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresAccessEventRepository();
+        }
+        return new InMemoryAccessEventRepository();
+    }
+
+    private static AuditChangeLogRepository resolveDefaultAuditChangeLogRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresAuditChangeLogRepository();
+        }
+        return new InMemoryAuditChangeLogRepository();
+    }
+
     private static boolean isDatabaseConfigured() {
         String mode = System.getProperty("campx.persistence.mode");
         if ("postgres".equalsIgnoreCase(mode)) return true;
@@ -184,10 +248,56 @@ public class InstituteAdminDomainService {
     public InstituteAdminDomainService(TenantRepository tenantRepository, CollegeRepository collegeRepository,
                                        TenantProvisioningRepository tenantProvisioningRepository,
                                        GlobalSettingRepository globalSettingRepository) {
+        this(tenantRepository, collegeRepository, tenantProvisioningRepository, globalSettingRepository,
+             resolveDefaultUsageMetricRepository());
+    }
+
+    public InstituteAdminDomainService(TenantRepository tenantRepository, CollegeRepository collegeRepository,
+                                       TenantProvisioningRepository tenantProvisioningRepository,
+                                       GlobalSettingRepository globalSettingRepository,
+                                       UsageMetricRepository usageMetricRepository) {
+        this(tenantRepository, collegeRepository, tenantProvisioningRepository, globalSettingRepository,
+             usageMetricRepository, resolveDefaultServiceHealthRepository(), resolveDefaultOperationalAlertRepository());
+    }
+
+    public InstituteAdminDomainService(TenantRepository tenantRepository, CollegeRepository collegeRepository,
+                                       TenantProvisioningRepository tenantProvisioningRepository,
+                                       GlobalSettingRepository globalSettingRepository,
+                                       UsageMetricRepository usageMetricRepository,
+                                       ServiceHealthRepository serviceHealthRepository,
+                                       OperationalAlertRepository operationalAlertRepository) {
+        this(tenantRepository, collegeRepository, tenantProvisioningRepository, globalSettingRepository,
+             usageMetricRepository, serviceHealthRepository, operationalAlertRepository,
+             resolveDefaultCalendarRepository(), resolveDefaultNumberSequenceRepository(),
+             resolveDefaultLookupRepository(), resolveDefaultDataGovernanceRepository(),
+             resolveDefaultAccessEventRepository(), resolveDefaultAuditChangeLogRepository());
+    }
+
+    public InstituteAdminDomainService(TenantRepository tenantRepository, CollegeRepository collegeRepository,
+                                       TenantProvisioningRepository tenantProvisioningRepository,
+                                       GlobalSettingRepository globalSettingRepository,
+                                       UsageMetricRepository usageMetricRepository,
+                                       ServiceHealthRepository serviceHealthRepository,
+                                       OperationalAlertRepository operationalAlertRepository,
+                                       CalendarRepository calendarRepository,
+                                       NumberSequenceRepository numberSequenceRepository,
+                                       LookupRepository lookupRepository,
+                                       DataGovernanceRepository dataGovernanceRepository,
+                                       AccessEventRepository accessEventRepository,
+                                       AuditChangeLogRepository auditChangeLogRepository) {
         this.tenantRepository = Objects.requireNonNull(tenantRepository, "tenantRepository cannot be null");
         this.collegeRepository = Objects.requireNonNull(collegeRepository, "collegeRepository cannot be null");
         this.tenantProvisioningRepository = tenantProvisioningRepository != null ? tenantProvisioningRepository : resolveDefaultTenantProvisioningRepository();
         this.globalSettingRepository = globalSettingRepository != null ? globalSettingRepository : resolveDefaultGlobalSettingRepository();
+        this.usageMetricRepository = usageMetricRepository != null ? usageMetricRepository : resolveDefaultUsageMetricRepository();
+        this.serviceHealthRepository = serviceHealthRepository != null ? serviceHealthRepository : resolveDefaultServiceHealthRepository();
+        this.operationalAlertRepository = operationalAlertRepository != null ? operationalAlertRepository : resolveDefaultOperationalAlertRepository();
+        this.calendarRepository = calendarRepository != null ? calendarRepository : resolveDefaultCalendarRepository();
+        this.numberSequenceRepository = numberSequenceRepository != null ? numberSequenceRepository : resolveDefaultNumberSequenceRepository();
+        this.lookupRepository = lookupRepository != null ? lookupRepository : resolveDefaultLookupRepository();
+        this.dataGovernanceRepository = dataGovernanceRepository != null ? dataGovernanceRepository : resolveDefaultDataGovernanceRepository();
+        this.accessEventRepository = accessEventRepository != null ? accessEventRepository : resolveDefaultAccessEventRepository();
+        this.auditChangeLogRepository = auditChangeLogRepository != null ? auditChangeLogRepository : resolveDefaultAuditChangeLogRepository();
         seedDefaults();
     }
 
@@ -197,6 +307,30 @@ public class InstituteAdminDomainService {
 
     public CollegeRepository getCollegeRepository() {
         return collegeRepository;
+    }
+
+    public CalendarRepository getCalendarRepository() {
+        return calendarRepository;
+    }
+
+    public NumberSequenceRepository getNumberSequenceRepository() {
+        return numberSequenceRepository;
+    }
+
+    public LookupRepository getLookupRepository() {
+        return lookupRepository;
+    }
+
+    public DataGovernanceRepository getDataGovernanceRepository() {
+        return dataGovernanceRepository;
+    }
+
+    public AccessEventRepository getAccessEventRepository() {
+        return accessEventRepository;
+    }
+
+    public AuditChangeLogRepository getAuditChangeLogRepository() {
+        return auditChangeLogRepository;
     }
 
     private UserSecurityContext resolveSecurityContext() {
@@ -1594,6 +1728,21 @@ public class InstituteAdminDomainService {
         metric.setValue(value);
         metric.setCalculatedAt(System.currentTimeMillis());
 
+        if (usageMetricRepository != null) {
+            try {
+                UserSecurityContext context = resolveSecurityContext();
+                if (context == null || context.getTenantId() == null) {
+                    context = new UserSecurityContext(UUID.fromString(UserSecurityContext.DEFAULT_PLATFORM_ADMIN_ID), UUID.fromString(tenantId));
+                }
+                UsageMetric persisted = usageMetricRepository.recordUsageMetric(context, metric);
+                if (persisted != null) {
+                    metric = persisted;
+                }
+            } catch (Exception e) {
+                logger.warn("Usage metric DB persistence fallback: {}", e.getMessage());
+            }
+        }
+
         usageMetrics.add(metric);
         emitOutboxEvent("UsageMetricCalculated", metric.getId(), tenantId, "{\"metricType\":\"" + metricType + "\",\"value\":" + value + "}");
         logger.info("[ADM-01 Billing] Recorded usage metric [{}] for tenant [{}]: {}", metricType, tenantId, value);
@@ -1601,6 +1750,21 @@ public class InstituteAdminDomainService {
     }
 
     public List<UsageMetric> getUsageMetrics(String tenantId, String period) {
+        if (usageMetricRepository != null && tenantId != null && isDatabaseConfigured()) {
+            try {
+                UUID tUuid = UUID.fromString(tenantId);
+                UserSecurityContext context = resolveSecurityContext();
+                if (context == null || context.getTenantId() == null) {
+                    context = new UserSecurityContext(UUID.fromString(UserSecurityContext.DEFAULT_PLATFORM_ADMIN_ID), tUuid);
+                }
+                List<UsageMetric> fromDb = usageMetricRepository.findByTenantAndPeriod(context, tUuid, period);
+                if (fromDb != null && !fromDb.isEmpty()) {
+                    return fromDb;
+                }
+            } catch (Exception e) {
+                logger.warn("Usage metric DB query fallback: {}", e.getMessage());
+            }
+        }
         List<UsageMetric> result = new ArrayList<>();
         for (UsageMetric m : usageMetrics) {
             if (tenantId != null && !tenantId.isEmpty() && !tenantId.equalsIgnoreCase(m.getTenantId())) {
@@ -1625,14 +1789,40 @@ public class InstituteAdminDomainService {
         if (snapshot.getComponent() == null) {
             throw new MalformedPayloadException("Component is required for health snapshot");
         }
-        snapshot.setId(UUID.randomUUID().toString());
+        if (snapshot.getId() == null || snapshot.getId().trim().isEmpty()) {
+            snapshot.setId(UUID.randomUUID().toString());
+        }
         snapshot.setObservedAt(System.currentTimeMillis());
+
+        if (serviceHealthRepository != null) {
+            try {
+                UserSecurityContext context = resolveSecurityContext();
+                PlatformHealth persisted = serviceHealthRepository.recordHeartbeat(context, snapshot);
+                if (persisted != null) {
+                    snapshot = persisted;
+                }
+            } catch (Exception e) {
+                logger.warn("Service health DB persistence fallback: {}", e.getMessage());
+            }
+        }
+
         healthSnapshots.add(snapshot);
         logger.info("[ADM-01 Health] Component [{}] status: {} latency: {}ms", snapshot.getComponent(), snapshot.getStatus(), snapshot.getLatencyMs());
         return snapshot;
     }
 
     public List<PlatformHealth> getHealthSnapshots() {
+        if (serviceHealthRepository != null && isDatabaseConfigured()) {
+            try {
+                UserSecurityContext context = resolveSecurityContext();
+                List<PlatformHealth> fromDb = serviceHealthRepository.listAll(context);
+                if (fromDb != null && !fromDb.isEmpty()) {
+                    return fromDb;
+                }
+            } catch (Exception e) {
+                logger.warn("Service health DB query fallback: {}", e.getMessage());
+            }
+        }
         return new ArrayList<>(healthSnapshots);
     }
 
@@ -1663,6 +1853,19 @@ public class InstituteAdminDomainService {
         alert.setId("ALT_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         alert.setStatus("OPEN");
         alert.setCreatedAt(System.currentTimeMillis());
+
+        if (operationalAlertRepository != null) {
+            try {
+                UserSecurityContext context = resolveSecurityContext();
+                OperationalAlert persisted = operationalAlertRepository.createAlert(context, alert);
+                if (persisted != null) {
+                    alert = persisted;
+                }
+            } catch (Exception e) {
+                logger.warn("Operational alert DB persistence fallback: {}", e.getMessage());
+            }
+        }
+
         operationalAlerts.put(alert.getId(), alert);
 
         emitOutboxEvent("OperationalAlertRaised", alert.getId(), alert.getSource(), "{\"alertCode\":\"" + alert.getAlertCode() + "\",\"severity\":\"" + alert.getSeverity() + "\"}");
@@ -2052,6 +2255,184 @@ public class InstituteAdminDomainService {
             }
         }
         return results;
+    }
+
+    // =========================================================================
+    // Phase 8: Academic Calendars Domain Methods (Item 23)
+    // =========================================================================
+
+    public Calendar createCalendar(Calendar calendar) {
+        if (calendar.getCode() == null || calendar.getCode().trim().isEmpty()) {
+            throw new MalformedPayloadException("code is required");
+        }
+        if (calendar.getName() == null || calendar.getName().trim().isEmpty()) {
+            throw new MalformedPayloadException("name is required");
+        }
+        UserSecurityContext ctx = resolveSecurityContext();
+        Calendar created = calendarRepository.createCalendar(ctx, calendar);
+        logger.info("[ADM-01 Calendar] Created calendar [{}] code=[{}]", created.getId(), created.getCode());
+        return created;
+    }
+
+    public List<Calendar> listCalendars() {
+        return calendarRepository.listCalendars(resolveSecurityContext());
+    }
+
+    public List<Calendar> listCalendarsByCollege(String collegeId) {
+        return calendarRepository.listCalendarsByCollege(resolveSecurityContext(), collegeId);
+    }
+
+    public Calendar getCalendar(String id) {
+        return calendarRepository.findById(resolveSecurityContext(), id)
+                .orElseThrow(() -> new InstituteNotFoundException("Calendar", id));
+    }
+
+    public Calendar updateCalendar(Calendar calendar) {
+        if (calendar.getId() == null || calendar.getId().trim().isEmpty()) {
+            throw new MalformedPayloadException("calendar id is required for update");
+        }
+        return calendarRepository.updateCalendar(resolveSecurityContext(), calendar);
+    }
+
+    public void deleteCalendar(String id) {
+        calendarRepository.deleteCalendar(resolveSecurityContext(), id);
+    }
+
+    public CalendarEvent createCalendarEvent(CalendarEvent event) {
+        if (event.getCalendarId() == null || event.getCalendarId().trim().isEmpty()) {
+            throw new MalformedPayloadException("calendarId is required");
+        }
+        if (event.getTitle() == null || event.getTitle().trim().isEmpty()) {
+            throw new MalformedPayloadException("title is required");
+        }
+        UserSecurityContext ctx = resolveSecurityContext();
+        CalendarEvent created = calendarRepository.createEvent(ctx, event);
+        logger.info("[ADM-01 Calendar] Created calendar event [{}] for calendar [{}]", created.getId(), created.getCalendarId());
+        return created;
+    }
+
+    public List<CalendarEvent> listCalendarEvents(String calendarId) {
+        return calendarRepository.listEvents(resolveSecurityContext(), calendarId);
+    }
+
+    public CalendarEvent getCalendarEvent(String id) {
+        return calendarRepository.findEventById(resolveSecurityContext(), id)
+                .orElseThrow(() -> new InstituteNotFoundException("CalendarEvent", id));
+    }
+
+    public void deleteCalendarEvent(String id) {
+        calendarRepository.deleteEvent(resolveSecurityContext(), id);
+    }
+
+    // =========================================================================
+    // Phase 9: Number Sequences Domain Methods (Item 24)
+    // =========================================================================
+
+    public NumberSequence createNumberSequence(NumberSequence sequence) {
+        if (sequence.getScopeKey() == null || sequence.getScopeKey().trim().isEmpty()) {
+            throw new MalformedPayloadException("scopeKey is required");
+        }
+        UserSecurityContext ctx = resolveSecurityContext();
+        NumberSequence created = numberSequenceRepository.createSequence(ctx, sequence);
+        logger.info("[ADM-01 Sequence] Created sequence [{}] scope=[{}]", created.getId(), created.getScopeKey());
+        return created;
+    }
+
+    public List<NumberSequence> listNumberSequences() {
+        return numberSequenceRepository.listSequences(resolveSecurityContext());
+    }
+
+    public NumberSequence getNumberSequence(String id) {
+        return numberSequenceRepository.findById(resolveSecurityContext(), id)
+                .orElseThrow(() -> new InstituteNotFoundException("NumberSequence", id));
+    }
+
+    public NumberSequence updateNumberSequence(NumberSequence sequence) {
+        if (sequence.getId() == null || sequence.getId().trim().isEmpty()) {
+            throw new MalformedPayloadException("sequence id is required for update");
+        }
+        return numberSequenceRepository.updateSequence(resolveSecurityContext(), sequence);
+    }
+
+    public void deleteNumberSequence(String id) {
+        numberSequenceRepository.deleteSequence(resolveSecurityContext(), id);
+    }
+
+    public String generateNextNumber(String scopeKey, String collegeId) {
+        return numberSequenceRepository.generateNextNumber(resolveSecurityContext(), scopeKey, collegeId);
+    }
+
+    // =========================================================================
+    // Phase 10: Lookup Domain Methods (Item 25)
+    // =========================================================================
+
+    public LookupType createLookupType(LookupType type) {
+        if (type.getCode() == null || type.getCode().trim().isEmpty()) {
+            throw new MalformedPayloadException("code is required");
+        }
+        if (type.getName() == null || type.getName().trim().isEmpty()) {
+            throw new MalformedPayloadException("name is required");
+        }
+        UserSecurityContext ctx = resolveSecurityContext();
+        LookupType created = lookupRepository.createType(ctx, type);
+        logger.info("[ADM-01 Lookup] Created lookup type [{}] code=[{}]", created.getId(), created.getCode());
+        return created;
+    }
+
+    public List<LookupType> listLookupTypes() {
+        return lookupRepository.listTypes(resolveSecurityContext());
+    }
+
+    public LookupType getLookupType(String id) {
+        return lookupRepository.findTypeById(resolveSecurityContext(), id)
+                .orElseThrow(() -> new InstituteNotFoundException("LookupType", id));
+    }
+
+    public LookupValue createLookupValue(LookupValue value) {
+        if (value.getLookupTypeId() == null || value.getLookupTypeId().trim().isEmpty()) {
+            throw new MalformedPayloadException("lookupTypeId is required");
+        }
+        if (value.getCode() == null || value.getCode().trim().isEmpty()) {
+            throw new MalformedPayloadException("code is required");
+        }
+        if (value.getLabel() == null || value.getLabel().trim().isEmpty()) {
+            throw new MalformedPayloadException("label is required");
+        }
+        UserSecurityContext ctx = resolveSecurityContext();
+        LookupValue created = lookupRepository.createValue(ctx, value);
+        logger.info("[ADM-01 Lookup] Created lookup value [{}] code=[{}] for type [{}]", created.getId(), created.getCode(), created.getLookupTypeId());
+        return created;
+    }
+
+    public List<LookupValue> listLookupValues(String lookupTypeId) {
+        return lookupRepository.listValuesByType(resolveSecurityContext(), lookupTypeId);
+    }
+
+    public LookupValue getLookupValue(String id) {
+        return lookupRepository.findValueById(resolveSecurityContext(), id)
+                .orElseThrow(() -> new InstituteNotFoundException("LookupValue", id));
+    }
+
+    // =========================================================================
+    // Phase 11: Access Events & Audit Change Log Domain Methods (Items 26 & 27)
+    // =========================================================================
+
+    public AccessEvent recordAccessEvent(AccessEvent event) {
+        UserSecurityContext ctx = resolveSecurityContext();
+        return accessEventRepository.recordEvent(ctx, event);
+    }
+
+    public List<AccessEvent> listRecentAccessEvents(int limit) {
+        return accessEventRepository.listRecentEvents(resolveSecurityContext(), limit > 0 ? limit : 50);
+    }
+
+    public AuditChangeLog recordChangeLog(AuditChangeLog log) {
+        UserSecurityContext ctx = resolveSecurityContext();
+        return auditChangeLogRepository.recordChange(ctx, log);
+    }
+
+    public List<AuditChangeLog> listRecentChangeLogs(int limit) {
+        return auditChangeLogRepository.listRecentChanges(resolveSecurityContext(), limit > 0 ? limit : 50);
     }
 }
 

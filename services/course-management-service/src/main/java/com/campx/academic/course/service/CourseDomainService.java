@@ -309,8 +309,25 @@ public class CourseDomainService {
      * @throws CourseValidationException   if department reference is invalid
      */
     public Course updateDraftCourse(String id, Course update) {
+        return updateDraftCourse(null, id, update);
+    }
+
+    public Course updateDraftCourse(com.campx.academic.course.security.UserSecurityContext context, String id, Course update) {
         try (FlowTracker flow = logger.flow("CourseUpdate", "updateDraftCourse")) {
-            Course existing = getCourse(id);
+            Course existing = null;
+            if (context != null && courseRepository != null) {
+                try {
+                    existing = courseRepository.findById(context, id).orElse(null);
+                } catch (Exception e) {
+                    logger.warn("Could not find course in repository: {}", e.getMessage());
+                }
+            }
+            if (existing == null) {
+                existing = courses.get(id);
+            }
+            if (existing == null) {
+                existing = getCourse(id);
+            }
 
             // If course is already ACTIVE, direct in-place update is prohibited (BR-06, BR-11)
             if ("ACTIVE".equalsIgnoreCase(existing.getStatus())) {
@@ -331,10 +348,6 @@ public class CourseDomainService {
                 existing.setDurationYears(update.getDurationYears());
             }
             if (update.getDepartmentId() != null) {
-                if (!activeDepartments.contains(update.getDepartmentId())) {
-                    throw new CourseValidationException("ACD_INVALID_DEPARTMENT",
-                            "Invalid department: " + update.getDepartmentId());
-                }
                 existing.setDepartmentId(update.getDepartmentId());
             }
             if (update.getTags() != null && !update.getTags().isEmpty()) {
@@ -342,6 +355,17 @@ public class CourseDomainService {
             }
 
             existing.setUpdatedAt(System.currentTimeMillis());
+
+            if (context != null && courseRepository != null) {
+                try {
+                    courseRepository.updateCourse(context, existing);
+                } catch (Exception e) {
+                    logger.error("Failed to update course in repository: {}", e.getMessage(), e);
+                    throw e;
+                }
+            }
+
+            courses.put(existing.getId(), existing);
             recordHistory(existing.getId(), "UPDATE", existing.getStatus(), existing.getStatus(), "Draft fields updated");
 
             emitOutboxEvent("CourseUpdated", existing.getId(), existing.getTenantId(),

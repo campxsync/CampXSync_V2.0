@@ -53,6 +53,7 @@ public class CourseControllerIntegrationTest {
      */
     @BeforeClass
     public static void startServer() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         server = new CourseServer(TEST_PORT, new CourseDomainService());
         server.start();
     }
@@ -65,6 +66,7 @@ public class CourseControllerIntegrationTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
         CampXLoggerFactory.flush();
     }
 

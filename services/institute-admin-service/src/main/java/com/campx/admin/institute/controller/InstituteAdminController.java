@@ -3,6 +3,7 @@ package com.campx.admin.institute.controller;
 import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.ErrorResponse;
 import com.campx.admin.institute.model.InstituteModels.*;
+import com.campx.admin.institute.model.InstituteModels.Calendar;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -612,6 +613,89 @@ public class InstituteAdminController implements HttpHandler {
             if (path.equals("/api/v1/admin/audit-logs/search") && "GET".equalsIgnoreCase(method)) {
                 flow.step("handleSearchAuditLogs");
                 handleSearchAuditLogs(exchange);
+                return;
+            }
+
+            // 31. Academic Calendars (Item 23)
+            if (path.equals("/api/v1/admin/calendars")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateCalendar");
+                    handleCreateCalendar(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListCalendars");
+                    handleListCalendars(exchange);
+                    return;
+                }
+            } else if (path.startsWith("/api/v1/admin/calendars/") && path.endsWith("/events")) {
+                String calendarId = path.substring("/api/v1/admin/calendars/".length(), path.length() - "/events".length());
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateCalendarEvent");
+                    handleCreateCalendarEvent(exchange, calendarId);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListCalendarEvents");
+                    handleListCalendarEvents(exchange, calendarId);
+                    return;
+                }
+            } else if (path.startsWith("/api/v1/admin/calendars/")) {
+                String calendarId = path.substring("/api/v1/admin/calendars/".length());
+                if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetCalendar");
+                    handleGetCalendar(exchange, calendarId);
+                    return;
+                }
+            }
+
+            // 32. Number Sequences (Item 24)
+            if (path.equals("/api/v1/admin/number-sequences")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateNumberSequence");
+                    handleCreateNumberSequence(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListNumberSequences");
+                    handleListNumberSequences(exchange);
+                    return;
+                }
+            } else if (path.equals("/api/v1/admin/number-sequences/next") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleGenerateNextNumber");
+                handleGenerateNextNumber(exchange);
+                return;
+            }
+
+            // 33. Reference Lookups (Item 25)
+            if (path.equals("/api/v1/admin/lookups/types")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateLookupType");
+                    handleCreateLookupType(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListLookupTypes");
+                    handleListLookupTypes(exchange);
+                    return;
+                }
+            } else if (path.equals("/api/v1/admin/lookups/values")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateLookupValue");
+                    handleCreateLookupValue(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListLookupValues");
+                    handleListLookupValues(exchange);
+                    return;
+                }
+            }
+
+            // 34. Access Events & Audit Change Log (Items 26 & 27)
+            if (path.equals("/api/v1/admin/audit/access-events") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleListAccessEvents");
+                handleListAccessEvents(exchange);
+                return;
+            }
+            if (path.equals("/api/v1/admin/audit/change-log") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleListChangeLogs");
+                handleListChangeLogs(exchange);
                 return;
             }
 
@@ -2069,6 +2153,237 @@ public class InstituteAdminController implements HttpHandler {
               .append(",\"traceId\":\"").append(escape(entry.get("traceId"))).append("\"}");
         }
         sb.append("],\"count\":").append(results.size()).append("}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    // =========================================================================
+    // Phase 8: Academic Calendars Handlers (Item 23)
+    // =========================================================================
+
+    private void handleCreateCalendar(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        Calendar calendar = new Calendar();
+        calendar.setCode(extract(body, "code", extract(body, "calendarCode", null)));
+        calendar.setName(extract(body, "name", null));
+        calendar.setCalendarType(extract(body, "calendarType", "ACADEMIC"));
+        calendar.setCollegeId(extract(body, "collegeId", null));
+        calendar.setAcademicYearId(extract(body, "academicYearId", null));
+        String status = extract(body, "status", "DRAFT");
+        calendar.setStatus(status);
+        Calendar created = domainService.createCalendar(calendar);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + escape(created.getCode())
+                + "\",\"name\":\"" + escape(created.getName()) + "\",\"status\":\"" + created.getStatus() + "\"}");
+    }
+
+    private void handleListCalendars(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String collegeId = getQueryParam(query, "collegeId");
+        List<Calendar> list = collegeId != null && !collegeId.trim().isEmpty()
+                ? domainService.listCalendarsByCollege(collegeId)
+                : domainService.listCalendars();
+        StringBuilder sb = new StringBuilder("{\"calendars\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            Calendar c = list.get(i);
+            sb.append("{\"id\":\"").append(c.getId()).append("\",\"code\":\"").append(escape(c.getCode()))
+              .append("\",\"name\":\"").append(escape(c.getName()))
+              .append("\",\"collegeId\":\"").append(escape(c.getCollegeId()))
+              .append("\",\"status\":\"").append(c.getStatus()).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleGetCalendar(HttpExchange exchange, String calendarId) throws IOException {
+        Calendar c = domainService.getCalendar(calendarId);
+        sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"code\":\"" + escape(c.getCode())
+                + "\",\"name\":\"" + escape(c.getName()) + "\",\"collegeId\":\"" + escape(c.getCollegeId())
+                + "\",\"status\":\"" + c.getStatus() + "\"}");
+    }
+
+    private void handleCreateCalendarEvent(HttpExchange exchange, String calendarId) throws IOException {
+        String body = readBody(exchange);
+        CalendarEvent event = new CalendarEvent();
+        event.setCalendarId(calendarId);
+        event.setEventType(extract(body, "eventType", "GENERAL"));
+        event.setTitle(extract(body, "title", null));
+        event.setDescription(extract(body, "description", ""));
+        String holidayStr = extract(body, "isHoliday", "false");
+        event.setHoliday(Boolean.parseBoolean(holidayStr));
+        String startStr = extract(body, "startDate", null);
+        if (startStr != null) {
+            try { event.setStartDate(Long.parseLong(startStr)); } catch (NumberFormatException ignored) {}
+        }
+        String endStr = extract(body, "endDate", null);
+        if (endStr != null) {
+            try { event.setEndDate(Long.parseLong(endStr)); } catch (NumberFormatException ignored) {}
+        }
+        CalendarEvent created = domainService.createCalendarEvent(event);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"calendarId\":\"" + created.getCalendarId()
+                + "\",\"title\":\"" + escape(created.getTitle()) + "\",\"eventType\":\"" + escape(created.getEventType()) + "\"}");
+    }
+
+    private void handleListCalendarEvents(HttpExchange exchange, String calendarId) throws IOException {
+        List<CalendarEvent> list = domainService.listCalendarEvents(calendarId);
+        StringBuilder sb = new StringBuilder("{\"events\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            CalendarEvent e = list.get(i);
+            sb.append("{\"id\":\"").append(e.getId()).append("\",\"calendarId\":\"").append(e.getCalendarId())
+              .append("\",\"title\":\"").append(escape(e.getTitle()))
+              .append("\",\"eventType\":\"").append(escape(e.getEventType()))
+              .append("\",\"isHoliday\":").append(e.isHoliday()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    // =========================================================================
+    // Phase 9: Number Sequences Handlers (Item 24)
+    // =========================================================================
+
+    private void handleCreateNumberSequence(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        NumberSequence seq = new NumberSequence();
+        seq.setScopeKey(extract(body, "scopeKey", null));
+        seq.setPrefix(extract(body, "prefix", ""));
+        seq.setSuffix(extract(body, "suffix", ""));
+        String nextValStr = extract(body, "nextValue", "1");
+        try { seq.setNextValue(Long.parseLong(nextValStr)); } catch (NumberFormatException ignored) {}
+        String padStr = extract(body, "padding", "6");
+        try { seq.setPadding(Short.parseShort(padStr)); } catch (NumberFormatException ignored) {}
+        seq.setResetPolicy(extract(body, "resetPolicy", "NEVER"));
+        seq.setCollegeId(extract(body, "collegeId", null));
+        NumberSequence created = domainService.createNumberSequence(seq);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"scopeKey\":\"" + escape(created.getScopeKey())
+                + "\",\"prefix\":\"" + escape(created.getPrefix()) + "\",\"nextValue\":" + created.getNextValue() + "}");
+    }
+
+    private void handleListNumberSequences(HttpExchange exchange) throws IOException {
+        List<NumberSequence> list = domainService.listNumberSequences();
+        StringBuilder sb = new StringBuilder("{\"sequences\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            NumberSequence s = list.get(i);
+            sb.append("{\"id\":\"").append(s.getId()).append("\",\"scopeKey\":\"").append(escape(s.getScopeKey()))
+              .append("\",\"prefix\":\"").append(escape(s.getPrefix()))
+              .append("\",\"nextValue\":").append(s.getNextValue())
+              .append(",\"padding\":").append(s.getPadding()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleGenerateNextNumber(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        String scopeKey = extract(body, "scopeKey", null);
+        String collegeId = extract(body, "collegeId", null);
+        String nextNumber = domainService.generateNextNumber(scopeKey, collegeId);
+        sendJson(exchange, 200, "{\"scopeKey\":\"" + escape(scopeKey) + "\",\"generatedNumber\":\"" + escape(nextNumber) + "\"}");
+    }
+
+    // =========================================================================
+    // Phase 10: Reference Lookups Handlers (Item 25)
+    // =========================================================================
+
+    private void handleCreateLookupType(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        LookupType lt = new LookupType();
+        lt.setCode(extract(body, "code", null));
+        lt.setName(extract(body, "name", null));
+        lt.setDescription(extract(body, "description", ""));
+        LookupType created = domainService.createLookupType(lt);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + escape(created.getCode())
+                + "\",\"name\":\"" + escape(created.getName()) + "\"}");
+    }
+
+    private void handleListLookupTypes(HttpExchange exchange) throws IOException {
+        List<LookupType> list = domainService.listLookupTypes();
+        StringBuilder sb = new StringBuilder("{\"lookupTypes\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            LookupType t = list.get(i);
+            sb.append("{\"id\":\"").append(t.getId()).append("\",\"code\":\"").append(escape(t.getCode()))
+              .append("\",\"name\":\"").append(escape(t.getName())).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleCreateLookupValue(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        LookupValue lv = new LookupValue();
+        lv.setLookupTypeId(extract(body, "lookupTypeId", null));
+        lv.setCode(extract(body, "code", null));
+        lv.setLabel(extract(body, "label", null));
+        LookupValue created = domainService.createLookupValue(lv);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + escape(created.getCode())
+                + "\",\"label\":\"" + escape(created.getLabel()) + "\"}");
+    }
+
+    private void handleListLookupValues(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String typeId = getQueryParam(query, "lookupTypeId");
+        List<LookupValue> list = domainService.listLookupValues(typeId);
+        StringBuilder sb = new StringBuilder("{\"lookupValues\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            LookupValue v = list.get(i);
+            sb.append("{\"id\":\"").append(v.getId()).append("\",\"lookupTypeId\":\"").append(v.getLookupTypeId())
+              .append("\",\"code\":\"").append(escape(v.getCode()))
+              .append("\",\"label\":\"").append(escape(v.getLabel())).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    // =========================================================================
+    // Phase 11: Access Events & Audit Change Log Handlers (Items 26 & 27)
+    // =========================================================================
+
+    private void handleListAccessEvents(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String limitStr = getQueryParam(query, "limit");
+        int limit = 50;
+        if (limitStr != null) {
+            try { limit = Integer.parseInt(limitStr); } catch (NumberFormatException ignored) {}
+        }
+        List<AccessEvent> list = domainService.listRecentAccessEvents(limit);
+        StringBuilder sb = new StringBuilder("{\"accessEvents\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            AccessEvent ae = list.get(i);
+            sb.append("{\"id\":\"").append(ae.getId()).append("\",\"principalId\":\"").append(escape(ae.getPrincipalId()))
+              .append("\",\"resourceType\":\"").append(escape(ae.getResourceType()))
+              .append("\",\"resourceId\":\"").append(escape(ae.getResourceId()))
+              .append("\",\"accessType\":\"").append(escape(ae.getAccessType()))
+              .append("\",\"ip\":\"").append(escape(ae.getIp()))
+              .append("\",\"createdAt\":").append(ae.getCreatedAt()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleListChangeLogs(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String limitStr = getQueryParam(query, "limit");
+        int limit = 50;
+        if (limitStr != null) {
+            try { limit = Integer.parseInt(limitStr); } catch (NumberFormatException ignored) {}
+        }
+        List<AuditChangeLog> list = domainService.listRecentChangeLogs(limit);
+        StringBuilder sb = new StringBuilder("{\"changeLogs\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            AuditChangeLog cl = list.get(i);
+            sb.append("{\"id\":\"").append(cl.getId()).append("\",\"tableSchema\":\"").append(escape(cl.getTableSchema()))
+              .append("\",\"tableName\":\"").append(escape(cl.getTableName()))
+              .append("\",\"recordId\":\"").append(escape(cl.getRecordId()))
+              .append("\",\"action\":\"").append(escape(cl.getAction()))
+              .append("\",\"actorId\":\"").append(escape(cl.getActorId()))
+              .append("\",\"createdAt\":").append(cl.getCreatedAt()).append("}");
+        }
+        sb.append("]}");
         sendJson(exchange, 200, sb.toString());
     }
 
