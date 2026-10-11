@@ -31,6 +31,11 @@ public class CollegeAdminServer {
     private final CollegeAdminDomainService domainService;
 
     /**
+     * Edge gateway cryptographic HMAC verifier.
+     */
+    private final com.campx.admin.college.security.GatewayHmacVerifier gatewayHmacVerifier;
+
+    /**
      * Underlying JDK HTTP server instance.
      */
     private HttpServer server;
@@ -54,8 +59,18 @@ public class CollegeAdminServer {
      * @param domainService the domain service handling business logic
      */
     public CollegeAdminServer(int port, CollegeAdminDomainService domainService) {
+        this(port, domainService, new com.campx.admin.college.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Constructs a {@code CollegeAdminServer} with a specific port, domain service, and verifier.
+     */
+    public CollegeAdminServer(int port, CollegeAdminDomainService domainService,
+                              com.campx.admin.college.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.port = port;
         this.domainService = domainService;
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier :
+                new com.campx.admin.college.security.GatewayHmacVerifier();
     }
 
     /**
@@ -71,12 +86,12 @@ public class CollegeAdminServer {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.setExecutor(null);
 
-        CollegeAdminController controller = new CollegeAdminController(domainService);
+        CollegeAdminController controller = new CollegeAdminController(domainService, gatewayHmacVerifier);
         server.createContext("/api/v1/college-admin", controller);
 
         server.start();
         running = true;
-        logger.info("ADM-02 College Admin Service started on port {}", port);
+        logger.info("ADM-02 College Admin Service started on port {}", getPort());
     }
 
     /**
@@ -105,6 +120,9 @@ public class CollegeAdminServer {
      * @return the port number
      */
     public int getPort() {
+        if (server != null && running) {
+            return server.getAddress().getPort();
+        }
         return port;
     }
 

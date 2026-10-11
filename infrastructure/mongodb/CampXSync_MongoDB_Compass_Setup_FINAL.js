@@ -1,6 +1,6 @@
 // CampXSync Enterprise MongoDB Bootstrap
 // One physical database: CampXSync
-// Current scope: 883 domain collections + 3 system collections = 886 total
+// Current scope: 885 domain collections + 3 system collections = 888 total
 // ADM reconciliation: payment_transactions -> billing_gateway_transactions;
 // ADM-02 academic_calendars -> college_calendar_configuration;
 // ADM-02 detailed sections 35-50 re-associated to matching purposes.
@@ -186,6 +186,8 @@ const collectionSpecs = [
   {"module": "ACD", "service": "ACD03", "sourceCollection": "subject_versions", "collection": "ACD03__subject_versions"},
   {"module": "ACD", "service": "ACD03", "sourceCollection": "subject_metadata", "collection": "ACD03__subject_metadata"},
   {"module": "ACD", "service": "ACD03", "sourceCollection": "subject_prerequisites", "collection": "ACD03__subject_prerequisites"},
+  {"module": "ACD", "service": "ACD03", "sourceCollection": "subject_equivalences", "collection": "ACD03__subject_equivalences"},
+  {"module": "ACD", "service": "ACD03", "sourceCollection": "subject_history", "collection": "ACD03__subject_history"},
   {"module": "ACD", "service": "ACD03", "sourceCollection": "outbox_events", "collection": "ACD03__outbox_events"},
   {"module": "ACD", "service": "ACD03", "sourceCollection": "idempotency_records", "collection": "ACD03__idempotency_records"},
   {"module": "ACD", "service": "ACD03", "sourceCollection": "dead_letter_events", "collection": "ACD03__dead_letter_events"},
@@ -1158,10 +1160,833 @@ moduleDocs.forEach(x => {
 // Domain collections
 // -------------------------------------------------------------------------
 
+const createValidator = baselineValidator;
+
+const admValidators = {
+  // --- ACD-03: Subject Management Service ---
+  "ACD03__subjects": createValidator({
+    subjectId: { bsonType: "string", minLength: 1, description: "Canonical subject identifier" },
+    subjectCode: { bsonType: "string", minLength: 2, maxLength: 30, description: "Unique institutional subject code" },
+    name: { bsonType: "string", minLength: 2, maxLength: 255, description: "Full subject title" },
+    departmentId: { bsonType: "string", minLength: 1, description: "Owning department reference" },
+    crossListedDepartmentIds: { bsonType: "array", items: { bsonType: "string" }, description: "Cross-listed / joint department references" },
+    subjectType: { enum: ["CORE", "ELECTIVE", "PRACTICAL", "PROJECT", "AUDIT"], description: "Taxonomy type" },
+    classification: { enum: ["THEORY", "PRACTICAL", "TUTORIAL", "PROJECT", "ELECTIVE", "AUDIT"], description: "Pedagogical delivery classification" },
+    credits: { bsonType: ["double", "int", "decimal"], minimum: 0, maximum: 20, description: "Academic credit weighting" },
+    contactHours: { bsonType: ["double", "int", "decimal"], minimum: 0, description: "Total instructional contact hours" },
+    status: { enum: ["DRAFT", "ACTIVE", "DEPRECATED", "DEACTIVATED", "RETIRED"], description: "Lifecycle state" },
+    currentVersion: { bsonType: ["int", "long"], minimum: 1, description: "Active monotonic version pointer" },
+    description: { bsonType: "string" },
+    deleted: { bsonType: "bool" }
+  }, ["subjectCode", "name", "departmentId", "subjectType", "status"]),
+
+  "ACD03__subject_versions": createValidator({
+    subjectId: { bsonType: "string", minLength: 1, description: "Parent subject reference" },
+    versionNo: { bsonType: ["int", "long"], minimum: 1, description: "Monotonic version sequence number" },
+    status: { enum: ["DRAFT", "REVIEW", "APPROVED", "PUBLISHED", "SUPERSEDED", "RETIRED"], description: "Version governance state" },
+    credits: { bsonType: ["double", "int", "decimal"], minimum: 0, maximum: 20 },
+    contactHours: { bsonType: ["double", "int", "decimal"], minimum: 0 },
+    checksum: { bsonType: "string", description: "SHA-256 canonical hash of academic definition" },
+    courseOutcomes: {
+      bsonType: "array",
+      items: {
+        bsonType: "object",
+        required: ["outcomeCode", "statement"],
+        properties: {
+          outcomeCode: { bsonType: "string" },
+          statement: { bsonType: "string" },
+          bloomLevel: { bsonType: "string" },
+          targetAttainment: { bsonType: ["double", "int"] }
+        }
+      }
+    },
+    coPoMatrix: {
+      bsonType: "array",
+      items: {
+        bsonType: "object",
+        required: ["outcomeCode", "programOutcomeCode", "correlationStrength"],
+        properties: {
+          outcomeCode: { bsonType: "string" },
+          programOutcomeCode: { bsonType: "string" },
+          correlationStrength: { bsonType: ["int", "double"], minimum: 1, maximum: 3 }
+        }
+      }
+    },
+    syllabusUnits: {
+      bsonType: "array",
+      items: {
+        bsonType: "object",
+        required: ["unitNumber", "title"],
+        properties: {
+          unitNumber: { bsonType: ["int", "long"], minimum: 1 },
+          title: { bsonType: "string" },
+          topics: { bsonType: "array", items: { bsonType: "string" } },
+          hours: { bsonType: ["double", "int"], minimum: 0 }
+        }
+      }
+    },
+    approvalResolution: {
+      bsonType: "object",
+      properties: {
+        resolutionNumber: { bsonType: "string" },
+        approvedByBoard: { bsonType: "string" },
+        meetingDate: { bsonType: "date" },
+        minutesUrl: { bsonType: "string" }
+      }
+    },
+    publishedAt: { bsonType: "date" },
+    publishedBy: { bsonType: "string" }
+  }, ["subjectId", "versionNo", "status"]),
+
+  "ACD03__subject_metadata": createValidator({
+    subjectId: { bsonType: "string", minLength: 1, description: "Parent subject reference" },
+    description: { bsonType: "string" },
+    objective: { bsonType: "string" },
+    learningOutcomes: { bsonType: "array", items: { bsonType: "string" } },
+    textbooks: { bsonType: "array", items: { bsonType: "string" } },
+    references: { bsonType: "array", items: { bsonType: "string" } },
+    evaluationScheme: { bsonType: "object" },
+    nationalIdentifiers: {
+      bsonType: "array",
+      items: {
+        bsonType: "object",
+        required: ["scheme", "identifierValue"],
+        properties: {
+          scheme: { bsonType: "string", enum: ["ABC_COURSE_ID", "AICTE_MODEL_ID", "SWAYAM_NPTEL_ID", "UGC_LOCF_ID", "OTHER"] },
+          identifierValue: { bsonType: "string" },
+          registeredDate: { bsonType: "date" }
+        }
+      }
+    },
+    bibliographies: {
+      bsonType: "array",
+      items: {
+        bsonType: "object",
+        required: ["title", "authors"],
+        properties: {
+          title: { bsonType: "string" },
+          authors: { bsonType: "array", items: { bsonType: "string" } },
+          isbn: { bsonType: "string" },
+          edition: { bsonType: "string" },
+          publisher: { bsonType: "string" },
+          isTextbook: { bsonType: "bool" }
+        }
+      }
+    },
+    campusDeliveryRules: {
+      bsonType: "array",
+      items: {
+        bsonType: "object",
+        required: ["campusId", "deliveryMode"],
+        properties: {
+          campusId: { bsonType: "string" },
+          deliveryMode: { enum: ["IN_PERSON", "HYBRID", "ONLINE", "RESTRICTED"] },
+          labFacilityRequired: { bsonType: "bool" }
+        }
+      }
+    },
+    sensitivityLevel: { enum: ["L1_PUBLIC", "L2_INTERNAL", "L3_RESTRICTED"] },
+    tags: { bsonType: "array", items: { bsonType: "string" } },
+    attributes: { bsonType: "object" }
+  }, ["subjectId"]),
+
+  "ACD03__subject_prerequisites": createValidator({
+    subjectId: { bsonType: "string", minLength: 1, description: "Target subject" },
+    prerequisiteSubjectId: { bsonType: "string", minLength: 1, description: "Required preceding subject" },
+    relationshipType: { enum: ["PREREQUISITE", "CO_REQUISITE", "RECOMMENDED"], description: "Dependency classification" },
+    mandatory: { bsonType: "bool" },
+    minimumGrade: { bsonType: "string" },
+    status: { enum: ["ACTIVE", "INACTIVE"] }
+  }, ["subjectId", "prerequisiteSubjectId", "relationshipType", "status"]),
+
+  "ACD03__subject_equivalences": createValidator({
+    sourceSubjectId: { bsonType: "string", minLength: 1, description: "Original subject identifier" },
+    targetSubjectId: { bsonType: "string", minLength: 1, description: "Equivalent subject identifier" },
+    equivalenceType: { enum: ["DIRECT_SUBSTITUTION", "LATERAL_ENTRY_TRANSFER", "NEP_CREDIT_TRANSFER", "EXTERNAL_ARTICULATION", "BRANCH_CHANGE"], description: "Equivalence classification" },
+    minimumGrade: { bsonType: "string", description: "Minimum grade threshold for transfer credit" },
+    transferMultiplier: { bsonType: ["double", "int"], minimum: 0, description: "Credit conversion weight (default 1.0)" },
+    externalInstitutionName: { bsonType: "string", description: "External college/university name if applicable" },
+    effectiveFrom: { bsonType: "date" },
+    effectiveTo: { bsonType: ["date", "null"] },
+    approvalAuthority: { bsonType: "string" },
+    status: { enum: ["ACTIVE", "REVOKED", "EXPIRED"] }
+  }, ["sourceSubjectId", "targetSubjectId", "equivalenceType", "status"]),
+
+  "ACD03__subject_history": createValidator({
+    subjectId: { bsonType: "string", minLength: 1, description: "Subject under audit" },
+    entityType: { bsonType: "string", minLength: 1 },
+    action: { enum: ["CREATE", "UPDATE", "VERSION_CREATED", "VERSION_PUBLISHED", "DEACTIVATE", "REACTIVATE", "DEPRECATE", "RETIRE", "PREREQUISITE_ADDED", "PREREQUISITE_REMOVED", "EQUIVALENCE_ADDED", "EQUIVALENCE_REMOVED", "METADATA_UPDATED", "DELETE"] },
+    actorId: { bsonType: "string", minLength: 1, description: "User or service account initiating mutation" },
+    changedFields: { bsonType: "array", items: { bsonType: "string" } },
+    snapshot: { bsonType: "object" },
+    timestamp: { bsonType: "date" }
+  }, ["subjectId", "action", "actorId"]),
+
+  "ACD03__outbox_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    aggregateType: { bsonType: "string", minLength: 1 },
+    aggregateId: { bsonType: "string" },
+    eventType: { bsonType: "string", minLength: 1 },
+    payload: { bsonType: ["string", "object"] },
+    status: { enum: ["PENDING", "DISPATCHED", "FAILED"] },
+    attempts: { bsonType: ["int", "long"], minimum: 0 },
+    correlationId: { bsonType: "string" }
+  }, ["eventId", "aggregateType", "eventType", "status"]),
+
+  "ACD03__idempotency_records": createValidator({
+    idempotencyKey: { bsonType: "string", minLength: 1 },
+    targetEndpoint: { bsonType: "string" },
+    responseStatus: { bsonType: ["int", "long"] },
+    responseBody: { bsonType: "string" },
+    expiresAt: { bsonType: "date" }
+  }, ["idempotencyKey", "expiresAt"]),
+
+  "ACD03__dead_letter_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    failureReason: { bsonType: "string", minLength: 1 },
+    status: { enum: ["FAILED", "REPLAYED", "DISCARDED"] },
+    attempts: { bsonType: ["int", "long"], minimum: 0 }
+  }, ["eventId", "failureReason", "status"]),
+
+  // --- ADM-01: Master / Tenant Governance ---
+  "ADM01__institutes": createValidator({
+    instituteId: { bsonType: "string", minLength: 1, description: "Business ID" },
+    code: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,30}$", description: "Institute code" },
+    name: { bsonType: "string", minLength: 2, maxLength: 255 },
+    legalName: { bsonType: "string", minLength: 2, maxLength: 255 },
+    status: { enum: ["ACTIVE", "SUSPENDED", "INACTIVE", "ARCHIVED"] },
+    currency: { bsonType: "string", pattern: "^[A-Z]{3}$" },
+    timezone: { bsonType: "string" },
+    locale: { bsonType: "string" },
+    profile: { bsonType: "object" },
+    defaultPolicySetId: { bsonType: "string" },
+    subscriptionPlanId: { bsonType: "string" }
+  }, ["instituteId", "code", "name", "status"]),
+
+  "ADM01__colleges": createValidator({
+    collegeId: { bsonType: "string", minLength: 1 },
+    instituteId: { bsonType: "string", minLength: 1 },
+    code: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,30}$" },
+    name: { bsonType: "string", minLength: 2, maxLength: 255 },
+    status: { enum: ["ACTIVE", "SUSPENDED", "INACTIVE", "ARCHIVED"] },
+    provisioningStatus: { enum: ["REQUESTED", "VALIDATED", "PROVISIONING", "ACTIVE", "SUSPENDED", "FAILED"] },
+    campusIds: { bsonType: "array", items: { bsonType: "string" } }
+  }, ["collegeId", "instituteId", "code", "name", "status", "provisioningStatus"]),
+
+  "ADM01__tenant_provisioning": createValidator({
+    provisioningId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    workflowId: { bsonType: "string" },
+    currentStep: { bsonType: "string", minLength: 1 },
+    attempt: { bsonType: ["int", "long"], minimum: 1 },
+    provisioningStatus: { enum: ["REQUESTED", "VALIDATED", "PROVISIONING", "COMPLETED", "FAILED"] },
+    idempotencyKey: { bsonType: "string" },
+    requestedBy: { bsonType: "string" }
+  }, ["provisioningId", "collegeId", "currentStep", "provisioningStatus"]),
+
+  "ADM01__global_settings": createValidator({
+    settingKey: { bsonType: "string", minLength: 1 },
+    settingValue: { bsonType: "string" },
+    dataType: { enum: ["STRING", "INTEGER", "BOOLEAN", "JSON", "SECRET"] },
+    scope: { enum: ["GLOBAL", "INSTITUTE", "COLLEGE"] },
+    isSecret: { bsonType: "bool" },
+    effectiveFrom: { bsonType: "date" },
+    effectiveTo: { bsonType: ["date", "null"] }
+  }, ["settingKey", "dataType", "scope", "isSecret"]),
+
+  "ADM01__feature_flags": createValidator({
+    flagKey: { bsonType: "string", pattern: "^[a-z0-9._-]{2,50}$" },
+    name: { bsonType: "string", minLength: 1 },
+    description: { bsonType: "string" },
+    enabled: { bsonType: "bool" },
+    rolloutPercentage: { bsonType: ["int", "long"], minimum: 0, maximum: 100 },
+    rules: { bsonType: "array" }
+  }, ["flagKey", "enabled"]),
+
+  "ADM01__global_policies": createValidator({
+    policyCode: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,50}$" },
+    name: { bsonType: "string", minLength: 1 },
+    category: { bsonType: "string" },
+    rules: { bsonType: "object" },
+    enforcementMode: { enum: ["ENFORCE", "AUDIT", "DISABLED"] }
+  }, ["policyCode", "enforcementMode"]),
+
+  "ADM01__admin_users": createValidator({
+    username: { bsonType: "string", minLength: 3, maxLength: 50 },
+    email: { bsonType: "string", pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+    fullName: { bsonType: "string", minLength: 1 },
+    passwordHash: { bsonType: "string" },
+    roles: { bsonType: "array", items: { bsonType: "string" } },
+    status: { enum: ["ACTIVE", "SUSPENDED", "LOCKED", "INACTIVE"] }
+  }, ["username", "email", "status"]),
+
+  "ADM01__roles": createValidator({
+    roleCode: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,50}$" },
+    name: { bsonType: "string", minLength: 1 },
+    permissions: { bsonType: "array", items: { bsonType: "string" } },
+    isSystemRole: { bsonType: "bool" }
+  }, ["roleCode", "name"]),
+
+  "ADM01__permissions": createValidator({
+    permissionCode: { bsonType: "string", pattern: "^[A-Z0-9_:-]{2,60}$" },
+    module: { bsonType: "string", minLength: 2 },
+    resource: { bsonType: "string", minLength: 1 },
+    action: { bsonType: "string", minLength: 1 }
+  }, ["permissionCode", "module", "action"]),
+
+  "ADM01__role_bindings": createValidator({
+    principalId: { bsonType: "string", minLength: 1 },
+    principalType: { enum: ["USER", "SERVICE_ACCOUNT", "GROUP"] },
+    roleCode: { bsonType: "string", minLength: 1 },
+    scope: { bsonType: "string", minLength: 1 }
+  }, ["principalId", "principalType", "roleCode", "scope"]),
+
+  "ADM01__access_reviews": createValidator({
+    reviewId: { bsonType: "string", minLength: 1 },
+    cycleName: { bsonType: "string", minLength: 1 },
+    reviewerId: { bsonType: "string" },
+    status: { enum: ["PENDING", "IN_PROGRESS", "COMPLETED", "EXPIRED"] }
+  }, ["reviewId", "cycleName", "status"]),
+
+  "ADM01__subscription_plans": createValidator({
+    planCode: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,50}$" },
+    name: { bsonType: "string", minLength: 1 },
+    billingCycle: { enum: ["MONTHLY", "QUARTERLY", "ANNUALLY"] },
+    price: { bsonType: ["double", "decimal", "int", "long"], minimum: 0 },
+    currency: { bsonType: "string", pattern: "^[A-Z]{3}$" },
+    entitlements: { bsonType: "array", items: { bsonType: "string" } },
+    isPublished: { bsonType: "bool" }
+  }, ["planCode", "name", "billingCycle", "price", "currency"]),
+
+  "ADM01__subscriptions": createValidator({
+    subscriptionId: { bsonType: "string", minLength: 1 },
+    instituteId: { bsonType: "string", minLength: 1 },
+    planCode: { bsonType: "string", minLength: 1 },
+    startDate: { bsonType: "date" },
+    endDate: { bsonType: "date" },
+    autoRenew: { bsonType: "bool" },
+    status: { enum: ["TRIAL", "ACTIVE", "PAST_DUE", "SUSPENDED", "CANCELLED"] }
+  }, ["subscriptionId", "instituteId", "planCode", "status"]),
+
+  "ADM01__invoices": createValidator({
+    invoiceNumber: { bsonType: "string", minLength: 1 },
+    subscriptionId: { bsonType: "string", minLength: 1 },
+    amount: { bsonType: ["double", "decimal", "int", "long"], minimum: 0 },
+    currency: { bsonType: "string", pattern: "^[A-Z]{3}$" },
+    dueDate: { bsonType: "date" },
+    status: { enum: ["DRAFT", "ISSUED", "PAID", "VOID", "UNCOLLECTIBLE"] }
+  }, ["invoiceNumber", "amount", "currency", "status"]),
+
+  "ADM01__billing_gateway_transactions": createValidator({
+    transactionId: { bsonType: "string", minLength: 1 },
+    invoiceId: { bsonType: "string" },
+    gateway: { bsonType: "string", minLength: 1 },
+    amount: { bsonType: ["double", "decimal", "int", "long"], minimum: 0 },
+    currency: { bsonType: "string", pattern: "^[A-Z]{3}$" },
+    status: { enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"] },
+    gatewayRef: { bsonType: "string" }
+  }, ["transactionId", "gateway", "amount", "status"]),
+
+  "ADM01__usage_metrics": createValidator({
+    metricName: { bsonType: "string", minLength: 1 },
+    dimension: { bsonType: "string" },
+    metricValue: { bsonType: ["double", "decimal", "int", "long"] },
+    recordedAt: { bsonType: "date" }
+  }, ["metricName", "metricValue", "recordedAt"]),
+
+  "ADM01__platform_health": createValidator({
+    serviceName: { bsonType: "string", minLength: 1 },
+    status: { enum: ["HEALTHY", "DEGRADED", "UNHEALTHY"] },
+    latencyMs: { bsonType: ["int", "long", "double"], minimum: 0 },
+    lastHeartbeat: { bsonType: "date" }
+  }, ["serviceName", "status", "lastHeartbeat"]),
+
+  "ADM01__alerts": createValidator({
+    alertId: { bsonType: "string", minLength: 1 },
+    severity: { enum: ["INFO", "WARNING", "ERROR", "CRITICAL"] },
+    title: { bsonType: "string", minLength: 1 },
+    status: { enum: ["ACTIVE", "ACKNOWLEDGED", "RESOLVED"] }
+  }, ["alertId", "severity", "title", "status"]),
+
+  "ADM01__configuration_versions": createValidator({
+    configKey: { bsonType: "string", minLength: 1 },
+    versionNumber: { bsonType: ["int", "long"], minimum: 1 },
+    appliedBy: { bsonType: "string" }
+  }, ["configKey", "versionNumber"]),
+
+  "ADM01__data_retention_policies": createValidator({
+    policyCode: { bsonType: "string", minLength: 1 },
+    entityType: { bsonType: "string", minLength: 1 },
+    retentionDays: { bsonType: ["int", "long"], minimum: 1 },
+    action: { enum: ["ARCHIVE", "DELETE", "ANONYMIZE"] }
+  }, ["policyCode", "entityType", "retentionDays", "action"]),
+
+  "ADM01__data_classifications": createValidator({
+    classificationCode: { bsonType: "string", minLength: 1 },
+    sensitivityLevel: { enum: ["LOW", "MEDIUM", "HIGH", "RESTRICTED"] },
+    encryptionRequired: { bsonType: "bool" }
+  }, ["classificationCode", "sensitivityLevel"]),
+
+  "ADM01__export_requests": createValidator({
+    exportId: { bsonType: "string", minLength: 1 },
+    entityType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["REQUESTED", "PROCESSING", "COMPLETED", "FAILED"] },
+    requestedBy: { bsonType: "string", minLength: 1 }
+  }, ["exportId", "entityType", "status", "requestedBy"]),
+
+  "ADM01__audit_logs": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    action: { bsonType: "string", minLength: 1 },
+    principalId: { bsonType: "string", minLength: 1 },
+    resourceType: { bsonType: "string", minLength: 1 },
+    status: { bsonType: "string", minLength: 1 }
+  }, ["eventId", "action", "principalId", "resourceType", "status"]),
+
+  "ADM01__workflow_instances": createValidator({
+    workflowId: { bsonType: "string", minLength: 1 },
+    workflowType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["RUNNING", "COMPLETED", "FAILED", "SUSPENDED"] }
+  }, ["workflowId", "workflowType", "status"]),
+
+  "ADM01__idempotency_records": createValidator({
+    idempotencyKey: { bsonType: "string", minLength: 1 },
+    expiresAt: { bsonType: "date" }
+  }, ["idempotencyKey", "expiresAt"]),
+
+  "ADM01__outbox_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    aggregateType: { bsonType: "string", minLength: 1 },
+    eventType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["PENDING", "DISPATCHED", "FAILED"] }
+  }, ["eventId", "aggregateType", "eventType", "status"]),
+
+  "ADM01__inbox_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    sourceService: { bsonType: "string", minLength: 1 },
+    eventType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["RECEIVED", "PROCESSED", "FAILED"] }
+  }, ["eventId", "sourceService", "eventType", "status"]),
+
+  "ADM01__dead_letter_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    failureReason: { bsonType: "string", minLength: 1 },
+    status: { enum: ["FAILED", "REPLAYED", "DISCARDED"] }
+  }, ["eventId", "failureReason", "status"]),
+
+  // --- ADM-02: College Operational Tier ---
+  "ADM02__college_profiles": createValidator({
+    collegeId: { bsonType: "string", minLength: 1 },
+    code: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,30}$" },
+    name: { bsonType: "string", minLength: 2, maxLength: 255 },
+    legalName: { bsonType: "string", minLength: 2, maxLength: 255 },
+    status: { enum: ["ACTIVE", "SUSPENDED", "INACTIVE"] },
+    accreditationRefs: { bsonType: "array", items: { bsonType: "string" } },
+    address: { bsonType: "string" },
+    contact: { bsonType: "object" }
+  }, ["collegeId", "code", "name", "status"]),
+
+  "ADM02__departments": createValidator({
+    departmentId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    code: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,30}$" },
+    name: { bsonType: "string", minLength: 2, maxLength: 255 },
+    headUserId: { bsonType: "string" },
+    parentDepartmentId: { bsonType: ["string", "null"] },
+    status: { enum: ["ACTIVE", "RETIRED"] }
+  }, ["departmentId", "collegeId", "code", "name", "status"]),
+
+  "ADM02__programs": createValidator({
+    programId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    departmentId: { bsonType: "string", minLength: 1 },
+    code: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,30}$" },
+    name: { bsonType: "string", minLength: 2, maxLength: 255 },
+    durationYears: { bsonType: ["int", "long"], minimum: 1, maximum: 10 },
+    level: { bsonType: "string" },
+    published: { bsonType: "bool" },
+    status: { enum: ["ACTIVE", "DISCONTINUED", "DRAFT"] }
+  }, ["programId", "collegeId", "departmentId", "code", "name", "durationYears", "status"]),
+
+  "ADM02__college_calendar_configuration": createValidator({
+    calendarConfigId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    academicYear: { bsonType: "string", minLength: 4 },
+    workingDaysPerWeek: { bsonType: ["int", "long"], minimum: 1, maximum: 7 },
+    status: { enum: ["DRAFT", "PUBLISHED", "ARCHIVED"] }
+  }, ["calendarConfigId", "collegeId", "academicYear", "status"]),
+
+  "ADM02__college_settings": createValidator({
+    settingKey: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    settingValue: { bsonType: "string" },
+    dataType: { bsonType: "string" },
+    isOverridden: { bsonType: "bool" }
+  }, ["collegeId", "settingKey", "settingValue"]),
+
+  "ADM02__feature_overrides": createValidator({
+    flagKey: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    enabled: { bsonType: "bool" }
+  }, ["collegeId", "flagKey", "enabled"]),
+
+  "ADM02__college_users": createValidator({
+    userId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    username: { bsonType: "string", minLength: 3 },
+    email: { bsonType: "string", pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+    fullName: { bsonType: "string", minLength: 1 },
+    departmentId: { bsonType: "string" },
+    status: { enum: ["ACTIVE", "SUSPENDED", "INACTIVE"] }
+  }, ["userId", "collegeId", "username", "email", "status"]),
+
+  "ADM02__college_roles": createValidator({
+    roleCode: { bsonType: "string", pattern: "^[A-Z0-9_-]{2,50}$" },
+    collegeId: { bsonType: "string", minLength: 1 },
+    name: { bsonType: "string", minLength: 1 },
+    permissions: { bsonType: "array", items: { bsonType: "string" } }
+  }, ["roleCode", "collegeId", "name"]),
+
+  "ADM02__role_assignments": createValidator({
+    assignmentId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    userId: { bsonType: "string", minLength: 1 },
+    roleCode: { bsonType: "string", minLength: 1 }
+  }, ["assignmentId", "collegeId", "userId", "roleCode"]),
+
+  "ADM02__department_access": createValidator({
+    accessId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    userId: { bsonType: "string", minLength: 1 },
+    departmentId: { bsonType: "string", minLength: 1 },
+    accessLevel: { enum: ["READ", "WRITE", "ADMIN"] }
+  }, ["accessId", "collegeId", "userId", "departmentId", "accessLevel"]),
+
+  "ADM02__user_import_jobs": createValidator({
+    jobId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    entityType: { enum: ["STUDENT", "FACULTY", "DEPARTMENT", "COURSE"] },
+    mode: { enum: ["INSERT", "UPSERT", "REPLACE"] },
+    status: { enum: ["PENDING", "PROCESSING", "COMPLETED", "FAILED"] },
+    totalRows: { bsonType: ["int", "long"], minimum: 0 },
+    processedRows: { bsonType: ["int", "long"], minimum: 0 },
+    failedRows: { bsonType: ["int", "long"], minimum: 0 }
+  }, ["jobId", "collegeId", "entityType", "status"]),
+
+  "ADM02__data_import_rows": createValidator({
+    rowId: { bsonType: "string", minLength: 1 },
+    jobId: { bsonType: "string", minLength: 1 },
+    rowNumber: { bsonType: ["int", "long"], minimum: 1 },
+    status: { enum: ["PENDING", "SUCCESS", "VALIDATION_FAILED", "SYSTEM_ERROR"] }
+  }, ["jobId", "rowNumber", "status"]),
+
+  "ADM02__data_quality_issues": createValidator({
+    issueId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    jobId: { bsonType: "string" },
+    severity: { enum: ["WARNING", "ERROR"] },
+    ruleName: { bsonType: "string", minLength: 1 }
+  }, ["issueId", "collegeId", "severity", "ruleName"]),
+
+  "ADM02__document_metadata": createValidator({
+    documentId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    documentType: { bsonType: "string", minLength: 1 },
+    title: { bsonType: "string", minLength: 1 },
+    ownerId: { bsonType: "string" },
+    classification: { enum: ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"] },
+    status: { enum: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "PUBLISHED", "ARCHIVED"] },
+    checksum: { bsonType: "string" },
+    sizeBytes: { bsonType: ["int", "long", "double"], minimum: 0 }
+  }, ["documentId", "collegeId", "documentType", "title", "classification", "status"]),
+
+  "ADM02__report_definitions": createValidator({
+    reportId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    name: { bsonType: "string", minLength: 1 }
+  }, ["reportId", "collegeId", "name"]),
+
+  "ADM02__report_runs": createValidator({
+    runId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    reportId: { bsonType: "string", minLength: 1 },
+    status: { enum: ["QUEUED", "RUNNING", "COMPLETED", "FAILED"] }
+  }, ["runId", "collegeId", "reportId", "status"]),
+
+  "ADM02__report_schedules": createValidator({
+    scheduleId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    reportId: { bsonType: "string", minLength: 1 },
+    cronExpression: { bsonType: "string", minLength: 5 },
+    active: { bsonType: "bool" }
+  }, ["scheduleId", "collegeId", "reportId", "cronExpression", "active"]),
+
+  "ADM02__dashboard_snapshots": createValidator({
+    snapshotId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    dashboardType: { bsonType: "string", minLength: 1 },
+    capturedAt: { bsonType: "date" }
+  }, ["snapshotId", "collegeId", "dashboardType", "capturedAt"]),
+
+  "ADM02__approval_requests": createValidator({
+    requestId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    resourceType: { bsonType: "string", minLength: 1 },
+    resourceId: { bsonType: "string", minLength: 1 },
+    status: { enum: ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] }
+  }, ["requestId", "collegeId", "resourceType", "resourceId", "status"]),
+
+  "ADM02__workflow_tasks": createValidator({
+    taskId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    status: { enum: ["OPEN", "IN_PROGRESS", "COMPLETED", "BLOCKED"] }
+  }, ["taskId", "collegeId", "status"]),
+
+  "ADM02__data_export_requests": createValidator({
+    exportId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    entityType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["REQUESTED", "PROCESSING", "COMPLETED", "FAILED"] }
+  }, ["exportId", "collegeId", "status"]),
+
+  "ADM02__configuration_history": createValidator({
+    historyId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    settingKey: { bsonType: "string", minLength: 1 },
+    changedBy: { bsonType: "string" }
+  }, ["historyId", "collegeId", "settingKey", "changedBy"]),
+
+  "ADM02__audit_logs": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    collegeId: { bsonType: "string", minLength: 1 },
+    action: { bsonType: "string", minLength: 1 },
+    principalId: { bsonType: "string", minLength: 1 },
+    resourceType: { bsonType: "string", minLength: 1 },
+    status: { bsonType: "string", minLength: 1 }
+  }, ["eventId", "collegeId", "action", "principalId", "resourceType", "status"]),
+
+  "ADM02__idempotency_records": createValidator({
+    idempotencyKey: { bsonType: "string", minLength: 1 },
+    expiresAt: { bsonType: "date" }
+  }, ["idempotencyKey", "expiresAt"]),
+
+  "ADM02__outbox_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    aggregateType: { bsonType: "string", minLength: 1 },
+    eventType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["PENDING", "DISPATCHED", "FAILED"] }
+  }, ["eventId", "aggregateType", "eventType", "status"]),
+
+  "ADM02__inbox_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    sourceService: { bsonType: "string", minLength: 1 },
+    eventType: { bsonType: "string", minLength: 1 },
+    status: { enum: ["RECEIVED", "PROCESSED", "FAILED"] }
+  }, ["eventId", "sourceService", "eventType", "status"]),
+
+  "ADM02__dead_letter_events": createValidator({
+    eventId: { bsonType: "string", minLength: 1 },
+    failureReason: { bsonType: "string", minLength: 1 },
+    status: { enum: ["FAILED", "REPLAYED", "DISCARDED"] }
+  }, ["eventId", "failureReason", "status"])
+};
+
+// -----------------------------------------------------------------------------
+// ADM Unique and Compound Business Indexes
+// -----------------------------------------------------------------------------
+
+const admIndexes = {
+  // ACD-03 Subject Management Service Indexes
+  "ACD03__subjects": [
+    { key: { tenantId: 1, institutionId: 1, subjectCode: 1 }, options: { unique: true, partialFilterExpression: { subjectCode: { $exists: true } }, name: "ux_tenant_inst_subject_code" } },
+    { key: { tenantId: 1, departmentId: 1, status: 1 }, options: { name: "ix_tenant_dept_subject_status" } },
+    { key: { tenantId: 1, crossListedDepartmentIds: 1 }, options: { sparse: true, name: "ix_tenant_cross_listed_depts" } },
+    { key: { tenantId: 1, subjectType: 1 }, options: { name: "ix_tenant_subject_type" } },
+    { key: { subjectId: 1 }, options: { unique: true, sparse: true, name: "ux_subject_id" } }
+  ],
+  "ACD03__subject_versions": [
+    { key: { subjectId: 1, versionNo: 1 }, options: { unique: true, partialFilterExpression: { versionNo: { $exists: true } }, name: "ux_subject_version_no" } },
+    { key: { subjectId: 1, status: 1 }, options: { name: "ix_subject_version_status" } },
+    { key: { tenantId: 1, status: 1 }, options: { name: "ix_subject_version_tenant_status" } }
+  ],
+  "ACD03__subject_metadata": [
+    { key: { subjectId: 1 }, options: { unique: true, partialFilterExpression: { subjectId: { $exists: true } }, name: "ux_subject_metadata_id" } },
+    { key: { tenantId: 1, sensitivityLevel: 1 }, options: { name: "ix_subject_meta_sensitivity" } },
+    { key: { "nationalIdentifiers.identifierValue": 1, "nationalIdentifiers.scheme": 1 }, options: { sparse: true, name: "ix_subject_national_id" } }
+  ],
+  "ACD03__subject_prerequisites": [
+    { key: { subjectId: 1, prerequisiteSubjectId: 1 }, options: { unique: true, partialFilterExpression: { prerequisiteSubjectId: { $exists: true } }, name: "ux_subject_prerequisite_edge" } },
+    { key: { prerequisiteSubjectId: 1 }, options: { name: "ix_subject_reverse_prereq" } },
+    { key: { subjectId: 1, relationshipType: 1, status: 1 }, options: { name: "ix_subject_prereq_type_status" } }
+  ],
+  "ACD03__subject_equivalences": [
+    { key: { sourceSubjectId: 1, targetSubjectId: 1, equivalenceType: 1 }, options: { unique: true, partialFilterExpression: { sourceSubjectId: { $exists: true } }, name: "ux_subject_equivalence_edge" } },
+    { key: { targetSubjectId: 1 }, options: { name: "ix_subject_reverse_equivalence" } },
+    { key: { tenantId: 1, equivalenceType: 1, status: 1 }, options: { name: "ix_subject_equivalence_type" } }
+  ],
+  "ACD03__subject_history": [
+    { key: { subjectId: 1, createdAt: -1 }, options: { name: "ix_subject_history_timeline" } },
+    { key: { tenantId: 1, actorId: 1 }, options: { name: "ix_subject_history_actor" } }
+  ],
+  "ACD03__outbox_events": [
+    { key: { eventId: 1 }, options: { unique: true, sparse: true, name: "ux_outbox_event_id" } },
+    { key: { tenantId: 1, status: 1, createdAt: 1 }, options: { name: "ix_outbox_dispatch_queue" } }
+  ],
+  "ACD03__idempotency_records": [
+    { key: { tenantId: 1, idempotencyKey: 1 }, options: { unique: true, sparse: true, name: "ux_tenant_idempotency" } },
+    { key: { expiresAt: 1 }, options: { expireAfterSeconds: 0, sparse: true, name: "ttl_idempotency" } }
+  ],
+  "ACD03__dead_letter_events": [
+    { key: { eventId: 1 }, options: { unique: true, sparse: true, name: "ux_dead_letter_event_id" } },
+    { key: { tenantId: 1, status: 1, createdAt: -1 }, options: { name: "ix_dlq_replay_queue" } }
+  ],
+
+  // ADM-01 Indexes
+  "ADM01__institutes": [
+    { key: { instituteId: 1 }, options: { unique: true, sparse: true, name: "ux_institute_id" } },
+    { key: { code: 1 }, options: { unique: true, sparse: true, name: "ux_institute_code" } },
+    { key: { status: 1, updatedAt: -1 }, options: { name: "ix_institute_status_updated" } }
+  ],
+  "ADM01__colleges": [
+    { key: { collegeId: 1 }, options: { unique: true, sparse: true, name: "ux_college_id" } },
+    { key: { instituteId: 1, code: 1 }, options: { unique: true, sparse: true, name: "ux_institute_college_code" } },
+    { key: { instituteId: 1, provisioningStatus: 1 }, options: { name: "ix_institute_provisioning_status" } }
+  ],
+  "ADM01__tenant_provisioning": [
+    { key: { provisioningId: 1 }, options: { unique: true, sparse: true, name: "ux_provisioning_id" } },
+    { key: { idempotencyKey: 1 }, options: { unique: true, sparse: true, name: "ux_provisioning_idempotency" } },
+    { key: { collegeId: 1, createdAt: -1 }, options: { name: "ix_college_provisioning_history" } }
+  ],
+  "ADM01__global_settings": [
+    { key: { scope: 1, settingKey: 1, version: 1 }, options: { unique: true, partialFilterExpression: { settingKey: { $exists: true } }, name: "ux_setting_scope_key_ver" } },
+    { key: { settingKey: 1, effectiveFrom: -1 }, options: { name: "ix_setting_effective" } }
+  ],
+  "ADM01__feature_flags": [
+    { key: { flagKey: 1 }, options: { unique: true, sparse: true, name: "ux_feature_flag_key" } }
+  ],
+  "ADM01__global_policies": [
+    { key: { policyCode: 1 }, options: { unique: true, sparse: true, name: "ux_global_policy_code" } }
+  ],
+  "ADM01__admin_users": [
+    { key: { username: 1 }, options: { unique: true, sparse: true, name: "ux_admin_username" } },
+    { key: { email: 1 }, options: { unique: true, sparse: true, name: "ux_admin_email" } }
+  ],
+  "ADM01__roles": [
+    { key: { roleCode: 1 }, options: { unique: true, sparse: true, name: "ux_admin_role_code" } }
+  ],
+  "ADM01__permissions": [
+    { key: { permissionCode: 1 }, options: { unique: true, sparse: true, name: "ux_permission_code" } }
+  ],
+  "ADM01__role_bindings": [
+    { key: { principalId: 1, roleCode: 1, scope: 1 }, options: { unique: true, partialFilterExpression: { principalId: { $exists: true } }, name: "ux_role_binding" } }
+  ],
+  "ADM01__subscription_plans": [
+    { key: { planCode: 1 }, options: { unique: true, sparse: true, name: "ux_plan_code" } }
+  ],
+  "ADM01__subscriptions": [
+    { key: { subscriptionId: 1 }, options: { unique: true, sparse: true, name: "ux_subscription_id" } },
+    { key: { instituteId: 1, status: 1 }, options: { name: "ix_institute_subscription" } }
+  ],
+  "ADM01__invoices": [
+    { key: { invoiceNumber: 1 }, options: { unique: true, sparse: true, name: "ux_invoice_number" } },
+    { key: { subscriptionId: 1, status: 1 }, options: { name: "ix_subscription_invoices" } }
+  ],
+  "ADM01__billing_gateway_transactions": [
+    { key: { transactionId: 1 }, options: { unique: true, sparse: true, name: "ux_transaction_id" } },
+    { key: { invoiceId: 1 }, options: { name: "ix_invoice_transactions" } }
+  ],
+
+  // ADM-02 Indexes
+  "ADM02__college_profiles": [
+    { key: { collegeId: 1 }, options: { unique: true, sparse: true, name: "ux_college_profile_id" } },
+    { key: { tenantId: 1, code: 1 }, options: { unique: true, partialFilterExpression: { code: { $exists: true } }, name: "ux_tenant_college_code" } }
+  ],
+  "ADM02__departments": [
+    { key: { collegeId: 1, code: 1 }, options: { unique: true, partialFilterExpression: { code: { $exists: true } }, name: "ux_college_department_code" } },
+    { key: { collegeId: 1, status: 1 }, options: { name: "ix_college_department_status" } },
+    { key: { parentDepartmentId: 1 }, options: { sparse: true, name: "ix_parent_department" } }
+  ],
+  "ADM02__programs": [
+    { key: { collegeId: 1, code: 1 }, options: { unique: true, partialFilterExpression: { code: { $exists: true } }, name: "ux_college_program_code" } },
+    { key: { collegeId: 1, departmentId: 1, status: 1 }, options: { name: "ix_college_dept_program_status" } }
+  ],
+  "ADM02__college_calendar_configuration": [
+    { key: { collegeId: 1, academicYear: 1 }, options: { unique: true, partialFilterExpression: { academicYear: { $exists: true } }, name: "ux_college_academic_year_calendar" } }
+  ],
+  "ADM02__college_settings": [
+    { key: { collegeId: 1, settingKey: 1 }, options: { unique: true, partialFilterExpression: { settingKey: { $exists: true } }, name: "ux_college_setting_key" } }
+  ],
+  "ADM02__feature_overrides": [
+    { key: { collegeId: 1, flagKey: 1 }, options: { unique: true, partialFilterExpression: { flagKey: { $exists: true } }, name: "ux_college_feature_override" } }
+  ],
+  "ADM02__college_users": [
+    { key: { collegeId: 1, username: 1 }, options: { unique: true, partialFilterExpression: { username: { $exists: true } }, name: "ux_college_username" } },
+    { key: { collegeId: 1, email: 1 }, options: { unique: true, partialFilterExpression: { email: { $exists: true } }, name: "ux_college_user_email" } },
+    { key: { collegeId: 1, departmentId: 1 }, options: { name: "ix_college_user_department" } }
+  ],
+  "ADM02__college_roles": [
+    { key: { collegeId: 1, roleCode: 1 }, options: { unique: true, partialFilterExpression: { roleCode: { $exists: true } }, name: "ux_college_role_code" } }
+  ],
+  "ADM02__role_assignments": [
+    { key: { collegeId: 1, userId: 1, roleCode: 1 }, options: { unique: true, partialFilterExpression: { userId: { $exists: true } }, name: "ux_college_role_assignment" } }
+  ],
+  "ADM02__department_access": [
+    { key: { collegeId: 1, userId: 1, departmentId: 1 }, options: { unique: true, partialFilterExpression: { departmentId: { $exists: true } }, name: "ux_college_dept_access" } }
+  ],
+  "ADM02__user_import_jobs": [
+    { key: { jobId: 1 }, options: { unique: true, sparse: true, name: "ux_user_import_job_id" } },
+    { key: { collegeId: 1, status: 1, createdAt: -1 }, options: { name: "ix_college_import_jobs" } }
+  ],
+  "ADM02__data_import_rows": [
+    { key: { jobId: 1, rowNumber: 1 }, options: { unique: true, partialFilterExpression: { rowNumber: { $exists: true } }, name: "ux_job_row_number" } },
+    { key: { jobId: 1, status: 1 }, options: { name: "ix_job_row_status" } }
+  ],
+  "ADM02__data_quality_issues": [
+    { key: { issueId: 1 }, options: { unique: true, sparse: true, name: "ux_data_issue_id" } },
+    { key: { collegeId: 1, jobId: 1 }, options: { name: "ix_college_job_issues" } }
+  ],
+  "ADM02__document_metadata": [
+    { key: { documentId: 1 }, options: { unique: true, sparse: true, name: "ux_document_id" } },
+    { key: { collegeId: 1, documentType: 1, status: 1 }, options: { name: "ix_college_doc_type_status" } },
+    { key: { collegeId: 1, classification: 1 }, options: { name: "ix_college_doc_classification" } }
+  ],
+  "ADM02__report_definitions": [
+    { key: { reportId: 1 }, options: { unique: true, sparse: true, name: "ux_report_id" } },
+    { key: { collegeId: 1, name: 1 }, options: { unique: true, partialFilterExpression: { name: { $exists: true } }, name: "ux_college_report_name" } }
+  ],
+  "ADM02__report_runs": [
+    { key: { runId: 1 }, options: { unique: true, sparse: true, name: "ux_report_run_id" } },
+    { key: { collegeId: 1, reportId: 1, createdAt: -1 }, options: { name: "ix_college_report_runs" } }
+  ],
+  "ADM02__approval_requests": [
+    { key: { requestId: 1 }, options: { unique: true, sparse: true, name: "ux_approval_request_id" } },
+    { key: { collegeId: 1, status: 1, createdAt: -1 }, options: { name: "ix_college_approvals" } }
+  ],
+  "ADM02__workflow_tasks": [
+    { key: { taskId: 1 }, options: { unique: true, sparse: true, name: "ux_workflow_task_id" } },
+    { key: { collegeId: 1, assigneeId: 1, status: 1 }, options: { name: "ix_college_user_tasks" } }
+  ]
+};
+
+// -----------------------------------------------------------------------------
+// Execution Routine
+// -----------------------------------------------------------------------------
+
 collectionSpecs.forEach(s => {
-  createOrUpdateCollection(s.collection, baselineValidator());
+  const validator = admValidators[s.collection] || baselineValidator();
+  createOrUpdateCollection(s.collection, validator);
   addBaselineIndexes(s.collection);
   addSpecialIndexes(s.collection, s.sourceCollection);
+
+  if (admIndexes[s.collection]) {
+    const c = dbx.getCollection(s.collection);
+    for (const idx of admIndexes[s.collection]) {
+      try {
+        c.createIndex(idx.key, idx.options || {});
+      } catch (e) {
+        print('  [INDEX NOTICE] ' + s.collection + ' - ' + e.message);
+      }
+    }
+  }
 
   dbx.getCollection("SYS__collection_registry").updateOne(
     {
@@ -1213,7 +2038,7 @@ print(" CampXSync MongoDB bootstrap completed");
 print(" Database      : " + DB_NAME);
 print(" Domain cols   : " + collectionSpecs.length);
 print(" System cols   : 3");
-print(" Existing domain: 828");
+print(" Existing domain: 830");
 print(" ADM domain     : 55 (reconciled)");
 print(" Total domain   : " + collectionSpecs.length);
 print(" Renamed/re-associated ADM collections: 18");

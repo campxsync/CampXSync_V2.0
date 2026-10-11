@@ -12,37 +12,38 @@
 The **CampXSync API Gateway** functions as the unified reverse proxy, perimeter security layer, and correlation dispatcher for the entire CampXSync microservices ecosystem. It routes external client calls to the appropriate downstream services, manages distributed tracing headers, enforces resilience timeouts, and standardizes error responses according to the **RFC 7807 Problem Details** specification.
 
 ```
-+-------------------------------------------------------------------------+
-|                           External Clients                              |
-|           (Web Applications, Mobile Apps, Third-Party Integrations)     |
-+------------------------------------+------------------------------------+
-                                     |
-                                     | HTTP REST (JSON)
-                                     v
-+-------------------------------------------------------------------------+
-|                        CampXSync API Gateway                            |
-|                        Port: 8080 (Ingress)                             |
-|                                                                         |
-|  * Correlation Tracking (X-Trace-Id, X-Tenant-Id, X-User-Id)            |
-|  * Context Dispatch & Route Resolution                                  |
-|  * Reverse Proxy & Payload Forwarding                                   |
-|  * Network Resilience (Connect: 5000ms, Read: 10000ms)                  |
-|  * Downstream Error Pass-Through & RFC 7807 Fault Handling              |
-|  * Health & Route Introspection (/actuator/health, /api/v1/gateway/routes)|
-+--------------------+--------------------------------+--------------------+
-                     |                                |
-        /api/v1/admin/**              /api/v1/college-admin/**
-        /v1/institutes/**             /v1/college-profile/**
-        /v1/platform-configs/**       /v1/departments/**
-        /v1/billing-accounts/**       /v1/programs/**
-        /v1/platform-audit-logs/**    /v1/imports/**, /v1/documents/**
-                     |                                |
-                     v                                v
-+------------------------------------+  +------------------------------------+
-|  ADM-01 Institute Admin Service    |  |    ADM-02 College Admin Service    |
-|  (Platform & Multi-Tenant Tier)    |  |     (College Operations Tier)      |
-|  Target: http://localhost:8081     |  |   Target: http://localhost:8082    |
-+------------------------------------+  +------------------------------------+
++---------------------------------------------------------------------------------------------------+
+|                                        External Clients                                           |
+|                     (Web Applications, Mobile Apps, Third-Party Integrations)                     |
++-------------------------------------------------+-------------------------------------------------+
+                                                  |
+                                                  | HTTP REST (JSON) / Metrics Ingress
+                                                  v
++---------------------------------------------------------------------------------------------------+
+|                                       CampXSync API Gateway                                       |
+|                                       Port: 8080 (Ingress)                                        |
+|                                                                                                   |
+|  * Correlation Tracking (X-Trace-Id, X-Tenant-Id, X-User-Id, X-User-Role, X-Forwarded-For)        |
+|  * Longest-Prefix Match (LPM) Dynamic Route Resolution                                            |
+|  * Reverse Proxy Streaming & Payload Forwarding                                                   |
+|  * Network Resilience (Connect: 5,000ms, Read: 10,000ms)                                          |
+|  * Downstream Error Pass-Through & RFC 7807 Fault Handling                                        |
+|  * Liveness & Route Introspection (/actuator/health, /api/v1/gateway/routes)                       |
++--------+------------------+-------------------+-------------------+-------------------+---------------+
+         |                  |                   |                   |                   |               |
+    /api/v1/admin/**   /api/v1/college-    /api/v1/courses/**  /api/v1/curricula/**/api/v1/subjects//api/v1/batches
+    /v1/institutes/**    admin/**          /v1/courses/**      /api/v1/academics/  /v1/subjects/**  /v1/batches/**
+    /v1/platform-**    /v1/college-**      /v1/course-catalog    curricula/**      /v1/subject-     /v1/batch-catalog
+    /v1/billing-**     /v1/departments/**                      /v1/curricula/**      catalog        /metrics
+    /v1/audit-logs     /v1/programs/**                         /v1/curriculum-catalog
+         |                  |                   |                   |                   |               |
+         v                  v                   v                   v                   v               v
++------------------+ +------------------+ +------------------+ +------------------+ +---------------+ +---------------+
+| ADM-01 Institute | |  ADM-02 College  | |  ACD-01 Course   | | ACD-02 Curriculum| | ACD-03 Subject| | ACD-04 Batch  |
+|  Admin Service   | |  Admin Service   | |Management Service| |Management Service| |Management Svc | |Management Svc |
+|  (Platform Tier) | |  (College Tier)  | |  (Academic Tier) | |  (Academic Tier) | |(Academic Tier)| |(Academic Tier)|
+| Port: 8081       | | Port: 8082       | | Port: 8083       | | Port: 8084       | | Port: 8085    | | Port: 8086    |
++------------------+ +------------------+ +------------------+ +------------------+ +---------------+ +---------------+
 ```
 
 ---
@@ -72,6 +73,73 @@ The API Gateway provides two route surfaces:
 | **GW-15** | `/api/v1/academics/courses` | `http://localhost:8083/api/v1/academics/courses` | ACD-01 Course Management | 8083 | Academic Tier (Namespace Ingress) |
 | **GW-16** | `/v1/courses` | `http://localhost:8083/api/v1/courses` | ACD-01 Course Management | 8083 | Course Management Canonical Alias |
 | **GW-17** | `/v1/course-catalog` | `http://localhost:8083/api/v1/courses/catalog` | ACD-01 Course Management | 8083 | Published Course Catalog Alias |
+| **GW-18** | `/api/v1/curricula/metrics` | `http://localhost:8084/metrics` | ACD-02 Curriculum Management | 8084 | Prometheus Metrics Endpoint |
+| **GW-19** | `/api/v1/curricula` | `http://localhost:8084/api/v1/curricula` | ACD-02 Curriculum Management | 8084 | Academic Tier (Direct Full Ingress) |
+| **GW-20** | `/api/v1/academics/curricula` | `http://localhost:8084/api/v1/academics/curricula` | ACD-02 Curriculum Management | 8084 | Academic Tier (Namespace Ingress) |
+| **GW-21** | `/api/v1/active` | `http://localhost:8084/api/v1/curricula/active` | ACD-02 Curriculum Management | 8084 | Active Curriculum Ingress |
+| **GW-22** | `/v1/curricula` | `http://localhost:8084/api/v1/curricula` | ACD-02 Curriculum Management | 8084 | Curriculum Management Canonical Alias |
+| **GW-23** | `/v1/curriculum-catalog` | `http://localhost:8084/api/v1/curricula/active` | ACD-02 Curriculum Management | 8084 | Published Curriculum Catalog Alias |
+| **GW-24** | `/api/v1/subjects/metrics` | `http://localhost:8085/metrics` | ACD-03 Subject Management | 8085 | Prometheus Metrics Endpoint |
+| **GW-25** | `/api/v1/academics/subjects/metrics` | `http://localhost:8085/metrics` | ACD-03 Subject Management | 8085 | Prometheus Metrics Endpoint |
+| **GW-26** | `/api/v1/subjects` | `http://localhost:8085/api/v1/subjects` | ACD-03 Subject Management | 8085 | Academic Tier (Direct Full Ingress) |
+| **GW-27** | `/api/v1/academics/subjects` | `http://localhost:8085/api/v1/academics/subjects` | ACD-03 Subject Management | 8085 | Academic Tier (Namespace Ingress) |
+| **GW-28** | `/v1/subjects` | `http://localhost:8085/api/v1/subjects` | ACD-03 Subject Management | 8085 | Subject Management Canonical Alias |
+| **GW-29** | `/v1/subject-catalog` | `http://localhost:8085/api/v1/academics/subjects/catalog` | ACD-03 Subject Management | 8085 | Published Subject Catalog Alias |
+| **GW-30** | `/v1/college-workflows` | `http://localhost:8082/api/v1/college-admin/workflows` | ADM-02 College Admin | 8082 | Cross-Module Governance Workflows |
+| **GW-31** | `/v1/batch-approvals` | `http://localhost:8082/api/v1/college-admin/workflows/batch-approvals` | ADM-02 College Admin | 8082 | Cross-Module Batch Split/Merge Approvals (ACD-04) |
+| **GW-32** | `/v1/college-approvals` | `http://localhost:8082/api/v1/college-admin/approvals` | ADM-02 College Admin | 8082 | Academic Governance Approval Requests |
+| **GW-33** | `/v1/college-roles` | `http://localhost:8082/api/v1/college-admin/roles` | ADM-02 College Admin | 8082 | College Role Master (with Separation of Duties) |
+| **GW-34** | `/v1/college-permissions` | `http://localhost:8082/api/v1/college-admin/permissions` | ADM-02 College Admin | 8082 | College Permissions Master (incl. Cross-Module Codes) |
+| **GW-35** | `/v1/college-audit-logs` | `http://localhost:8082/api/v1/college-admin/audit-logs` | ADM-02 College Admin | 8082 | Cryptographic Tamper-Evident Audit Trail |
+| **GW-36** | `/api/v1/batches/metrics` | `http://localhost:8086/metrics` | ACD-04 Batch Management | 8086 | Prometheus Metrics Endpoint |
+| **GW-37** | `/api/v1/academics/batches/metrics` | `http://localhost:8086/metrics` | ACD-04 Batch Management | 8086 | Prometheus Metrics Endpoint |
+| **GW-38** | `/api/v1/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Academic Tier (Direct Full Ingress) |
+| **GW-39** | `/api/v1/academics/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Academic Tier (Namespace Ingress) |
+| **GW-40** | `/v1/batches` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Batch Management Canonical Alias |
+| **GW-41** | `/v1/batch-catalog` | `http://localhost:8086/api/v1/academics/batches` | ACD-04 Batch Management | 8086 | Published Batch Catalog Alias |
+| **GW-42** | `/api/v1/timetables/metrics` | `http://localhost:8087/metrics` | ACD-05 Timetable Management | 8087 | Prometheus Metrics Endpoint |
+| **GW-43** | `/api/v1/academics/timetables/metrics` | `http://localhost:8087/metrics` | ACD-05 Timetable Management | 8087 | Prometheus Metrics Endpoint |
+| **GW-44** | `/api/v1/timetables` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Academic Tier (Direct Ingress) |
+| **GW-45** | `/api/v1/academics/timetables` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Academic Tier (Namespace Ingress) |
+| **GW-46** | `/api/v1/export` | `http://localhost:8087/api/v1/academics/timetables/export` | ACD-05 Timetable Management | 8087 | Timetable Export Ingress |
+| **GW-47** | `/v1/timetables` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Timetable Management Canonical Alias |
+| **GW-48** | `/v1/timetable-catalog` | `http://localhost:8087/api/v1/academics/timetables` | ACD-05 Timetable Management | 8087 | Published Timetable Catalog Alias |
+| **GW-49** | `/api/v1/attendance/metrics` | `http://localhost:8088/metrics` | ACD-06 Attendance Management | 8088 | Prometheus Metrics Endpoint |
+| **GW-50** | `/api/v1/academics/attendance/metrics` | `http://localhost:8088/metrics` | ACD-06 Attendance Management | 8088 | Prometheus Metrics Endpoint |
+| **GW-51** | `/api/v1/attendance` | `http://localhost:8088/api/v1/academics/attendance` | ACD-06 Attendance Management | 8088 | Academic Tier (Direct Ingress) |
+| **GW-52** | `/api/v1/academics/attendance` | `http://localhost:8088/api/v1/academics/attendance` | ACD-06 Attendance Management | 8088 | Academic Tier (Namespace Ingress) |
+| **GW-53** | `/v1/attendance` | `http://localhost:8088/api/v1/academics/attendance` | ACD-06 Attendance Management | 8088 | Attendance Management Canonical Alias |
+| **GW-54** | `/v1/attendance-sessions` | `http://localhost:8088/api/v1/academics/attendance/sessions` | ACD-06 Attendance Management | 8088 | Attendance Sessions Alias |
+| **GW-55** | `/v1/attendance-summaries` | `http://localhost:8088/api/v1/academics/attendance/summaries` | ACD-06 Attendance Management | 8088 | Attendance Summaries Alias |
+| **GW-56** | `/v1/attendance-reports` | `http://localhost:8088/api/v1/academics/attendance/report` | ACD-06 Attendance Management | 8088 | Attendance Reports Alias |
+| **GW-57** | `/api/v1/calendars/metrics` | `http://localhost:8089/metrics` | ACD-07 Academic Calendar | 8089 | Prometheus Metrics Endpoint |
+| **GW-58** | `/api/v1/academics/calendars/metrics` | `http://localhost:8089/metrics` | ACD-07 Academic Calendar | 8089 | Prometheus Metrics Endpoint |
+| **GW-59** | `/api/v1/calendars` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Academic Tier (Direct Ingress) |
+| **GW-60** | `/api/v1/academics/calendars` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Academic Tier (Namespace Ingress) |
+| **GW-61** | `/api/v1/terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Academic Terms Ingress |
+| **GW-62** | `/api/v1/academics/terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Academic Terms Namespace Ingress |
+| **GW-63** | `/api/v1/events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Academic Events Ingress |
+| **GW-64** | `/api/v1/academics/events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Academic Events Namespace Ingress |
+| **GW-65** | `/v1/calendars` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Academic Calendar Canonical Alias |
+| **GW-66** | `/v1/calendar-terms` | `http://localhost:8089/api/v1/academics/terms` | ACD-07 Academic Calendar | 8089 | Calendar Terms Canonical Alias |
+| **GW-67** | `/v1/calendar-events` | `http://localhost:8089/api/v1/academics/events` | ACD-07 Academic Calendar | 8089 | Calendar Events Canonical Alias |
+| **GW-68** | `/v1/calendar-catalog` | `http://localhost:8089/api/v1/academics/calendars` | ACD-07 Academic Calendar | 8089 | Published Calendar Catalog Alias |
+| **GW-69** | `/api/v1/resources/metrics` | `http://localhost:8090/metrics` | ACD-08 Learning Resources | 8090 | Prometheus Metrics Endpoint |
+| **GW-70** | `/api/v1/academics/resources/metrics` | `http://localhost:8090/metrics` | ACD-08 Learning Resources | 8090 | Prometheus Metrics Endpoint |
+| **GW-71** | `/api/v1/resources` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Academic Tier (Direct Ingress) |
+| **GW-72** | `/api/v1/academics/resources` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Academic Tier (Namespace Ingress) |
+| **GW-73** | `/api/v1/versions` | `http://localhost:8090/api/v1/academics/versions` | ACD-08 Learning Resources | 8090 | Resource Versions Direct Ingress |
+| **GW-74** | `/api/v1/academics/versions` | `http://localhost:8090/api/v1/academics/versions` | ACD-08 Learning Resources | 8090 | Resource Versions Namespace Ingress |
+| **GW-75** | `/v1/resources` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Learning Resources Canonical Alias |
+| **GW-76** | `/v1/resource-catalog` | `http://localhost:8090/api/v1/academics/resources` | ACD-08 Learning Resources | 8090 | Published Resource Catalog Alias |
+| **GW-77** | `/v1/resource-versions` | `http://localhost:8090/api/v1/academics/versions` | ACD-08 Learning Resources | 8090 | Resource Versions Canonical Alias |
+| **GW-78** | `/api/v1/assessments/metrics` | `http://localhost:8091/metrics` | ACD-09 Assessment Mapping | 8091 | Prometheus Metrics Endpoint |
+| **GW-79** | `/api/v1/academics/assessments/metrics` | `http://localhost:8091/metrics` | ACD-09 Assessment Mapping | 8091 | Prometheus Metrics Endpoint |
+| **GW-80** | `/api/v1/assessments` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Academic Tier (Direct Ingress) |
+| **GW-81** | `/api/v1/academics/assessments` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Academic Tier (Namespace Ingress) |
+| **GW-82** | `/v1/assessments` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Assessment Mapping Canonical Alias |
+| **GW-83** | `/v1/assessment-catalog` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Published Assessment Catalog Alias |
+| **GW-84** | `/v1/assessment-mappings` | `http://localhost:8091/api/v1/academics/assessments` | ACD-09 Assessment Mapping | 8091 | Outcome Mappings Canonical Alias |
 
 ---
 
@@ -103,6 +171,16 @@ These endpoints are handled directly by the API Gateway process itself without p
   "routes": [
     { "prefix": "/api/v1/admin", "target": "http://localhost:8081/api/v1/admin" },
     { "prefix": "/api/v1/college-admin", "target": "http://localhost:8082/api/v1/college-admin" },
+    { "prefix": "/api/v1/courses", "target": "http://localhost:8083/api/v1/courses" },
+    { "prefix": "/api/v1/academics/courses", "target": "http://localhost:8083/api/v1/academics/courses" },
+    { "prefix": "/api/v1/curricula/metrics", "target": "http://localhost:8084/metrics" },
+    { "prefix": "/api/v1/curricula", "target": "http://localhost:8084/api/v1/curricula" },
+    { "prefix": "/api/v1/academics/curricula", "target": "http://localhost:8084/api/v1/academics/curricula" },
+    { "prefix": "/api/v1/active", "target": "http://localhost:8084/api/v1/curricula/active" },
+    { "prefix": "/api/v1/subjects/metrics", "target": "http://localhost:8085/metrics" },
+    { "prefix": "/api/v1/academics/subjects/metrics", "target": "http://localhost:8085/metrics" },
+    { "prefix": "/api/v1/subjects", "target": "http://localhost:8085/api/v1/subjects" },
+    { "prefix": "/api/v1/academics/subjects", "target": "http://localhost:8085/api/v1/academics/subjects" },
     { "prefix": "/v1/institutes", "target": "http://localhost:8081/api/v1/admin/institutes" },
     { "prefix": "/v1/platform-configs", "target": "http://localhost:8081/api/v1/admin/configuration" },
     { "prefix": "/v1/platform-roles", "target": "http://localhost:8081/api/v1/admin/roles" },
@@ -113,7 +191,22 @@ These endpoints are handled directly by the API Gateway process itself without p
     { "prefix": "/v1/programs", "target": "http://localhost:8082/api/v1/college-admin/programs" },
     { "prefix": "/v1/college-configs", "target": "http://localhost:8082/api/v1/college-admin/settings" },
     { "prefix": "/v1/imports", "target": "http://localhost:8082/api/v1/college-admin/imports" },
-    { "prefix": "/v1/documents", "target": "http://localhost:8082/api/v1/college-admin/documents" }
+    { "prefix": "/v1/documents", "target": "http://localhost:8082/api/v1/college-admin/documents" },
+    { "prefix": "/v1/courses", "target": "http://localhost:8083/api/v1/courses" },
+    { "prefix": "/v1/course-catalog", "target": "http://localhost:8083/api/v1/courses/catalog" },
+    { "prefix": "/v1/curricula", "target": "http://localhost:8084/api/v1/curricula" },
+    { "prefix": "/v1/curriculum-catalog", "target": "http://localhost:8084/api/v1/curricula/active" },
+    { "prefix": "/v1/subjects", "target": "http://localhost:8085/api/v1/subjects" },
+    { "prefix": "/v1/subject-catalog", "target": "http://localhost:8085/api/v1/academics/subjects/catalog" },
+    { "prefix": "/api/v1/resources/metrics", "target": "http://localhost:8090/metrics" },
+    { "prefix": "/api/v1/academics/resources/metrics", "target": "http://localhost:8090/metrics" },
+    { "prefix": "/api/v1/resources", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/api/v1/academics/resources", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/api/v1/versions", "target": "http://localhost:8090/api/v1/academics/versions" },
+    { "prefix": "/api/v1/academics/versions", "target": "http://localhost:8090/api/v1/academics/versions" },
+    { "prefix": "/v1/resources", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/v1/resource-catalog", "target": "http://localhost:8090/api/v1/academics/resources" },
+    { "prefix": "/v1/resource-versions", "target": "http://localhost:8090/api/v1/academics/versions" }
   ]
 }
 ```
@@ -542,6 +635,105 @@ All downstream microservice endpoints are fully accessible through the API Gatew
 }
 ```
 
+#### 14. Ingest Cross-Module Batch Split / Merge Approval Event (ACD-04)
+- **User Story**: CSV Line 40 (`ADM02_workflow_instances`, `ADM02_approval_requests`, `ADM02_inbox_events`)
+- **Gateway Path**: `POST /api/v1/college-admin/workflows/batch-approvals/events` or `POST /v1/batch-approvals/events`
+- **Target**: `POST http://localhost:8082/api/v1/college-admin/workflows/batch-approvals/events`
+- **Deduplication**: Deduplicated exactly-once on `eventId` via `ADM02_inbox_events`. Replays return `200 OK` with `status: "DUPLICATE_IGNORED"`.
+- **Request Body (Batch Split)**:
+```json
+{
+  "eventId": "EVT_SPLIT_20260925_001",
+  "eventType": "BatchSplitApprovalRequested",
+  "eventVersion": "1.0",
+  "tenantId": "CAMPUS_MAIN",
+  "institutionId": "INST_001",
+  "correlationId": "TRACE_SPLIT_001",
+  "timestamp": 1789973200000,
+  "sourceService": "ACD-04",
+  "data": {
+    "requestId": "REQ_SPLIT_9812",
+    "requestType": "SPLIT",
+    "sourceBatchId": "BAT-2026-CS-A",
+    "sourceBatchCode": "CS-A",
+    "departmentId": "DEP_CS",
+    "campusId": "MAIN",
+    "requestedBy": "ACAD_ADMIN_USER",
+    "requestedAt": 1789973200000,
+    "reason": "Split cohort into lab sections A1 and A2",
+    "proposedSections": ["A1", "A2"],
+    "approverRole": "REGISTRAR"
+  }
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "status": "PENDING",
+  "requestId": "REQ_SPLIT_9812",
+  "requestType": "SPLIT",
+  "workflowInstanceId": "CWF_BATCH_REQ_SPLIT_9812",
+  "approverRole": "REGISTRAR"
+}
+```
+
+#### 15. Query Batch Split / Merge Approval Requests
+- **User Story**: CSV Line 40 (`ADM02_approval_requests`)
+- **Gateway Path**: `GET /api/v1/college-admin/workflows/batch-approvals` or `GET /v1/batch-approvals`
+- **Target**: `GET http://localhost:8082/api/v1/college-admin/workflows/batch-approvals`
+- **Query Params**: `?status=PENDING` (optional)
+- **Response**: `200 OK`
+```json
+{
+  "batchApprovals": [
+    {
+      "requestId": "REQ_SPLIT_9812",
+      "requestType": "SPLIT",
+      "sourceBatchId": "BAT-2026-CS-A",
+      "status": "PENDING",
+      "approverRole": "REGISTRAR"
+    }
+  ]
+}
+```
+
+#### 16. Record Registrar Approval / Rejection Decision with Cryptographic Audit Trail
+- **User Story**: CSV Line 40 & 41 (`ADM02_audit_logs`, `ADM02_outbox_events`, `ADM02_workflow_instances`)
+- **Gateway Path**: `POST /api/v1/college-admin/workflows/batch-approvals/{requestId}/decide` or `POST /v1/batch-approvals/{requestId}/decide`
+- **Target**: `POST http://localhost:8082/api/v1/college-admin/workflows/batch-approvals/{requestId}/decide`
+- **Headers**: `X-User-Role: REGISTRAR` (enforced via HTTP 403 Forbidden for non-Registrar; anti-self-certification enforced via HTTP 400 Bad Request)
+- **Request Body**:
+```json
+{
+  "decision": "APPROVED",
+  "decidedBy": "REGISTRAR_DR_SMITH",
+  "reason": "Lab capacity and faculty allocation verified"
+}
+```
+- **Response**: `200 OK`
+```json
+{
+  "status": "APPROVED",
+  "requestId": "REQ_SPLIT_9812",
+  "decision": "APPROVED",
+  "decidedBy": "REGISTRAR_DR_SMITH",
+  "decidedAt": 1789973210000,
+  "reason": "Lab capacity and faculty allocation verified",
+  "auditRecordId": "692c8172-881b-49ef-9b21-4f90117a2201",
+  "beforeHash": "GENESIS_HASH_0000000000000000",
+  "afterHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
+```
+
+#### 17. Register Role with Separation of Duties (SoD) Enforcement
+- **User Story**: CSV Line 39 (`ADM02_permissions`, `ADM02_role_bindings`)
+- **Gateway Path**: `POST /api/v1/college-admin/roles` or `POST /v1/college-roles`
+- **Target**: `POST http://localhost:8082/api/v1/college-admin/roles`
+- **Rules**:
+  - `BATCH_SPLIT_REQUEST` cannot be combined with `BATCH_SPLIT_APPROVE` in the same role or principal binding.
+  - `BATCH_MERGE_REQUEST` cannot be combined with `BATCH_MERGE_APPROVE`.
+- **Conflict Response**: `400 Bad Request` with `errorCode: "ADM02_SEPARATION_OF_DUTIES_VIOLATION"`
+
 ---
 
 ### 4.3 ACD-01 Course Management Service Endpoints (`http://localhost:8083`)
@@ -633,6 +825,743 @@ All downstream microservice endpoints are fully accessible through the API Gatew
   "externalWeightage": 60.0
 }
 ```
+
+---
+
+### 4.4 ACD-02 Curriculum Management Service Endpoints (`http://localhost:8084`)
+
+#### 1. Create Master Curriculum
+- **Gateway Path**: `POST /api/v1/curricula` or `POST /api/v1/academics/curricula`
+- **Target**: `POST http://localhost:8084/api/v1/curricula`
+- **Headers**: `X-Trace-Id`, `X-Tenant-Id`, `X-User-Role: ACADEMIC_ADMIN`, `X-User-Id`
+- **Request Body**:
+```json
+{
+  "courseId": "CRS_CS101",
+  "name": "B.Tech Computer Science Curriculum 2026",
+  "academicPattern": "CBCS",
+  "academicYear": "2026-2027",
+  "departmentId": "DEP_CSE_01",
+  "campusId": "MAIN",
+  "institutionId": "INST_VIT_001"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "curriculumId": "CUR-9F8A2B1C",
+    "id": "CUR-9F8A2B1C",
+    "courseId": "CRS_CS101",
+    "version": 1,
+    "status": "DRAFT",
+    "academicPattern": "CBCS",
+    "name": "B.Tech Computer Science Curriculum 2026"
+  }
+}
+```
+
+#### 2. Query Active Curriculum Catalog
+- **Gateway Path**: `GET /api/v1/curricula/active`, `GET /api/v1/active`, or `GET /v1/curriculum-catalog`
+- **Target**: `GET http://localhost:8084/api/v1/curricula/active`
+- **Response**: `200 OK`
+```json
+{
+  "activeCurricula": [
+    {
+      "id": "CUR-9F8A2B1C",
+      "courseId": "CRS_CS101",
+      "status": "ACTIVE",
+      "currentVersion": 1,
+      "name": "B.Tech Computer Science Curriculum 2026"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### 3. Search and Filter Curricula
+- **Gateway Path**: `GET /api/v1/curricula?courseId=CRS_CS101&status=ACTIVE` or `GET /api/v1/academics/curricula?departmentId=DEP_CSE_01`
+- **Target**: `GET http://localhost:8084/api/v1/curricula`
+- **Response**: `200 OK`
+
+#### 4. Get Curriculum by ID
+- **Gateway Path**: `GET /api/v1/curricula/{id}` or `GET /api/v1/academics/curricula/{id}`
+- **Target**: `GET http://localhost:8084/api/v1/curricula/{id}`
+- **Response**: `200 OK`
+
+#### 5. Curriculum Lifecycle Governance & Transitions
+- **Gateway Path**:
+  - `POST /api/v1/curricula/{id}/submit` &rarr; Transition `DRAFT` &rarr; `UNDER_REVIEW`
+  - `POST /api/v1/curricula/{id}/review` &rarr; Records peer review feedback
+  - `POST /api/v1/curricula/{id}/approve` &rarr; Transition `UNDER_REVIEW` &rarr; `APPROVED` (Requires `ACADEMIC_DEAN` / `BOARD_OF_STUDIES`)
+  - `POST /api/v1/curricula/{id}/publish` &rarr; Transition `APPROVED` &rarr; `ACTIVE` (Auto-supersedes prior version)
+  - `POST /api/v1/curricula/{id}/retire` &rarr; Transition `ACTIVE` &rarr; `RETIRED`
+  - `POST /api/v1/curricula/{id}/annual-revision` &rarr; Spawns new incremental minor/major draft version
+  - `DELETE /api/v1/curricula/{id}` &rarr; Hard delete (permitted only in `DRAFT` status)
+- **Response**: `200 OK`
+
+#### 6. Semester Structure & Credit Allocation
+- **Gateway Path**: `POST /api/v1/curricula/{id}/versions/{v}/semesters`
+- **Target**: `POST http://localhost:8084/api/v1/curricula/{id}/versions/{v}/semesters`
+- **Request Body**:
+```json
+{
+  "semesterNumber": 3,
+  "minCredits": 18,
+  "maxCredits": 24,
+  "academicTerm": "ODD_SEMESTER_2026"
+}
+```
+- **Response**: `200 OK`
+
+#### 7. Subject Mapping into Curriculum Version
+- **Gateway Path**: `POST /api/v1/curricula/{id}/versions/{v}/subjects`
+- **Target**: `POST http://localhost:8084/api/v1/curricula/{id}/versions/{v}/subjects`
+- **Request Body**:
+```json
+{
+  "subjectId": "SUB-D93B2F10",
+  "subjectCode": "CS201",
+  "semesterNumber": 3,
+  "subjectType": "CORE",
+  "credits": 4.0
+}
+```
+- **Response**: `201 Created`
+- **Sub-resources**:
+  - `GET /api/v1/curricula/{id}/versions/{v}/subjects` &rarr; List mapped subjects
+  - `DELETE /api/v1/curricula/{id}/versions/{v}/subjects/{mappingId}` &rarr; Unmap subject
+
+#### 8. Syllabus Modules & Units Definition
+- **Gateway Path**: `PUT /api/v1/curricula/{id}/versions/{v}/syllabus`
+- **Target**: `PUT http://localhost:8084/api/v1/curricula/{id}/versions/{v}/syllabus`
+- **Request Body**:
+```json
+{
+  "subjectId": "SUB-D93B2F10",
+  "units": [
+    {
+      "unitNumber": 1,
+      "title": "Asymptotic Complexity & Elementary Structures",
+      "hours": 12,
+      "topics": ["Big-O notation", "Recurrence Relations", "Linked Lists"]
+    }
+  ]
+}
+```
+- **Response**: `200 OK`
+
+#### 9. Program Outcomes (PO) & Educational Objectives (Story 60)
+- **Gateway Path**: `POST /api/v1/curricula/{id}/versions/{v}/outcomes`
+- **Target**: `POST http://localhost:8084/api/v1/curricula/{id}/versions/{v}/outcomes`
+- **Request Body**:
+```json
+{
+  "outcomeCode": "PO1",
+  "description": "Apply engineering knowledge to solve complex computing problems.",
+  "category": "PROGRAM_OUTCOME",
+  "targetAttainment": 75.0
+}
+```
+- **Response**: `201 Created`
+
+#### 10. Curriculum Prerequisites (Cross-Course Progression)
+- **Gateway Path**: `POST /api/v1/curricula/{id}/prerequisites`
+- **Target**: `POST http://localhost:8084/api/v1/curricula/{id}/prerequisites`
+- **Response**: `201 Created` / `409 Conflict` (if circular dependency detected)
+
+#### 11. External API Key Validation & Read-Only Access (Story 63)
+- **Gateway Path**: `GET /api/v1/curricula/{id}` or `GET /api/v1/curricula/active`
+- **Headers**: `X-API-Key: campx_live_ak_99a8b7c6d5e4`
+- **Behavior**: Gateway forwards `X-API-Key` downstream. Downstream validates token, binds caller as `EXTERNAL_API`, and rejects any mutation requests (`POST`/`PUT`/`DELETE`) with `401 Unauthorized` or `403 Forbidden`.
+
+#### 12. Service Prometheus Metrics (Story 69)
+- **Gateway Path**: `GET /api/v1/curricula/metrics`
+- **Target**: `GET http://localhost:8084/metrics`
+- **Response**: `200 OK` (Prometheus exposition text: `acd02_request_total`, `acd02_request_duration_seconds`, `acd02_error_total`, etc.)
+
+---
+
+### 4.5 ACD-03 Subject Management Service Endpoints (`http://localhost:8085`)
+
+#### 1. Create Subject Master
+- **Gateway Path**: `POST /api/v1/academics/subjects` or `POST /v1/subjects`
+- **Target**: `POST http://localhost:8085/api/v1/academics/subjects`
+- **Headers**: `X-Trace-Id`, `X-Tenant-Id`, `X-User-Role: ACADEMIC_ADMIN`, `Idempotency-Key`
+- **Request Body**:
+```json
+{
+  "subjectCode": "CS201",
+  "name": "Data Structures & Algorithms",
+  "departmentId": "DEP_CSE_01",
+  "campusId": "MAIN",
+  "subjectType": "CORE",
+  "classification": "THEORY",
+  "credits": 4.0,
+  "contactHours": 60.0,
+  "elective": false,
+  "academicYear": "2026-2027"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "subjectId": "SUB-D93B2F10",
+    "subjectCode": "CS201",
+    "name": "Data Structures & Algorithms",
+    "version": 1,
+    "status": "ACTIVE"
+  },
+  "meta": {
+    "requestId": "TRACE-GW-SUB-001",
+    "correlationId": "TRACE-GW-SUB-001",
+    "timestamp": 1789973100000
+  }
+}
+```
+
+#### 2. Query Published Subject Catalog
+- **Gateway Path**: `GET /api/v1/academics/subjects/catalog` or `GET /v1/subject-catalog`
+- **Target**: `GET http://localhost:8085/api/v1/academics/subjects/catalog`
+- **Response**: `200 OK` (Public catalog; accessible to Students, Parents, External API)
+
+#### 3. Search Subjects with Filters
+- **Gateway Path**: `GET /api/v1/academics/subjects?departmentId=DEP_CSE_01&subjectType=CORE`
+- **Target**: `GET http://localhost:8085/api/v1/academics/subjects`
+- **Response**: `200 OK`
+
+#### 4. Add Subject Prerequisite (with DAG Cycle Prevention)
+- **Gateway Path**: `POST /api/v1/academics/subjects/{id}/prerequisites`
+- **Target**: `POST http://localhost:8085/api/v1/academics/subjects/{id}/prerequisites`
+- **Request Body**:
+```json
+{
+  "prerequisiteSubjectId": "SUB-CS101",
+  "relationshipType": "PREREQUISITE",
+  "mandatory": true,
+  "minimumGrade": "C"
+}
+```
+- **Response**: `201 Created` / `409 Conflict` (if cycle detected)
+
+#### 5. Subject Lifecycle Governance
+- **Gateway Path**:
+  - `POST /api/v1/academics/subjects/{id}/deactivate` &rarr; Transition to `DEACTIVATED`
+  - `POST /api/v1/academics/subjects/{id}/reactivate` &rarr; Transition to `ACTIVE`
+  - `POST /api/v1/academics/subjects/{id}/deprecate` &rarr; Transition to `DEPRECATED`
+  - `POST /api/v1/academics/subjects/{id}/retire` &rarr; Transition to `RETIRED`
+  - `DELETE /api/v1/academics/subjects/{id}` &rarr; Hard delete (blocked with 409 if in use)
+- **Response**: `200 OK`
+
+#### 6. Visual Side-by-Side Version Diff (Story 10)
+- **Gateway Path**: `GET /api/v1/academics/subjects/{id}/versions/diff?v1={v1}&v2={v2}`
+- **Target**: `GET http://localhost:8085/api/v1/academics/subjects/{id}/versions/diff?v1={v1}&v2={v2}`
+- **Response**: `200 OK`
+```json
+{
+  "subjectId": "SUB-D93B2F10",
+  "version1": 1,
+  "version2": 2,
+  "summary": "Compared version 1 and 2 of subject SUB-D93B2F10: 2 field(s) changed",
+  "differences": [
+    {
+      "fieldName": "credits",
+      "version1Value": "4.0",
+      "version2Value": "5.0",
+      "changed": true
+    }
+  ]
+}
+```
+
+#### 7. Course Outcomes (CO) Definition (Story 1)
+- **Gateway Path**: `PUT /api/v1/academics/subjects/{id}/versions/{v}/course-outcomes`
+- **Target**: `PUT http://localhost:8085/api/v1/academics/subjects/{id}/versions/{v}/course-outcomes`
+- **Request Body**:
+```json
+[
+  {
+    "outcomeCode": "CO1",
+    "statement": "Understand supervised and unsupervised learning algorithms",
+    "bloomLevel": "K2_UNDERSTAND",
+    "targetAttainment": 75.0
+  }
+]
+```
+- **Response**: `200 OK`
+
+#### 8. CO-to-PO Articulation Matrix (Story 2)
+- **Gateway Path**: `PUT /api/v1/academics/subjects/{id}/versions/{v}/co-po-matrix`
+- **Target**: `PUT http://localhost:8085/api/v1/academics/subjects/{id}/versions/{v}/co-po-matrix`
+- **Request Body**:
+```json
+[
+  {
+    "outcomeCode": "CO1",
+    "programOutcomeCode": "PO1",
+    "correlationStrength": 3
+  }
+]
+```
+- **Response**: `200 OK`
+
+#### 9. Modular Syllabus Units Breakdown (Story 5)
+- **Gateway Path**: `PUT /api/v1/academics/subjects/{id}/versions/{v}/syllabus-units`
+- **Target**: `PUT http://localhost:8085/api/v1/academics/subjects/{id}/versions/{v}/syllabus-units`
+- **Request Body**:
+```json
+[
+  {
+    "unitNumber": 1,
+    "title": "Virtualization and Containers",
+    "topics": ["Hypervisors", "Docker", "Kubernetes"],
+    "hours": 12.0
+  }
+]
+```
+- **Response**: `200 OK`
+
+#### 10. Subject Equivalences & Credit Transfer (Story 3)
+- **Gateway Path**: `POST /api/v1/academics/subjects/{id}/equivalences`
+- **Target**: `POST http://localhost:8085/api/v1/academics/subjects/{id}/equivalences`
+- **Request Body**:
+```json
+{
+  "targetSubjectId": "SUB-TARGET-99",
+  "equivalenceType": "DIRECT_SUBSTITUTION",
+  "transferMultiplier": 1.0,
+  "minimumGrade": "C",
+  "externalInstitutionName": "State Technical University",
+  "effectiveFrom": "2026-2027",
+  "effectiveTo": "2030-2031",
+  "status": "ACTIVE"
+}
+```
+- **Response**: `201 Created`
+
+#### 11. Board of Studies (BoS) Governance Resolution (Story 9)
+- **Gateway Path**: `PUT /api/v1/academics/subjects/{id}/versions/{v}/resolution`
+- **Target**: `PUT http://localhost:8085/api/v1/academics/subjects/{id}/versions/{v}/resolution`
+- **Request Body**:
+```json
+{
+  "resolutionNumber": "BOS-CSE-2026-R09",
+  "approvedByBoard": "Board of Studies",
+  "meetingDate": "2026-09-01",
+  "minutesUrl": "https://campx.edu/minutes/bos-2026-001",
+  "gazetteNotificationNumber": "GZ-2026-99"
+}
+```
+- **Response**: `200 OK`
+
+#### 12. Audit History & Temporal Trail (Story 63)
+- **Gateway Path**: `GET /api/v1/academics/subjects/{id}/history`
+- **Target**: `GET http://localhost:8085/api/v1/academics/subjects/{id}/history`
+- **Response**: `200 OK`
+
+#### 13. Service Prometheus Metrics
+- **Gateway Path**: `GET /api/v1/subjects/metrics`
+- **Target**: `GET http://localhost:8085/metrics`
+- **Response**: `200 OK` (Prometheus exposition text: `acd03_request_total`, `acd03_request_duration_seconds`, `acd03_error_total`, etc.)
+
+---
+
+### 4.5 ACD-04: Batch Management Service Endpoints (Academic Tier, Port 8086)
+
+The **Batch Management Service (ACD-04)** serves as the authoritative custodian of student cohort groupings, sections, configured capacity limits, authorized overrides, student roster enrollments, point-in-time audit history, and cross-module split/merge orchestrations gated by Registrar approval via ADM-02.
+
+```
+       +-------------------------------------------------------------+
+       |                  ACD-04 Batch Aggregate Root                |
+       |  (batchCode, courseId, semesterNo, capacity, status, ver)   |
+       +------------------------------+------------------------------+
+                                      |
+         +----------------------------+----------------------------+
+         |                            |                            |
+         v                            v                            v
++------------------+         +------------------+         +------------------+
+|   BatchSection   |         |   BatchRoster    |         | CapacityOverride |
+|  (secCode, cap,  |         | (studentId, stat,|         | (ovrCap, reason, |
+|    facultyId)    |         |   effectiveFrom) |         |  status: ACTIVE) |
++------------------+         +------------------+         +------------------+
+```
+
+#### 1. Create Draft Batch (Story 3)
+- **Gateway Path**: `POST /api/v1/academics/batches` or `POST /api/v1/batches`
+- **Target**: `POST http://localhost:8086/api/v1/academics/batches`
+- **Required Headers**: `Content-Type: application/json`, `X-User-Role: ACADEMIC_ADMIN`, `X-Trace-Id`, `X-Tenant-Id`
+- **Optional Header**: `Idempotency-Key` (Story 48)
+- **Request Body**:
+```json
+{
+  "batchCode": "CS-2024-A",
+  "name": "Computer Science Cohort 2024 Section A",
+  "courseId": "CRS-CS101",
+  "curriculumId": "CUR-9F8A2B1C",
+  "departmentId": "DEP-CS",
+  "campusId": "MAIN",
+  "academicYear": "2024-2025",
+  "semesterNo": 1,
+  "capacity": 60
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "batchId": "BATCH-101",
+    "batchCode": "CS-2024-A",
+    "name": "Computer Science Cohort 2024 Section A",
+    "status": "DRAFT",
+    "rosterCount": 0,
+    "capacity": 60,
+    "version": 1
+  },
+  "meta": {
+    "requestId": "REQ-7b89f012",
+    "correlationId": "TRACE-GW-BATCH-001",
+    "timestamp": 1789973000000
+  }
+}
+```
+
+#### 2. Search & Catalog Batches (Story 10)
+- **Gateway Path**: `GET /api/v1/academics/batches`, `GET /api/v1/batches`, or `GET /v1/batch-catalog`
+- **Target**: `GET http://localhost:8086/api/v1/academics/batches`
+- **Query Parameters**: `courseId`, `academicYear`, `semesterNo`, `departmentId`, `status`, `campusId`, `page`, `pageSize`
+- **Response**: `200 OK`
+
+#### 3. View Batch Detail (Story 8, 11)
+- **Gateway Path**: `GET /api/v1/academics/batches/{id}` or `GET /api/v1/batches/{id}`
+- **Target**: `GET http://localhost:8086/api/v1/academics/batches/{id}`
+- **Security Scoping**: Enforces Student view-own-batch and Parent read-only child batch context (Stories 11, 53).
+- **Response**: `200 OK`
+
+#### 4. Update Batch Details (Story 7, 49)
+- **Gateway Path**: `PUT /api/v1/academics/batches/{id}` or `PUT /api/v1/batches/{id}`
+- **Target**: `PUT http://localhost:8086/api/v1/academics/batches/{id}`
+- **Optimistic Concurrency**: Enforces version matching (BR-11, 409 `ACD_BATCH_VERSION_CONFLICT` on mismatch).
+- **Response**: `200 OK`
+
+#### 5. Batch Section Management (Stories 13-16)
+- **Create Section**: `POST /api/v1/batches/{id}/sections` &rarr; `201 Created`
+- **List Sections**: `GET /api/v1/batches/{id}/sections` &rarr; `200 OK`
+- **Assign Faculty (Optional)**: `POST /api/v1/batches/{id}/sections/{sectionId}/faculty` &rarr; `200 OK`
+
+#### 6. Capacity Management & Overrides (Stories 18-21, 72)
+- **Update Capacity**: `PUT /api/v1/academics/batches/{id}/capacity` (Must be positive and &ge; current `rosterCount`)
+- **Grant Capacity Override**: `POST /api/v1/academics/batches/{id}/capacity-override` (Story 20, 72)
+```json
+{
+  "overrideCapacity": 75,
+  "reason": "Dean approved expansion for transfer students",
+  "effectiveFrom": "2024-09-01",
+  "effectiveTo": "2025-12-31"
+}
+```
+- **Revoke Override**: `DELETE /api/v1/academics/batches/{id}/capacity-override/{overrideId}` &rarr; `200 OK`
+
+#### 7. Roster & Student Enrollment Management (Stories 23-29, 72, 73)
+- **Add Student to Roster**: `POST /api/v1/academics/batches/{id}/students`
+  - Validates student eligibility (BR-05; 422 if ineligible).
+  - Enforces duplicate assignment check (BR-06; 409 if already active).
+  - Enforces capacity limit (BR-04; 409 `ACD_BATCH_CAPACITY_EXCEEDED` unless active override).
+  - Blocks addition if batch is CLOSED/ARCHIVED (BR-07; 409 `ACD_BATCH_CLOSED`).
+- **Remove Student from Roster**: `DELETE /api/v1/academics/batches/{id}/students/{studentId}` (Soft-ends membership, preserves historical records).
+- **Get Current Active Roster**: `GET /api/v1/academics/batches/{id}/roster`
+- **View Point-in-Time Roster History**: `GET /api/v1/academics/batches/{id}/history?pointInTime=1789972800000`
+
+#### 8. Batch Lifecycle State Machine (Stories 31-35, 73)
+- **Open / Activate**: `POST /api/v1/academics/batches/{id}/open` &rarr; `ACTIVE`
+- **Close Batch**: `POST /api/v1/academics/batches/{id}/close` &rarr; `CLOSED`
+- **Reopen Batch**: `POST /api/v1/academics/batches/{id}/reopen` &rarr; `ACTIVE`
+- **Archive Batch**: `POST /api/v1/academics/batches/{id}/archive` &rarr; `ARCHIVED`
+
+#### 9. Batch Split & Merge Cross-Module Integration with ADM-02 (Stories 37-39, 75, 76, 77)
+- **Request Split**: `POST /api/v1/batches/{id}/split` (Academic Admin initiates, enters `PENDING_SPLIT_APPROVAL`, emits `BatchSplitApprovalRequested` to ADM-02).
+- **Request Merge**: `POST /api/v1/batches/merge` (Source batches enter `PENDING_MERGE_APPROVAL`, emits `BatchMergeApprovalRequested` to ADM-02).
+- **Consume ADM-02 Approval Decision**: `POST /api/v1/academics/batches/events/approval-decision` (Consumes `BatchSplitApprovalDecided` / `BatchMergeApprovalDecided` from ADM-02 workflow engine; executes split/merge with full student reassignment map or reverts status on rejection).
+
+#### 10. Service Prometheus Metrics & Roster Reconciliation (Stories 61, 62)
+- **Gateway Path**: `GET /api/v1/batches/metrics`
+- **Target**: `GET http://localhost:8086/metrics`
+- **Metrics Tracked**: `acd04_request_total`, `acd04_request_duration_seconds`, `acd04_error_total`, `acd04_capacity_conflicts_total`, `acd04_roster_reconciliation_mismatches`, `acd04_outbox_backlog`, `acd04_dlq_events_total`.
+
+---
+
+### 4.7 ACD-05 Timetable Management Service Endpoints (`http://localhost:8087`)
+
+ACD-05 serves as the authoritative weekly timetable service, owning draft aggregates, slot entries, version freeze snapshots, deterministic conflict detection (faculty, room, batch, calendar, availability, duplicate-entry), and atomic publication state machines.
+
+#### 1. Create Timetable Draft (Story 1, FR-01)
+- **Gateway Path**: `POST /api/v1/academics/timetables` or `POST /v1/timetables`
+- **Target**: `POST http://localhost:8087/api/v1/academics/timetables`
+- **Headers**: `X-Trace-Id`, `X-Tenant-Id: TENANT-001`, `X-User-Role: ACADEMIC_ADMIN`, `X-User-Id`
+- **Request Body**:
+```json
+{
+  "timetableCode": "TT_CSE_2026_S1",
+  "name": "B.Tech Computer Science Weekly Schedule 2026",
+  "academicYear": "2026-2027",
+  "semester": "1",
+  "departmentId": "DEP-CSE",
+  "programId": "PROG-BTECH-CSE",
+  "effectiveFrom": "2026-08-15",
+  "effectiveTo": "2026-12-15"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "message": "Timetable draft created successfully",
+  "data": {
+    "id": "TT-4CC5F01B",
+    "timetableCode": "TT_CSE_2026_S1",
+    "name": "B.Tech Computer Science Weekly Schedule 2026",
+    "status": "DRAFT",
+    "currentVersionNo": 1,
+    "version": 1
+  },
+  "meta": { "requestId": "TRACE-001", "correlationId": "TRACE-001" }
+}
+```
+
+#### 2. Query and Filter Timetables Catalog (Story 5, FR-11)
+- **Gateway Path**: `GET /api/v1/academics/timetables?departmentId=DEP-CSE&academicYear=2026-2027&status=PUBLISHED`
+- **Target**: `GET http://localhost:8087/api/v1/academics/timetables?...`
+- **Response**: `200 OK`
+
+#### 3. Manage Slot Entries (Stories 11-15, FR-02)
+- **Add Slot Entry**: `POST /api/v1/academics/timetables/{id}/entries` &rarr; `201 Created`
+  - Validates upstream batch (ACD-04), subject (ACD-03), faculty (HRM), room (Facilities) references.
+  - Enforces cross-tenant prohibition (BR-09; 422 if foreign tenant).
+  - Enforces faculty lab qualification rights for `entryType=LAB` (Story 36; 422 `ACD_TIMETABLE_LAB_RIGHTS_MISSING`).
+- **Update Slot Entry**: `PUT /api/v1/academics/timetables/{id}/entries/{entryId}` &rarr; `200 OK`
+- **Remove Slot Entry**: `DELETE /api/v1/academics/timetables/{id}/entries/{entryId}` &rarr; `200 OK`
+- **Bulk Slot Entries**: `POST /api/v1/academics/timetables/{id}/entries/bulk` &rarr; `201 Created` (Row-level errors reported without aborting entire batch).
+
+#### 4. Run Deterministic Conflict Detection Engine (Stories 19-27, FR-04, FR-10, BR-01, BR-02, BR-03, BR-06, BR-07, BR-11)
+- **Gateway Path**: `POST /api/v1/academics/timetables/{id}/validate`
+- **Target**: `POST http://localhost:8087/api/v1/academics/timetables/{id}/validate`
+- **Conflict Checks**:
+  - `FACULTY`: Faculty double-booked in same day + period slot.
+  - `ROOM`: Room double-booked in same day + period slot.
+  - `BATCH`: Batch double-booked in same day + period slot.
+  - `DUPLICATE_ENTRY`: Redundant identical timetable + slot + subject/batch key.
+  - `CALENDAR`: Effective date outside institutional academic calendar window.
+  - `AVAILABILITY`: Faculty or room scheduled inside blocked unavailability periods.
+- **State Transition**: Transitions to `VALIDATING` then `VALIDATED` (if 0 blocking conflicts) or `INVALID` (if conflicts exist).
+- **Diagnostics**: `GET /api/v1/academics/timetables/{id}/conflicts`
+
+#### 5. Immutable Publication & Atomic Supersession (Stories 28-35, FR-06, BR-05, BR-08, BR-12)
+- **Gateway Path**: `POST /api/v1/academics/timetables/{id}/publish`
+- **Target**: `POST http://localhost:8087/api/v1/academics/timetables/{id}/publish`
+- **Guards**: Strictly blocks unvalidated or conflicting drafts (422 `ACD_TIMETABLE_UNVALIDATED` / `ACD_TIMETABLE_CONFLICT`).
+- **Outcome**: Freezes immutable version entries snapshot marked `PUBLISHED`, atomically marks prior effective version `SUPERSEDED`, and emits `TimetablePublished`, `TimetableSuperseded`, and `TimetableChanged` domain events to transactional outbox.
+
+#### 6. Mid-Term Change Workflow (Story 39)
+- **Clone Published Version**: `POST /api/v1/academics/timetables/{id}/clone`
+- Pre-populates new draft version (v2) with all slots from current effective version for mid-term adjustments without disrupting live operations.
+
+#### 7. Operational Role & Resource Views (Stories 6-9)
+- **Batch Schedule**: `GET /api/v1/academics/timetables/batch/{batchId}` (Only published effective schedule).
+- **Faculty Schedule**: `GET /api/v1/academics/timetables/faculty/{facultyId}` (Assigned teaching schedule).
+- **Room Utilization**: `GET /api/v1/academics/timetables/room/{roomId}` (Room allocation and maintenance view).
+- **Department View**: `GET /api/v1/academics/timetables/department/{departmentId}`
+- **Export Timetable**: `GET /api/v1/export?timetableId={id}&format=pdf` (Story 10, emits `TimetableExported`).
+
+#### 8. Service Prometheus Metrics & Outbox Observability (Stories 54, 55)
+- **Gateway Path**: `GET /api/v1/timetables/metrics` or `GET /api/v1/academics/timetables/metrics`
+- **Metrics Tracked**: `acd05_request_total`, `acd05_request_duration_seconds`, `acd05_error_total`, `acd05_conflicts_total`, `acd05_publish_total`, `acd05_validation_duration_seconds`, `acd05_outbox_backlog`, `acd05_dlq_events_total`, `acd05_stale_drafts_total`.
+
+---
+
+### 4.8 ACD-08 Learning Resource Service Endpoints (`http://localhost:8090`)
+
+The **ACD-08 Learning Resource Service** owns academic resource metadata and lifecycle for syllabi, study materials, lecture slides, lab manuals, reference links, and question banks. Binary bytes remain in shared object/document storage; ACD-08 enforces immutable versioning, policy-driven ABAC/RBAC access control with strict DENY precedence, and reliable transactional outbox event dissemination.
+
+#### 1. Register Academic Learning Resource
+- **Gateway Path**: `POST /api/v1/academics/resources` or `POST /v1/resources`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources`
+- **Headers**:
+  - `Content-Type: application/json`
+  - `X-Tenant-Id: VIT_CAMPUS`
+  - `X-User-Id: PROF_01`
+  - `X-User-Role: FACULTY`
+  - `Idempotency-Key: IDEMP-RES-2026-001` (optional)
+- **Request Body**:
+```json
+{
+  "resourceCode": "RES-CS201-SYL",
+  "title": "Data Structures and Algorithms Authoritative Syllabus",
+  "resourceType": "SYLLABUS",
+  "subjectId": "SUB_CS201",
+  "courseId": "CRS_CS201",
+  "curriculumId": "CUR_CSE_2026",
+  "departmentId": "DEP_CS",
+  "description": "Comprehensive course syllabus and unit breakdown",
+  "tags": ["syllabus", "algorithms", "data-structures"],
+  "storageObjectRef": "syllabi/2026/cs201_syllabus_v1.pdf",
+  "storageProvider": "SHARED_BLOB",
+  "fileName": "cs201_syllabus.pdf",
+  "mimeType": "application/pdf",
+  "fileSize": 245760,
+  "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Resource registered successfully",
+  "traceId": "9b1deb4d3b7d4bad9bdd2b0d7b3dcb6d",
+  "data": {
+    "id": "RES-C0FABCCD-B",
+    "tenantId": "VIT_CAMPUS",
+    "resourceCode": "RES-CS201-SYL",
+    "title": "Data Structures and Algorithms Authoritative Syllabus",
+    "resourceType": "SYLLABUS",
+    "status": "DRAFT",
+    "currentVersion": 1,
+    "publishedVersion": null,
+    "tags": ["syllabus", "algorithms", "data-structures"],
+    "createdAt": "2026-09-29T10:45:00Z"
+  }
+}
+```
+
+#### 2. Search & Catalog Query (Policy-Filtered)
+- **Gateway Path**: `GET /api/v1/academics/resources` or `GET /v1/resource-catalog`
+- **Target**: `GET http://localhost:8090/api/v1/academics/resources`
+- **Query Parameters**: `?resourceType=SYLLABUS&subjectId=SUB_CS201&page=1&limit=20`
+- **Response**: `200 OK`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Resources retrieved successfully",
+  "traceId": "9b1deb4d3b7d4bad9bdd2b0d7b3dcb6d",
+  "data": [
+    {
+      "id": "RES-C0FABCCD-B",
+      "resourceCode": "RES-CS201-SYL",
+      "title": "Data Structures and Algorithms Authoritative Syllabus",
+      "resourceType": "SYLLABUS",
+      "status": "PUBLISHED",
+      "currentVersion": 1
+    }
+  ]
+}
+```
+
+#### 3. Create New Monotonic Version
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/versions`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/versions`
+- **Request Body**:
+```json
+{
+  "storageObjectRef": "syllabi/2026/cs201_syllabus_v2.pdf",
+  "storageProvider": "SHARED_BLOB",
+  "fileName": "cs201_syllabus_v2.pdf",
+  "mimeType": "application/pdf",
+  "fileSize": 280000,
+  "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "changeSummary": "Added Unit 5 Graph Theory update",
+  "expectedVersion": 1
+}
+```
+- **Response**: `200 OK`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Resource version created successfully",
+  "data": {
+    "id": "VER-A1B2C3D4",
+    "resourceId": "RES-C0FABCCD-B",
+    "versionNo": 2,
+    "status": "DRAFT",
+    "fileName": "cs201_syllabus_v2.pdf",
+    "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+  }
+}
+```
+
+#### 4. Restore Historical Version
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/versions/{versionNo}/restore`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/versions/{versionNo}/restore`
+- **Request Body**: `{"reason":"Rollback to verified stable syllabus"}`
+- **Response**: `200 OK`
+
+#### 5. Publish Resource Version (with Dual Syllabus Event Dispatch)
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/publish`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/publish`
+- **Request Body**:
+```json
+{
+  "expectedVersion": 2,
+  "approvalRef": "APP-BOD-2026-09",
+  "comment": "Approved by Board of Studies"
+}
+```
+- **Response**: `200 OK`
+- **Events Emitted**: `LearningResourcePublished` and `SyllabusPublished` (for syllabus types) via Transactional Outbox.
+
+#### 6. Authorize & Download Content via Short-Lived Retrieval Reference
+- **Gateway Path**: `GET /api/v1/academics/resources/{id}/download?version=2`
+- **Target**: `GET http://localhost:8090/api/v1/academics/resources/{id}/download?version=2`
+- **Enforcement**: Policy evaluation verifies user role, department, batch, and date window. Rejects with `403 ACD_RESOURCE_POLICY_DENIED` if explicit DENY rule matches.
+- **Response**: `200 OK`
+```json
+{
+  "status": "SUCCESS",
+  "message": "Download reference authorized",
+  "data": {
+    "resourceId": "RES-C0FABCCD-B",
+    "versionNo": 2,
+    "fileName": "cs201_syllabus_v2.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 280000,
+    "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "downloadUrl": "https://storage.campx.internal/shared_blob/syllabi/2026/cs201_syllabus_v2.pdf?token=a8e9f...&expires=1789973500&tenant=VIT_CAMPUS",
+    "expiresInSeconds": 300
+  }
+}
+```
+
+#### 7. Define & Revoke Policy-Driven Access Grants
+- **Create Grant**: `POST /api/v1/academics/resources/{id}/access`
+- **Update Grant**: `PUT /api/v1/academics/resources/{id}/access/{accessId}`
+- **Revoke Grant**: `DELETE /api/v1/academics/resources/{id}/access/{accessId}`
+- **Request Body**:
+```json
+{
+  "principalType": "ROLE",
+  "principalId": "STUDENT",
+  "scopeType": "DEPARTMENT",
+  "scopeId": "DEP_CS",
+  "permission": "DOWNLOAD",
+  "effect": "ALLOW",
+  "validFrom": "2026-08-01T00:00:00Z",
+  "validTo": "2027-05-31T23:59:59Z"
+}
+```
+
+#### 8. Archive Resource
+- **Gateway Path**: `POST /api/v1/academics/resources/{id}/archive`
+- **Target**: `POST http://localhost:8090/api/v1/academics/resources/{id}/archive`
+- **Request Body**: `{"reason":"Superseded by 2027 revised curriculum"}`
+- **Response**: `200 OK`
+- **Events Emitted**: `LearningResourceArchived` via Transactional Outbox.
+
+#### 9. Service Prometheus Metrics & Outbox Observability
+- **Gateway Path**: `GET /api/v1/resources/metrics` or `GET /api/v1/academics/resources/metrics`
+- **Target**: `GET http://localhost:8090/metrics`
+- **Metrics Tracked**: `acd08_resource_registrations_total`, `acd08_resource_publications_total`, `acd08_resource_archives_total`, `acd08_resource_downloads_total`, `acd08_resource_versions_total`, `acd08_policy_denials_total`, `acd08_outbox_lag`, `acd08_dlq_depth`, `acd08_http_requests_total`.
 
 ---
 
@@ -751,3 +1680,649 @@ curl -X POST http://localhost:8080/v1/departments \
     "capacity": 180
   }'
 ```
+
+### 7.6 Create Course via Gateway (ACD-01)
+```bash
+curl -X POST http://localhost:8080/v1/courses \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "courseCode": "CS101",
+    "courseName": "Introduction to Computer Science",
+    "departmentId": "DEP_CSE_01",
+    "durationYears": 4,
+    "totalCredits": 4.0,
+    "courseType": "THEORY",
+    "courseCategory": "CORE"
+  }'
+```
+
+### 7.7 Create Curriculum Master via Gateway (ACD-02)
+```bash
+curl -X POST http://localhost:8080/api/v1/curricula \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "courseId": "CRS_CS101",
+    "name": "B.Tech Computer Science Curriculum 2026",
+    "academicPattern": "CBCS",
+    "academicYear": "2026-2027",
+    "departmentId": "DEP_CSE_01",
+    "campusId": "MAIN",
+    "institutionId": "INST_VIT_001"
+  }'
+```
+
+### 7.8 Ingest Curriculum Prometheus Metrics via Gateway (ACD-02)
+```bash
+curl -X GET http://localhost:8080/api/v1/curricula/metrics \
+  -H "X-Trace-Id: TRACE-TEST-006"
+```
+
+### 7.9 Create Subject Master via Gateway (ACD-03)
+```bash
+curl -X POST http://localhost:8080/v1/subjects \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "subjectCode": "CS201",
+    "name": "Data Structures & Algorithms",
+    "departmentId": "DEP_CSE_01",
+    "campusId": "MAIN",
+    "subjectType": "CORE",
+    "classification": "THEORY",
+    "credits": 4.0,
+    "contactHours": 60.0,
+    "elective": false,
+    "academicYear": "2026-2027"
+  }'
+```
+
+### 7.10 Ingest Subject Prometheus Metrics via Gateway (ACD-03)
+```bash
+curl -X GET http://localhost:8080/api/v1/subjects/metrics \
+  -H "X-Trace-Id: TRACE-TEST-008"
+```
+
+### 7.11 Create Academic Batch via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/v1/batches \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-009" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "batchCode": "CS-2024-A",
+    "name": "Computer Science Cohort 2024 Section A",
+    "courseId": "CRS-CS101",
+    "curriculumId": "CUR-9F8A2B1C",
+    "departmentId": "DEP-CS",
+    "campusId": "MAIN",
+    "academicYear": "2024-2025",
+    "semesterNo": 1,
+    "capacity": 60
+  }'
+```
+
+### 7.12 Enroll Student into Batch via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/students \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-010" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "studentId": "STU-1001",
+    "effectiveFrom": "2024-09-01",
+    "membershipType": "REGULAR"
+  }'
+```
+
+### 7.13 Grant Governed Capacity Override via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/capacity-override \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-011" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "overrideCapacity": 75,
+    "reason": "Authorized transfer student enrollment increase",
+    "effectiveFrom": "2024-09-01",
+    "effectiveTo": "2025-12-31"
+  }'
+```
+
+### 7.14 Request Batch Split via Gateway (ACD-04)
+```bash
+curl -X POST http://localhost:8080/api/v1/batches/BATCH-101/split \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TEST-012" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "reason": "Exceeded laboratory workstation capacity",
+    "proposedSections": [
+      { "sectionCode": "A1", "capacity": 35 },
+      { "sectionCode": "A2", "capacity": 35 }
+    ]
+  }'
+```
+
+### 7.15 Scrape Batch Management Prometheus Metrics via Gateway (ACD-04)
+```bash
+curl -X GET http://localhost:8080/api/v1/batches/metrics \
+  -H "X-Trace-Id: TRACE-TEST-013"
+```
+
+### 7.16 Create Timetable Draft via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/v1/timetables \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TT-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "timetableCode": "TT_CSE_2026_S1",
+    "name": "B.Tech Computer Science Weekly Schedule 2026",
+    "academicYear": "2026-2027",
+    "semester": "1",
+    "departmentId": "DEP_CSE_01",
+    "programId": "PROG_BTECH_CSE",
+    "effectiveFrom": "2026-08-15",
+    "effectiveTo": "2026-12-15"
+  }'
+```
+
+### 7.17 Add Timetable Slot Entry via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/timetables/TT-001/entries \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TT-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "batchId": "BATCH-001",
+    "subjectId": "SUB-201",
+    "facultyId": "FAC-100",
+    "roomId": "ROOM-12",
+    "dayOfWeek": "MONDAY",
+    "period": 2,
+    "entryType": "TH"
+  }'
+```
+
+### 7.18 Run Conflict Validation via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/timetables/TT-001/validate \
+  -H "X-Trace-Id: TRACE-TT-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.19 Publish Validated Timetable via Gateway (ACD-05)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/timetables/TT-001/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-TT-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "effectiveFrom": "2026-08-15"
+  }'
+```
+
+### 7.20 Scrape Timetable Prometheus Metrics via Gateway (ACD-05)
+```bash
+curl -X GET http://localhost:8080/api/v1/timetables/metrics \
+  -H "X-Trace-Id: TRACE-TT-005"
+```
+
+### 7.21 Create Attendance Session via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100" \
+  -d '{
+    "batchId": "BATCH-001",
+    "subjectId": "SUB-201",
+    "timetableEntryId": "SLOT-001",
+    "attendanceDate": "2026-10-15",
+    "periodNo": 1,
+    "startTime": "09:00",
+    "endTime": "10:00"
+  }'
+```
+
+### 7.22 Mark Attendance for Roster via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/records \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100" \
+  -d '{
+    "submittedBy": "FAC-100",
+    "records": [
+      { "studentId": "STU-001", "status": "PRESENT" },
+      { "studentId": "STU-002", "status": "ABSENT" },
+      { "studentId": "STU-003", "status": "LEAVE", "statusReason": "Medical appointment" }
+    ]
+  }'
+```
+
+### 7.23 Correct Attendance Record with Mandatory Audit Reason (ACD-06)
+```bash
+curl -X PUT http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/records/STU-002/correct \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100" \
+  -d '{
+    "newStatus": "PRESENT",
+    "reason": "Late arrival due to laboratory setup approved by instructor",
+    "expectedVersion": 1
+  }'
+```
+
+### 7.24 Submit Attendance Session (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/submit \
+  -H "X-Trace-Id: TRACE-ATT-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -H "X-User-Id: FAC-100"
+```
+
+### 7.25 Lock Attendance Session (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/sessions/ATT-SESS-1001/lock \
+  -H "X-Trace-Id: TRACE-ATT-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001"
+```
+
+### 7.26 Query Student Attendance Summary & Shortage via Gateway (ACD-06)
+```bash
+curl -X GET http://localhost:8080/v1/attendance-summaries/student/STU-001 \
+  -H "X-Trace-Id: TRACE-ATT-006" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.27 Bulk Import External Attendance Records via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/import \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '[
+    {
+      "batchId": "BATCH-001",
+      "subjectId": "SUB-201",
+      "attendanceDate": "2026-10-15",
+      "periodNo": 1,
+      "studentId": "STU-001",
+      "status": "PRESENT"
+    }
+  ]'
+```
+
+### 7.28 Ingest RFID / Biometric Device Capture via Gateway (ACD-06)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/attendance/device/capture \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ATT-008" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: SYSTEM" \
+  -d '{
+    "deviceId": "READER-LH-101",
+    "cardUid": "RFID-992384",
+    "studentId": "STU-001",
+    "readerLocation": "Lecture Hall 101"
+  }'
+```
+
+### 7.29 Scrape Attendance Prometheus Metrics via Gateway (ACD-06)
+```bash
+curl -X GET http://localhost:8080/api/v1/attendance/metrics \
+  -H "X-Trace-Id: TRACE-ATT-009"
+```
+
+### 7.30 Create Academic Calendar Draft via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "calendarCode": "CAL_2026_2027_ENG",
+    "name": "Engineering Academic Calendar 2026-2027",
+    "description": "Annual academic calendar for College of Engineering",
+    "academicYear": "2026-2027",
+    "campusId": "CAMPUS_MAIN",
+    "effectiveFrom": "2026-08-01",
+    "effectiveTo": "2027-05-31"
+  }'
+```
+
+### 7.31 Add Academic Term to Calendar via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/terms \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "termCode": "FALL-2026",
+    "name": "Fall Semester 2026",
+    "sequenceNo": 1,
+    "startDate": "2026-08-15",
+    "endDate": "2026-12-15",
+    "instructionalStartDate": "2026-08-20",
+    "instructionalEndDate": "2026-12-05"
+  }'
+```
+
+### 7.32 Add Calendar Event / Holiday via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/events \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "termId": "TERM-FALL-2026",
+    "eventCode": "HOL-DIWALI-2026",
+    "eventType": "HOLIDAY",
+    "title": "Diwali Vacation",
+    "startDate": "2026-11-01",
+    "endDate": "2026-11-05",
+    "allDay": true,
+    "workingDayImpact": "NON_WORKING",
+    "category": "FESTIVAL"
+  }'
+```
+
+### 7.33 Run Calendar Conflict Validation via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/validate \
+  -H "X-Trace-Id: TRACE-CAL-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.34 Submit Calendar for Approval via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/submit \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "X-User-Id: ADMIN-001" \
+  -d '{
+    "reason": "Ready for Registrar review and approval"
+  }'
+```
+
+### 7.35 Record Registrar Approval Decision (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/approval \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-006" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: REGISTRAR" \
+  -H "X-User-Id: REGISTRAR-001" \
+  -d '{
+    "decision": "APPROVED",
+    "reason": "Senate academic calendar schedule verified and ratified"
+  }'
+```
+
+### 7.36 Publish Calendar via Gateway (ACD-07)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/calendars/CAL-1001/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-CAL-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: REGISTRAR" \
+  -H "X-User-Id: REGISTRAR-001" \
+  -d '{
+    "expectedVersion": 1,
+    "effectiveFrom": "2026-08-01",
+    "effectiveTo": "2027-05-31"
+  }'
+```
+
+### 7.37 Resolve Effective Date & Instructional Day Status (ACD-07)
+```bash
+curl -X GET "http://localhost:8080/api/v1/academics/calendars/CAL-1001/effective-date?date=2026-11-02" \
+  -H "X-Trace-Id: TRACE-CAL-008" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY"
+```
+
+### 7.38 Query Calendar Analytics via Gateway (ACD-07)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/calendars/CAL-1001/analytics \
+  -H "X-Trace-Id: TRACE-CAL-009" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: DEAN"
+```
+
+### 7.39 Scrape Academic Calendar Prometheus Metrics via Gateway (ACD-07)
+```bash
+curl -X GET http://localhost:8080/api/v1/calendars/metrics \
+  -H "X-Trace-Id: TRACE-CAL-010"
+```
+
+### 7.40 Register Learning Resource via Gateway (ACD-08)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/resources \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-RES-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Id: PROF_01" \
+  -H "X-User-Role: FACULTY" \
+  -H "Idempotency-Key: IDEMP-RES-2026-001" \
+  -d '{
+    "resourceCode": "RES-CS201-SYL",
+    "title": "Data Structures and Algorithms Authoritative Syllabus",
+    "resourceType": "SYLLABUS",
+    "subjectId": "SUB_CS201",
+    "courseId": "CRS_CS201",
+    "curriculumId": "CUR_CSE_2026",
+    "departmentId": "DEP_CS",
+    "description": "Comprehensive course syllabus and unit breakdown",
+    "tags": ["syllabus", "algorithms", "data-structures"],
+    "storageObjectRef": "syllabi/2026/cs201_syllabus_v1.pdf",
+    "storageProvider": "SHARED_BLOB",
+    "fileName": "cs201_syllabus.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 245760,
+    "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }'
+```
+
+### 7.41 Query Learning Resources Catalog via Gateway (ACD-08)
+```bash
+curl -X GET "http://localhost:8080/v1/resources?resourceType=SYLLABUS&departmentId=DEP_CS" \
+  -H "X-Trace-Id: TRACE-RES-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.42 Create Monotonic Version via Gateway (ACD-08)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/resources/RES-CS201-SYL/versions \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-RES-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -d '{
+    "storageObjectRef": "syllabi/2026/cs201_syllabus_v2.pdf",
+    "storageProvider": "SHARED_BLOB",
+    "fileName": "cs201_syllabus_v2.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 280000,
+    "checksum": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "changeSummary": "Added Unit 5 Graph Theory update",
+    "expectedVersion": 1
+  }'
+```
+
+### 7.43 Publish Resource Version & Emit Dual Syllabus Event (ACD-08)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/resources/RES-CS201-SYL/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-RES-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{
+    "expectedVersion": 2,
+    "approvalRef": "APP-BOD-2026-09",
+    "comment": "Approved by Board of Studies"
+  }'
+```
+
+### 7.44 Request Secure Short-Lived Download Retrieval Reference (ACD-08)
+```bash
+curl -X GET "http://localhost:8080/api/v1/academics/resources/RES-CS201-SYL/download?version=2" \
+  -H "X-Trace-Id: TRACE-RES-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: STUDENT" \
+  -H "X-Department-Id: DEP_CS"
+```
+
+### 7.45 Scrape Learning Resource Prometheus Metrics via Gateway (ACD-08)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/resources/metrics \
+  -H "X-Trace-Id: TRACE-RES-006"
+```
+
+### 7.46 Create Assessment Structure via Gateway (ACD-09)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/assessments \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-001" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -H "Idempotency-Key: IDEMP-ASM-2026-001" \
+  -d '{
+    "assessmentCode": "ASM-CS201-2026",
+    "assessmentName": "Data Structures Continuous & Endterm Assessment",
+    "subjectId": "SUB-CS101",
+    "courseId": "COURSE-CS-BS",
+    "curriculumId": "CURR-2026-CS",
+    "academicYear": "2026-2027",
+    "termId": "TERM-1",
+    "assessmentType": "INTERNAL",
+    "totalMarks": 100.0,
+    "totalWeightage": 100.0
+  }'
+```
+
+### 7.47 Add Assessment Component with Weightage via Gateway (ACD-09)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/components \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-002" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -d '{
+    "componentCode": "QUIZ-1",
+    "componentName": "Arrays and Linked Lists Quiz",
+    "componentType": "QUIZ",
+    "sequenceNo": 1,
+    "maxMarks": 20.0,
+    "passingMarks": 8.0,
+    "weightage": 20.0,
+    "evaluationMethod": "AUTOMATED",
+    "attemptPolicy": "SINGLE"
+  }'
+```
+
+### 7.48 Add Outcome Mapping (CO/PO) via Gateway (ACD-09)
+```bash
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/mappings \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-003" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY" \
+  -d '{
+    "outcomeType": "CO",
+    "outcomeCode": "CO1",
+    "mappingLevel": "HIGH",
+    "weight": 3.0,
+    "attainmentPolicyRef": "NBA-TIER1-DIRECT"
+  }'
+```
+
+### 7.49 Reconcile Weightage & Validate Assessment via Gateway (ACD-09)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/validate \
+  -H "X-Trace-Id: TRACE-ASM-004" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN"
+```
+
+### 7.50 Approve & Publish Assessment Mapping via Gateway (ACD-09)
+```bash
+# 1. Submit for Review
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/submit-review \
+  -H "X-Trace-Id: TRACE-ASM-005" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: FACULTY"
+
+# 2. Approve by Department Head
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/approve \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-006" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: DEPT_HEAD" \
+  -d '{"approvalRef": "HOD-CS-2026-09", "comments": "Approved assessment weightage distribution"}'
+
+# 3. Publish Structure & Emit Canonical Outbox Event
+curl -X POST http://localhost:8080/api/v1/academics/assessments/ASM-CS201-2026/publish \
+  -H "Content-Type: application/json" \
+  -H "X-Trace-Id: TRACE-ASM-007" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: ACADEMIC_ADMIN" \
+  -d '{"expectedVersion": 1, "reason": "Published for Academic Year 2026-2027"}'
+```
+
+### 7.51 Query Effective Assessment Structure for Subject / EXM (ACD-09)
+```bash
+curl -X GET "http://localhost:8080/api/v1/academics/assessments/subject/SUB-CS101?academicYear=2026-2027&termId=TERM-1" \
+  -H "X-Trace-Id: TRACE-ASM-008" \
+  -H "X-Tenant-Id: VIT_CAMPUS" \
+  -H "X-User-Role: EXAMINATION_COORDINATOR"
+```
+
+### 7.52 Scrape Assessment Mapping Prometheus Metrics via Gateway (ACD-09)
+```bash
+curl -X GET http://localhost:8080/api/v1/academics/assessments/metrics \
+  -H "X-Trace-Id: TRACE-ASM-009"
+```
+
+
+
+
+

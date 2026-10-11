@@ -29,6 +29,7 @@ public final class CourseModels {
         private int durationYears = 1;
         private double totalCredits = 4.0;
         private String departmentId;
+        private String programId;
         private String courseType = "THEORY"; // THEORY, LAB, INTEGRATED, PROJECT
         private String courseCategory = "CORE"; // CORE, ELECTIVE, REGULATORY, AUDIT
         private String status = "DRAFT"; // DRAFT, UNDER_REVIEW, APPROVED, ACTIVE, SUSPENDED, DEACTIVATED, ARCHIVED
@@ -59,6 +60,8 @@ public final class CourseModels {
         public void setTotalCredits(double totalCredits) { this.totalCredits = totalCredits; }
         public String getDepartmentId() { return departmentId; }
         public void setDepartmentId(String departmentId) { this.departmentId = departmentId; }
+        public String getProgramId() { return programId; }
+        public void setProgramId(String programId) { this.programId = programId; }
         public String getCourseType() { return courseType; }
         public void setCourseType(String courseType) { this.courseType = courseType; }
         public String getCourseCategory() { return courseCategory; }
@@ -409,11 +412,11 @@ public final class CourseModels {
     }
 
     // =========================================================================
-    // Phase 2: Transactional Reliability Layer Models (User Story Lines 67–68)
+    // Phase 2: Transactional Reliability Layer Models (User Story Lines 67–69)
     // =========================================================================
 
     /**
-     * ACD01_idempotency_records — Academic command deduplication and request hash verification.
+     * ACD01_idempotency_records — Academic command deduplication and request hash verification (CSV Line 69).
      */
     public static class IdempotencyRecord {
         private String id;

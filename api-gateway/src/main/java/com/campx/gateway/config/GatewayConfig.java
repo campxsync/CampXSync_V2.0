@@ -12,6 +12,15 @@ import java.util.Map;
  *   <li><b>Platform Tier (ADM-01)</b>: Institute Admin Service on port 8081</li>
  *   <li><b>College Tier (ADM-02)</b>: College Admin Service on port 8082</li>
  *   <li><b>Academic Tier (ACD-01)</b>: Course Management Service on port 8083</li>
+ *   <li><b>Academic Tier (ACD-02)</b>: Curriculum Management Service on port 8084</li>
+ *   <li><b>Academic Tier (ACD-03)</b>: Subject Management Service on port 8085</li>
+ *   <li><b>Academic Tier (ACD-04)</b>: Batch Management Service on port 8086</li>
+ *   <li><b>Academic Tier (ACD-05)</b>: Timetable Management Service on port 8087</li>
+ *   <li><b>Academic Tier (ACD-06)</b>: Attendance Management Service on port 8088</li>
+ *   <li><b>Academic Tier (ACD-07)</b>: Academic Calendar Service on port 8089</li>
+ *   <li><b>Academic Tier (ACD-08)</b>: Learning Resource Service on port 8090</li>
+ *   <li><b>Academic Tier (ACD-09)</b>: Assessment Mapping Service on port 8091</li>
+ *   <li><b>Academic Tier (ACD-10)</b>: Reporting & Analytics Service on port 8092</li>
  * </ul>
  * </p>
  *
@@ -39,8 +48,77 @@ public class GatewayConfig {
         // Core V2.0 / V3.0 User Story Ingress Routes
         routeTable.put("/api/v1/admin", "http://localhost:8081/api/v1/admin");
         routeTable.put("/api/v1/college-admin", "http://localhost:8082/api/v1/college-admin");
+        // Academic Tier -> Course Management Service (Port 8083)
         routeTable.put("/api/v1/courses", "http://localhost:8083/api/v1/courses");
         routeTable.put("/api/v1/academics/courses", "http://localhost:8083/api/v1/academics/courses");
+
+        // Academic Tier -> Curriculum Management Service (Port 8084)
+        routeTable.put("/api/v1/curricula/metrics", "http://localhost:8084/metrics");
+        routeTable.put("/api/v1/curricula", "http://localhost:8084/api/v1/curricula");
+        routeTable.put("/api/v1/academics/curricula", "http://localhost:8084/api/v1/academics/curricula");
+        routeTable.put("/api/v1/active", "http://localhost:8084/api/v1/curricula/active");
+
+        // Academic Tier -> Subject Management Service (Port 8085)
+        routeTable.put("/api/v1/subjects/metrics", "http://localhost:8085/metrics");
+        routeTable.put("/api/v1/academics/subjects/metrics", "http://localhost:8085/metrics");
+        routeTable.put("/api/v1/subjects", "http://localhost:8085/api/v1/subjects");
+        routeTable.put("/api/v1/academics/subjects", "http://localhost:8085/api/v1/academics/subjects");
+
+        // Academic Tier -> Batch Management Service (Port 8086)
+        routeTable.put("/api/v1/batches/metrics", "http://localhost:8086/metrics");
+        routeTable.put("/api/v1/academics/batches/metrics", "http://localhost:8086/metrics");
+        routeTable.put("/api/v1/batches", "http://localhost:8086/api/v1/academics/batches");
+        routeTable.put("/api/v1/academics/batches", "http://localhost:8086/api/v1/academics/batches");
+
+        // Academic Tier -> Timetable Management Service (Port 8087)
+        routeTable.put("/api/v1/timetables/metrics", "http://localhost:8087/metrics");
+        routeTable.put("/api/v1/academics/timetables/metrics", "http://localhost:8087/metrics");
+        routeTable.put("/api/v1/timetables", "http://localhost:8087/api/v1/academics/timetables");
+        routeTable.put("/api/v1/academics/timetables", "http://localhost:8087/api/v1/academics/timetables");
+        routeTable.put("/api/v1/export", "http://localhost:8087/api/v1/academics/timetables/export");
+
+        // Academic Tier -> Attendance Management Service (Port 8088)
+        routeTable.put("/api/v1/attendance/metrics", "http://localhost:8088/metrics");
+        routeTable.put("/api/v1/academics/attendance/metrics", "http://localhost:8088/metrics");
+        routeTable.put("/api/v1/attendance", "http://localhost:8088/api/v1/academics/attendance");
+        routeTable.put("/api/v1/academics/attendance", "http://localhost:8088/api/v1/academics/attendance");
+
+        // Academic Tier -> Academic Calendar Service (Port 8089)
+        routeTable.put("/api/v1/calendars/metrics", "http://localhost:8089/metrics");
+        routeTable.put("/api/v1/academics/calendars/metrics", "http://localhost:8089/metrics");
+        routeTable.put("/api/v1/calendars", "http://localhost:8089/api/v1/academics/calendars");
+        routeTable.put("/api/v1/academics/calendars", "http://localhost:8089/api/v1/academics/calendars");
+        routeTable.put("/api/v1/terms", "http://localhost:8089/api/v1/academics/terms");
+        routeTable.put("/api/v1/academics/terms", "http://localhost:8089/api/v1/academics/terms");
+        routeTable.put("/api/v1/events", "http://localhost:8089/api/v1/academics/events");
+        routeTable.put("/api/v1/academics/events", "http://localhost:8089/api/v1/academics/events");
+
+        // Academic Tier -> Learning Resource Service (Port 8090)
+        routeTable.put("/api/v1/resources/metrics", "http://localhost:8090/metrics");
+        routeTable.put("/api/v1/academics/resources/metrics", "http://localhost:8090/metrics");
+        routeTable.put("/api/v1/resources", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/api/v1/academics/resources", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/api/v1/versions", "http://localhost:8090/api/v1/academics/versions");
+        routeTable.put("/api/v1/academics/versions", "http://localhost:8090/api/v1/academics/versions");
+
+        // Academic Tier -> Assessment Mapping Service (Port 8091)
+        routeTable.put("/api/v1/assessments/metrics", "http://localhost:8091/metrics");
+        routeTable.put("/api/v1/academics/assessments/metrics", "http://localhost:8091/metrics");
+        routeTable.put("/api/v1/assessments", "http://localhost:8091/api/v1/academics/assessments");
+        routeTable.put("/api/v1/academics/assessments", "http://localhost:8091/api/v1/academics/assessments");
+
+        // Academic Tier -> Reporting & Analytics Service (ACD-10, Port 8092)
+        routeTable.put("/api/v1/academics/analytics/metrics", "http://localhost:8092/metrics");
+        routeTable.put("/api/v1/analytics/metrics", "http://localhost:8092/metrics");
+        routeTable.put("/api/v1/academics/analytics", "http://localhost:8092/api/v1/academics/analytics");
+        routeTable.put("/api/v1/analytics/attendance", "http://localhost:8092/api/v1/academics/analytics/attendance");
+        routeTable.put("/api/v1/analytics/performance", "http://localhost:8092/api/v1/academics/analytics/progression");
+        routeTable.put("/api/v1/analytics/schedules", "http://localhost:8092/api/v1/academics/analytics/timetable");
+        routeTable.put("/api/v1/analytics/exports", "http://localhost:8092/api/v1/academics/analytics/export");
+        routeTable.put("/api/v1/analytics", "http://localhost:8092/api/v1/academics/analytics");
+        routeTable.put("/api/v1/dashboards", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+        routeTable.put("/api/v1/kpis", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+        routeTable.put("/api/v1/reports", "http://localhost:8092/api/v1/academics/analytics/export");
 
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
@@ -50,17 +128,66 @@ public class GatewayConfig {
         routeTable.put("/v1/billing-accounts", "http://localhost:8081/api/v1/admin/billing/plans");
         routeTable.put("/v1/platform-audit-logs", "http://localhost:8081/api/v1/admin/audit-logs");
 
-        // College Tier -> College Admin Service (Port 8082)
         routeTable.put("/v1/college-profile", "http://localhost:8082/api/v1/college-admin/profile");
         routeTable.put("/v1/departments", "http://localhost:8082/api/v1/college-admin/departments");
         routeTable.put("/v1/programs", "http://localhost:8082/api/v1/college-admin/programs");
         routeTable.put("/v1/college-configs", "http://localhost:8082/api/v1/college-admin/settings");
         routeTable.put("/v1/imports", "http://localhost:8082/api/v1/college-admin/imports");
         routeTable.put("/v1/documents", "http://localhost:8082/api/v1/college-admin/documents");
+        routeTable.put("/v1/college-workflows", "http://localhost:8082/api/v1/college-admin/workflows");
+        routeTable.put("/v1/batch-approvals", "http://localhost:8082/api/v1/college-admin/workflows/batch-approvals");
+        routeTable.put("/v1/college-approvals", "http://localhost:8082/api/v1/college-admin/approvals");
+        routeTable.put("/v1/college-roles", "http://localhost:8082/api/v1/college-admin/roles");
+        routeTable.put("/v1/college-permissions", "http://localhost:8082/api/v1/college-admin/permissions");
+        routeTable.put("/v1/college-audit-logs", "http://localhost:8082/api/v1/college-admin/audit-logs");
 
         // Academic Tier -> Course Management Service (Port 8083)
         routeTable.put("/v1/courses", "http://localhost:8083/api/v1/courses");
         routeTable.put("/v1/course-catalog", "http://localhost:8083/api/v1/courses/catalog");
+
+        // Academic Tier -> Curriculum Management Service (Port 8084)
+        routeTable.put("/v1/curricula", "http://localhost:8084/api/v1/curricula");
+        routeTable.put("/v1/curriculum-catalog", "http://localhost:8084/api/v1/curricula/active");
+
+        // Academic Tier -> Subject Management Service (Port 8085)
+        routeTable.put("/v1/subjects", "http://localhost:8085/api/v1/subjects");
+        routeTable.put("/v1/subject-catalog", "http://localhost:8085/api/v1/academics/subjects/catalog");
+
+        // Academic Tier -> Batch Management Service (Port 8086)
+        routeTable.put("/v1/batches", "http://localhost:8086/api/v1/academics/batches");
+        routeTable.put("/v1/batch-catalog", "http://localhost:8086/api/v1/academics/batches");
+
+        // Academic Tier -> Timetable Management Service (Port 8087)
+        routeTable.put("/v1/timetables", "http://localhost:8087/api/v1/academics/timetables");
+        routeTable.put("/v1/timetable-catalog", "http://localhost:8087/api/v1/academics/timetables");
+
+        // Academic Tier -> Attendance Management Service (Port 8088)
+        routeTable.put("/v1/attendance", "http://localhost:8088/api/v1/academics/attendance");
+        routeTable.put("/v1/attendance-sessions", "http://localhost:8088/api/v1/academics/attendance/sessions");
+        routeTable.put("/v1/attendance-summaries", "http://localhost:8088/api/v1/academics/attendance/summaries");
+        routeTable.put("/v1/attendance-reports", "http://localhost:8088/api/v1/academics/attendance/report");
+
+        // Academic Tier -> Academic Calendar Service (Port 8089)
+        routeTable.put("/v1/calendars", "http://localhost:8089/api/v1/academics/calendars");
+        routeTable.put("/v1/calendar-terms", "http://localhost:8089/api/v1/academics/terms");
+        routeTable.put("/v1/calendar-events", "http://localhost:8089/api/v1/academics/events");
+        routeTable.put("/v1/calendar-catalog", "http://localhost:8089/api/v1/academics/calendars");
+
+        // Academic Tier -> Learning Resource Service (Port 8090)
+        routeTable.put("/v1/resources", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/v1/resource-catalog", "http://localhost:8090/api/v1/academics/resources");
+        routeTable.put("/v1/resource-versions", "http://localhost:8090/api/v1/academics/versions");
+
+        // Academic Tier -> Assessment Mapping Service (Port 8091)
+        routeTable.put("/v1/assessments", "http://localhost:8091/api/v1/academics/assessments");
+        routeTable.put("/v1/assessment-catalog", "http://localhost:8091/api/v1/academics/assessments");
+        routeTable.put("/v1/assessment-mappings", "http://localhost:8091/api/v1/academics/assessments");
+
+        // Academic Tier -> Reporting & Analytics Service (ACD-10, Port 8092)
+        routeTable.put("/v1/analytics", "http://localhost:8092/api/v1/academics/analytics");
+        routeTable.put("/v1/dashboards", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+        routeTable.put("/v1/reports", "http://localhost:8092/api/v1/academics/analytics/export");
+        routeTable.put("/v1/kpis", "http://localhost:8092/api/v1/academics/analytics/dashboard");
     }
 
     /**
@@ -98,5 +225,155 @@ public class GatewayConfig {
      */
     public void addRoute(String pathPrefix, String targetBaseUrl) {
         this.routeTable.put(pathPrefix, targetBaseUrl);
+    }
+
+    // =========================================================================
+    // Security & Cryptographic Trust Boundary Configuration
+    // =========================================================================
+
+    private Boolean internalAuthEnabled;
+    private String internalSecret;
+    private Long replayWindowSeconds;
+    private String supabaseJwtSecret;
+    private String supabaseJwtIssuer;
+    private String supabaseJwksUrl;
+    private volatile com.campx.gateway.security.JwksClient jwksClient;
+
+    public boolean isInternalAuthEnabled() {
+        if (internalAuthEnabled != null) {
+            return internalAuthEnabled;
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.isInternalAuthEnabled();
+    }
+
+    public void setInternalAuthEnabled(boolean internalAuthEnabled) {
+        this.internalAuthEnabled = internalAuthEnabled;
+    }
+
+    public String getInternalSecret() {
+        if (internalSecret != null && !internalSecret.trim().isEmpty()) {
+            return internalSecret.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getInternalSecret();
+    }
+
+    public void setInternalSecret(String internalSecret) {
+        this.internalSecret = internalSecret;
+    }
+
+    public long getReplayWindowSeconds() {
+        if (replayWindowSeconds != null) {
+            return replayWindowSeconds;
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getReplayWindowSeconds();
+    }
+
+    public void setReplayWindowSeconds(long replayWindowSeconds) {
+        this.replayWindowSeconds = replayWindowSeconds;
+    }
+
+    public String getSupabaseJwtSecret() {
+        if (supabaseJwtSecret != null && !supabaseJwtSecret.trim().isEmpty()) {
+            return supabaseJwtSecret.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getSupabaseJwtSecret();
+    }
+
+    public void setSupabaseJwtSecret(String supabaseJwtSecret) {
+        this.supabaseJwtSecret = supabaseJwtSecret;
+    }
+
+    public String getSupabaseJwtIssuer() {
+        if (supabaseJwtIssuer != null && !supabaseJwtIssuer.trim().isEmpty()) {
+            return supabaseJwtIssuer.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getSupabaseJwtIssuer();
+    }
+
+    public void setSupabaseJwtIssuer(String supabaseJwtIssuer) {
+        this.supabaseJwtIssuer = supabaseJwtIssuer;
+    }
+
+    public String getSupabaseJwksUrl() {
+        if (supabaseJwksUrl != null && !supabaseJwksUrl.trim().isEmpty()) {
+            return supabaseJwksUrl.trim();
+        }
+        return com.campx.logger.security.GatewayHmacSecurityConfig.getSupabaseJwksUrl(getSupabaseJwtIssuer());
+    }
+
+    public void setSupabaseJwksUrl(String supabaseJwksUrl) {
+        this.supabaseJwksUrl = supabaseJwksUrl;
+    }
+
+    public com.campx.gateway.security.JwksClient getJwksClient() {
+        if (jwksClient == null) {
+            synchronized (this) {
+                if (jwksClient == null) {
+                    String url = getSupabaseJwksUrl();
+                    if (url != null && !url.trim().isEmpty()) {
+                        jwksClient = new com.campx.gateway.security.JwksClient(url);
+                    }
+                }
+            }
+        }
+        return jwksClient;
+    }
+
+    public void setJwksClient(com.campx.gateway.security.JwksClient jwksClient) {
+        this.jwksClient = jwksClient;
+    }
+
+    /**
+     * Validates that all required security credentials are present when internal authentication is enabled.
+     *
+     * @throws IllegalStateException if any required secret or issuer is missing
+     */
+    public void validateSecurityConfiguration() {
+        if (isInternalAuthEnabled()) {
+            String internal = getInternalSecret();
+            if (internal == null || internal.trim().isEmpty()) {
+                throw new IllegalStateException("CAMPX_INTERNAL_SECRET is required when platform internal auth is enabled. "
+                        + "Set environment variable CAMPX_INTERNAL_SECRET or JVM system property campx.internal.secret.");
+            }
+            String jwtIssuer = getSupabaseJwtIssuer();
+            if (jwtIssuer == null || jwtIssuer.trim().isEmpty()) {
+                throw new IllegalStateException("CAMPX_SUPABASE_JWT_ISSUER is required when Gateway security is enabled. "
+                        + "Set environment variable CAMPX_SUPABASE_JWT_ISSUER or JVM system property campx.supabase.jwt.issuer.");
+            }
+        }
+    }
+
+    private java.util.List<String> allowedOrigins;
+
+    /**
+     * Resolves the list of trusted frontend origins permitted to execute cross-origin requests.
+     */
+    public java.util.List<String> getAllowedOrigins() {
+        if (allowedOrigins != null) {
+            return allowedOrigins;
+        }
+        String configured = System.getProperty("campx.cors.allowed-origins");
+        if (configured == null || configured.trim().isEmpty()) {
+            configured = System.getenv("CAMPX_ALLOWED_ORIGINS");
+        }
+        if (configured != null && !configured.trim().isEmpty()) {
+            java.util.List<String> list = new java.util.ArrayList<>();
+            for (String origin : configured.split(",")) {
+                if (!origin.trim().isEmpty()) {
+                    list.add(origin.trim());
+                }
+            }
+            return list;
+        }
+        return java.util.Arrays.asList(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+        );
+    }
+
+    public void setAllowedOrigins(java.util.List<String> allowedOrigins) {
+        this.allowedOrigins = allowedOrigins;
     }
 }

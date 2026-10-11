@@ -96,6 +96,22 @@ public class ApiGatewayRoutingTest {
         String resp = readResponse(conn);
         assertTrue(resp.contains("/api/v1/admin"));
         assertTrue(resp.contains("/api/v1/college-admin"));
+        assertTrue(resp.contains("/api/v1/courses"));
+        assertTrue(resp.contains("/api/v1/curricula"));
+        assertTrue(resp.contains("/api/v1/subjects"));
+        assertTrue(resp.contains("/v1/subject-catalog"));
+        assertTrue(resp.contains("/api/v1/batches"));
+        assertTrue(resp.contains("/v1/batch-catalog"));
+        assertTrue(resp.contains("/api/v1/timetables"));
+        assertTrue(resp.contains("/v1/timetable-catalog"));
+        assertTrue(resp.contains("/api/v1/attendance"));
+        assertTrue(resp.contains("/v1/attendance"));
+        assertTrue(resp.contains("/api/v1/calendars"));
+        assertTrue(resp.contains("/v1/calendars"));
+        assertTrue(resp.contains("/api/v1/academics/analytics"));
+        assertTrue(resp.contains("/api/v1/dashboards"));
+        assertTrue(resp.contains("/api/v1/reports"));
+        assertTrue(resp.contains("/v1/analytics"));
     }
 
     /**

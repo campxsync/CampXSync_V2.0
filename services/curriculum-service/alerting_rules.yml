@@ -1,0 +1,74 @@
+groups:
+  - name: curriculum_service_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job="curriculum-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: curriculum-service
+          tier: academic
+        annotations:
+          summary: "Curriculum Management Service instance down"
+          description: "Curriculum service instance {{ $labels.instance }} has been unreachable for more than 1 minute."
+          runbook_url: "docs/runbooks/service_recovery.md"
+
+      - alert: HighErrorRate
+        expr: (sum(rate(acd02_error_total[5m])) / sum(rate(acd02_request_total[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: curriculum-service
+          tier: academic
+        annotations:
+          summary: "Curriculum service HTTP error rate exceeds 5%"
+          description: "Curriculum service error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+          runbook_url: "docs/runbooks/error_budget_breach.md"
+
+      - alert: LatencyP99Breach
+        expr: (sum(rate(acd02_request_duration_seconds[5m])) / sum(rate(acd02_request_total[5m]))) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          service: curriculum-service
+          tier: academic
+        annotations:
+          summary: "Curriculum service P99 request latency > 1.5s"
+          description: "Curriculum service average latency is {{ $value }}s over the last 5 minutes."
+          runbook_url: "docs/runbooks/latency_investigation.md"
+
+      - alert: OutboxBacklogHigh
+        expr: acd02_outbox_pending_count > 1000
+        for: 10m
+        labels:
+          severity: critical
+          service: curriculum-service
+          tier: academic
+        annotations:
+          summary: "Curriculum outbox pending backlog exceeds 1,000 events"
+          description: "Outbox pending backlog is currently {{ $value }} events for over 10 minutes. Event broker relay may be degraded or stalled."
+          runbook_url: "docs/runbooks/outbox_relay_backlog.md"
+
+      - alert: DeadLetterSpike
+        expr: increase(acd02_dlq_count[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: curriculum-service
+          tier: academic
+        annotations:
+          summary: "Dead Letter Queue count increased by > 10 in 5 minutes"
+          description: "DLQ received {{ $value }} failed events in the last 5 minutes. Check consumer contract incompatibilities or broker delivery failures."
+          runbook_url: "docs/runbooks/dlq_reconciliation.md"
+
+      - alert: PrerequisiteCycleDetected
+        expr: acd02_validation_failure_total{type="PREREQUISITE_CYCLE"} > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: curriculum-service
+          tier: academic
+        annotations:
+          summary: "Prerequisite DAG circular dependency rejected"
+          description: "Subject prerequisite validation rejected a cyclic dependency submission. Verify curriculum authoring workflows."
+          runbook_url: "docs/runbooks/dag_cycle_investigation.md"

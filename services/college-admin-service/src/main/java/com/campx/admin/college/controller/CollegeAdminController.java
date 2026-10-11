@@ -43,12 +43,30 @@ public class CollegeAdminController implements HttpHandler {
     private final CollegeAdminDomainService domainService;
 
     /**
+     * Edge gateway cryptographic HMAC verifier enforcing platform trust boundary.
+     */
+    private final com.campx.admin.college.security.GatewayHmacVerifier gatewayHmacVerifier;
+
+    /**
      * Constructs a {@code CollegeAdminController} with the specified domain business service.
      *
      * @param domainService the backing domain service
      */
     public CollegeAdminController(CollegeAdminDomainService domainService) {
+        this(domainService, new com.campx.admin.college.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Constructs a {@code CollegeAdminController} with domain service and explicit gateway verifier.
+     *
+     * @param domainService      the backing domain service
+     * @param gatewayHmacVerifier the gateway HMAC verifier
+     */
+    public CollegeAdminController(CollegeAdminDomainService domainService,
+                                  com.campx.admin.college.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier :
+                new com.campx.admin.college.security.GatewayHmacVerifier();
     }
 
     /**
@@ -63,6 +81,19 @@ public class CollegeAdminController implements HttpHandler {
         String path = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod();
 
+        // Cache raw request body bytes for both HMAC verification and downstream handlers
+        byte[] bodyBytes = readRequestBodyBytes(exchange);
+        exchange.setAttribute("campx.request.body", bodyBytes);
+
+        // Platform Trust Boundary: Verify Gateway HMAC signature before extracting identity or processing endpoints
+        com.campx.admin.college.security.GatewayHmacVerifier.VerificationResult authResult =
+                gatewayHmacVerifier.verify(exchange, method, path, bodyBytes);
+        if (!authResult.isSuccess()) {
+            sendError(exchange, authResult.getStatus(), authResult.getError(), authResult.getErrorCode(), authResult.getMessage(), path);
+            return;
+        }
+        exchange.setAttribute("campx.auth.result", authResult);
+
         // 1. Trace & Tenant Correlation Context
         String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
         if (traceId == null || traceId.trim().isEmpty()) {
@@ -70,15 +101,15 @@ public class CollegeAdminController implements HttpHandler {
         } else {
             LogContext.setTraceId(traceId);
         }
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        String tenantId = authResult.getTenantId();
         if (tenantId != null && !tenantId.trim().isEmpty()) {
             LogContext.setTenantId(tenantId);
         }
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String userId = authResult.getUserId();
         if (userId != null && !userId.trim().isEmpty()) {
             LogContext.setUserId(userId);
         }
-        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        String userRole = authResult.getUserRole();
         if (userRole != null && !userRole.trim().isEmpty()) {
             LogContext.setUserRole(userRole);
         }
@@ -116,6 +147,14 @@ public class CollegeAdminController implements HttpHandler {
                 if ("DELETE".equalsIgnoreCase(method)) {
                     flow.step("handleRetireDepartment");
                     handleRetireDepartment(exchange, depId);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetDepartment");
+                    handleGetDepartment(exchange, depId);
+                    return;
+                } else if ("PUT".equalsIgnoreCase(method)) {
+                    flow.step("handleUpdateDepartment");
+                    handleUpdateDepartment(exchange, depId);
                     return;
                 }
             }
@@ -492,6 +531,27 @@ public class CollegeAdminController implements HttpHandler {
                 return;
             }
 
+            // 24.1 Batch Split/Merge Approvals & Workflows (User Story Lines 39–41)
+            if (path.equals("/api/v1/college-admin/workflows/batch-approvals/events") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleProcessBatchApprovalEvent");
+                handleProcessBatchApprovalEvent(exchange);
+                return;
+            } else if (path.equals("/api/v1/college-admin/workflows/batch-approvals") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleListBatchApprovals");
+                handleListBatchApprovals(exchange);
+                return;
+            } else if (path.startsWith("/api/v1/college-admin/workflows/batch-approvals/") && path.endsWith("/decide") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleDecideBatchApproval");
+                String reqId = path.substring("/api/v1/college-admin/workflows/batch-approvals/".length(), path.length() - "/decide".length());
+                handleDecideBatchApproval(exchange, reqId);
+                return;
+            } else if (path.startsWith("/api/v1/college-admin/workflows/batch-approvals/") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleGetBatchApproval");
+                String reqId = path.substring("/api/v1/college-admin/workflows/batch-approvals/".length());
+                handleGetBatchApproval(exchange, reqId);
+                return;
+            }
+
             // 24. College Workflows Endpoint (CSV Line 32)
             if (path.equals("/api/v1/college-admin/workflows")) {
                 if ("POST".equalsIgnoreCase(method)) {
@@ -551,6 +611,10 @@ public class CollegeAdminController implements HttpHandler {
             flow.markFailed(e);
             logger.error("[CollegeAdminService] Internal server error [{} {}]: {}", method, path, e.getMessage(), e);
             sendError(exchange, 500, "Internal Server Error", "ADM02_INTERNAL_SERVER_ERROR", "An unexpected server error occurred: " + escape(e.getMessage()), path);
+        } catch (Throwable t) {
+            flow.markFailed(t);
+            logger.error("[CollegeAdminService] Critical error [{} {}]: {}", method, path, t.getMessage(), t);
+            sendError(exchange, 500, "Internal Server Error", "ADM02_INTERNAL_SERVER_ERROR", "A critical server error occurred: " + escape(t.getMessage()), path);
         } finally {
             if (flow != null) {
                 flow.close();
@@ -584,28 +648,69 @@ public class CollegeAdminController implements HttpHandler {
 
     private void handleCreateDepartment(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        String tenantId = context.getTenantId() != null ? context.getTenantId().toString() : null;
+
         Department d = new Department();
         d.setDepartmentCode(extract(body, "departmentCode", null));
         d.setName(extract(body, "name", null));
         d.setHeadUserId(extract(body, "headUserId", "FACULTY_HOD"));
+        d.setCollegeId(extract(body, "collegeId", null));
+        if (tenantId != null && !tenantId.trim().isEmpty()) {
+            d.setTenantId(tenantId.trim());
+        }
 
-        Department created = domainService.createDepartment(d);
-        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getDepartmentCode() + "\",\"status\":\"" + created.getStatus() + "\"}");
+        Department created = domainService.createDepartment(context, d);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getDepartmentCode()
+                + "\",\"name\":\"" + escape(created.getName()) + "\",\"status\":\"" + created.getStatus() + "\"}");
     }
 
     private void handleRetireDepartment(HttpExchange exchange, String depId) throws IOException {
-        domainService.retireDepartment(depId);
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+
+        domainService.retireDepartment(context, depId);
         sendJson(exchange, 200, "{\"status\":\"RETIRED\",\"id\":\"" + depId + "\"}");
     }
 
+    private void handleGetDepartment(HttpExchange exchange, String depId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        Department dep = domainService.getDepartment(depId, context);
+        if (dep == null) {
+            sendError(exchange, 404, "Not Found", "DEPARTMENT_NOT_FOUND", "Department not found: " + depId, exchange.getRequestURI().getPath());
+            return;
+        }
+        sendJson(exchange, 200, "{\"id\":\"" + dep.getId() + "\",\"code\":\"" + dep.getDepartmentCode()
+                + "\",\"name\":\"" + escape(dep.getName()) + "\",\"status\":\"" + dep.getStatus()
+                + "\",\"headUserId\":\"" + (dep.getHeadUserId() != null ? escape(dep.getHeadUserId()) : "")
+                + "\",\"collegeId\":\"" + (dep.getCollegeId() != null ? escape(dep.getCollegeId()) : "") + "\"}");
+    }
+
+    private void handleUpdateDepartment(HttpExchange exchange, String depId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        String body = readBody(exchange);
+        Department dep = new Department();
+        dep.setId(depId);
+        dep.setName(extract(body, "name", null));
+        dep.setStatus(extract(body, "status", null));
+        Department updated = domainService.updateDepartment(context, dep);
+        sendJson(exchange, 200, "{\"id\":\"" + updated.getId() + "\",\"code\":\"" + updated.getDepartmentCode()
+                + "\",\"name\":\"" + escape(updated.getName()) + "\",\"status\":\"" + updated.getStatus()
+                + "\",\"headUserId\":\"" + (updated.getHeadUserId() != null ? escape(updated.getHeadUserId()) : "")
+                + "\",\"collegeId\":\"" + (updated.getCollegeId() != null ? escape(updated.getCollegeId()) : "") + "\"}");
+    }
+
     private void handleListDepartments(HttpExchange exchange) throws IOException {
-        List<Department> list = domainService.listDepartments();
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+
+        List<Department> list = domainService.listDepartments(context);
         StringBuilder sb = new StringBuilder("{\"departments\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
             Department d = list.get(i);
             sb.append("{\"id\":\"").append(d.getId()).append("\",\"code\":\"").append(d.getDepartmentCode())
-              .append("\",\"name\":\"").append(escape(d.getName())).append("\",\"status\":\"").append(d.getStatus()).append("\"}");
+              .append("\",\"name\":\"").append(escape(d.getName()))
+              .append("\",\"collegeId\":\"").append(d.getCollegeId() != null ? d.getCollegeId() : "")
+              .append("\",\"status\":\"").append(d.getStatus()).append("\"}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
@@ -614,9 +719,15 @@ public class CollegeAdminController implements HttpHandler {
     private void handleCreateProgram(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         Program p = new Program();
-        p.setProgramCode(extract(body, "programCode", null));
+        String code = extract(body, "programCode", null);
+        if (code == null) {
+            code = extract(body, "code", null);
+        }
+        p.setProgramCode(code);
         p.setName(extract(body, "name", null));
         p.setDepartmentId(extract(body, "departmentId", null));
+        p.setCollegeId(extract(body, "collegeId", null));
+        p.setLevel(extract(body, "level", "UG"));
         String dur = extract(body, "durationYears", "4");
         try {
             p.setDurationYears(Integer.parseInt(dur));
@@ -625,7 +736,14 @@ public class CollegeAdminController implements HttpHandler {
         }
 
         Program created = domainService.createProgram(p);
-        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getProgramCode() + "\",\"published\":true}");
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getProgramCode()
+                + "\",\"programCode\":\"" + created.getProgramCode()
+                + "\",\"name\":\"" + escape(created.getName())
+                + "\",\"departmentId\":\"" + escape(created.getDepartmentId())
+                + "\",\"collegeId\":\"" + escape(created.getCollegeId())
+                + "\",\"durationYears\":" + created.getDurationYears()
+                + ",\"published\":" + created.isPublished()
+                + ",\"status\":\"" + escape(created.getStatus()) + "\"}");
     }
 
     private void handleListPrograms(HttpExchange exchange) throws IOException {
@@ -634,8 +752,17 @@ public class CollegeAdminController implements HttpHandler {
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
             Program p = list.get(i);
-            sb.append("{\"id\":\"").append(p.getId()).append("\",\"code\":\"").append(p.getProgramCode())
-              .append("\",\"name\":\"").append(escape(p.getName())).append("\"}");
+            sb.append("{\"id\":\"").append(p.getId())
+              .append("\",\"code\":\"").append(p.getProgramCode())
+              .append("\",\"programCode\":\"").append(p.getProgramCode())
+              .append("\",\"name\":\"").append(escape(p.getName()))
+              .append("\",\"departmentId\":\"").append(escape(p.getDepartmentId()))
+              .append("\",\"collegeId\":\"").append(escape(p.getCollegeId()))
+              .append("\",\"durationYears\":").append(p.getDurationYears())
+              .append(",\"level\":\"").append(escape(p.getLevel()))
+              .append("\",\"status\":\"").append(escape(p.getStatus()))
+              .append("\",\"published\":").append(p.isPublished())
+              .append("}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
@@ -842,7 +969,15 @@ public class CollegeAdminController implements HttpHandler {
         role.setProtectedSystemRole("true".equalsIgnoreCase(extract(body, "protectedSystemRole", "false")));
         String permsStr = extract(body, "permissions", null);
         if (permsStr != null && !permsStr.isEmpty()) {
-            role.setPermissions(java.util.Arrays.asList(permsStr.split(",")));
+            List<String> perms = new ArrayList<>();
+            String clean = permsStr.replaceAll("^\\[|\\]$", "");
+            for (String p : clean.split(",")) {
+                String trimmed = p.replace("\"", "").trim();
+                if (!trimmed.isEmpty()) {
+                    perms.add(trimmed);
+                }
+            }
+            role.setPermissions(perms);
         }
 
         CollegeRole created = domainService.createCollegeRole(role);
@@ -994,6 +1129,14 @@ public class CollegeAdminController implements HttpHandler {
         String sourceService = extract(body, "sourceService", "ACD-07");
         String consumerGroup = extract(body, "consumerGroup", "ADM-02");
         String payload = extract(body, "payload", "{}");
+
+        // User Story 40 & 41: Cross-module ACD-04 batch approval event ingestion
+        if (body.contains("BatchSplitApprovalRequested") || body.contains("BatchMergeApprovalRequested") || "ACD-04".equalsIgnoreCase(sourceService)) {
+            BatchApprovalDetails d = domainService.processBatchApprovalEvent(body);
+            sendJson(exchange, 200, "{\"id\":\"" + d.getRequestId() + "\",\"eventId\":\"" + eventId
+                    + "\",\"status\":\"" + d.getStatus() + "\",\"workflowInstanceId\":\"" + d.getWorkflowInstanceId() + "\"}");
+            return;
+        }
 
         InboxEvent processed = domainService.processInboxEvent(eventId, sourceService, consumerGroup, payload);
         sendJson(exchange, 200, "{\"id\":\"" + processed.getId() + "\",\"eventId\":\"" + processed.getEventId()
@@ -1289,6 +1432,11 @@ public class CollegeAdminController implements HttpHandler {
     }
 
     private void handleDecideApprovalRequest(HttpExchange exchange, String reqId) throws IOException {
+        if (domainService.getBatchApprovals().containsKey(reqId)) {
+            handleDecideBatchApproval(exchange, reqId);
+            return;
+        }
+
         String body = readBody(exchange);
         String approverId = extract(body, "approverId", "PRINCIPAL");
         String decision = extract(body, "decision", "APPROVE");
@@ -1350,6 +1498,100 @@ public class CollegeAdminController implements HttpHandler {
         sendJson(exchange, 200, sb.toString());
     }
 
+    // =========================================================================
+    // User Stories 40 & 41: Cross-Module Batch Split/Merge Handlers
+    // =========================================================================
+
+    private void handleProcessBatchApprovalEvent(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        BatchApprovalDetails details = domainService.processBatchApprovalEvent(body);
+        int statusCode = "DUPLICATE_IGNORED".equals(details.getStatus()) ? 200 : 201;
+        String resp = "{"
+                + "\"status\":\"" + details.getStatus() + "\","
+                + "\"requestId\":\"" + details.getRequestId() + "\","
+                + "\"requestType\":\"" + details.getRequestType() + "\","
+                + "\"workflowInstanceId\":\"" + (details.getWorkflowInstanceId() != null ? details.getWorkflowInstanceId() : "") + "\","
+                + "\"approverRole\":\"" + details.getApproverRole() + "\""
+                + "}";
+        sendJson(exchange, statusCode, resp);
+    }
+
+    private void handleDecideBatchApproval(HttpExchange exchange, String reqId) throws IOException {
+        String body = readBody(exchange);
+        String decision = extract(body, "decision", "APPROVED");
+        String decidedBy = extract(body, "decidedBy", LogContext.getUserId());
+        String reason = extract(body, "reason", "Approved by Registrar");
+
+        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        if (userRole == null || userRole.trim().isEmpty()) {
+            userRole = LogContext.getUserRole();
+        }
+
+        BatchApprovalDetails decided = domainService.decideBatchApproval(reqId, decision, decidedBy, userRole, reason);
+        String resp = "{"
+                + "\"status\":\"" + decided.getStatus() + "\","
+                + "\"requestId\":\"" + decided.getRequestId() + "\","
+                + "\"decision\":\"" + decided.getDecision() + "\","
+                + "\"decidedBy\":\"" + escape(decided.getDecidedBy()) + "\","
+                + "\"decidedAt\":" + decided.getDecidedAt() + ","
+                + "\"reason\":\"" + escape(decided.getDecisionReason()) + "\","
+                + "\"auditRecordId\":\"" + (decided.getAuditRecordId() != null ? decided.getAuditRecordId() : "") + "\","
+                + "\"beforeHash\":\"" + (decided.getBeforeHash() != null ? decided.getBeforeHash() : "") + "\","
+                + "\"afterHash\":\"" + (decided.getAfterHash() != null ? decided.getAfterHash() : "") + "\""
+                + "}";
+        sendJson(exchange, 200, resp);
+    }
+
+    private void handleGetBatchApproval(HttpExchange exchange, String reqId) throws IOException {
+        BatchApprovalDetails d = domainService.getBatchApproval(reqId);
+        String resp = "{"
+                + "\"requestId\":\"" + d.getRequestId() + "\","
+                + "\"requestType\":\"" + d.getRequestType() + "\","
+                + "\"status\":\"" + d.getStatus() + "\","
+                + "\"decision\":\"" + (d.getDecision() != null ? d.getDecision() : "") + "\","
+                + "\"sourceBatchId\":\"" + (d.getSourceBatchId() != null ? d.getSourceBatchId() : "") + "\","
+                + "\"sourceBatchCode\":\"" + (d.getSourceBatchCode() != null ? d.getSourceBatchCode() : "") + "\","
+                + "\"sourceBatchIds\":" + toJsonStringList(d.getSourceBatchIds()) + ","
+                + "\"sourceBatchDepartmentIds\":" + toJsonStringList(d.getSourceBatchDepartmentIds()) + ","
+                + "\"targetBatchId\":\"" + (d.getTargetBatchId() != null ? d.getTargetBatchId() : "") + "\","
+                + "\"departmentId\":\"" + (d.getDepartmentId() != null ? d.getDepartmentId() : "") + "\","
+                + "\"campusId\":\"" + (d.getCampusId() != null ? d.getCampusId() : "") + "\","
+                + "\"requestedBy\":\"" + escape(d.getRequestedBy()) + "\","
+                + "\"requestedAt\":" + d.getRequestedAt() + ","
+                + "\"reason\":\"" + escape(d.getReason()) + "\","
+                + "\"approverRole\":\"" + d.getApproverRole() + "\","
+                + "\"workflowInstanceId\":\"" + (d.getWorkflowInstanceId() != null ? d.getWorkflowInstanceId() : "") + "\""
+                + "}";
+        sendJson(exchange, 200, resp);
+    }
+
+    private void handleListBatchApprovals(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String status = getQueryParam(query, "status");
+        List<BatchApprovalDetails> list = domainService.listBatchApprovals(status);
+        StringBuilder sb = new StringBuilder("{\"batchApprovals\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            BatchApprovalDetails d = list.get(i);
+            sb.append("{\"requestId\":\"").append(d.getRequestId()).append("\",\"requestType\":\"").append(d.getRequestType())
+              .append("\",\"sourceBatchId\":\"").append(d.getSourceBatchId() != null ? d.getSourceBatchId() : "")
+              .append("\",\"status\":\"").append(d.getStatus()).append("\",\"approverRole\":\"").append(d.getApproverRole()).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private String toJsonStringList(List<String> list) {
+        if (list == null || list.isEmpty()) return "[]";
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(escape(list.get(i))).append("\"");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
     private String getQueryParam(String query, String key) {
         if (query == null) return null;
         String[] pairs = query.split("&");
@@ -1362,7 +1604,33 @@ public class CollegeAdminController implements HttpHandler {
         return null;
     }
 
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        java.io.InputStream is = exchange.getRequestBody();
+        java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+        int nRead;
+        byte[] data = new byte[4096];
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        return buffer.toByteArray();
+    }
+
+    private com.campx.admin.college.security.UserSecurityContext getSecurityContext(HttpExchange exchange) {
+        com.campx.admin.college.security.GatewayHmacVerifier.VerificationResult auth =
+                (com.campx.admin.college.security.GatewayHmacVerifier.VerificationResult) exchange.getAttribute("campx.auth.result");
+        if (auth != null && auth.getUserId() != null) {
+            return com.campx.admin.college.security.UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+        }
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        return com.campx.admin.college.security.UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
     private String readBody(HttpExchange exchange) throws IOException {
+        byte[] cached = (byte[]) exchange.getAttribute("campx.request.body");
+        if (cached != null) {
+            return new String(cached, StandardCharsets.UTF_8).trim();
+        }
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
             String line;

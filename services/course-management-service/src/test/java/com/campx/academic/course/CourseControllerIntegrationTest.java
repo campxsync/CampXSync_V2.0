@@ -53,6 +53,7 @@ public class CourseControllerIntegrationTest {
      */
     @BeforeClass
     public static void startServer() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         server = new CourseServer(TEST_PORT, new CourseDomainService());
         server.start();
     }
@@ -65,6 +66,7 @@ public class CourseControllerIntegrationTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
         CampXLoggerFactory.flush();
     }
 
@@ -196,6 +198,89 @@ public class CourseControllerIntegrationTest {
         assertTrue(resp.contains("\"totalCredits\":4.0"));
         assertTrue(resp.contains("\"internalWeightage\":40.0"));
         assertTrue(resp.contains("\"externalWeightage\":60.0"));
+    }
+
+    @Test
+    public void testDynamicDepartmentSyncViaHttp() throws Exception {
+        String courseWithNewDept = "{"
+                + "\"courseCode\":\"TEST_DYN_01\","
+                + "\"courseName\":\"Dynamic Dept Course\","
+                + "\"departmentId\":\"DEP_NEW_SYNC\","
+                + "\"totalCredits\":3.0"
+                + "}";
+
+        // 1. Initial attempt should fail with 400 because department is unknown
+        URL url = new URL(BASE_URL + "/api/v1/courses");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(courseWithNewDept.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(400, conn.getResponseCode());
+        String err = readResponse(conn);
+        assertTrue(err.contains("\"code\":\"ACD_INVALID_DEPARTMENT\""));
+        assertTrue(err.contains("\"errorCode\":\"ACD_INVALID_DEPARTMENT\""));
+
+        // 2. Sync department via DepartmentCreated event
+        String syncPayload = "{\"eventType\":\"DepartmentCreated\",\"departmentId\":\"DEP_NEW_SYNC\"}";
+        URL syncUrl = new URL(BASE_URL + "/api/v1/courses/events/department-sync");
+        HttpURLConnection syncConn = (HttpURLConnection) syncUrl.openConnection();
+        syncConn.setRequestMethod("POST");
+        syncConn.setDoOutput(true);
+        syncConn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = syncConn.getOutputStream()) {
+            os.write(syncPayload.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, syncConn.getResponseCode());
+
+        // 3. Now course creation must succeed (201 Created)
+        HttpURLConnection conn2 = (HttpURLConnection) url.openConnection();
+        conn2.setRequestMethod("POST");
+        conn2.setDoOutput(true);
+        conn2.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn2.getOutputStream()) {
+            os.write(courseWithNewDept.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(201, conn2.getResponseCode());
+
+        // 4. Deactivate department via DepartmentDeactivated event
+        String deactPayload = "{\"eventType\":\"DepartmentDeactivated\",\"departmentId\":\"DEP_NEW_SYNC\"}";
+        HttpURLConnection deactConn = (HttpURLConnection) syncUrl.openConnection();
+        deactConn.setRequestMethod("POST");
+        deactConn.setDoOutput(true);
+        deactConn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = deactConn.getOutputStream()) {
+            os.write(deactPayload.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, deactConn.getResponseCode());
+
+        // 5. Subsequent course creation with deactivated department fails again
+        String anotherCourse = "{"
+                + "\"courseCode\":\"TEST_DYN_02\","
+                + "\"courseName\":\"Dynamic Dept Course 2\","
+                + "\"departmentId\":\"DEP_NEW_SYNC\","
+                + "\"totalCredits\":3.0"
+                + "}";
+        HttpURLConnection conn3 = (HttpURLConnection) url.openConnection();
+        conn3.setRequestMethod("POST");
+        conn3.setDoOutput(true);
+        conn3.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn3.getOutputStream()) {
+            os.write(anotherCourse.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(400, conn3.getResponseCode());
+    }
+
+    @Test
+    public void testCourseCatalogEndpointViaHttp() throws Exception {
+        URL url = new URL(BASE_URL + "/api/v1/courses/catalog");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        assertEquals(200, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("\"catalog\":["));
     }
 
     private int post(String urlStr, String json) throws Exception {

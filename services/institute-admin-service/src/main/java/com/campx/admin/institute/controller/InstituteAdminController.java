@@ -3,6 +3,7 @@ package com.campx.admin.institute.controller;
 import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.ErrorResponse;
 import com.campx.admin.institute.model.InstituteModels.*;
+import com.campx.admin.institute.model.InstituteModels.Calendar;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -11,10 +12,18 @@ import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import com.campx.admin.institute.model.UserProfileModels.*;
+import static com.campx.admin.institute.model.UserProfileModels.*;
+import com.campx.admin.institute.repository.UserProfileRepository;
+import com.campx.admin.institute.security.UserSecurityContext;
+
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -34,14 +43,40 @@ public class InstituteAdminController implements HttpHandler {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(InstituteAdminController.class);
     private final InstituteAdminDomainService domainService;
+    private final UserProfileRepository userProfileRepository;
+    private final com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier;
 
     /**
-     * Initializes the controller with the backing business domain service.
+     * Initializes the controller with default UserProfileRepository and GatewayHmacVerifier.
      *
      * @param domainService domain service instance
      */
     public InstituteAdminController(InstituteAdminDomainService domainService) {
+        this(domainService, new UserProfileRepository(), new com.campx.admin.institute.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Initializes the controller with custom UserProfileRepository (for testing and DI).
+     *
+     * @param domainService         domain service instance
+     * @param userProfileRepository user profile repository instance
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository) {
+        this(domainService, userProfileRepository, new com.campx.admin.institute.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Initializes the controller with custom UserProfileRepository and custom GatewayHmacVerifier.
+     *
+     * @param domainService         domain service instance
+     * @param userProfileRepository user profile repository instance
+     * @param gatewayHmacVerifier   HMAC verifier instance
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
+                                    com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
+        this.userProfileRepository = userProfileRepository != null ? userProfileRepository : new UserProfileRepository();
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier : new com.campx.admin.institute.security.GatewayHmacVerifier();
     }
 
     /**
@@ -54,6 +89,22 @@ public class InstituteAdminController implements HttpHandler {
     public void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod();
+        String methodOverride = exchange.getRequestHeaders().getFirst("X-HTTP-Method-Override");
+        if (methodOverride != null && !methodOverride.trim().isEmpty()) {
+            method = methodOverride.trim().toUpperCase(Locale.ROOT);
+        }
+
+        // Cache raw request body bytes for both HMAC verification and downstream handlers
+        byte[] bodyBytes = readRequestBodyBytes(exchange);
+        exchange.setAttribute("campx.request.body", bodyBytes);
+
+        // Platform Trust Boundary: Verify Gateway HMAC signature before extracting identity or processing endpoints
+        com.campx.admin.institute.security.GatewayHmacVerifier.VerificationResult authResult =
+                gatewayHmacVerifier.verify(exchange, method, path, bodyBytes);
+        if (!authResult.isSuccess()) {
+            sendError(exchange, authResult.getStatus(), authResult.getError(), authResult.getErrorCode(), authResult.getMessage(), path);
+            return;
+        }
 
         // 1. Trace & Tenant Correlation Context
         String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
@@ -62,15 +113,15 @@ public class InstituteAdminController implements HttpHandler {
         } else {
             LogContext.setTraceId(traceId);
         }
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        String tenantId = authResult.getTenantId();
         if (tenantId != null && !tenantId.trim().isEmpty()) {
             LogContext.setTenantId(tenantId);
         }
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String userId = authResult.getUserId();
         if (userId != null && !userId.trim().isEmpty()) {
             LogContext.setUserId(userId);
         }
-        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        String userRole = authResult.getUserRole();
         if (userRole != null && !userRole.trim().isEmpty()) {
             LogContext.setUserRole(userRole);
         }
@@ -149,22 +200,33 @@ public class InstituteAdminController implements HttpHandler {
             // Phase 1: RBAC & Identity Endpoints (User Story Lines 17–21)
             // =====================================================================
 
-            // 7. Admin Users Endpoint
+            // 7. User Profile Management (ADM-01 Step 1)
             if (path.equals("/api/v1/admin/users")) {
                 if ("POST".equalsIgnoreCase(method)) {
-                    flow.step("handleCreateAdminUser");
-                    handleCreateAdminUser(exchange);
+                    flow.step("handleCreateUser");
+                    handleCreateUser(exchange);
                     return;
                 } else if ("GET".equalsIgnoreCase(method)) {
-                    flow.step("handleListAdminUsers");
-                    handleListAdminUsers(exchange);
+                    flow.step("handleListUsers");
+                    handleListUsers(exchange);
                     return;
                 }
             } else if (path.startsWith("/api/v1/admin/users/")) {
-                String adminUserId = path.substring("/api/v1/admin/users/".length());
-                if ("PUT".equalsIgnoreCase(method)) {
-                    flow.step("handleUpdateAdminUser");
-                    handleUpdateAdminUser(exchange, adminUserId);
+                if (path.endsWith("/status") && "PATCH".equalsIgnoreCase(method)) {
+                    String idStr = path.substring("/api/v1/admin/users/".length(), path.length() - "/status".length());
+                    flow.step("handleUpdateUserStatus");
+                    handleUpdateUserStatus(exchange, idStr);
+                    return;
+                }
+
+                String idStr = path.substring("/api/v1/admin/users/".length());
+                if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetUserById");
+                    handleGetUserById(exchange, idStr);
+                    return;
+                } else if ("PUT".equalsIgnoreCase(method)) {
+                    flow.step("handleUpdateUser");
+                    handleUpdateUser(exchange, idStr);
                     return;
                 }
             }
@@ -554,9 +616,112 @@ public class InstituteAdminController implements HttpHandler {
                 return;
             }
 
+            // 31. Academic Calendars (Item 23)
+            if (path.equals("/api/v1/admin/calendars")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateCalendar");
+                    handleCreateCalendar(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListCalendars");
+                    handleListCalendars(exchange);
+                    return;
+                }
+            } else if (path.startsWith("/api/v1/admin/calendars/") && path.endsWith("/events")) {
+                String calendarId = path.substring("/api/v1/admin/calendars/".length(), path.length() - "/events".length());
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateCalendarEvent");
+                    handleCreateCalendarEvent(exchange, calendarId);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListCalendarEvents");
+                    handleListCalendarEvents(exchange, calendarId);
+                    return;
+                }
+            } else if (path.startsWith("/api/v1/admin/calendars/")) {
+                String calendarId = path.substring("/api/v1/admin/calendars/".length());
+                if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetCalendar");
+                    handleGetCalendar(exchange, calendarId);
+                    return;
+                }
+            }
+
+            // 32. Number Sequences (Item 24)
+            if (path.equals("/api/v1/admin/number-sequences")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateNumberSequence");
+                    handleCreateNumberSequence(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListNumberSequences");
+                    handleListNumberSequences(exchange);
+                    return;
+                }
+            } else if (path.equals("/api/v1/admin/number-sequences/next") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleGenerateNextNumber");
+                handleGenerateNextNumber(exchange);
+                return;
+            }
+
+            // 33. Reference Lookups (Item 25)
+            if (path.equals("/api/v1/admin/lookups/types")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateLookupType");
+                    handleCreateLookupType(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListLookupTypes");
+                    handleListLookupTypes(exchange);
+                    return;
+                }
+            } else if (path.equals("/api/v1/admin/lookups/values")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateLookupValue");
+                    handleCreateLookupValue(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListLookupValues");
+                    handleListLookupValues(exchange);
+                    return;
+                }
+            }
+
+            // 34. Access Events & Audit Change Log (Items 26 & 27)
+            if (path.equals("/api/v1/admin/audit/access-events") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleListAccessEvents");
+                handleListAccessEvents(exchange);
+                return;
+            }
+            if (path.equals("/api/v1/admin/audit/change-log") && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleListChangeLogs");
+                handleListChangeLogs(exchange);
+                return;
+            }
+
             // Not found
             logger.warn("[InstituteAdminService] Route not found: [{}] {}", method, path);
             sendError(exchange, 404, "Not Found", "ADM01_ROUTE_NOT_FOUND", "Resource not found in Institute Admin Service: " + path, path);
+        } catch (UserProfileNotFoundException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] User profile not found [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Not Found", e.getErrorCode(), e.getMessage(), path);
+        } catch (UserProfileConflictException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] User profile conflict [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Conflict", e.getErrorCode(), e.getMessage(), path);
+        } catch (UserProfileAccessDeniedException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] User profile access denied [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Forbidden", e.getErrorCode(), e.getMessage(), path);
+        } catch (InvalidStatusTransitionException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Invalid status transition [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Unprocessable Entity", e.getErrorCode(), e.getMessage(), path);
+        } catch (InvalidUserReferenceException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Invalid reference [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
         } catch (InstituteNotFoundException e) {
             flow.markFailed(e);
             logger.warn("[InstituteAdminService] Resource not found [{} {}]: {}", method, path, e.getMessage());
@@ -588,7 +753,9 @@ public class InstituteAdminController implements HttpHandler {
         } catch (Exception e) {
             flow.markFailed(e);
             logger.error("[InstituteAdminService] Internal server error [{} {}]: {}", method, path, e.getMessage(), e);
-            sendError(exchange, 500, "Internal Server Error", "ADM01_INTERNAL_SERVER_ERROR", "An unexpected server error occurred: " + escape(e.getMessage()), path);
+            String activeTraceId = LogContext.getTraceId() != null ? LogContext.getTraceId() : traceId;
+            sendError(exchange, 500, "Internal Server Error", "ADM01_INTERNAL_SERVER_ERROR",
+                    "An unexpected internal error occurred. Reference trace ID: " + (activeTraceId != null ? activeTraceId : ""), path);
         } finally {
             if (flow != null) {
                 flow.close();
@@ -607,7 +774,8 @@ public class InstituteAdminController implements HttpHandler {
         inst.setLocale(extract(body, "locale", "en_IN"));
         inst.setDefaultCurrency(extract(body, "defaultCurrency", "INR"));
 
-        Institute created = domainService.registerInstitute(inst);
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        Institute created = domainService.registerInstitute(context, inst);
         String resp = "{"
                 + "\"id\":\"" + created.getId() + "\","
                 + "\"instituteCode\":\"" + created.getInstituteCode() + "\","
@@ -620,7 +788,8 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleListInstitutes(HttpExchange exchange) throws IOException {
-        List<Institute> list = domainService.listInstitutes();
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        List<Institute> list = domainService.listInstitutes(context);
         StringBuilder sb = new StringBuilder("{\"institutes\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
@@ -633,13 +802,26 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleUpdateInstitute(HttpExchange exchange, String id) throws IOException {
+        if (id == null || id.trim().isEmpty()) {
+            throw new InstituteNotFoundException("Institute", id);
+        }
+        // Safe UUID format check: safely translate invalid UUID input into InstituteNotFoundException/HTTP 404
+        try {
+            UUID.fromString(id.trim());
+        } catch (IllegalArgumentException e) {
+            throw new InstituteNotFoundException("Institute", id);
+        }
+
         String body = readBody(exchange);
         Institute update = new Institute();
         update.setDisplayName(extract(body, "displayName", null));
         update.setStatus(extract(body, "status", null));
         update.setTimezone(extract(body, "timezone", null));
 
-        Institute updated = domainService.updateInstitute(id, update);
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        Integer expectedVersion = extractRowVersion(exchange, body);
+
+        Institute updated = domainService.updateInstitute(context, id, update, expectedVersion);
         sendJson(exchange, 200, "{\"status\":\"UPDATED\",\"version\":" + updated.getVersion() + ",\"instituteId\":\"" + id + "\"}");
     }
 
@@ -650,7 +832,8 @@ public class InstituteAdminController implements HttpHandler {
         c.setName(extract(body, "name", null));
         c.setInstituteId(extract(body, "instituteId", null));
 
-        College registered = domainService.registerCollege(c);
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        College registered = domainService.registerCollege(context, c);
         sendJson(exchange, 201, "{\"id\":\"" + registered.getId() + "\",\"collegeCode\":\"" + registered.getCollegeCode() + "\",\"status\":\"" + registered.getStatus() + "\"}");
     }
 
@@ -722,21 +905,27 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleGetAuditLogs(HttpExchange exchange) throws IOException {
-        List<Map<String, Object>> logs = domainService.getAuditTrail();
+        String tenantId = LogContext.getTenantId();
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = exchange.getRequestHeaders().getFirst(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID);
+        }
+        List<Map<String, Object>> logs = (tenantId != null && !tenantId.trim().isEmpty())
+                ? domainService.getAuditTrailForTenant(tenantId.trim())
+                : domainService.getAuditTrail();
         StringBuilder sb = new StringBuilder("{\"auditLogs\":[");
         for (int i = 0; i < logs.size(); i++) {
             if (i > 0) sb.append(",");
             Map<String, Object> log = logs.get(i);
             sb.append("{");
-            sb.append("\"eventId\":\"").append(log.get("eventId")).append("\",");
-            sb.append("\"action\":\"").append(log.get("action")).append("\",");
-            sb.append("\"principalId\":\"").append(log.get("principalId")).append("\",");
-            sb.append("\"principalRole\":\"").append(log.get("principalRole")).append("\",");
-            sb.append("\"resourceType\":\"").append(log.get("resourceType")).append("\",");
-            sb.append("\"resourceId\":\"").append(log.get("resourceId")).append("\",");
-            sb.append("\"status\":\"").append(log.get("status")).append("\",");
-            sb.append("\"description\":\"").append(escape((String) log.get("description"))).append("\",");
-            sb.append("\"traceId\":\"").append(log.get("traceId") != null ? log.get("traceId") : "").append("\",");
+            sb.append("\"eventId\":\"").append(escape(log.get("eventId"))).append("\",");
+            sb.append("\"action\":\"").append(escape(log.get("action"))).append("\",");
+            sb.append("\"principalId\":\"").append(escape(log.get("principalId"))).append("\",");
+            sb.append("\"principalRole\":\"").append(escape(log.get("principalRole"))).append("\",");
+            sb.append("\"resourceType\":\"").append(escape(log.get("resourceType"))).append("\",");
+            sb.append("\"resourceId\":\"").append(escape(log.get("resourceId"))).append("\",");
+            sb.append("\"status\":\"").append(escape(log.get("status"))).append("\",");
+            sb.append("\"description\":\"").append(escape(log.get("description"))).append("\",");
+            sb.append("\"traceId\":\"").append(escape(log.get("traceId"))).append("\",");
             sb.append("\"timestamp\":").append(log.get("timestamp"));
             sb.append("}");
         }
@@ -748,40 +937,361 @@ public class InstituteAdminController implements HttpHandler {
     // Phase 1: RBAC & Identity Handler Methods (User Story Lines 17–21)
     // =========================================================================
 
-    private void handleCreateAdminUser(HttpExchange exchange) throws IOException {
-        String body = readBody(exchange);
-        AdminUser user = new AdminUser();
-        user.setUserId(extract(body, "userId", null));
-        user.setDisplayName(extract(body, "displayName", "Platform Admin"));
-        user.setEmail(extract(body, "email", null));
+    private static final Set<String> FORBIDDEN_CREATE_FIELDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "tenant_id", "tenantid", "created_at", "createdat", "created_by", "createdby",
+            "updated_at", "updatedat", "updated_by", "updatedby", "deleted_at", "deletedat",
+            "row_version", "rowversion"
+    )));
 
-        AdminUser created = domainService.registerAdminUser(user);
-        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"userId\":\"" + created.getUserId()
-                + "\",\"displayName\":\"" + escape(created.getDisplayName()) + "\",\"status\":\"" + created.getStatus() + "\"}");
-    }
+    private static final Set<String> FORBIDDEN_UPDATE_FIELDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "id", "userid", "user_id", "tenant_id", "tenantid", "created_at", "createdat",
+            "created_by", "createdby", "updated_at", "updatedat", "updated_by", "updatedby",
+            "deleted_at", "deletedat", "status"
+    )));
 
-    private void handleListAdminUsers(HttpExchange exchange) throws IOException {
-        List<AdminUser> list = domainService.listAdminUsers();
-        StringBuilder sb = new StringBuilder("{\"users\":[");
-        for (int i = 0; i < list.size(); i++) {
-            if (i > 0) sb.append(",");
-            AdminUser u = list.get(i);
-            sb.append("{\"id\":\"").append(u.getId()).append("\",\"userId\":\"").append(u.getUserId())
-              .append("\",\"displayName\":\"").append(escape(u.getDisplayName()))
-              .append("\",\"status\":\"").append(u.getStatus())
-              .append("\",\"riskState\":\"").append(u.getRiskState()).append("\"}");
+    private void validateNoForbiddenFields(String json, Set<String> forbiddenKeys) {
+        if (json == null || json.isEmpty()) return;
+        for (String key : forbiddenKeys) {
+            Pattern p = Pattern.compile("(?i)\"" + Pattern.quote(key) + "\"\\s*:");
+            if (p.matcher(json).find()) {
+                throw new SecurityViolationException("Client cannot supply server-managed or immutable field: '" + key + "'");
+            }
         }
-        sb.append("]}");
-        sendJson(exchange, 200, sb.toString());
     }
 
-    private void handleUpdateAdminUser(HttpExchange exchange, String id) throws IOException {
+    private UserSecurityContext extractSecurityContext(HttpExchange exchange) {
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        return UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
+    private UserSecurityContext extractPlatformSecurityContext(HttpExchange exchange) {
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        if (userId == null || userId.trim().isEmpty()) {
+            userId = LogContext.getUserId();
+        }
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = LogContext.getTenantId();
+        }
+        return UserSecurityContext.fromPlatformHeaders(userId, tenantId);
+    }
+
+    private Integer extractRowVersion(HttpExchange exchange, String body) {
+        String ifMatch = exchange.getRequestHeaders().getFirst("If-Match");
+        if (ifMatch != null && !ifMatch.trim().isEmpty()) {
+            String clean = ifMatch.trim().replace("\"", "").replace("W/", "").trim();
+            try {
+                return Integer.parseInt(clean);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid If-Match header value (must be integer): " + ifMatch);
+            }
+        }
+        String bodyVal = extract(body, "row_version", null);
+        if (bodyVal == null) {
+            bodyVal = extract(body, "rowVersion", null);
+        }
+        if (bodyVal != null && !bodyVal.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(bodyVal.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid row_version format (must be integer): " + bodyVal);
+            }
+        }
+        return null;
+    }
+
+    private String extractJsonObject(String json, String key) {
+        if (json == null || json.isEmpty()) return null;
+        Pattern p = Pattern.compile("(?i)\"" + Pattern.quote(key) + "\"\\s*:\\s*(\\{)");
+        Matcher m = p.matcher(json);
+        if (!m.find()) return null;
+        int start = m.start(1);
+        int depth = 0;
+        boolean inQuotes = false;
+        boolean escapeNext = false;
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (escapeNext) {
+                escapeNext = false;
+                continue;
+            }
+            if (c == '\\') {
+                escapeNext = true;
+                continue;
+            }
+            if (c == '"') {
+                inQuotes = !inQuotes;
+                continue;
+            }
+            if (!inQuotes) {
+                if (c == '{') depth++;
+                else if (c == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        return json.substring(start, i + 1);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private Map<String, String> parseQueryParams(HttpExchange exchange) {
+        Map<String, String> params = new HashMap<>();
+        String rawQuery = exchange.getRequestURI().getRawQuery();
+        if (rawQuery == null || rawQuery.trim().isEmpty()) {
+            return params;
+        }
+        String[] pairs = rawQuery.split("&");
+        for (String pair : pairs) {
+            if (pair.isEmpty()) continue;
+            int idx = pair.indexOf('=');
+            try {
+                if (idx > 0) {
+                    String key = URLDecoder.decode(pair.substring(0, idx), "UTF-8");
+                    String value = URLDecoder.decode(pair.substring(idx + 1), "UTF-8");
+                    params.put(key, value);
+                } else if (idx < 0) {
+                    String key = URLDecoder.decode(pair, "UTF-8");
+                    params.put(key, "");
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return params;
+    }
+
+    private void handleCreateUser(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
+        validateNoForbiddenFields(body, FORBIDDEN_CREATE_FIELDS);
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+
+        CreateUserProfileRequest req = new CreateUserProfileRequest();
+        req.setId(extract(body, "id", null));
+        req.setEmail(extract(body, "email", null));
+        String fullName = extract(body, "fullName", null);
+        if (fullName == null) fullName = extract(body, "full_name", null);
+        req.setFullName(fullName);
+        String status = extract(body, "status", "ACTIVE");
+        if ("LOCKED".equalsIgnoreCase(status) || "SUSPENDED".equalsIgnoreCase(status)) {
+            throw new SecurityViolationException("Initial user creation cannot specify status '" + status + "'. Allowed: ACTIVE, INACTIVE");
+        }
+        req.setStatus(status);
+        String collegeId = extract(body, "collegeId", null);
+        if (collegeId == null) collegeId = extract(body, "college_id", null);
+        req.setCollegeId(collegeId);
+        String departmentId = extract(body, "departmentId", null);
+        if (departmentId == null) departmentId = extract(body, "department_id", null);
+        req.setDepartmentId(departmentId);
+        String personId = extract(body, "personId", null);
+        if (personId == null) personId = extract(body, "person_id", null);
+        req.setPersonId(personId);
+
+        String preferences = extractJsonObject(body, "preferences");
+        if (preferences == null) {
+            preferences = extract(body, "preferences", null);
+        }
+        req.setPreferences(preferences);
+
+        UserProfile created = userProfileRepository.createUser(ctx, req);
+        exchange.getResponseHeaders().set("ETag", "\"" + created.getRowVersion() + "\"");
+        exchange.getResponseHeaders().set("Location", "/api/v1/admin/users/" + created.getId());
+        sendJson(exchange, 201, created.toJson());
+    }
+
+    private void handleListUsers(HttpExchange exchange) throws IOException {
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+        Map<String, String> queryParams = parseQueryParams(exchange);
+
+        UserProfileFilter filter = new UserProfileFilter();
+        if (queryParams.containsKey("status")) {
+            filter.setStatus(queryParams.get("status"));
+        }
+        if (queryParams.containsKey("college_id")) {
+            filter.setCollegeId(queryParams.get("college_id"));
+        } else if (queryParams.containsKey("collegeId")) {
+            filter.setCollegeId(queryParams.get("collegeId"));
+        }
+        if (queryParams.containsKey("department_id")) {
+            filter.setDepartmentId(queryParams.get("department_id"));
+        } else if (queryParams.containsKey("departmentId")) {
+            filter.setDepartmentId(queryParams.get("departmentId"));
+        }
+        if (queryParams.containsKey("q")) {
+            filter.setQuery(queryParams.get("q"));
+        }
+        if (queryParams.containsKey("sort")) {
+            String sort = queryParams.get("sort");
+            if (sort != null && !sort.trim().isEmpty()) {
+                if (!SORT_FIELD_WHITELIST.containsKey(sort.trim().toLowerCase(Locale.ROOT))) {
+                    throw new IllegalArgumentException("Invalid sort field: '" + sort + "'. Whitelisted fields: " + SORT_FIELD_WHITELIST.keySet());
+                }
+                filter.setSortField(sort.trim());
+            }
+        }
+        if (queryParams.containsKey("order")) {
+            String order = queryParams.get("order");
+            if (order != null && !order.trim().isEmpty()) {
+                if (!"asc".equalsIgnoreCase(order) && !"desc".equalsIgnoreCase(order)) {
+                    throw new IllegalArgumentException("Invalid sort order: '" + order + "'. Allowed: ASC, DESC");
+                }
+                filter.setSortOrder(order.trim().toUpperCase(Locale.ROOT));
+            }
+        }
+        if (queryParams.containsKey("page")) {
+            try {
+                int page = Integer.parseInt(queryParams.get("page"));
+                if (page < 1) {
+                    throw new IllegalArgumentException("Page number must be >= 1");
+                }
+                filter.setPage(page);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid page number parameter: " + queryParams.get("page"));
+            }
+        }
+        if (queryParams.containsKey("limit")) {
+            try {
+                int limit = Integer.parseInt(queryParams.get("limit"));
+                if (limit < 1 || limit > 100) {
+                    throw new IllegalArgumentException("Page limit must be between 1 and 100");
+                }
+                filter.setLimit(limit);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid limit parameter: " + queryParams.get("limit"));
+            }
+        }
+
+        UserProfilePage page = userProfileRepository.listUsers(ctx, filter);
+        sendJson(exchange, 200, page.toJson());
+    }
+
+    private void handleGetUserById(HttpExchange exchange, String idStr) throws IOException {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required user ID path parameter");
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format (must be UUID): " + idStr);
+        }
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+        UserProfile profile = userProfileRepository.getUserById(ctx, userId);
+        exchange.getResponseHeaders().set("ETag", "\"" + profile.getRowVersion() + "\"");
+        sendJson(exchange, 200, profile.toJson());
+    }
+
+    private void handleUpdateUser(HttpExchange exchange, String idStr) throws IOException {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required user ID path parameter");
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format (must be UUID): " + idStr);
+        }
+
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
+        validateNoForbiddenFields(body, FORBIDDEN_UPDATE_FIELDS);
+
+        Integer rowVersion = extractRowVersion(exchange, body);
+        if (rowVersion == null) {
+            throw new MalformedPayloadException("Missing required optimistic lock field 'row_version' (or If-Match header)");
+        }
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+
+        UpdateUserProfileRequest req = new UpdateUserProfileRequest();
+        req.setRowVersion(rowVersion);
+        String fullName = extract(body, "fullName", null);
+        if (fullName == null) fullName = extract(body, "full_name", null);
+        req.setFullName(fullName);
+        req.setEmail(extract(body, "email", null));
+        req.setUsername(extract(body, "username", null));
+        String collegeId = extract(body, "collegeId", null);
+        if (collegeId == null) collegeId = extract(body, "college_id", null);
+        req.setCollegeId(collegeId);
+        String departmentId = extract(body, "departmentId", null);
+        if (departmentId == null) departmentId = extract(body, "department_id", null);
+        req.setDepartmentId(departmentId);
+        String personId = extract(body, "personId", null);
+        if (personId == null) personId = extract(body, "person_id", null);
+        req.setPersonId(personId);
+
+        String preferences = extractJsonObject(body, "preferences");
+        if (preferences == null) {
+            preferences = extract(body, "preferences", null);
+        }
+        req.setPreferences(preferences);
+
+        UserProfile updated = userProfileRepository.updateUser(ctx, userId, req);
+        exchange.getResponseHeaders().set("ETag", "\"" + updated.getRowVersion() + "\"");
+        sendJson(exchange, 200, updated.toJson());
+    }
+
+    private void handleUpdateUserStatus(HttpExchange exchange, String idStr) throws IOException {
+        if (idStr == null || idStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("Missing required user ID path parameter");
+        }
+        UUID userId;
+        try {
+            userId = UUID.fromString(idStr.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format (must be UUID): " + idStr);
+        }
+
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
         String status = extract(body, "status", null);
-        String riskState = extract(body, "riskState", null);
-        AdminUser updated = domainService.updateAdminUserStatus(id, status, riskState);
-        sendJson(exchange, 200, "{\"id\":\"" + updated.getId() + "\",\"status\":\"" + updated.getStatus()
-                + "\",\"riskState\":\"" + updated.getRiskState() + "\"}");
+        if (status == null || status.trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'status'");
+        }
+
+        Integer rowVersion = extractRowVersion(exchange, body);
+        if (rowVersion == null) {
+            throw new MalformedPayloadException("Missing required optimistic lock field 'row_version' (or If-Match header)");
+        }
+
+        String rawReason = extract(body, "reason", null);
+        String reason = null;
+        if (rawReason != null) {
+            // Strip CR and LF to prevent log injection and sanitize
+            reason = rawReason.replace("\r", " ").replace("\n", " ").trim();
+            if (reason.length() > 500) {
+                throw new SecurityViolationException("Field 'reason' exceeds maximum allowed length of 500 characters");
+            }
+        }
+
+        UserSecurityContext ctx = extractSecurityContext(exchange);
+
+        // Note: The 'reason' field is an administrative audit annotation that is logged
+        // with actor and trace context. It is not persisted in iam.user_profiles.
+        logger.info("[ADM-01 StatusTransition] Actor: {} transitioning user: {} to status: {} in tenant: {} | traceId: {} | reason: {}",
+                ctx.getUserId(), userId, status, ctx.getTenantId(), LogContext.getTraceId(), reason != null ? reason : "NONE");
+
+        UpdateUserStatusRequest req = new UpdateUserStatusRequest();
+        req.setStatus(status);
+        req.setRowVersion(rowVersion);
+        req.setReason(reason);
+
+        UserProfile updated = userProfileRepository.updateUserStatus(ctx, userId, req);
+        exchange.getResponseHeaders().set("ETag", "\"" + updated.getRowVersion() + "\"");
+        sendJson(exchange, 200, updated.toJson());
     }
 
     private void handleCreateRole(HttpExchange exchange) throws IOException {
@@ -1545,41 +2055,354 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleSearchAuditLogs(HttpExchange exchange) throws IOException {
-        String query = exchange.getRequestURI().getQuery();
-        List<Map<String, Object>> results;
-        if (query != null && query.contains("correlationId=")) {
-            String correlationId = query.split("correlationId=")[1].split("&")[0];
-            results = domainService.searchAuditByCorrelationId(correlationId);
-        } else if (query != null && query.contains("actorId=")) {
-            String actorId = query.split("actorId=")[1].split("&")[0];
-            long fromDate = 0;
-            long toDate = Long.MAX_VALUE;
-            if (query.contains("fromDate=")) {
-                fromDate = Long.parseLong(query.split("fromDate=")[1].split("&")[0]);
-            }
-            if (query.contains("toDate=")) {
-                toDate = Long.parseLong(query.split("toDate=")[1].split("&")[0]);
-            }
-            results = domainService.searchAuditByActor(actorId, fromDate, toDate);
-        } else {
-            results = domainService.getAuditTrail();
+        String tenantId = LogContext.getTenantId();
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = exchange.getRequestHeaders().getFirst(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID);
         }
+        if (tenantId != null) {
+            tenantId = tenantId.trim();
+        }
+
+        Map<String, String> queryParams = parseQueryParams(exchange);
+        List<Map<String, Object>> results;
+
+        boolean hasCorrelationId = queryParams.containsKey("correlationId");
+        boolean hasActorId = queryParams.containsKey("actorId");
+        boolean hasFromDate = queryParams.containsKey("fromDate");
+        boolean hasToDate = queryParams.containsKey("toDate");
+
+        String correlationId = null;
+        if (hasCorrelationId) {
+            correlationId = queryParams.get("correlationId");
+            if (correlationId == null || correlationId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'correlationId' cannot be empty");
+            }
+            correlationId = correlationId.trim();
+            if (correlationId.length() > 256) {
+                throw new IllegalArgumentException("Query parameter 'correlationId' exceeds maximum length of 256 characters");
+            }
+        }
+
+        String actorId = null;
+        if (hasActorId) {
+            actorId = queryParams.get("actorId");
+            if (actorId == null || actorId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'actorId' cannot be empty");
+            }
+            actorId = actorId.trim();
+            if (actorId.length() > 256) {
+                throw new IllegalArgumentException("Query parameter 'actorId' exceeds maximum length of 256 characters");
+            }
+        }
+
+        long fromDate = 0L;
+        if (hasFromDate) {
+            String fromStr = queryParams.get("fromDate");
+            if (fromStr == null || fromStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'fromDate' cannot be empty");
+            }
+            try {
+                fromDate = Long.parseLong(fromStr.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid non-numeric parameter 'fromDate': " + fromStr);
+            }
+            if (fromDate < 0) {
+                throw new IllegalArgumentException("Parameter 'fromDate' must be non-negative");
+            }
+        }
+
+        long toDate = Long.MAX_VALUE;
+        if (hasToDate) {
+            String toStr = queryParams.get("toDate");
+            if (toStr == null || toStr.trim().isEmpty()) {
+                throw new IllegalArgumentException("Query parameter 'toDate' cannot be empty");
+            }
+            try {
+                toDate = Long.parseLong(toStr.trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid non-numeric parameter 'toDate': " + toStr);
+            }
+            if (toDate < 0) {
+                throw new IllegalArgumentException("Parameter 'toDate' must be non-negative");
+            }
+        }
+
+        if (fromDate > toDate) {
+            throw new IllegalArgumentException("Parameter 'fromDate' cannot be greater than 'toDate'");
+        }
+
+        if (hasCorrelationId) {
+            results = domainService.searchAuditByCorrelationId(tenantId, correlationId);
+        } else if (hasActorId) {
+            results = domainService.searchAuditByActor(tenantId, actorId, fromDate, toDate);
+        } else if (hasFromDate || hasToDate) {
+            results = domainService.searchAuditByDateRange(tenantId, fromDate, toDate);
+        } else {
+            results = domainService.getAuditTrailForTenant(tenantId);
+        }
+
         StringBuilder sb = new StringBuilder("{\"auditEntries\":[");
         for (int i = 0; i < results.size(); i++) {
             if (i > 0) sb.append(",");
             Map<String, Object> entry = results.get(i);
-            sb.append("{\"eventId\":\"").append(entry.getOrDefault("eventId", "")).append("\"")
-              .append(",\"action\":\"").append(entry.getOrDefault("action", "")).append("\"")
-              .append(",\"principalId\":\"").append(entry.getOrDefault("principalId", "")).append("\"")
-              .append(",\"resourceType\":\"").append(entry.getOrDefault("resourceType", "")).append("\"")
-              .append(",\"resourceId\":\"").append(entry.getOrDefault("resourceId", "")).append("\"")
-              .append(",\"traceId\":\"").append(entry.getOrDefault("traceId", "")).append("\"}");
+            sb.append("{\"eventId\":\"").append(escape(entry.get("eventId"))).append("\"")
+              .append(",\"action\":\"").append(escape(entry.get("action"))).append("\"")
+              .append(",\"principalId\":\"").append(escape(entry.get("principalId"))).append("\"")
+              .append(",\"resourceType\":\"").append(escape(entry.get("resourceType"))).append("\"")
+              .append(",\"resourceId\":\"").append(escape(entry.get("resourceId"))).append("\"")
+              .append(",\"traceId\":\"").append(escape(entry.get("traceId"))).append("\"}");
         }
-        sb.append("],\"count\":" + results.size() + "}");
+        sb.append("],\"count\":").append(results.size()).append("}");
         sendJson(exchange, 200, sb.toString());
     }
 
+    // =========================================================================
+    // Phase 8: Academic Calendars Handlers (Item 23)
+    // =========================================================================
+
+    private void handleCreateCalendar(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        Calendar calendar = new Calendar();
+        calendar.setCode(extract(body, "code", extract(body, "calendarCode", null)));
+        calendar.setName(extract(body, "name", null));
+        calendar.setCalendarType(extract(body, "calendarType", "ACADEMIC"));
+        calendar.setCollegeId(extract(body, "collegeId", null));
+        calendar.setAcademicYearId(extract(body, "academicYearId", null));
+        String status = extract(body, "status", "DRAFT");
+        calendar.setStatus(status);
+        Calendar created = domainService.createCalendar(calendar);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + escape(created.getCode())
+                + "\",\"name\":\"" + escape(created.getName()) + "\",\"status\":\"" + created.getStatus() + "\"}");
+    }
+
+    private void handleListCalendars(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String collegeId = getQueryParam(query, "collegeId");
+        List<Calendar> list = collegeId != null && !collegeId.trim().isEmpty()
+                ? domainService.listCalendarsByCollege(collegeId)
+                : domainService.listCalendars();
+        StringBuilder sb = new StringBuilder("{\"calendars\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            Calendar c = list.get(i);
+            sb.append("{\"id\":\"").append(c.getId()).append("\",\"code\":\"").append(escape(c.getCode()))
+              .append("\",\"name\":\"").append(escape(c.getName()))
+              .append("\",\"collegeId\":\"").append(escape(c.getCollegeId()))
+              .append("\",\"status\":\"").append(c.getStatus()).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleGetCalendar(HttpExchange exchange, String calendarId) throws IOException {
+        Calendar c = domainService.getCalendar(calendarId);
+        sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"code\":\"" + escape(c.getCode())
+                + "\",\"name\":\"" + escape(c.getName()) + "\",\"collegeId\":\"" + escape(c.getCollegeId())
+                + "\",\"status\":\"" + c.getStatus() + "\"}");
+    }
+
+    private void handleCreateCalendarEvent(HttpExchange exchange, String calendarId) throws IOException {
+        String body = readBody(exchange);
+        CalendarEvent event = new CalendarEvent();
+        event.setCalendarId(calendarId);
+        event.setEventType(extract(body, "eventType", "GENERAL"));
+        event.setTitle(extract(body, "title", null));
+        event.setDescription(extract(body, "description", ""));
+        String holidayStr = extract(body, "isHoliday", "false");
+        event.setHoliday(Boolean.parseBoolean(holidayStr));
+        String startStr = extract(body, "startDate", null);
+        if (startStr != null) {
+            try { event.setStartDate(Long.parseLong(startStr)); } catch (NumberFormatException ignored) {}
+        }
+        String endStr = extract(body, "endDate", null);
+        if (endStr != null) {
+            try { event.setEndDate(Long.parseLong(endStr)); } catch (NumberFormatException ignored) {}
+        }
+        CalendarEvent created = domainService.createCalendarEvent(event);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"calendarId\":\"" + created.getCalendarId()
+                + "\",\"title\":\"" + escape(created.getTitle()) + "\",\"eventType\":\"" + escape(created.getEventType()) + "\"}");
+    }
+
+    private void handleListCalendarEvents(HttpExchange exchange, String calendarId) throws IOException {
+        List<CalendarEvent> list = domainService.listCalendarEvents(calendarId);
+        StringBuilder sb = new StringBuilder("{\"events\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            CalendarEvent e = list.get(i);
+            sb.append("{\"id\":\"").append(e.getId()).append("\",\"calendarId\":\"").append(e.getCalendarId())
+              .append("\",\"title\":\"").append(escape(e.getTitle()))
+              .append("\",\"eventType\":\"").append(escape(e.getEventType()))
+              .append("\",\"isHoliday\":").append(e.isHoliday()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    // =========================================================================
+    // Phase 9: Number Sequences Handlers (Item 24)
+    // =========================================================================
+
+    private void handleCreateNumberSequence(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        NumberSequence seq = new NumberSequence();
+        seq.setScopeKey(extract(body, "scopeKey", null));
+        seq.setPrefix(extract(body, "prefix", ""));
+        seq.setSuffix(extract(body, "suffix", ""));
+        String nextValStr = extract(body, "nextValue", "1");
+        try { seq.setNextValue(Long.parseLong(nextValStr)); } catch (NumberFormatException ignored) {}
+        String padStr = extract(body, "padding", "6");
+        try { seq.setPadding(Short.parseShort(padStr)); } catch (NumberFormatException ignored) {}
+        seq.setResetPolicy(extract(body, "resetPolicy", "NEVER"));
+        seq.setCollegeId(extract(body, "collegeId", null));
+        NumberSequence created = domainService.createNumberSequence(seq);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"scopeKey\":\"" + escape(created.getScopeKey())
+                + "\",\"prefix\":\"" + escape(created.getPrefix()) + "\",\"nextValue\":" + created.getNextValue() + "}");
+    }
+
+    private void handleListNumberSequences(HttpExchange exchange) throws IOException {
+        List<NumberSequence> list = domainService.listNumberSequences();
+        StringBuilder sb = new StringBuilder("{\"sequences\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            NumberSequence s = list.get(i);
+            sb.append("{\"id\":\"").append(s.getId()).append("\",\"scopeKey\":\"").append(escape(s.getScopeKey()))
+              .append("\",\"prefix\":\"").append(escape(s.getPrefix()))
+              .append("\",\"nextValue\":").append(s.getNextValue())
+              .append(",\"padding\":").append(s.getPadding()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleGenerateNextNumber(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        String scopeKey = extract(body, "scopeKey", null);
+        String collegeId = extract(body, "collegeId", null);
+        String nextNumber = domainService.generateNextNumber(scopeKey, collegeId);
+        sendJson(exchange, 200, "{\"scopeKey\":\"" + escape(scopeKey) + "\",\"generatedNumber\":\"" + escape(nextNumber) + "\"}");
+    }
+
+    // =========================================================================
+    // Phase 10: Reference Lookups Handlers (Item 25)
+    // =========================================================================
+
+    private void handleCreateLookupType(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        LookupType lt = new LookupType();
+        lt.setCode(extract(body, "code", null));
+        lt.setName(extract(body, "name", null));
+        lt.setDescription(extract(body, "description", ""));
+        LookupType created = domainService.createLookupType(lt);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + escape(created.getCode())
+                + "\",\"name\":\"" + escape(created.getName()) + "\"}");
+    }
+
+    private void handleListLookupTypes(HttpExchange exchange) throws IOException {
+        List<LookupType> list = domainService.listLookupTypes();
+        StringBuilder sb = new StringBuilder("{\"lookupTypes\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            LookupType t = list.get(i);
+            sb.append("{\"id\":\"").append(t.getId()).append("\",\"code\":\"").append(escape(t.getCode()))
+              .append("\",\"name\":\"").append(escape(t.getName())).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleCreateLookupValue(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        LookupValue lv = new LookupValue();
+        lv.setLookupTypeId(extract(body, "lookupTypeId", null));
+        lv.setCode(extract(body, "code", null));
+        lv.setLabel(extract(body, "label", null));
+        LookupValue created = domainService.createLookupValue(lv);
+        sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + escape(created.getCode())
+                + "\",\"label\":\"" + escape(created.getLabel()) + "\"}");
+    }
+
+    private void handleListLookupValues(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String typeId = getQueryParam(query, "lookupTypeId");
+        List<LookupValue> list = domainService.listLookupValues(typeId);
+        StringBuilder sb = new StringBuilder("{\"lookupValues\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            LookupValue v = list.get(i);
+            sb.append("{\"id\":\"").append(v.getId()).append("\",\"lookupTypeId\":\"").append(v.getLookupTypeId())
+              .append("\",\"code\":\"").append(escape(v.getCode()))
+              .append("\",\"label\":\"").append(escape(v.getLabel())).append("\"}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    // =========================================================================
+    // Phase 11: Access Events & Audit Change Log Handlers (Items 26 & 27)
+    // =========================================================================
+
+    private void handleListAccessEvents(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String limitStr = getQueryParam(query, "limit");
+        int limit = 50;
+        if (limitStr != null) {
+            try { limit = Integer.parseInt(limitStr); } catch (NumberFormatException ignored) {}
+        }
+        List<AccessEvent> list = domainService.listRecentAccessEvents(limit);
+        StringBuilder sb = new StringBuilder("{\"accessEvents\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            AccessEvent ae = list.get(i);
+            sb.append("{\"id\":\"").append(ae.getId()).append("\",\"principalId\":\"").append(escape(ae.getPrincipalId()))
+              .append("\",\"resourceType\":\"").append(escape(ae.getResourceType()))
+              .append("\",\"resourceId\":\"").append(escape(ae.getResourceId()))
+              .append("\",\"accessType\":\"").append(escape(ae.getAccessType()))
+              .append("\",\"ip\":\"").append(escape(ae.getIp()))
+              .append("\",\"createdAt\":").append(ae.getCreatedAt()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleListChangeLogs(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String limitStr = getQueryParam(query, "limit");
+        int limit = 50;
+        if (limitStr != null) {
+            try { limit = Integer.parseInt(limitStr); } catch (NumberFormatException ignored) {}
+        }
+        List<AuditChangeLog> list = domainService.listRecentChangeLogs(limit);
+        StringBuilder sb = new StringBuilder("{\"changeLogs\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            AuditChangeLog cl = list.get(i);
+            sb.append("{\"id\":\"").append(cl.getId()).append("\",\"tableSchema\":\"").append(escape(cl.getTableSchema()))
+              .append("\",\"tableName\":\"").append(escape(cl.getTableName()))
+              .append("\",\"recordId\":\"").append(escape(cl.getRecordId()))
+              .append("\",\"action\":\"").append(escape(cl.getAction()))
+              .append("\",\"actorId\":\"").append(escape(cl.getActorId()))
+              .append("\",\"createdAt\":").append(cl.getCreatedAt()).append("}");
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        InputStream is = exchange.getRequestBody();
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] data = new byte[4096];
+        int nRead;
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        return buffer.toByteArray();
+    }
+
     private String readBody(HttpExchange exchange) throws IOException {
+        byte[] cached = (byte[]) exchange.getAttribute("campx.request.body");
+        if (cached != null) {
+            return new String(cached, StandardCharsets.UTF_8).trim();
+        }
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
             String line;
@@ -1619,8 +2442,18 @@ public class InstituteAdminController implements HttpHandler {
         return defaultValue;
     }
 
+    private String escape(Object obj) {
+        if (obj == null) return "";
+        return escape(obj.toString());
+    }
+
     private String escape(String s) {
-        return s != null ? s.replace("\"", "\\\"") : "";
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {

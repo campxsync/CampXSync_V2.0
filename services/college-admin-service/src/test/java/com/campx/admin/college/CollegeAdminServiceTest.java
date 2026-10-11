@@ -21,7 +21,10 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import com.campx.admin.college.model.CollegeModels;
 
 /**
  * End-to-end integration test suite for ADM-02 College Admin Service (College Operational Tier).
@@ -61,6 +64,7 @@ public class CollegeAdminServiceTest {
      */
     @BeforeClass
     public static void setup() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         domainService = new CollegeAdminDomainService();
         server = new CollegeAdminServer(TEST_PORT, domainService);
         server.start();
@@ -74,6 +78,7 @@ public class CollegeAdminServiceTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
         CampXLoggerFactory.flush();
     }
 
@@ -1241,4 +1246,348 @@ public class CollegeAdminServiceTest {
         }
         return sb.toString();
     }
+
+    // =========================================================================
+    // User Stories 39–41: Cross-Module Batch Split/Merge Integration Tests
+    // =========================================================================
+
+    @Test
+    public void testCrossModuleBatchPermissionsAndDefaultRoleGrants() {
+        // Story 39: Verify batch split/merge permissions registered with sourceService ACD-04
+        CollegeModels.CollegePermission pSplitReq = domainService.getPermissionByCode("BATCH_SPLIT_REQUEST");
+        assertNotNull(pSplitReq);
+        assertEquals("ACD-04", pSplitReq.getSourceService());
+        assertEquals("BATCH", pSplitReq.getResource());
+
+        CollegeModels.CollegePermission pSplitApp = domainService.getPermissionByCode("BATCH_SPLIT_APPROVE");
+        assertNotNull(pSplitApp);
+        assertEquals("ACD-04", pSplitApp.getSourceService());
+
+        CollegeModels.CollegePermission pMergeApp = domainService.getPermissionByCode("BATCH_MERGE_APPROVE");
+        assertNotNull(pMergeApp);
+        assertEquals("ACD-04", pMergeApp.getSourceService());
+
+        // Verify default role grants
+        CollegeModels.CollegeRole registrar = domainService.getRoleByCode("REGISTRAR");
+        assertNotNull(registrar);
+        assertTrue(registrar.isProtectedSystemRole());
+        assertTrue(registrar.getPermissions().contains("BATCH_SPLIT_APPROVE"));
+        assertTrue(registrar.getPermissions().contains("BATCH_MERGE_APPROVE"));
+        assertFalse(registrar.getPermissions().contains("BATCH_SPLIT_REQUEST"));
+
+        CollegeModels.CollegeRole acadAdmin = domainService.getRoleByCode("ACADEMIC_ADMIN");
+        assertNotNull(acadAdmin);
+        assertTrue(acadAdmin.getPermissions().contains("BATCH_SPLIT_REQUEST"));
+        assertFalse(acadAdmin.getPermissions().contains("BATCH_SPLIT_APPROVE"));
+
+        // Verify ACD-05 timetable cross-module permissions
+        CollegeModels.CollegePermission pTtCreate = domainService.getPermissionByCode("TIMETABLE_CREATE");
+        assertNotNull(pTtCreate);
+        assertEquals("ACD-05", pTtCreate.getSourceService());
+        assertEquals("TIMETABLE", pTtCreate.getResource());
+
+        CollegeModels.CollegePermission pTtPub = domainService.getPermissionByCode("TIMETABLE_PUBLISH");
+        assertNotNull(pTtPub);
+        assertEquals("ACD-05", pTtPub.getSourceService());
+
+        assertTrue(registrar.getPermissions().contains("TIMETABLE_PUBLISH"));
+        assertTrue(registrar.getPermissions().contains("TIMETABLE_VIEW"));
+        assertTrue(acadAdmin.getPermissions().contains("TIMETABLE_CREATE"));
+        assertTrue(acadAdmin.getPermissions().contains("TIMETABLE_EDIT"));
+        assertTrue(acadAdmin.getPermissions().contains("TIMETABLE_VALIDATE"));
+    }
+
+    @Test
+    public void testSeparationOfDutiesRoleAndBindingEnforcement() {
+        // Story 39: Role cannot hold both *_REQUEST and its corresponding *_APPROVE
+        CollegeModels.CollegeRole badRole = new CollegeModels.CollegeRole();
+        badRole.setRoleCode("SUPER_BATCH_ADMIN");
+        badRole.setName("Conflicting Batch Admin");
+        badRole.getPermissions().add("BATCH_SPLIT_REQUEST");
+        badRole.getPermissions().add("BATCH_SPLIT_APPROVE");
+
+        try {
+            domainService.createCollegeRole(badRole);
+            fail("Expected CollegeSecurityViolationException for conflicting role permissions");
+        } catch (com.campx.admin.college.exception.CollegeSecurityViolationException e) {
+            assertTrue(e.getMessage().contains("Separation of duties"));
+        }
+
+        // Binding level: Principal cannot hold both simultaneously
+        String user = "USER_DUAL_TEST_" + UUID.randomUUID().toString().substring(0, 6);
+        CollegeModels.CollegeRole r1 = domainService.getRoleByCode("REGISTRAR");
+        CollegeModels.CollegeRole r2 = domainService.getRoleByCode("ACADEMIC_ADMIN");
+
+        CollegeModels.CollegeRoleBinding b1 = new CollegeModels.CollegeRoleBinding();
+        b1.setPrincipalId(user);
+        b1.setRoleId(r1.getId());
+        b1.setScopeType("COLLEGE");
+        b1.setScopeId("MAIN");
+        domainService.createCollegeRoleBinding(b1);
+
+        CollegeModels.CollegeRoleBinding b2 = new CollegeModels.CollegeRoleBinding();
+        b2.setPrincipalId(user);
+        b2.setRoleId(r2.getId());
+        b2.setScopeType("COLLEGE");
+        b2.setScopeId("MAIN");
+
+        try {
+            domainService.createCollegeRoleBinding(b2);
+            fail("Expected CollegeSecurityViolationException when binding conflicting role to principal");
+        } catch (com.campx.admin.college.exception.CollegeSecurityViolationException e) {
+            assertTrue(e.getMessage().contains("Separation of duties"));
+        }
+    }
+
+    @Test
+    public void testBatchSplitWorkflowRequestedAndDeduplication() throws Exception {
+        // Story 40: ACD-04 publishes BatchSplitApprovalRequested event
+        String eventId = "EVT-SPLIT-" + UUID.randomUUID().toString().substring(0, 8);
+        String reqId = "REQ-SPLIT-" + UUID.randomUUID().toString().substring(0, 8);
+
+        String payload = "{"
+                + "\"eventId\":\"" + eventId + "\","
+                + "\"eventType\":\"BatchSplitApprovalRequested\","
+                + "\"eventVersion\":\"1.0\","
+                + "\"tenantId\":\"TENANT-001\","
+                + "\"institutionId\":\"INST-001\","
+                + "\"correlationId\":\"TRACE-SPLIT-9901\","
+                + "\"timestamp\":1789973000000,"
+                + "\"sourceService\":\"ACD-04\","
+                + "\"data\":{"
+                + "\"requestId\":\"" + reqId + "\","
+                + "\"requestType\":\"SPLIT\","
+                + "\"sourceBatchId\":\"BAT-2026-CS-A\","
+                + "\"sourceBatchCode\":\"CS-A\","
+                + "\"departmentId\":\"DEP_CS\","
+                + "\"campusId\":\"MAIN\","
+                + "\"requestedBy\":\"ACAD_ADMIN_USER\","
+                + "\"requestedAt\":1789973000000,"
+                + "\"reason\":\"Batch size exceeds room capacity\","
+                + "\"proposedSections\":[\"A1\",\"A2\"],"
+                + "\"approverRole\":\"REGISTRAR\""
+                + "}"
+                + "}";
+
+        URL url = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/workflows/batch-approvals/events");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = conn.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+
+        assertEquals(201, conn.getResponseCode());
+        String resp = readResponse(conn);
+        assertTrue(resp.contains("\"requestId\":\"" + reqId + "\""));
+        assertTrue(resp.contains("\"approverRole\":\"REGISTRAR\""));
+
+        // Verify workflow instance created
+        CollegeModels.BatchApprovalDetails details = domainService.getBatchApproval(reqId);
+        assertNotNull(details);
+        assertEquals("PENDING", details.getStatus());
+        assertEquals("SPLIT", details.getRequestType());
+        assertEquals("BAT-2026-CS-A", details.getSourceBatchId());
+
+        CollegeModels.CollegeWorkflowInstance wf = domainService.getCollegeWorkflow(details.getWorkflowInstanceId());
+        assertNotNull(wf);
+        assertEquals("RUNNING", wf.getCurrentState());
+        assertEquals("BATCH_SPLIT_MERGE", wf.getWorkflowType());
+
+        // Deduplication on eventId (Story 40 & 41)
+        HttpURLConnection dupConn = (HttpURLConnection) url.openConnection();
+        dupConn.setRequestMethod("POST");
+        dupConn.setDoOutput(true);
+        dupConn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = dupConn.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+
+        assertEquals(200, dupConn.getResponseCode());
+        String dupResp = readResponse(dupConn);
+        assertTrue(dupResp.contains(reqId));
+    }
+
+    @Test
+    public void testBatchMergeWorkflowRequestedAndRegistrarDecision() throws Exception {
+        // Story 40 & 41: ACD-04 BatchMergeApprovalRequested event & Registrar Decision
+        String eventId = "EVT-MERGE-" + UUID.randomUUID().toString().substring(0, 8);
+        String reqId = "REQ-MERGE-" + UUID.randomUUID().toString().substring(0, 8);
+
+        String payload = "{"
+                + "\"eventId\":\"" + eventId + "\","
+                + "\"eventType\":\"BatchMergeApprovalRequested\","
+                + "\"eventVersion\":\"1.0\","
+                + "\"tenantId\":\"TENANT-001\","
+                + "\"institutionId\":\"INST-001\","
+                + "\"correlationId\":\"TRACE-MERGE-8801\","
+                + "\"timestamp\":1789973100000,"
+                + "\"sourceService\":\"ACD-04\","
+                + "\"data\":{"
+                + "\"requestId\":\"" + reqId + "\","
+                + "\"requestType\":\"MERGE\","
+                + "\"sourceBatchIds\":[\"BAT-CS-B1\",\"BAT-EC-B1\"],"
+                + "\"sourceBatchDepartmentIds\":[\"DEP_CS\",\"DEP_EC\"],"
+                + "\"targetBatchId\":\"BAT-INTERDISCIPLINARY-01\","
+                + "\"campusId\":\"MAIN\","
+                + "\"requestedBy\":\"ACAD_DEAN_USER\","
+                + "\"requestedAt\":1789973100000,"
+                + "\"reason\":\"Interdisciplinary elective batch merge\","
+                + "\"approverRole\":\"REGISTRAR\""
+                + "}"
+                + "}";
+
+        // Send via inbox endpoint
+        URL inboxUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/events/inbox");
+        HttpURLConnection inboxConn = (HttpURLConnection) inboxUrl.openConnection();
+        inboxConn.setRequestMethod("POST");
+        inboxConn.setDoOutput(true);
+        inboxConn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = inboxConn.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+        assertEquals(200, inboxConn.getResponseCode());
+
+        // Attempt decision by non-Registrar (e.g. HOD) -> 403 Forbidden
+        URL decideUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/workflows/batch-approvals/" + reqId + "/decide");
+        HttpURLConnection unauthorizedConn = (HttpURLConnection) decideUrl.openConnection();
+        unauthorizedConn.setRequestMethod("POST");
+        unauthorizedConn.setDoOutput(true);
+        unauthorizedConn.setRequestProperty("Content-Type", "application/json");
+        unauthorizedConn.setRequestProperty("X-User-Role", "HOD");
+        try (OutputStream os = unauthorizedConn.getOutputStream()) {
+            os.write("{\"decision\":\"APPROVED\",\"decidedBy\":\"HOD_USER\",\"reason\":\"HOD trying to approve\"}".getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(403, unauthorizedConn.getResponseCode());
+
+        // Attempt self-certification (requester approves own request) -> 400 Bad Request
+        HttpURLConnection selfCertConn = (HttpURLConnection) decideUrl.openConnection();
+        selfCertConn.setRequestMethod("POST");
+        selfCertConn.setDoOutput(true);
+        selfCertConn.setRequestProperty("Content-Type", "application/json");
+        selfCertConn.setRequestProperty("X-User-Role", "REGISTRAR");
+        try (OutputStream os = selfCertConn.getOutputStream()) {
+            os.write("{\"decision\":\"APPROVED\",\"decidedBy\":\"ACAD_DEAN_USER\",\"reason\":\"Self-certifying\"}".getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(400, selfCertConn.getResponseCode());
+
+        // Legitimate decision by Registrar -> 200 OK
+        HttpURLConnection decideConn = (HttpURLConnection) decideUrl.openConnection();
+        decideConn.setRequestMethod("POST");
+        decideConn.setDoOutput(true);
+        decideConn.setRequestProperty("Content-Type", "application/json");
+        decideConn.setRequestProperty("X-User-Role", "REGISTRAR");
+        try (OutputStream os = decideConn.getOutputStream()) {
+            os.write("{\"decision\":\"APPROVED\",\"decidedBy\":\"REGISTRAR_DR_SMITH\",\"reason\":\"Cross-department merge approved for elective\"}".getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, decideConn.getResponseCode());
+        String decideResp = readResponse(decideConn);
+        assertTrue(decideResp.contains("\"status\":\"APPROVED\""));
+        assertTrue(decideResp.contains("\"decidedBy\":\"REGISTRAR_DR_SMITH\""));
+
+        // Verify workflow state
+        CollegeModels.BatchApprovalDetails details = domainService.getBatchApproval(reqId);
+        assertEquals("APPROVED", details.getStatus());
+        assertEquals("REGISTRAR_DR_SMITH", details.getDecidedBy());
+
+        CollegeModels.CollegeWorkflowInstance wf = domainService.getCollegeWorkflow(details.getWorkflowInstanceId());
+        assertEquals("COMPLETED", wf.getCurrentState());
+        assertTrue(wf.getSteps().contains("REGISTRAR_APPROVED"));
+
+        // Story 40: Verify outbox contains BatchMergeApprovalDecided
+        List<CollegeModels.OutboxEvent> outboxList = domainService.listOutboxEvents();
+        boolean foundOutbox = false;
+        for (CollegeModels.OutboxEvent e : outboxList) {
+            if ("BatchMergeApprovalDecided".equals(e.getEventType()) && reqId.equals(e.getAggregateId())) {
+                foundOutbox = true;
+                break;
+            }
+        }
+        assertTrue(foundOutbox);
+
+        // Story 41: Verify immutable audit entry in ADM02_audit_logs capturing batchId and decision
+        List<Map<String, Object>> auditTrail = domainService.getAuditTrail();
+        boolean foundAudit = false;
+        for (Map<String, Object> a : auditTrail) {
+            if ("BATCH_MERGE_APPROVAL_DECIDED".equals(a.get("action"))
+                    && "APPROVED".equals(a.get("status"))
+                    && "REGISTRAR".equals(a.get("principalRole"))) {
+                foundAudit = true;
+                assertNotNull(a.get("beforeHash"));
+                assertNotNull(a.get("afterHash"));
+                break;
+            }
+        }
+        assertTrue(foundAudit);
+    }
+
+    @Test
+    public void testBatchSplitRejectionAndCompensation() throws Exception {
+        // Story 40 & 41: Batch split rejected by Registrar triggers workflow compensation
+        String eventId = "EVT-SPLIT-REJ-" + UUID.randomUUID().toString().substring(0, 8);
+        String reqId = "REQ-SPLIT-REJ-" + UUID.randomUUID().toString().substring(0, 8);
+
+        String payload = "{"
+                + "\"eventId\":\"" + eventId + "\","
+                + "\"eventType\":\"BatchSplitApprovalRequested\","
+                + "\"eventVersion\":\"1.0\","
+                + "\"tenantId\":\"TENANT-001\","
+                + "\"institutionId\":\"INST-001\","
+                + "\"correlationId\":\"TRACE-SPLIT-REJ\","
+                + "\"sourceService\":\"ACD-04\","
+                + "\"data\":{"
+                + "\"requestId\":\"" + reqId + "\","
+                + "\"requestType\":\"SPLIT\","
+                + "\"sourceBatchId\":\"BAT-2026-MECH-A\","
+                + "\"sourceBatchCode\":\"MECH-A\","
+                + "\"departmentId\":\"DEP_MECH\","
+                + "\"campusId\":\"MAIN\","
+                + "\"requestedBy\":\"MECH_HOD\","
+                + "\"reason\":\"Split request due to lab constraints\","
+                + "\"approverRole\":\"REGISTRAR\""
+                + "}"
+                + "}";
+
+        URL eventUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/workflows/batch-approvals/events");
+        HttpURLConnection eventConn = (HttpURLConnection) eventUrl.openConnection();
+        eventConn.setRequestMethod("POST");
+        eventConn.setDoOutput(true);
+        eventConn.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = eventConn.getOutputStream()) { os.write(payload.getBytes(StandardCharsets.UTF_8)); }
+        assertEquals(201, eventConn.getResponseCode());
+
+        // Registrar decides REJECTED
+        URL decideUrl = new URL("http://localhost:" + TEST_PORT + "/api/v1/college-admin/workflows/batch-approvals/" + reqId + "/decide");
+        HttpURLConnection decideConn = (HttpURLConnection) decideUrl.openConnection();
+        decideConn.setRequestMethod("POST");
+        decideConn.setDoOutput(true);
+        decideConn.setRequestProperty("Content-Type", "application/json");
+        decideConn.setRequestProperty("X-User-Role", "REGISTRAR");
+        try (OutputStream os = decideConn.getOutputStream()) {
+            os.write("{\"decision\":\"REJECTED\",\"decidedBy\":\"REGISTRAR_DR_SMITH\",\"reason\":\"Lab slots are adequate; split denied\"}".getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(200, decideConn.getResponseCode());
+
+        CollegeModels.BatchApprovalDetails details = domainService.getBatchApproval(reqId);
+        assertEquals("REJECTED", details.getStatus());
+
+        // Verify compensation triggered
+        CollegeModels.CollegeWorkflowInstance wf = domainService.getCollegeWorkflow(details.getWorkflowInstanceId());
+        assertEquals("FAILED", wf.getCurrentState());
+        boolean hasCompensationStep = false;
+        for (String step : wf.getSteps()) {
+            if (step.contains("COMPENSATION_EXECUTED:REVERT_SPLIT_REQUEST")) {
+                hasCompensationStep = true;
+                break;
+            }
+        }
+        assertTrue(hasCompensationStep);
+
+        // Verify Outbox published BatchSplitApprovalDecided
+        List<CollegeModels.OutboxEvent> outboxList = domainService.listOutboxEvents();
+        boolean foundOutbox = false;
+        for (CollegeModels.OutboxEvent e : outboxList) {
+            if ("BatchSplitApprovalDecided".equals(e.getEventType()) && reqId.equals(e.getAggregateId())) {
+                foundOutbox = true;
+                break;
+            }
+        }
+        assertTrue(foundOutbox);
+    }
 }
+

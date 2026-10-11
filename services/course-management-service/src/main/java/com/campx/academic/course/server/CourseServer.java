@@ -31,6 +31,11 @@ public class CourseServer {
     private final CourseDomainService domainService;
 
     /**
+     * Edge gateway cryptographic HMAC verifier.
+     */
+    private final com.campx.academic.course.security.GatewayHmacVerifier gatewayHmacVerifier;
+
+    /**
      * Underlying JDK HTTP server instance.
      */
     private HttpServer server;
@@ -47,8 +52,18 @@ public class CourseServer {
      * @param domainService the domain business logic service
      */
     public CourseServer(int port, CourseDomainService domainService) {
+        this(port, domainService, new com.campx.academic.course.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Constructs a {@code CourseServer} with port, domain service, and verifier.
+     */
+    public CourseServer(int port, CourseDomainService domainService,
+                        com.campx.academic.course.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.port = port;
         this.domainService = domainService != null ? domainService : new CourseDomainService();
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier :
+                new com.campx.academic.course.security.GatewayHmacVerifier();
     }
 
     /**
@@ -64,13 +79,13 @@ public class CourseServer {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.setExecutor(null); // default executor
 
-        CourseController controller = new CourseController(domainService);
+        CourseController controller = new CourseController(domainService, gatewayHmacVerifier);
         server.createContext("/api/v1/courses", controller);
         server.createContext("/api/v1/academics/courses", controller);
 
         server.start();
         running = true;
-        logger.info("CampXSync ACD-01 Course Management Service started on port {}", port);
+        logger.info("CampXSync ACD-01 Course Management Service started on port {}", getPort());
     }
 
     /**
@@ -99,6 +114,9 @@ public class CourseServer {
      * @return TCP port
      */
     public int getPort() {
+        if (server != null && running) {
+            return server.getAddress().getPort();
+        }
         return port;
     }
 

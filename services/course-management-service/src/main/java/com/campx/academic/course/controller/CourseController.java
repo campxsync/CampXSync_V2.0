@@ -45,12 +45,30 @@ public class CourseController implements HttpHandler {
     private final CourseDomainService domainService;
 
     /**
+     * Edge gateway cryptographic HMAC verifier enforcing platform trust boundary.
+     */
+    private final com.campx.academic.course.security.GatewayHmacVerifier gatewayHmacVerifier;
+
+    /**
      * Constructs a {@code CourseController} backed by the specified domain service.
      *
      * @param domainService the domain business logic service
      */
     public CourseController(CourseDomainService domainService) {
+        this(domainService, new com.campx.academic.course.security.GatewayHmacVerifier());
+    }
+
+    /**
+     * Constructs a {@code CourseController} with domain service and explicit gateway verifier.
+     *
+     * @param domainService      the domain business logic service
+     * @param gatewayHmacVerifier the gateway HMAC verifier
+     */
+    public CourseController(CourseDomainService domainService,
+                            com.campx.academic.course.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier :
+                new com.campx.academic.course.security.GatewayHmacVerifier();
     }
 
     /**
@@ -65,6 +83,25 @@ public class CourseController implements HttpHandler {
         String fullPath = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod();
 
+        // Normalize path: support both /api/v1/courses and /api/v1/academics/courses
+        String path = fullPath;
+        if (path.startsWith("/api/v1/academics/courses")) {
+            path = "/api/v1/courses" + path.substring("/api/v1/academics/courses".length());
+        }
+
+        // Cache raw request body bytes for both HMAC verification and downstream handlers
+        byte[] bodyBytes = readRequestBodyBytes(exchange);
+        exchange.setAttribute("campx.request.body", bodyBytes);
+
+        // Platform Trust Boundary: Verify Gateway HMAC signature before extracting identity or processing endpoints
+        com.campx.academic.course.security.GatewayHmacVerifier.VerificationResult authResult =
+                gatewayHmacVerifier.verify(exchange, method, path, bodyBytes);
+        if (!authResult.isSuccess()) {
+            sendError(exchange, authResult.getStatus(), authResult.getError(), authResult.getErrorCode(), authResult.getMessage(), path);
+            return;
+        }
+        exchange.setAttribute("campx.auth.result", authResult);
+
         // 1. Establish Trace and Correlation Tokens
         String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
         if (traceId == null || traceId.trim().isEmpty()) {
@@ -73,29 +110,23 @@ public class CourseController implements HttpHandler {
             LogContext.setTraceId(traceId);
         }
 
-        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        String tenantId = authResult.getTenantId();
         if (tenantId != null && !tenantId.trim().isEmpty()) {
             LogContext.setTenantId(tenantId);
         }
 
-        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String userId = authResult.getUserId();
         if (userId != null && !userId.trim().isEmpty()) {
             LogContext.setUserId(userId);
         }
 
-        String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+        String userRole = authResult.getUserRole();
         if (userRole != null && !userRole.trim().isEmpty()) {
             LogContext.setUserRole(userRole);
         }
 
         LogContext.setService("ACD-01-CourseService");
         exchange.getResponseHeaders().set("X-Trace-Id", traceId);
-
-        // Normalize path: support both /api/v1/courses and /api/v1/academics/courses
-        String path = fullPath;
-        if (path.startsWith("/api/v1/academics/courses")) {
-            path = "/api/v1/courses" + path.substring("/api/v1/academics/courses".length());
-        }
 
         logger.info("[CourseService] Incoming [{}] {}", method, path);
 
@@ -154,6 +185,13 @@ public class CourseController implements HttpHandler {
                 return;
             }
 
+            // Inbound department sync from ADM-02
+            if (path.equals("/api/v1/courses/events/department-sync") && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleDepartmentSyncEvent");
+                handleDepartmentSyncEvent(exchange);
+                return;
+            }
+
             // Phase 5 Collection Endpoints: Bulk, Accreditations & Archive
             if (path.equals("/api/v1/courses/bulk/import") && "POST".equalsIgnoreCase(method)) {
                 flow.step("handleBulkImportCourses");
@@ -176,9 +214,9 @@ public class CourseController implements HttpHandler {
                 return;
             }
 
-            // 4. Primary Collection: Create Course & List Courses
-            if (path.equals("/api/v1/courses")) {
-                if ("POST".equalsIgnoreCase(method)) {
+            // 4. Primary Collection: Create Course & List Courses / Catalog
+            if (path.equals("/api/v1/courses") || path.equals("/api/v1/courses/catalog")) {
+                if ("POST".equalsIgnoreCase(method) && path.equals("/api/v1/courses")) {
                     flow.step("handleCreateCourse");
                     handleCreateCourse(exchange);
                     return;
@@ -441,15 +479,19 @@ public class CourseController implements HttpHandler {
 
     private void handleCreateCourse(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
+        com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+        String tenantHeader = context.getTenantId() != null ? context.getTenantId().toString() : null;
+
         Course c = new Course();
-        c.setCourseCode(extract(body, "courseCode", null));
-        c.setCourseName(extract(body, "courseName", null));
+        c.setCourseCode(extract(body, "courseCode", extract(body, "code", null)));
+        c.setCourseName(extract(body, "courseName", extract(body, "name", null)));
         c.setDescription(extract(body, "description", ""));
         c.setCourseType(extract(body, "courseType", "THEORY"));
         c.setCourseCategory(extract(body, "courseCategory", "CORE"));
         c.setDepartmentId(extract(body, "departmentId", null));
+        c.setProgramId(extract(body, "programId", null));
 
-        String creditsStr = extract(body, "totalCredits", "4.0");
+        String creditsStr = extract(body, "totalCredits", extract(body, "credits", "4.0"));
         try {
             c.setTotalCredits(Double.parseDouble(creditsStr));
         } catch (Exception e) {
@@ -463,18 +505,22 @@ public class CourseController implements HttpHandler {
             c.setDurationYears(1);
         }
 
-        String tenantHeader = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
         if (tenantHeader != null && !tenantHeader.trim().isEmpty()) {
             c.setTenantId(tenantHeader.trim());
         }
 
-        Course created = domainService.createDraftCourse(c);
+        Course created = domainService.createDraftCourse(context, c);
         String resp = "{"
                 + "\"id\":\"" + created.getId() + "\","
+                + "\"code\":\"" + created.getCourseCode() + "\","
                 + "\"courseCode\":\"" + created.getCourseCode() + "\","
+                + "\"name\":\"" + escape(created.getCourseName()) + "\","
                 + "\"courseName\":\"" + escape(created.getCourseName()) + "\","
+                + "\"departmentId\":\"" + (created.getDepartmentId() != null ? escape(created.getDepartmentId()) : "") + "\","
+                + "\"programId\":\"" + (created.getProgramId() != null ? escape(created.getProgramId()) : "") + "\","
                 + "\"status\":\"" + created.getStatus() + "\","
                 + "\"version\":\"" + created.getCurrentVersion() + ".0\","
+                + "\"credits\":" + created.getTotalCredits() + ","
                 + "\"totalCredits\":" + created.getTotalCredits() + ","
                 + "\"createdAt\":" + created.getCreatedAt()
                 + "}";
@@ -482,29 +528,39 @@ public class CourseController implements HttpHandler {
     }
 
     private void handleListCourses(HttpExchange exchange) throws IOException {
-        List<Course> list = domainService.listCourses();
+        com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+
+        List<Course> list = domainService.listCourses(context);
         StringBuilder sb = new StringBuilder("{\"courses\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
             Course c = list.get(i);
-            sb.append("{\"id\":\"").append(c.getId()).append("\",\"code\":\"").append(c.getCourseCode())
+            sb.append("{\"id\":\"").append(c.getId())
+              .append("\",\"code\":\"").append(c.getCourseCode())
+              .append("\",\"courseCode\":\"").append(c.getCourseCode())
               .append("\",\"name\":\"").append(escape(c.getCourseName()))
+              .append("\",\"courseName\":\"").append(escape(c.getCourseName()))
               .append("\",\"status\":\"").append(c.getStatus())
-              .append("\",\"departmentId\":\"").append(c.getDepartmentId())
-              .append("\",\"credits\":").append(c.getTotalCredits()).append("}");
+              .append("\",\"departmentId\":\"").append(c.getDepartmentId() != null ? c.getDepartmentId() : "")
+              .append("\",\"programId\":\"").append(c.getProgramId() != null ? c.getProgramId() : "")
+              .append("\",\"credits\":").append(c.getTotalCredits())
+              .append(",\"totalCredits\":").append(c.getTotalCredits())
+              .append("}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
     }
 
     private void handleGetCourse(HttpExchange exchange, String id) throws IOException {
-        Course c = domainService.getCourse(id);
+        com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+
+        Course c = domainService.getCourse(context, id);
         String resp = "{"
                 + "\"id\":\"" + c.getId() + "\","
                 + "\"courseCode\":\"" + c.getCourseCode() + "\","
                 + "\"courseName\":\"" + escape(c.getCourseName()) + "\","
                 + "\"description\":\"" + escape(c.getDescription()) + "\","
-                + "\"departmentId\":\"" + c.getDepartmentId() + "\","
+                + "\"departmentId\":\"" + (c.getDepartmentId() != null ? c.getDepartmentId() : "") + "\","
                 + "\"durationYears\":" + c.getDurationYears() + ","
                 + "\"totalCredits\":" + c.getTotalCredits() + ","
                 + "\"courseType\":\"" + c.getCourseType() + "\","
@@ -516,18 +572,26 @@ public class CourseController implements HttpHandler {
     }
 
     private void handleUpdateCourse(HttpExchange exchange, String id) throws IOException {
+        com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
         String body = readBody(exchange);
         Course update = new Course();
-        update.setCourseName(extract(body, "courseName", null));
+        String name = extract(body, "name", null);
+        if (name == null || name.trim().isEmpty()) {
+            name = extract(body, "courseName", null);
+        }
+        update.setCourseName(name);
         update.setDescription(extract(body, "description", null));
         update.setDepartmentId(extract(body, "departmentId", null));
 
-        String creds = extract(body, "totalCredits", null);
+        String creds = extract(body, "credits", null);
+        if (creds == null || creds.trim().isEmpty()) {
+            creds = extract(body, "totalCredits", null);
+        }
         if (creds != null) {
             try { update.setTotalCredits(Double.parseDouble(creds)); } catch (Exception ignored) {}
         }
 
-        Course updated = domainService.updateDraftCourse(id, update);
+        Course updated = domainService.updateDraftCourse(context, id, update);
         sendJson(exchange, 200, "{\"status\":\"UPDATED\",\"id\":\"" + updated.getId() + "\",\"courseCode\":\"" + updated.getCourseCode() + "\"}");
     }
 
@@ -1066,7 +1130,33 @@ public class CourseController implements HttpHandler {
     // Helpers
     // =========================================================================
 
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        java.io.InputStream is = exchange.getRequestBody();
+        java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+        int nRead;
+        byte[] data = new byte[4096];
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        return buffer.toByteArray();
+    }
+
+    private com.campx.academic.course.security.UserSecurityContext getSecurityContext(HttpExchange exchange) {
+        com.campx.academic.course.security.GatewayHmacVerifier.VerificationResult auth =
+                (com.campx.academic.course.security.GatewayHmacVerifier.VerificationResult) exchange.getAttribute("campx.auth.result");
+        if (auth != null && auth.getUserId() != null) {
+            return com.campx.academic.course.security.UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+        }
+        String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+        return com.campx.academic.course.security.UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
     private String readBody(HttpExchange exchange) throws IOException {
+        byte[] cached = (byte[]) exchange.getAttribute("campx.request.body");
+        if (cached != null) {
+            return new String(cached, StandardCharsets.UTF_8).trim();
+        }
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
             StringBuilder sb = new StringBuilder();
             String line;
@@ -1148,5 +1238,22 @@ public class CourseController implements HttpHandler {
     private String escape(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+    }
+
+    private void handleDepartmentSyncEvent(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        String eventType = extract(body, "eventType", "DepartmentCreated");
+        String deptId = extract(body, "departmentId", null);
+        if (deptId == null) {
+            deptId = extract(body, "id", null);
+        }
+        if (deptId != null && !deptId.trim().isEmpty()) {
+            if ("DepartmentDeactivated".equalsIgnoreCase(eventType) || "DepartmentRetired".equalsIgnoreCase(eventType)) {
+                domainService.removeActiveDepartment(deptId);
+            } else {
+                domainService.registerActiveDepartment(deptId);
+            }
+        }
+        sendJson(exchange, 200, "{\"status\":\"ACK\",\"departmentId\":\"" + (deptId != null ? deptId : "") + "\"}");
     }
 }

@@ -12,8 +12,10 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
@@ -33,8 +35,15 @@ public class GatewayCourseIntegrationTest {
     private static CourseServer courseServer;
     private static GatewayServer gatewayServer;
 
-    private static final int GW_PORT = 8084;
-    private static final int CRS_PORT = 8083;
+    private static int GW_PORT;
+    private static int CRS_PORT;
+
+    private static int findFreePort() throws IOException {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            socket.setReuseAddress(true);
+            return socket.getLocalPort();
+        }
+    }
 
     /**
      * Boots the ACD-01 Course Management Service and the API Gateway reverse proxy.
@@ -43,11 +52,14 @@ public class GatewayCourseIntegrationTest {
      */
     @BeforeClass
     public static void startAll() throws Exception {
-        // 1. Start ACD-01 Course Management Service on port 8083
+        CRS_PORT = findFreePort();
+        GW_PORT = findFreePort();
+
+        // 1. Start ACD-01 Course Management Service on dynamic port
         courseServer = new CourseServer(CRS_PORT, new CourseDomainService());
         courseServer.start();
 
-        // 2. Start Gateway on port 8084 configured to proxy to courseServer
+        // 2. Start Gateway configured to proxy to courseServer
         GatewayConfig config = new GatewayConfig();
         config.setPort(GW_PORT);
         config.addRoute("/api/v1/courses", "http://localhost:" + CRS_PORT + "/api/v1/courses");

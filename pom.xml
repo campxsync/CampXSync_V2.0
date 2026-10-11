@@ -17,6 +17,15 @@
         <module>services/institute-admin-service</module>
         <module>services/college-admin-service</module>
         <module>services/course-management-service</module>
+        <module>services/curriculum-service</module>
+        <module>services/subject-management-service</module>
+        <module>services/batch-management-service</module>
+        <module>services/timetable-management-service</module>
+        <module>services/attendance-service</module>
+        <module>services/academic-calendar-service</module>
+        <module>services/learning-resource-service</module>
+        <module>services/assessment-mapping-service</module>
+        <module>services/analytics-service</module>
         <module>api-gateway</module>
     </modules>
 

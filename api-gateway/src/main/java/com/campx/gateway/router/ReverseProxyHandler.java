@@ -3,6 +3,8 @@ package com.campx.gateway.router;
 import com.campx.gateway.config.GatewayConfig;
 import com.campx.gateway.filter.CorrelationFilter;
 import com.campx.gateway.model.ErrorResponse;
+import com.campx.gateway.security.SupabaseJwtValidator;
+import com.campx.gateway.security.JwtValidationException;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -91,7 +93,36 @@ public class ReverseProxyHandler implements HttpHandler {
         try (FlowTracker flow = logger.flow("GatewayRouteDispatch", "GW-" + traceId)) {
             logger.info("Incoming Gateway request: [{}] {} from {}", method, path, exchange.getRemoteAddress());
 
-            // 2. Health & Route Info endpoints handled directly
+            // 2. Handle CORS preflight and origin verification
+            String origin = exchange.getRequestHeaders().getFirst("Origin");
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                if (origin != null && !origin.trim().isEmpty()) {
+                    origin = origin.trim();
+                    java.util.List<String> allowed = config.getAllowedOrigins();
+                    if (allowed.contains(origin) || allowed.contains("*")) {
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
+                                "Authorization, Content-Type, X-Trace-Id, X-Tenant-Id, X-User-Id, X-User-Role, X-Correlation-Id");
+                        exchange.getResponseHeaders().set("Access-Control-Max-Age", "86400");
+                        exchange.getResponseHeaders().add("Vary", "Origin");
+                        exchange.sendResponseHeaders(204, -1);
+                        return;
+                    } else {
+                        logger.warn("Gateway rejected preflight CORS from unauthorized origin: {}", origin);
+                        sendError(exchange, 403, "Forbidden", "GATEWAY_CORS_ORIGIN_DENIED", "Origin not permitted: " + origin, path);
+                        return;
+                    }
+                } else {
+                    // Standard OPTIONS request without Origin header
+                    exchange.getResponseHeaders().set("Allow", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+                    exchange.sendResponseHeaders(204, -1);
+                    return;
+                }
+            }
+
+            // 3. Health & Route Info endpoints handled directly
             if ("/actuator/health".equals(path)) {
                 sendJson(exchange, 200, "{\"status\":\"UP\",\"gateway\":\"CampXSync-API-Gateway\"}");
                 return;
@@ -119,8 +150,22 @@ public class ReverseProxyHandler implements HttpHandler {
                 return;
             }
 
+            // 4. Validate incoming Supabase JWT at Gateway boundary when security is enabled
+            SupabaseJwtValidator.VerifiedClaims verifiedClaims = null;
+            if (config.isInternalAuthEnabled()) {
+                String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+                try {
+                    verifiedClaims = SupabaseJwtValidator.validate(
+                            authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
+                } catch (JwtValidationException e) {
+                    logger.warn("Gateway rejected unauthenticated request to [{} {}]: {}", method, path, e.getMessage());
+                    sendError(exchange, e.getStatusCode(), e.getError(), e.getErrorCode(), e.getMessage(), path);
+                    return;
+                }
+            }
+
             logger.debug("Proxying [{}] {} -> {}", method, path, destinationUrlStr);
-            proxyRequest(exchange, destinationUrlStr, method);
+            proxyRequest(exchange, destinationUrlStr, method, verifiedClaims);
         } catch (ConnectException e) {
             logger.error("Downstream service unreachable for path [{}]: {}", path, e.getMessage());
             sendError(exchange, 503, "Service Unavailable", "GATEWAY_SERVICE_UNAVAILABLE",
@@ -154,32 +199,40 @@ public class ReverseProxyHandler implements HttpHandler {
      * @return The complete downstream URL string, or {@code null} if no prefix matched.
      */
     private String resolveDestinationUrl(String path, String query) {
+        Map.Entry<String, String> bestMatch = null;
         for (Map.Entry<String, String> entry : config.getRouteTable().entrySet()) {
             String prefix = entry.getKey();
             if (path.startsWith(prefix)) {
-                String target = entry.getValue();
-                String destination;
-                try {
-                    URL targetUrl = new URL(target);
-                    String targetPath = targetUrl.getPath();
-                    if (targetPath == null || targetPath.isEmpty() || "/".equals(targetPath)) {
-                        // Target is base host (e.g., http://localhost:8081) - preserve full request path
-                        String cleanTarget = target.replaceAll("/+$", "");
-                        destination = cleanTarget + (path.startsWith("/") ? path : "/" + path);
-                    } else {
-                        // Target has explicit destination path - append remaining relative path
-                        String remaining = path.substring(prefix.length());
-                        String cleanTarget = target.replaceAll("/+$", "");
-                        destination = cleanTarget + (remaining.startsWith("/") ? remaining : (remaining.isEmpty() ? "" : "/" + remaining));
-                    }
-                } catch (Exception e) {
-                    String remaining = path.substring(prefix.length());
-                    destination = target + remaining;
+                if (bestMatch == null || prefix.length() > bestMatch.getKey().length()) {
+                    bestMatch = entry;
                 }
-                return destination + (query != null ? "?" + query : "");
             }
         }
-        return null;
+        if (bestMatch == null) {
+            return null;
+        }
+
+        String prefix = bestMatch.getKey();
+        String target = bestMatch.getValue();
+        String destination;
+        try {
+            URL targetUrl = new URL(target);
+            String targetPath = targetUrl.getPath();
+            if (targetPath == null || targetPath.isEmpty() || "/".equals(targetPath)) {
+                // Target is base host (e.g., http://localhost:8081) - preserve full request path
+                String cleanTarget = target.replaceAll("/+$", "");
+                destination = cleanTarget + (path.startsWith("/") ? path : "/" + path);
+            } else {
+                // Target has explicit destination path - append remaining relative path
+                String remaining = path.substring(prefix.length());
+                String cleanTarget = target.replaceAll("/+$", "");
+                destination = cleanTarget + (remaining.startsWith("/") ? remaining : (remaining.isEmpty() ? "" : "/" + remaining));
+            }
+        } catch (Exception e) {
+            String remaining = path.substring(prefix.length());
+            destination = target + remaining;
+        }
+        return destination + (query != null ? "?" + query : "");
     }
 
     /**
@@ -190,7 +243,8 @@ public class ReverseProxyHandler implements HttpHandler {
      * @param method             The HTTP method (e.g. GET, POST, PUT, DELETE).
      * @throws IOException If a communication or stream transfer error occurs.
      */
-    private void proxyRequest(HttpExchange clientExchange, String destinationUrlStr, String method) throws IOException {
+    private void proxyRequest(HttpExchange clientExchange, String destinationUrlStr, String method,
+                              SupabaseJwtValidator.VerifiedClaims verifiedClaims) throws IOException {
         URL targetUrl = new URL(destinationUrlStr);
         HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
         conn.setRequestMethod(method);
@@ -198,25 +252,66 @@ public class ReverseProxyHandler implements HttpHandler {
         conn.setReadTimeout(10000);
         conn.setInstanceFollowRedirects(false);
 
-        // Copy incoming headers to target connection
+        // Read request body bytes up-front to calculate body SHA-256 for canonical HMAC
+        byte[] body = readAllBytes(clientExchange.getRequestBody());
+
+        // 1. Copy incoming headers to target connection EXCEPT Host, Content-Length,
+        // and untrusted client identity/gateway headers which MUST be stripped
         Headers incomingHeaders = clientExchange.getRequestHeaders();
         for (Map.Entry<String, List<String>> header : incomingHeaders.entrySet()) {
             String name = header.getKey();
-            if (!"Host".equalsIgnoreCase(name) && !"Content-Length".equalsIgnoreCase(name)) {
+            if (name == null) continue;
+            String lowerName = name.toLowerCase(java.util.Locale.ROOT);
+            boolean isStripped = config.isInternalAuthEnabled()
+                    && com.campx.logger.security.GatewayHmacProtocol.STRIPPED_INBOUND_HEADERS.contains(lowerName);
+            if (!"host".equals(lowerName) && !"content-length".equals(lowerName) && !isStripped) {
                 for (String val : header.getValue()) {
                     conn.addRequestProperty(name, val);
                 }
             }
         }
 
+        // 2. Gateway HMAC Signing & Verified Identity Injection
+        if (config.isInternalAuthEnabled() && verifiedClaims != null) {
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            String path = targetUrl.getPath();
+            String bodySha256 = com.campx.logger.security.GatewayHmacProtocol.sha256Hex(body);
+            String canonicalPayload = com.campx.logger.security.GatewayHmacProtocol.buildCanonicalPayload(
+                    timestamp, method, path, verifiedClaims.getUserId(), verifiedClaims.getTenantId(), bodySha256);
+            String signature = com.campx.logger.security.GatewayHmacProtocol.calculateHmac(
+                    canonicalPayload, config.getInternalSecret());
+
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ID, verifiedClaims.getUserId());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID, verifiedClaims.getTenantId());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ROLE, verifiedClaims.getRole());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TIMESTAMP, timestamp);
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_SIGNATURE, signature);
+        }
+
+        // Propagate trace identifier if not already explicitly present in incoming headers
+        String traceId = LogContext.getTraceId();
+        if (traceId != null && !traceId.isEmpty()) {
+            if (conn.getRequestProperty(CorrelationFilter.HEADER_TRACE_ID) == null) {
+                conn.setRequestProperty(CorrelationFilter.HEADER_TRACE_ID, traceId);
+            }
+            if (conn.getRequestProperty("X-Correlation-Id") == null) {
+                conn.setRequestProperty("X-Correlation-Id", traceId);
+            }
+        }
+
+        // Forward caller IP address via X-Forwarded-For
+        if (conn.getRequestProperty("X-Forwarded-For") == null && clientExchange.getRemoteAddress() != null) {
+            String remoteAddr = clientExchange.getRemoteAddress().getAddress() != null
+                    ? clientExchange.getRemoteAddress().getAddress().getHostAddress()
+                    : clientExchange.getRemoteAddress().getHostString();
+            conn.setRequestProperty("X-Forwarded-For", remoteAddr);
+        }
+
         // Forward body if present
-        if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) {
+        if (("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) && body.length > 0) {
             conn.setDoOutput(true);
-            byte[] body = readAllBytes(clientExchange.getRequestBody());
-            if (body.length > 0) {
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(body);
-                }
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body);
             }
         }
 
@@ -246,12 +341,18 @@ public class ReverseProxyHandler implements HttpHandler {
         for (Map.Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
             String name = header.getKey();
             if (name != null && !"Transfer-Encoding".equalsIgnoreCase(name) && !"Content-Length".equalsIgnoreCase(name)) {
-                for (String val : header.getValue()) {
-                    outgoingHeaders.add(name, val);
+                if (CorrelationFilter.HEADER_TRACE_ID.equalsIgnoreCase(name) || "X-Correlation-Id".equalsIgnoreCase(name)) {
+                    outgoingHeaders.set(CorrelationFilter.HEADER_TRACE_ID, traceId != null ? traceId : header.getValue().get(0));
+                    outgoingHeaders.set("X-Correlation-Id", traceId != null ? traceId : header.getValue().get(0));
+                } else {
+                    for (String val : header.getValue()) {
+                        outgoingHeaders.add(name, val);
+                    }
                 }
             }
         }
 
+        applyCorsHeaders(clientExchange);
         byte[] respBytes = (respStream != null) ? readAllBytes(respStream) : new byte[0];
         clientExchange.sendResponseHeaders(responseCode, respBytes.length);
 
@@ -292,6 +393,7 @@ public class ReverseProxyHandler implements HttpHandler {
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {
         byte[] bytes = responseJson.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        applyCorsHeaders(exchange);
         exchange.sendResponseHeaders(statusCode, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
@@ -317,6 +419,7 @@ public class ReverseProxyHandler implements HttpHandler {
             ErrorResponse errorResponse = new ErrorResponse(status, error, errorCode, message, path, traceId);
             byte[] bytes = errorResponse.toBytes();
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            applyCorsHeaders(exchange);
             if (traceId != null && !traceId.isEmpty()) {
                 exchange.getResponseHeaders().set("X-Trace-Id", traceId);
             }
@@ -326,6 +429,22 @@ public class ReverseProxyHandler implements HttpHandler {
             }
         } catch (IOException ioException) {
             logger.warn("Failed to send error response to client: {}", ioException.getMessage());
+        }
+    }
+
+    /**
+     * Injects strict origin-verified CORS headers for permitted frontend callers.
+     */
+    private void applyCorsHeaders(HttpExchange exchange) {
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin != null && !origin.trim().isEmpty()) {
+            origin = origin.trim();
+            java.util.List<String> allowed = config.getAllowedOrigins();
+            if (allowed.contains(origin) || allowed.contains("*")) {
+                exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
+                exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
+                exchange.getResponseHeaders().add("Vary", "Origin");
+            }
         }
     }
 }

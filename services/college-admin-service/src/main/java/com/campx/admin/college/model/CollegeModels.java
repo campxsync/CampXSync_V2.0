@@ -222,12 +222,25 @@ public final class CollegeModels {
          */
         public void setStatus(String status) { this.status = status; }
 
-        /**
-         * Returns the creation epoch timestamp in milliseconds.
-         *
-         * @return creation epoch millis
-         */
+        private String tenantId;
+        private String collegeId;
+        private int rowVersion = 1;
+        private long updatedAt = System.currentTimeMillis();
+
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
+
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+
         public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
     }
 
     /**
@@ -241,6 +254,14 @@ public final class CollegeModels {
         private int durationYears;
         private int version = 1;
         private boolean published = true;
+        private String tenantId;
+        private String collegeId;
+        private String level = "UG";
+        private Integer totalTerms = 8;
+        private String status = "ACTIVE";
+        private long createdAt = System.currentTimeMillis();
+        private long updatedAt = System.currentTimeMillis();
+        private int rowVersion = 1;
 
         /**
          * Returns the primary program identifier.
@@ -339,6 +360,30 @@ public final class CollegeModels {
          * @param published published flag
          */
         public void setPublished(boolean published) { this.published = published; }
+
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+
+        public String getCollegeId() { return collegeId; }
+        public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
+
+        public String getLevel() { return level; }
+        public void setLevel(String level) { this.level = level; }
+
+        public Integer getTotalTerms() { return totalTerms; }
+        public void setTotalTerms(Integer totalTerms) { this.totalTerms = totalTerms; }
+
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+
+        public long getCreatedAt() { return createdAt; }
+        public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+
+        public long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
+
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
     }
 
     /**
@@ -701,6 +746,7 @@ public final class CollegeModels {
         private String action;
         private String description;
         private int assignedToRoles = 0;
+        private String sourceService = "ADM-02";
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -714,6 +760,8 @@ public final class CollegeModels {
         public void setDescription(String description) { this.description = description; }
         public int getAssignedToRoles() { return assignedToRoles; }
         public void setAssignedToRoles(int assignedToRoles) { this.assignedToRoles = assignedToRoles; }
+        public String getSourceService() { return sourceService; }
+        public void setSourceService(String sourceService) { this.sourceService = sourceService; }
     }
 
     /**
@@ -1330,5 +1378,91 @@ public final class CollegeModels {
         public void setSubmittedAt(long submittedAt) { this.submittedAt = submittedAt; }
         public long getDecidedAt() { return decidedAt; }
         public void setDecidedAt(long decidedAt) { this.decidedAt = decidedAt; }
+    }
+
+    /**
+     * ADM02_workflow_instances & ADM02_approval_requests — Batch split/merge cross-module approval request context
+     * consumed from ACD-04 events (User Story Lines 39–41).
+     */
+    public static class BatchApprovalDetails {
+        private String requestId;
+        private String requestType; // "SPLIT" or "MERGE"
+        private String sourceBatchId;
+        private String sourceBatchCode;
+        private List<String> sourceBatchIds = new ArrayList<>();
+        private List<String> sourceBatchDepartmentIds = new ArrayList<>();
+        private String targetBatchId;
+        private String departmentId;
+        private String campusId;
+        private String requestedBy;
+        private long requestedAt;
+        private String reason;
+        private String approverRole = "REGISTRAR";
+        private List<String> proposedSections = new ArrayList<>();
+        private String decision; // "APPROVED" or "REJECTED"
+        private String decidedBy;
+        private long decidedAt;
+        private String decisionReason;
+        private String correlationId;
+        private String tenantId;
+        private String institutionId;
+        private String workflowInstanceId;
+        private String status = "PENDING"; // PENDING, APPROVED, REJECTED
+        private String auditRecordId;
+        private String beforeHash;
+        private String afterHash;
+
+        public String getRequestId() { return requestId; }
+        public void setRequestId(String requestId) { this.requestId = requestId; }
+        public String getRequestType() { return requestType; }
+        public void setRequestType(String requestType) { this.requestType = requestType; }
+        public String getSourceBatchId() { return sourceBatchId; }
+        public void setSourceBatchId(String sourceBatchId) { this.sourceBatchId = sourceBatchId; }
+        public String getSourceBatchCode() { return sourceBatchCode; }
+        public void setSourceBatchCode(String sourceBatchCode) { this.sourceBatchCode = sourceBatchCode; }
+        public List<String> getSourceBatchIds() { return sourceBatchIds; }
+        public void setSourceBatchIds(List<String> sourceBatchIds) { this.sourceBatchIds = sourceBatchIds; }
+        public List<String> getSourceBatchDepartmentIds() { return sourceBatchDepartmentIds; }
+        public void setSourceBatchDepartmentIds(List<String> sourceBatchDepartmentIds) { this.sourceBatchDepartmentIds = sourceBatchDepartmentIds; }
+        public String getTargetBatchId() { return targetBatchId; }
+        public void setTargetBatchId(String targetBatchId) { this.targetBatchId = targetBatchId; }
+        public String getDepartmentId() { return departmentId; }
+        public void setDepartmentId(String departmentId) { this.departmentId = departmentId; }
+        public String getCampusId() { return campusId; }
+        public void setCampusId(String campusId) { this.campusId = campusId; }
+        public String getRequestedBy() { return requestedBy; }
+        public void setRequestedBy(String requestedBy) { this.requestedBy = requestedBy; }
+        public long getRequestedAt() { return requestedAt; }
+        public void setRequestedAt(long requestedAt) { this.requestedAt = requestedAt; }
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
+        public String getApproverRole() { return approverRole; }
+        public void setApproverRole(String approverRole) { this.approverRole = approverRole; }
+        public List<String> getProposedSections() { return proposedSections; }
+        public void setProposedSections(List<String> proposedSections) { this.proposedSections = proposedSections; }
+        public String getDecision() { return decision; }
+        public void setDecision(String decision) { this.decision = decision; }
+        public String getDecidedBy() { return decidedBy; }
+        public void setDecidedBy(String decidedBy) { this.decidedBy = decidedBy; }
+        public long getDecidedAt() { return decidedAt; }
+        public void setDecidedAt(long decidedAt) { this.decidedAt = decidedAt; }
+        public String getDecisionReason() { return decisionReason; }
+        public void setDecisionReason(String decisionReason) { this.decisionReason = decisionReason; }
+        public String getCorrelationId() { return correlationId; }
+        public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+        public String getTenantId() { return tenantId; }
+        public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+        public String getInstitutionId() { return institutionId; }
+        public void setInstitutionId(String institutionId) { this.institutionId = institutionId; }
+        public String getWorkflowInstanceId() { return workflowInstanceId; }
+        public void setWorkflowInstanceId(String workflowInstanceId) { this.workflowInstanceId = workflowInstanceId; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public String getAuditRecordId() { return auditRecordId; }
+        public void setAuditRecordId(String auditRecordId) { this.auditRecordId = auditRecordId; }
+        public String getBeforeHash() { return beforeHash; }
+        public void setBeforeHash(String beforeHash) { this.beforeHash = beforeHash; }
+        public String getAfterHash() { return afterHash; }
+        public void setAfterHash(String afterHash) { this.afterHash = afterHash; }
     }
 }
