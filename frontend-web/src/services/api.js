@@ -126,6 +126,188 @@ export const api = {
     return await res.json();
   },
 
+  // 2b. ADM-02 College Operational Profile & Governance
+  async getCollegeProfile(context) {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/college-admin/profile`, {
+        method: 'GET',
+        headers: getHeaders(context)
+      });
+      if (res.ok) return await res.json();
+      if (res.status === 404) return null;
+      const errBody = await res.json().catch(() => ({}));
+      const err = new Error(errBody.message || `HTTP ${res.status} error fetching college profile`);
+      err.status = res.status;
+      throw err;
+    } catch (e) {
+      if (e.status === 404) return null;
+      console.warn('Gateway college profile fetch error', e);
+      throw e;
+    }
+  },
+
+  async updateCollegeProfile(profileData, context) {
+    const res = await fetch(`${API_BASE}/api/v1/college-admin/profile`, {
+      method: 'PUT',
+      headers: getHeaders(context),
+      body: JSON.stringify(profileData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to update college profile' }));
+      throw new Error(err.message || 'Error updating college profile');
+    }
+    return await res.json();
+  },
+
+  async getCollegeSettings(context) {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/college-admin/settings`, {
+        method: 'GET',
+        headers: getHeaders(context)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data && data.settings ? data : { settings: [] };
+      }
+      throw new Error(`Failed to load college settings (${res.status})`);
+    } catch (e) {
+      console.warn('Gateway college settings fetch error', e);
+      throw e;
+    }
+  },
+
+  async setCollegeSetting(settingData, context) {
+    const isSec = !!(settingData.secret || settingData.isSecret);
+    const payload = {
+      ...settingData,
+      secret: isSec,
+      isSecret: isSec
+    };
+    const res = await fetch(`${API_BASE}/api/v1/college-admin/settings`, {
+      method: 'POST',
+      headers: getHeaders(context),
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to set college setting' }));
+      throw new Error(err.message || 'Error updating setting');
+    }
+    return await res.json();
+  },
+
+  async getFeatureOverrides(context) {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/college-admin/feature-overrides`, {
+        method: 'GET',
+        headers: getHeaders(context)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data && data.overrides ? data : { overrides: [] };
+      }
+      throw new Error(`Failed to load feature overrides (${res.status})`);
+    } catch (e) {
+      console.warn('Gateway feature overrides fetch error', e);
+      throw e;
+    }
+  },
+
+  async createFeatureOverride(overrideData, context) {
+    const res = await fetch(`${API_BASE}/api/v1/college-admin/feature-overrides`, {
+      method: 'POST',
+      headers: getHeaders(context),
+      body: JSON.stringify(overrideData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to override feature flag' }));
+      throw new Error(err.message || 'Error overriding feature flag');
+    }
+    return await res.json();
+  },
+
+  async getLocalPolicies(context) {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/college-admin/policies`, {
+        method: 'GET',
+        headers: getHeaders(context)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data && data.policies ? data : { policies: [] };
+      }
+      throw new Error(`Failed to load local policies (${res.status})`);
+    } catch (e) {
+      console.warn('Gateway local policies fetch error', e);
+      throw e;
+    }
+  },
+
+  async createLocalPolicy(policyData, context) {
+    const res = await fetch(`${API_BASE}/api/v1/college-admin/policies`, {
+      method: 'POST',
+      headers: getHeaders(context),
+      body: JSON.stringify({
+        policyCode: policyData.policyCode,
+        rules: policyData.rules
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to create local policy' }));
+      throw new Error(err.message || 'Error creating policy');
+    }
+    const created = await res.json();
+    return {
+      id: created.id,
+      policyCode: created.policyCode || policyData.policyCode,
+      status: created.status || 'DRAFT',
+      version: created.version || 1,
+      approvedBy: created.approvedBy || null
+    };
+  },
+
+  async publishLocalPolicy(policyCode, context) {
+    const res = await fetch(`${API_BASE}/api/v1/college-admin/policies/${encodeURIComponent(policyCode)}/publish`, {
+      method: 'POST',
+      headers: getHeaders(context)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to publish policy' }));
+      throw new Error(err.message || 'Error publishing policy');
+    }
+    return await res.json();
+  },
+
+  async getGovernanceDocuments(context) {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/college-admin/documents`, {
+        method: 'GET',
+        headers: getHeaders(context)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data && data.documents ? data : { documents: [] };
+      }
+      throw new Error(`Failed to load governance documents (${res.status})`);
+    } catch (e) {
+      console.warn('Gateway documents fetch error', e);
+      throw e;
+    }
+  },
+
+  async registerGovernanceDocument(docData, context) {
+    const res = await fetch(`${API_BASE}/api/v1/college-admin/documents`, {
+      method: 'POST',
+      headers: getHeaders(context),
+      body: JSON.stringify(docData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to register document' }));
+      throw new Error(err.message || 'Error registering document');
+    }
+    const created = await res.json();
+    return { ...docData, ...created };
+  },
+
   // 3. ADM-02 Departments
   async getDepartments(context) {
     try {

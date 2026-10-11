@@ -52,6 +52,14 @@ export default function App() {
   const [changeLogs, setChangeLogs] = useState([]);
   const [retentionPolicies, setRetentionPolicies] = useState([]);
 
+  // ADM-02 College Governance States
+  const [collegeProfile, setCollegeProfile] = useState(null);
+  const [collegeProfileError, setCollegeProfileError] = useState(null);
+  const [collegeSettings, setCollegeSettings] = useState([]);
+  const [featureOverrides, setFeatureOverrides] = useState([]);
+  const [localPolicies, setLocalPolicies] = useState([]);
+  const [governanceDocuments, setGovernanceDocuments] = useState([]);
+
   // Selected Filters
   const [selectedCollegeId, setSelectedCollegeId] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
@@ -59,7 +67,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals
-  const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | 'calendar' | 'calendar-event' | 'sequence' | null
+  const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | 'calendar' | 'calendar-event' | 'sequence' | 'edit-profile' | 'setting' | 'policy' | 'document' | null
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: '' }
@@ -80,7 +88,12 @@ export default function App() {
         lkpData,
         accData,
         chgData,
-        retData
+        retData,
+        profData,
+        setgData,
+        ovrData,
+        polData,
+        docData
       ] = await Promise.all([
         api.getGatewayHealth(),
         api.getGatewayRoutes(),
@@ -94,7 +107,12 @@ export default function App() {
         api.getLookupTypes(context),
         api.getAccessEvents(25, context),
         api.getChangeLogs(25, context),
-        api.getRetentionPolicies(context)
+        api.getRetentionPolicies(context),
+        api.getCollegeProfile(context).then(p => { setCollegeProfileError(null); return p; }).catch(e => { setCollegeProfileError(e.message || 'Error fetching college profile'); return null; }),
+        api.getCollegeSettings(context),
+        api.getFeatureOverrides(context),
+        api.getLocalPolicies(context),
+        api.getGovernanceDocuments(context)
       ]);
 
       setGatewayStatus(gwHealth.status === 'UP' ? 'ONLINE' : 'STANDBY');
@@ -110,6 +128,11 @@ export default function App() {
       setAccessEvents(accData.accessEvents || []);
       setChangeLogs(chgData.changeLogs || []);
       setRetentionPolicies(retData.retentionPolicies || []);
+      setCollegeProfile(profData || null);
+      setCollegeSettings(setgData.settings || []);
+      setFeatureOverrides(ovrData.overrides || []);
+      setLocalPolicies(polData.policies || []);
+      setGovernanceDocuments(docData.documents || []);
 
       if (colData.colleges && colData.colleges.length > 0 && !selectedCollegeId) {
         setSelectedCollegeId(colData.colleges[0].id);
@@ -121,6 +144,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
+      setFeedback({ type: 'error', message: err.message || 'Error loading dashboard data' });
     }
   };
 
@@ -142,6 +166,17 @@ export default function App() {
       setNumberSequences(seqData.sequences || []);
     } catch (err) {
       setFeedback({ type: 'error', message: err.message || 'Error generating next number' });
+    }
+  };
+
+  const handlePublishPolicy = async (policyCode) => {
+    try {
+      await api.publishLocalPolicy(policyCode, context);
+      setLocalPolicies(prev => prev.map(p => p.policyCode === policyCode ? { ...p, status: 'PUBLISHED' } : p));
+      setFeedback({ type: 'success', message: `Local Policy ${policyCode} published and active across college!` });
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Error publishing policy' });
     }
   };
 
@@ -267,6 +302,61 @@ export default function App() {
         const res = await api.createNumberSequence(payload, context);
         setNumberSequences(prev => [...prev, { ...payload, id: res.id || 'seq-' + Date.now() }]);
         setFeedback({ type: 'success', message: `Number Sequence ${payload.scopeKey} registered for atomic generation!` });
+      } else if (modalType === 'edit-profile') {
+        const payload = {
+          collegeCode: formData.code?.toUpperCase() || formData.collegeCode || currentCollege?.code || 'COL_NCET',
+          displayName: formData.name || formData.displayName || 'National College of Engineering',
+          legalName: formData.legalName || formData.name || 'NCET Educational Trust',
+          status: formData.status || 'ACTIVE',
+          accreditationRefs: typeof formData.accreditationRefs === 'string'
+            ? formData.accreditationRefs.split(',').map(s => s.trim()).filter(Boolean)
+            : (formData.accreditationRefs || ['NAAC_A_PLUS', 'NBA_TIER_1'])
+        };
+        const updated = await api.updateCollegeProfile(payload, context);
+        setCollegeProfile(updated);
+        setFeedback({ type: 'success', message: `Operational profile for ${payload.collegeCode} updated in core.colleges!` });
+      } else if (modalType === 'setting') {
+        const isSec = !!formData.isSecret;
+        const payload = {
+          key: formData.code?.toUpperCase() || formData.key?.toUpperCase(),
+          value: formData.name || formData.value || '',
+          dataType: formData.dataType || 'STRING',
+          secret: isSec,
+          isSecret: isSec
+        };
+        const saved = await api.setCollegeSetting(payload, context);
+        setCollegeSettings(prev => {
+          const idx = prev.findIndex(s => s.key === payload.key);
+          const fullSaved = {
+            ...payload,
+            ...saved,
+            value: isSec ? '********' : (saved.value || payload.value),
+            dataType: saved.dataType || payload.dataType
+          };
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = fullSaved;
+            return next;
+          }
+          return [...prev, fullSaved];
+        });
+        setFeedback({ type: 'success', message: `Setting ${payload.key} persisted to cfg.setting_values!` });
+      } else if (modalType === 'policy') {
+        const payload = {
+          policyCode: formData.code?.toUpperCase() || formData.policyCode?.toUpperCase()
+        };
+        const created = await api.createLocalPolicy(payload, context);
+        setLocalPolicies(prev => [...prev, created]);
+        setFeedback({ type: 'success', message: `Local Policy ${payload.policyCode} registered in cfg.policies!` });
+      } else if (modalType === 'document') {
+        const payload = {
+          title: formData.name || formData.title,
+          classification: formData.classification || 'INTERNAL',
+          status: formData.status || 'DRAFT'
+        };
+        const created = await api.registerGovernanceDocument(payload, context);
+        setGovernanceDocuments(prev => [...prev, created]);
+        setFeedback({ type: 'success', message: `Document "${payload.title}" registered in doc.documents!` });
       }
 
       setModalType(null);
@@ -747,76 +837,345 @@ export default function App() {
             </div>
           )}
 
-          {/* VIEW: COLLEGES */}
+          {/* VIEW: COLLEGES (ADM-01 / ADM-02 GOVERNANCE) */}
           {activeTab === 'colleges' && (
-            <div className="glass-panel" style={{ padding: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>College Operational Tier (core.colleges)</h2>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    Autonomous operational colleges provisioned under {context.tenantName}.
-                  </p>
-                </div>
-                <button
-                  id="btn-add-college"
-                  className="btn btn-primary"
-                  onClick={() => setModalType('college')}
-                >
-                  <Plus size={16} />
-                  <span>Add College</span>
-                </button>
+            <div>
+              {/* 1. College Operational Profile Card (ADM-02 Live Kernel) */}
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+                {collegeProfileError ? (
+                  <div style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', fontWeight: '600' }}>
+                      <AlertCircle size={18} />
+                      <span>Operational Profile Service Error</span>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      {collegeProfileError}
+                    </p>
+                  </div>
+                ) : !collegeProfile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={26} color="var(--text-muted)" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                            No Operational College Profile Provisioned
+                          </h2>
+                          <span className="badge badge-amber">HTTP 404 / Not Provisioned</span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Tenant <span style={{ color: 'var(--text-secondary)' }}>{context.tenantName}</span> ({context.tenantCode}) does not currently have an active operational profile in core.colleges.
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <button
+                        id="btn-add-college-unprovisioned"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setModalType('college')}
+                      >
+                        <Plus size={14} />
+                        <span>Provision New College</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={28} color="#fff" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <h2 style={{ fontSize: '1.35rem', fontWeight: '700' }}>
+                            {collegeProfile.displayName || collegeProfile.legalName || collegeProfile.collegeCode}
+                          </h2>
+                          <span className="badge badge-emerald">
+                            {collegeProfile.status || 'ACTIVE'}
+                          </span>
+                          <span className="badge badge-indigo">
+                            Code: {collegeProfile.collegeCode}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          Legal Entity: <span style={{ color: 'var(--text-primary)' }}>{collegeProfile.legalName || 'Unspecified Legal Entity'}</span> • Version: v{collegeProfile.version || collegeProfile.currentVersion || 1}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Accreditations:</span>
+                          {(collegeProfile.accreditationRefs && collegeProfile.accreditationRefs.length > 0) ? (
+                            collegeProfile.accreditationRefs.map((acc, idx) => (
+                              <span key={idx} className="badge badge-amber" style={{ fontSize: '0.75rem' }}>
+                                {acc}
+                              </span>
+                            ))
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>None registered</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        id="btn-edit-operational-profile"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          setFormData({
+                            code: collegeProfile.collegeCode,
+                            name: collegeProfile.displayName || '',
+                            legalName: collegeProfile.legalName || '',
+                            accreditationRefs: (collegeProfile.accreditationRefs || []).join(', ')
+                          });
+                          setModalType('edit-profile');
+                        }}
+                      >
+                        <Sparkles size={14} />
+                        <span>Edit Operational Profile</span>
+                      </button>
+                      <button
+                        id="btn-add-college"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setModalType('college')}
+                      >
+                        <Plus size={14} />
+                        <span>Add College</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="table-container">
-                <table className="data-table" id="table-colleges">
-                  <thead>
-                    <tr>
-                      <th>College Code</th>
-                      <th>College Name</th>
-                      <th>Affiliation</th>
-                      <th>Established</th>
-                      <th>Departments</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {colleges.map((col) => (
-                      <tr key={col.id}>
-                        <td>
-                          <span style={{ fontWeight: '700', color: '#fff', letterSpacing: '0.04em' }}>{col.code}</span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: '600' }}>{col.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{col.email || '—'}</div>
-                        </td>
-                        <td>{col.affiliatingUniversity || 'Autonomous'}</td>
-                        <td>{col.establishedYear || '—'}</td>
-                        <td>
-                          <span className="badge badge-indigo">
-                            {departments.filter(d => !d.collegeId || d.collegeId === col.id).length} Departments
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${col.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
-                            {col.status}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              setSelectedCollegeId(col.id);
-                              setActiveTab('departments');
-                            }}
-                          >
-                            Select & View
-                          </button>
-                        </td>
+              {/* 2. Provisioned Colleges Table */}
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px' }}>Provisioned College Units (core.colleges)</h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-colleges">
+                    <thead>
+                      <tr>
+                        <th>College Code</th>
+                        <th>College Name</th>
+                        <th>Affiliation</th>
+                        <th>Established</th>
+                        <th>Departments</th>
+                        <th>Status</th>
+                        <th>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {colleges.map((col) => (
+                        <tr key={col.id}>
+                          <td>
+                            <span style={{ fontWeight: '700', color: '#fff', letterSpacing: '0.04em' }}>{col.code}</span>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: '600' }}>{col.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{col.email || '—'}</div>
+                          </td>
+                          <td>{col.affiliatingUniversity || 'Autonomous'}</td>
+                          <td>{col.establishedYear || '—'}</td>
+                          <td>
+                            <span className="badge badge-indigo">
+                              {departments.filter(d => !d.collegeId || d.collegeId === col.id).length} Departments
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${col.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {col.status}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setSelectedCollegeId(col.id);
+                                setActiveTab('departments');
+                              }}
+                            >
+                              Select & View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 3. Settings & Feature Overrides (cfg.setting_values & cfg.policies) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                {/* College Settings */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>College Setting Overrides</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>cfg.setting_values (scope: COLLEGE)</p>
+                    </div>
+                    <button
+                      id="btn-add-setting"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setFormData({});
+                        setModalType('setting');
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>Add Setting</span>
+                    </button>
+                  </div>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Setting Key</th>
+                          <th>Value</th>
+                          <th>Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {collegeSettings.map((s, idx) => (
+                          <tr key={idx}>
+                            <td><code>{s.key}</code></td>
+                            <td>
+                              <span style={{ color: s.secret || s.isSecret ? 'var(--accent-amber)' : 'inherit', fontFamily: 'monospace' }}>
+                                {s.secret || s.isSecret ? '********' : s.value}
+                              </span>
+                            </td>
+                            <td><span className="badge badge-indigo">{s.dataType}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Feature Flag Overrides (cfg.feature_overrides)</span>
+                        <span className="badge badge-indigo">{featureOverrides.length} Active</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {featureOverrides.map((fo, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{fo.flagKey}</span>
+                            <span className={`badge ${fo.overrideValue === 'true' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {fo.overrideValue === 'true' ? 'ENABLED' : 'DISABLED'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Local Policies */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>Local Policies & Compliance</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>cfg.policies (enforcement: ENFORCE)</p>
+                    </div>
+                    <button
+                      id="btn-add-policy"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setFormData({});
+                        setModalType('policy');
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>New Policy</span>
+                    </button>
+                  </div>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Policy Code</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {localPolicies.map((p, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <div style={{ fontWeight: '600' }}>{p.policyCode}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Approved: {p.approvedBy || 'Pending'}</div>
+                            </td>
+                            <td>
+                              <span className={`badge ${p.status === 'PUBLISHED' ? 'badge-emerald' : p.status === 'APPROVED' ? 'badge-cyan' : 'badge-amber'}`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td>
+                              {p.status !== 'PUBLISHED' && (
+                                <button
+                                  className="btn btn-emerald btn-sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+                                  onClick={() => handlePublishPolicy(p.policyCode)}
+                                >
+                                  Publish
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Governance Documents (doc.documents) */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>Governance Charters & Document Versions</h3>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>doc.documents & doc.document_versions</p>
+                  </div>
+                  <button
+                    id="btn-add-document"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setFormData({});
+                      setModalType('document');
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span>Register Document</span>
+                  </button>
+                </div>
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Document Title</th>
+                        <th>Classification</th>
+                        <th>Current Version</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {governanceDocuments.map((doc, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <div style={{ fontWeight: '600', color: '#fff' }}>{doc.title}</div>
+                          </td>
+                          <td>
+                            <span className="badge badge-indigo">{doc.classification}</span>
+                          </td>
+                          <td>
+                            <span className="badge badge-cyan">v{doc.currentVersion || 1}</span>
+                          </td>
+                          <td>
+                            <span className={`badge ${doc.status === 'PUBLISHED' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {doc.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -1685,6 +2044,10 @@ export default function App() {
                 {modalType === 'calendar' && 'Create Academic Calendar (ADM-01)'}
                 {modalType === 'calendar-event' && 'Schedule Calendar Milestone / Event (ADM-01)'}
                 {modalType === 'sequence' && 'Define Atomic Number Sequence (ADM-01)'}
+                {modalType === 'edit-profile' && 'Edit College Operational Profile (core.colleges)'}
+                {modalType === 'setting' && 'Configure College Setting (cfg.setting_values)'}
+                {modalType === 'policy' && 'Register Local Governance Policy (cfg.policies)'}
+                {modalType === 'document' && 'Register Governance Document (doc.documents)'}
               </h3>
               <button
                 className="btn btn-secondary btn-sm"
@@ -1708,12 +2071,16 @@ export default function App() {
                       {modalType === 'edit-course' && 'Course Code (Read-Only)'}
                       {modalType === 'calendar' && 'Calendar Code (e.g. AY2026_FALL)'}
                       {modalType === 'sequence' && 'Scope Key (e.g. STU_ID, APP_NUM)'}
+                      {modalType === 'edit-profile' && 'College Code (Read-Only)'}
+                      {modalType === 'setting' && 'Setting Key (e.g. ATTENDANCE_MIN_THRESHOLD)'}
+                      {modalType === 'policy' && 'Policy Code (e.g. POL_ACADEMIC_INTEGRITY)'}
+                      {modalType === 'document' && 'Document Code / Reference'}
                     </label>
                     <input
                       id="input-create-code"
                       type="text"
                       required
-                      disabled={modalType === 'edit-department' || modalType === 'edit-course'}
+                      disabled={modalType === 'edit-department' || modalType === 'edit-course' || modalType === 'edit-profile'}
                       className="form-input"
                       placeholder="Enter uppercase unique code"
                       value={formData.code || ''}
@@ -1731,6 +2098,10 @@ export default function App() {
                     {modalType === 'calendar' && 'Calendar Display Name'}
                     {modalType === 'calendar-event' && 'Event Milestone Title'}
                     {modalType === 'sequence' && 'Scope Description / Label'}
+                    {modalType === 'edit-profile' && 'Display Name (e.g. NCET Campus)'}
+                    {modalType === 'setting' && 'Setting Value (e.g. 75 or Token)'}
+                    {modalType === 'policy' && 'Policy Title / Summary'}
+                    {modalType === 'document' && 'Document Official Title'}
                   </label>
                   <input
                     id="input-create-name"
@@ -1918,6 +2289,91 @@ export default function App() {
                       />
                     </div>
                   </>
+                )}
+
+                {modalType === 'edit-profile' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Legal Name (core.colleges.legal_name)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Legal Trust or Foundation Name"
+                        value={formData.legalName || ''}
+                        onChange={e => setFormData({ ...formData, legalName: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Accreditations (comma-separated: NAAC, NBA, NIRF)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="NAAC_A_PLUS, NBA_TIER_1, NIRF_TOP_50"
+                        value={formData.accreditationRefs || ''}
+                        onChange={e => setFormData({ ...formData, accreditationRefs: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'setting' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Configuration Data Type</label>
+                      <select
+                        className="form-select"
+                        value={formData.dataType || 'STRING'}
+                        onChange={e => setFormData({ ...formData, dataType: e.target.value })}
+                      >
+                        <option value="STRING">STRING</option>
+                        <option value="NUMBER">NUMBER</option>
+                        <option value="BOOLEAN">BOOLEAN</option>
+                        <option value="JSON">JSON</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                      <input
+                        type="checkbox"
+                        id="chk-setting-secret"
+                        checked={!!formData.isSecret}
+                        onChange={e => setFormData({ ...formData, isSecret: e.target.checked })}
+                      />
+                      <label htmlFor="chk-setting-secret" className="form-label" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                        Mask as Sensitive Secret (Value masked as ******** in queries)
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'policy' && (
+                  <div className="form-group">
+                    <label className="form-label">Policy Status Lifecycle</label>
+                    <select
+                      className="form-select"
+                      value={formData.status || 'DRAFT'}
+                      onChange={e => setFormData({ ...formData, status: e.target.value })}
+                    >
+                      <option value="DRAFT">DRAFT (Under Review)</option>
+                      <option value="APPROVED">APPROVED (Awaiting Publication)</option>
+                      <option value="PUBLISHED">PUBLISHED (Active Enforcement)</option>
+                    </select>
+                  </div>
+                )}
+
+                {modalType === 'document' && (
+                  <div className="form-group">
+                    <label className="form-label">Security Classification</label>
+                    <select
+                      className="form-select"
+                      value={formData.classification || 'INTERNAL'}
+                      onChange={e => setFormData({ ...formData, classification: e.target.value })}
+                    >
+                      <option value="INTERNAL">INTERNAL (Campus Members)</option>
+                      <option value="PUBLIC">PUBLIC (External Access)</option>
+                      <option value="CONFIDENTIAL">CONFIDENTIAL (Leadership Only)</option>
+                      <option value="RESTRICTED">RESTRICTED (Board Only)</option>
+                    </select>
+                  </div>
                 )}
               </div>
 

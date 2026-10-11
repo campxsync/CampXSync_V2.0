@@ -1,7 +1,9 @@
 package com.campx.admin.college.service;
 
+import com.campx.admin.college.config.DatabaseConnectionManager;
 import com.campx.admin.college.exception.*;
 import com.campx.admin.college.model.CollegeModels.*;
+import com.campx.admin.college.repository.*;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -94,52 +96,173 @@ public class CollegeAdminDomainService {
         return new ArrayList<>(auditTrail);
     }
 
-    private final com.campx.admin.college.repository.DepartmentRepository departmentRepository;
-    private final com.campx.admin.college.repository.ProgramRepository programRepository;
+    private final DepartmentRepository departmentRepository;
+    private final ProgramRepository programRepository;
+    private final CollegeProfileRepository profileRepository;
+    private final CollegeSettingRepository settingRepository;
+    private final FeatureOverrideRepository featureOverrideRepository;
+    private final LocalPolicyRepository localPolicyRepository;
+    private final GovernanceDocumentRepository governanceDocumentRepository;
 
     public CollegeAdminDomainService() {
-        this(resolveDefaultDepartmentRepository(), resolveDefaultProgramRepository());
+        this(resolveDefaultDepartmentRepository(),
+             resolveDefaultProgramRepository(),
+             resolveDefaultProfileRepository(),
+             resolveDefaultSettingRepository(),
+             resolveDefaultFeatureOverrideRepository(),
+             resolveDefaultLocalPolicyRepository(),
+             resolveDefaultGovernanceDocumentRepository());
     }
 
-    public CollegeAdminDomainService(com.campx.admin.college.repository.DepartmentRepository departmentRepository) {
-        this(departmentRepository, resolveDefaultProgramRepository());
+    public CollegeAdminDomainService(DepartmentRepository departmentRepository) {
+        this(departmentRepository,
+             resolveDefaultProgramRepository(),
+             resolveDefaultProfileRepository(),
+             resolveDefaultSettingRepository(),
+             resolveDefaultFeatureOverrideRepository(),
+             resolveDefaultLocalPolicyRepository(),
+             resolveDefaultGovernanceDocumentRepository());
     }
 
-    public CollegeAdminDomainService(com.campx.admin.college.repository.DepartmentRepository departmentRepository,
-                                     com.campx.admin.college.repository.ProgramRepository programRepository) {
-        this.departmentRepository = departmentRepository != null ? departmentRepository : new com.campx.admin.college.repository.InMemoryDepartmentRepository();
-        this.programRepository = programRepository != null ? programRepository : new com.campx.admin.college.repository.InMemoryProgramRepository();
+    public CollegeAdminDomainService(DepartmentRepository departmentRepository,
+                                     ProgramRepository programRepository) {
+        this(departmentRepository,
+             programRepository,
+             resolveDefaultProfileRepository(),
+             resolveDefaultSettingRepository(),
+             resolveDefaultFeatureOverrideRepository(),
+             resolveDefaultLocalPolicyRepository(),
+             resolveDefaultGovernanceDocumentRepository());
+    }
+
+    public CollegeAdminDomainService(DepartmentRepository departmentRepository,
+                                     ProgramRepository programRepository,
+                                     CollegeProfileRepository profileRepository,
+                                     CollegeSettingRepository settingRepository,
+                                     FeatureOverrideRepository featureOverrideRepository,
+                                     LocalPolicyRepository localPolicyRepository,
+                                     GovernanceDocumentRepository governanceDocumentRepository) {
+        this.departmentRepository = departmentRepository != null ? departmentRepository : new InMemoryDepartmentRepository();
+        this.programRepository = programRepository != null ? programRepository : new InMemoryProgramRepository();
+        this.profileRepository = profileRepository != null ? profileRepository : new InMemoryCollegeProfileRepository();
+        this.settingRepository = settingRepository != null ? settingRepository : new InMemoryCollegeSettingRepository();
+        this.featureOverrideRepository = featureOverrideRepository != null ? featureOverrideRepository : new InMemoryFeatureOverrideRepository();
+        this.localPolicyRepository = localPolicyRepository != null ? localPolicyRepository : new InMemoryLocalPolicyRepository();
+        this.governanceDocumentRepository = governanceDocumentRepository != null ? governanceDocumentRepository : new InMemoryGovernanceDocumentRepository();
         seedDefaults();
     }
 
-    private static com.campx.admin.college.repository.DepartmentRepository resolveDefaultDepartmentRepository() {
+    public DepartmentRepository getDepartmentRepository() { return departmentRepository; }
+    public ProgramRepository getProgramRepository() { return programRepository; }
+    public CollegeProfileRepository getProfileRepository() { return profileRepository; }
+    public CollegeSettingRepository getSettingRepository() { return settingRepository; }
+    public FeatureOverrideRepository getFeatureOverrideRepository() { return featureOverrideRepository; }
+    public LocalPolicyRepository getLocalPolicyRepository() { return localPolicyRepository; }
+    public GovernanceDocumentRepository getGovernanceDocumentRepository() { return governanceDocumentRepository; }
+
+    private static String getPersistenceMode() {
         String mode = System.getProperty("campx.persistence.mode");
         if (mode == null || mode.trim().isEmpty()) {
             mode = System.getenv("CAMPX_PERSISTENCE_MODE");
         }
-        if ("postgres".equalsIgnoreCase(mode)) {
-            try {
-                return new com.campx.admin.college.repository.PostgresDepartmentRepository();
-            } catch (Exception e) {
-                logger.warn("Failed to initialize PostgresDepartmentRepository, falling back to InMemory: {}", e.getMessage());
-            }
-        }
-        return new com.campx.admin.college.repository.InMemoryDepartmentRepository();
+        return mode;
     }
 
-    private static com.campx.admin.college.repository.ProgramRepository resolveDefaultProgramRepository() {
-        String mode = System.getProperty("campx.persistence.mode");
-        if (mode == null || mode.trim().isEmpty()) {
-            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
-        }
+    private static void ensurePostgresBootstrap() {
+        String mode = getPersistenceMode();
         if ("postgres".equalsIgnoreCase(mode)) {
             try {
-                return new com.campx.admin.college.repository.PostgresProgramRepository();
+                DatabaseConnectionManager.getInstance().initialize();
             } catch (Exception e) {
-                logger.warn("Failed to initialize PostgresProgramRepository, falling back to InMemory: {}", e.getMessage());
+                logger.error("Failed to initialize database connection manager in postgres persistence mode: {}", e.getMessage());
+                throw new IllegalStateException("PostgreSQL persistence mode requested but connection pool initialization failed: " + e.getMessage(), e);
             }
         }
-        return new com.campx.admin.college.repository.InMemoryProgramRepository();
+    }
+
+    private static DepartmentRepository resolveDefaultDepartmentRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            ensurePostgresBootstrap();
+            try {
+                return new PostgresDepartmentRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresDepartmentRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryDepartmentRepository();
+    }
+
+    private static ProgramRepository resolveDefaultProgramRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new PostgresProgramRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresProgramRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryProgramRepository();
+    }
+
+    private static CollegeProfileRepository resolveDefaultProfileRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new PostgresCollegeProfileRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresCollegeProfileRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryCollegeProfileRepository();
+    }
+
+    private static CollegeSettingRepository resolveDefaultSettingRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new PostgresCollegeSettingRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresCollegeSettingRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryCollegeSettingRepository();
+    }
+
+    private static FeatureOverrideRepository resolveDefaultFeatureOverrideRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new PostgresFeatureOverrideRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresFeatureOverrideRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryFeatureOverrideRepository();
+    }
+
+    private static LocalPolicyRepository resolveDefaultLocalPolicyRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new PostgresLocalPolicyRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresLocalPolicyRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryLocalPolicyRepository();
+    }
+
+    private static GovernanceDocumentRepository resolveDefaultGovernanceDocumentRepository() {
+        String mode = getPersistenceMode();
+        if ("postgres".equalsIgnoreCase(mode)) {
+            try {
+                return new PostgresGovernanceDocumentRepository();
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize PostgresGovernanceDocumentRepository in postgres mode: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryGovernanceDocumentRepository();
     }
 
     private void seedDefaults() {
@@ -285,6 +408,16 @@ public class CollegeAdminDomainService {
      * @return current college profile
      */
     public CollegeProfile getProfile() {
+        if (profileRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            Optional<CollegeProfile> opt = profileRepository.getProfile(context, null);
+            if (opt.isPresent()) {
+                return opt.get();
+            }
+            return null;
+        }
         return profile;
     }
 
@@ -297,10 +430,49 @@ public class CollegeAdminDomainService {
      * @throws CollegeLifecycleException if attempting to mutate the immutable collegeCode
      */
     public CollegeProfile updateProfile(CollegeProfile updated) {
+        if (profileRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            Optional<CollegeProfile> opt = profileRepository.getProfile(context, updated.getCollegeCode());
+            CollegeProfile current = opt.orElseThrow(() ->
+                    new CollegeResourceNotFoundException("College Profile", "tenant:" + LogContext.getTenantId()));
+            if (updated.getCollegeCode() != null && current.getCollegeCode() != null
+                    && !updated.getCollegeCode().equalsIgnoreCase(current.getCollegeCode())) {
+                throw new CollegeLifecycleException("Cannot modify authoritative immutable collegeCode");
+            }
+            if (updated.getDisplayName() != null) current.setDisplayName(updated.getDisplayName());
+            if (updated.getLegalName() != null) current.setLegalName(updated.getLegalName());
+            if (updated.getAddress() != null) current.setAddress(updated.getAddress());
+            if (updated.getStatus() != null) current.setStatus(updated.getStatus());
+            if (updated.getAccreditationRefs() != null && !updated.getAccreditationRefs().isEmpty()) {
+                current.setAccreditationRefs(updated.getAccreditationRefs());
+            }
+            current.setCurrentVersion(current.getCurrentVersion() + 1);
+            current.setUpdatedAt(System.currentTimeMillis());
+            profileRepository.saveOrUpdateProfile(context, current);
+
+            logger.info("Updated college profile version to {}", current.getCurrentVersion());
+
+            AuditEvent audit = AuditEvent.builder()
+                    .action("COLLEGE_PROFILE_UPDATED")
+                    .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                    .resourceType("COLLEGE_PROFILE")
+                    .resourceId(current.getCollegeCode())
+                    .status("SUCCESS")
+                    .description("Updated college profile to version " + current.getCurrentVersion())
+                    .build();
+            recordAudit(audit);
+
+            return current;
+        }
+
         if (updated.getCollegeCode() != null && !updated.getCollegeCode().equals(profile.getCollegeCode())) {
             throw new CollegeLifecycleException("Cannot modify authoritative immutable collegeCode");
         }
         if (updated.getDisplayName() != null) profile.setDisplayName(updated.getDisplayName());
+        if (updated.getLegalName() != null) profile.setLegalName(updated.getLegalName());
         if (updated.getAddress() != null) profile.setAddress(updated.getAddress());
         if (updated.getStatus() != null) profile.setStatus(updated.getStatus());
         if (!updated.getAccreditationRefs().isEmpty()) profile.setAccreditationRefs(updated.getAccreditationRefs());
@@ -719,6 +891,13 @@ public class CollegeAdminDomainService {
         doc.setChecksum("SHA256-" + UUID.randomUUID().toString().substring(0, 16));
         documents.put(doc.getId(), doc);
 
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            governanceDocumentRepository.createDocument(context, doc);
+        }
+
         logger.info("Registered governance document: [{}] '{}' (Class: {})", doc.getDocumentType(), doc.getTitle(), doc.getClassification());
         return doc;
     }
@@ -731,11 +910,38 @@ public class CollegeAdminDomainService {
      * @return approved governance document
      * @throws CollegeResourceNotFoundException if document does not exist
      */
-    public GovernanceDocument submitDocumentApproval(String documentId, String approverId) {
+    public GovernanceDocument resolveDocument(String documentId) {
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            Optional<GovernanceDocument> opt = governanceDocumentRepository.findById(context, documentId);
+            if (opt.isPresent()) {
+                return opt.get();
+            }
+            throw new CollegeResourceNotFoundException("Governance Document", documentId);
+        }
         GovernanceDocument doc = documents.get(documentId);
         if (doc == null) {
             throw new CollegeResourceNotFoundException("Governance Document", documentId);
         }
+        return doc;
+    }
+
+    public GovernanceDocument getDocument(String documentId) {
+        return resolveDocument(documentId);
+    }
+
+    /**
+     * User Story 26 & 29: Submits and approves a registered governance document.
+     *
+     * @param documentId identifier of document to approve
+     * @param approverId principal identifier of the approver
+     * @return approved governance document
+     * @throws CollegeResourceNotFoundException if document does not exist
+     */
+    public GovernanceDocument submitDocumentApproval(String documentId, String approverId) {
+        GovernanceDocument doc = resolveDocument(documentId);
 
         try (FlowTracker flow = logger.flow("SubmitDocumentApprovalWorkflow", "DOC-APPR-" + documentId)) {
             flow.step("VerifyApproverAuthorization");
@@ -753,6 +959,13 @@ public class CollegeAdminDomainService {
                     .build();
             recordAudit(audit);
 
+            if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+                com.campx.admin.college.security.UserSecurityContext context =
+                        com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                                LogContext.getUserId(), LogContext.getTenantId());
+                governanceDocumentRepository.updateDocument(context, doc);
+            }
+
             return doc;
         }
     }
@@ -763,6 +976,13 @@ public class CollegeAdminDomainService {
      * @return list of governance documents
      */
     public List<GovernanceDocument> listDocuments() {
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<GovernanceDocument> dbDocs = governanceDocumentRepository.listDocuments(context);
+            return dbDocs != null ? dbDocs : Collections.emptyList();
+        }
         return new ArrayList<>(documents.values());
     }
 
@@ -778,12 +998,19 @@ public class CollegeAdminDomainService {
      * Create a document version. Computes checksum and increments version (CSV Line 27).
      */
     public DocumentVersion createDocumentVersion(String documentId, String objectRef, String createdBy) {
-        GovernanceDocument doc = documents.get(documentId);
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", documentId);
+        GovernanceDocument doc = resolveDocument(documentId);
+        int nextVersionNo;
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<DocumentVersion> existingVersions = governanceDocumentRepository.listVersions(context, documentId);
+            nextVersionNo = (existingVersions != null ? existingVersions.size() : 0) + 1;
+        } else {
+            List<DocumentVersion> versions = documentVersions.computeIfAbsent(documentId, k -> new ArrayList<>());
+            nextVersionNo = versions.size() + 1;
         }
-        List<DocumentVersion> versions = documentVersions.computeIfAbsent(documentId, k -> new ArrayList<>());
-        int nextVersionNo = versions.size() + 1;
+
         DocumentVersion version = new DocumentVersion();
         version.setId(UUID.randomUUID().toString());
         version.setDocumentId(documentId);
@@ -793,7 +1020,8 @@ public class CollegeAdminDomainService {
         version.setStatus("DRAFT");
         version.setCreatedBy(createdBy != null ? createdBy : "DOCUMENT_AUTHOR");
         version.setCreatedAt(System.currentTimeMillis());
-        versions.add(version);
+
+        documentVersions.computeIfAbsent(documentId, k -> new ArrayList<>()).add(version);
         doc.setCurrentVersion(nextVersionNo);
 
         AuditEvent audit = AuditEvent.builder()
@@ -805,6 +1033,15 @@ public class CollegeAdminDomainService {
                 .build();
         recordAudit(audit);
         logger.info("[ADM-02 DocGov] Created document [{}] version [{}]", documentId, nextVersionNo);
+
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            governanceDocumentRepository.createVersion(context, version);
+            governanceDocumentRepository.updateDocument(context, doc);
+        }
+
         return version;
     }
 
@@ -812,11 +1049,16 @@ public class CollegeAdminDomainService {
      * Publish document version. Once PUBLISHED, version is immutable (CSV Line 27).
      */
     public DocumentVersion publishDocumentVersion(String documentId, int versionNo) {
-        GovernanceDocument doc = documents.get(documentId);
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", documentId);
+        GovernanceDocument doc = resolveDocument(documentId);
+        List<DocumentVersion> versions;
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            versions = governanceDocumentRepository.listVersions(context, documentId);
+        } else {
+            versions = documentVersions.get(documentId);
         }
-        List<DocumentVersion> versions = documentVersions.get(documentId);
         if (versions == null || versions.isEmpty()) {
             throw new CollegeResourceNotFoundException("DocumentVersion", documentId + "-v" + versionNo);
         }
@@ -845,13 +1087,25 @@ public class CollegeAdminDomainService {
                 .build();
         recordAudit(audit);
         logger.info("[ADM-02 DocGov] Published document [{}] version [{}]", documentId, versionNo);
+
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            governanceDocumentRepository.updateDocument(context, doc);
+        }
+
         return target;
     }
 
     public List<DocumentVersion> listDocumentVersions(String documentId) {
-        GovernanceDocument doc = documents.get(documentId);
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", documentId);
+        resolveDocument(documentId);
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<DocumentVersion> dbVers = governanceDocumentRepository.listVersions(context, documentId);
+            return dbVers != null ? dbVers : Collections.emptyList();
         }
         return new ArrayList<>(documentVersions.getOrDefault(documentId, Collections.emptyList()));
     }
@@ -860,10 +1114,7 @@ public class CollegeAdminDomainService {
      * Grant time-bound document permission (CSV Line 28).
      */
     public DocumentPermission grantDocumentPermission(DocumentPermission permission) {
-        GovernanceDocument doc = documents.get(permission.getDocumentId());
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", permission.getDocumentId());
-        }
+        GovernanceDocument doc = resolveDocument(permission.getDocumentId());
         if (permission.getPrincipalId() == null || permission.getPrincipalId().isEmpty()) {
             throw new CollegeMalformedPayloadException("principalId is required");
         }
@@ -892,10 +1143,7 @@ public class CollegeAdminDomainService {
      * Revoke document permission by setting effectiveTo = now (CSV Line 28).
      */
     public DocumentPermission revokeDocumentPermission(String documentId, String permissionId) {
-        GovernanceDocument doc = documents.get(documentId);
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", documentId);
-        }
+        GovernanceDocument doc = resolveDocument(documentId);
         List<DocumentPermission> perms = documentPermissions.get(documentId);
         if (perms != null) {
             for (DocumentPermission p : perms) {
@@ -921,10 +1169,7 @@ public class CollegeAdminDomainService {
      * List active document permissions (CSV Line 28).
      */
     public List<DocumentPermission> listDocumentPermissions(String documentId) {
-        GovernanceDocument doc = documents.get(documentId);
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", documentId);
-        }
+        GovernanceDocument doc = resolveDocument(documentId);
         List<DocumentPermission> perms = documentPermissions.get(documentId);
         if (perms == null) {
             return Collections.emptyList();
@@ -943,11 +1188,16 @@ public class CollegeAdminDomainService {
      * Submit document version for approval (CSV Line 29).
      */
     public DocumentApproval submitDocumentForApproval(String documentId, int versionNo, String submittedBy, String approverId) {
-        GovernanceDocument doc = documents.get(documentId);
-        if (doc == null) {
-            throw new CollegeResourceNotFoundException("Governance Document", documentId);
+        GovernanceDocument doc = resolveDocument(documentId);
+        List<DocumentVersion> versions;
+        if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            versions = governanceDocumentRepository.listVersions(context, documentId);
+        } else {
+            versions = documentVersions.get(documentId);
         }
-        List<DocumentVersion> versions = documentVersions.get(documentId);
         if (versions == null || versions.isEmpty()) {
             throw new CollegeResourceNotFoundException("DocumentVersion", documentId + "-v" + versionNo);
         }
@@ -1014,9 +1264,15 @@ public class CollegeAdminDomainService {
                     }
                 }
             }
-            GovernanceDocument doc = documents.get(approval.getDocumentId());
+            GovernanceDocument doc = resolveDocument(approval.getDocumentId());
             if (doc != null) {
                 doc.setStatus("PUBLISHED");
+                if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+                    com.campx.admin.college.security.UserSecurityContext context =
+                            com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                                    LogContext.getUserId(), LogContext.getTenantId());
+                    governanceDocumentRepository.updateDocument(context, doc);
+                }
             }
         }
 
@@ -1550,6 +1806,14 @@ public class CollegeAdminDomainService {
         }
 
         collegeSettings.put(setting.getKey(), setting);
+
+        if (settingRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            settingRepository.storeSetting(context, setting);
+        }
+
         emitOutboxEvent("CollegeSettingUpdated", setting.getId(), "COLLEGE", "{\"key\":\"" + setting.getKey() + "\",\"version\":" + setting.getVersion() + "}");
         logger.info("[ADM-02] Stored college setting [{}] v{}", setting.getKey(), setting.getVersion());
 
@@ -1568,6 +1832,14 @@ public class CollegeAdminDomainService {
     }
 
     public List<CollegeSetting> getCollegeSettings(boolean effectiveOnly) {
+        if (settingRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<CollegeSetting> dbSettings = settingRepository.getCollegeSettings(context, effectiveOnly);
+            return dbSettings != null ? dbSettings : Collections.emptyList();
+        }
+
         long now = System.currentTimeMillis();
         List<CollegeSetting> results = new ArrayList<>();
         for (CollegeSetting s : collegeSettings.values()) {
@@ -1614,6 +1886,14 @@ public class CollegeAdminDomainService {
         fo.setEffectiveFrom(System.currentTimeMillis());
 
         featureOverrides.put(flagKey, fo);
+
+        if (featureOverrideRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            featureOverrideRepository.overrideFeatureFlag(context, fo);
+        }
+
         emitOutboxEvent("FeatureOverrideApplied", fo.getId(), "COLLEGE", "{\"flagKey\":\"" + flagKey + "\",\"override\":\"" + overrideValue + "\"}");
         logger.info("[ADM-02] Applied feature override for [{}] = {}", flagKey, overrideValue);
 
@@ -1632,6 +1912,13 @@ public class CollegeAdminDomainService {
     }
 
     public List<FeatureOverride> listFeatureOverrides() {
+        if (featureOverrideRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<FeatureOverride> dbOverrides = featureOverrideRepository.listFeatureOverrides(context);
+            return dbOverrides != null ? dbOverrides : Collections.emptyList();
+        }
         return new ArrayList<>(featureOverrides.values());
     }
 
@@ -1649,37 +1936,93 @@ public class CollegeAdminDomainService {
         }
 
         policy.setId(UUID.randomUUID().toString());
+        // Security (CWE-841): Never trust client-supplied status or approver on creation
         policy.setStatus("DRAFT");
+        policy.setApprovedBy(null);
         policy.setVersion(1);
         localPolicies.put(policy.getPolicyCode(), policy);
-        logger.info("[ADM-02] Created draft local policy [{}]", policy.getPolicyCode());
+
+        if (localPolicyRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            localPolicyRepository.createLocalPolicy(context, policy);
+        }
+
+        logger.info("[ADM-02] Created local policy [{}] (status: {})", policy.getPolicyCode(), policy.getStatus());
         return policy;
     }
 
     public LocalPolicy approveLocalPolicy(String policyCode, String approvedBy) {
         LocalPolicy policy = getLocalPolicy(policyCode);
+        if (!"DRAFT".equalsIgnoreCase(policy.getStatus())) {
+            throw new CollegeLifecycleException("Only DRAFT policies can be approved (current status: " + policy.getStatus() + ")");
+        }
         if (approvedBy == null || approvedBy.trim().isEmpty()) {
             throw new CollegeMalformedPayloadException("Approver identity is required");
         }
-        policy.setApprovedBy(approvedBy);
+
+        // Verify required approval permission/role
+        String role = LogContext.getUserRole();
+        if (role != null && !role.trim().isEmpty()) {
+            String normalizedRole = role.trim().toUpperCase();
+            boolean isAuthorized = normalizedRole.contains("ADMIN")
+                    || normalizedRole.contains("DIRECTOR")
+                    || normalizedRole.contains("DEAN")
+                    || normalizedRole.contains("REGISTRAR")
+                    || normalizedRole.contains("APPROVER");
+            if (!isAuthorized) {
+                throw new CollegeSecurityViolationException(403, "ADM02_UNAUTHORIZED_APPROVER",
+                        "Role '" + role + "' is not authorized to approve local policies");
+            }
+        }
+
+        policy.setApprovedBy(approvedBy.trim());
         policy.setStatus("APPROVED");
+
+        if (localPolicyRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            localPolicyRepository.updateLocalPolicy(context, policy);
+        }
+
         logger.info("[ADM-02] Approved local policy [{}] by {}", policyCode, approvedBy);
         return policy;
     }
 
     public LocalPolicy publishLocalPolicy(String policyCode) {
         LocalPolicy policy = getLocalPolicy(policyCode);
-        if (!"APPROVED".equalsIgnoreCase(policy.getStatus()) && policy.getApprovedBy() == null) {
-            throw new CollegeLifecycleException("Policy must be approved before publication");
+        if (!"APPROVED".equalsIgnoreCase(policy.getStatus()) || policy.getApprovedBy() == null || policy.getApprovedBy().trim().isEmpty()) {
+            throw new CollegeLifecycleException("Policy must be approved by an authorized approver before publication (current status: " + policy.getStatus() + ")");
         }
         policy.setStatus("PUBLISHED");
         policy.setPublishedAt(System.currentTimeMillis());
+
+        if (localPolicyRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            localPolicyRepository.updateLocalPolicy(context, policy);
+        }
+
         emitOutboxEvent("LocalPolicyPublished", policy.getId(), "COLLEGE", "{\"policyCode\":\"" + policyCode + "\",\"version\":" + policy.getVersion() + "}");
         logger.info("[ADM-02] Published immutable local policy [{}] v{}", policyCode, policy.getVersion());
         return policy;
     }
 
     public LocalPolicy getLocalPolicy(String policyCode) {
+        if (localPolicyRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            Optional<LocalPolicy> opt = localPolicyRepository.findByCode(context, policyCode);
+            if (opt.isPresent()) {
+                return opt.get();
+            }
+            throw new CollegeResourceNotFoundException("LocalPolicy", policyCode);
+        }
+
         LocalPolicy policy = localPolicies.get(policyCode);
         if (policy == null) {
             throw new CollegeResourceNotFoundException("LocalPolicy", policyCode);
@@ -1688,6 +2031,13 @@ public class CollegeAdminDomainService {
     }
 
     public List<LocalPolicy> listLocalPolicies() {
+        if (localPolicyRepository != null && LogContext.getTenantId() != null) {
+            com.campx.admin.college.security.UserSecurityContext context =
+                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                            LogContext.getUserId(), LogContext.getTenantId());
+            List<LocalPolicy> dbPolicies = localPolicyRepository.listPolicies(context);
+            return dbPolicies != null ? dbPolicies : Collections.emptyList();
+        }
         return new ArrayList<>(localPolicies.values());
     }
 

@@ -86,10 +86,14 @@ public class DatabaseConnectionManager implements AutoCloseable {
         hikariConfig.setMaxLifetime(config.getMaxLifetimeMs());
         hikariConfig.setPoolName(config.getPoolName());
 
-        this.dataSource = new HikariDataSource(hikariConfig);
-        this.initialized = true;
-        logger.info("DatabaseConnectionManager initialized connection pool [{}] -> {}",
-                config.getPoolName(), config.getJdbcUrl());
+        try {
+            this.dataSource = new HikariDataSource(hikariConfig);
+            this.initialized = true;
+            logger.info("DatabaseConnectionManager initialized connection pool [{}] -> {}",
+                    config.getPoolName(), config.getJdbcUrl());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to initialize database connection pool: " + e.getMessage(), e);
+        }
     }
 
     public DataSource getDataSource() {
