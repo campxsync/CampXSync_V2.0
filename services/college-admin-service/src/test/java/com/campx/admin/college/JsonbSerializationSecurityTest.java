@@ -41,25 +41,11 @@ public class JsonbSerializationSecurityTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Requires live JDBC connection", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        tenantId = com.campx.admin.college.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
         settingRepository = new PostgresCollegeSettingRepository(connectionManager);
         policyRepository = new PostgresLocalPolicyRepository(connectionManager);
         profileRepository = new PostgresCollegeProfileRepository(connectionManager);
-
-        try (Connection conn = connectionManager.getConnection()) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tenantId = (UUID) rs.getObject("id");
-                    }
-                }
-            }
-        }
-        assumeNotNull("Requires active tenant in database", tenantId);
 
         UUID adminUserId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
         context = new UserSecurityContext(adminUserId, tenantId);

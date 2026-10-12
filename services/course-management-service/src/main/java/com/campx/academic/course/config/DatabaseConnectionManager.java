@@ -108,6 +108,7 @@ public class DatabaseConnectionManager implements AutoCloseable {
 
     public boolean isInitialized() { return initialized; }
     public boolean isClosed() { return closed; }
+    public DatabaseConfig getConfig() { return config; }
 
     @Override
     public synchronized void close() {

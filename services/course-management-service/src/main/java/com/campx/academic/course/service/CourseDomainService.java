@@ -50,20 +50,32 @@ public class CourseDomainService {
     }
 
     public CourseDomainService(com.campx.academic.course.repository.CourseRepository courseRepository) {
-        this.courseRepository = courseRepository != null ? courseRepository : new com.campx.academic.course.repository.InMemoryCourseRepository();
+        this.courseRepository = courseRepository != null ? courseRepository : resolveDefaultCourseRepository();
         seedInitialData();
     }
 
-    private static com.campx.academic.course.repository.CourseRepository resolveDefaultCourseRepository() {
+    public static String getPersistenceMode() {
         String mode = System.getProperty("campx.persistence.mode");
         if (mode == null || mode.trim().isEmpty()) {
             mode = System.getenv("CAMPX_PERSISTENCE_MODE");
         }
-        if ("postgres".equalsIgnoreCase(mode)) {
+        if (mode == null || mode.trim().isEmpty()) {
+            return "inmemory";
+        }
+        return mode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public static boolean isPostgresMode() {
+        return "postgres".equalsIgnoreCase(getPersistenceMode());
+    }
+
+    private static com.campx.academic.course.repository.CourseRepository resolveDefaultCourseRepository() {
+        if (isPostgresMode()) {
             try {
                 return new com.campx.academic.course.repository.PostgresCourseRepository();
             } catch (Exception e) {
-                logger.warn("Failed to initialize PostgresCourseRepository, falling back to InMemory: {}", e.getMessage());
+                logger.error("Failed to initialize PostgresCourseRepository in postgres mode: {}", e.getMessage(), e);
+                throw new IllegalStateException("PostgreSQL persistence mode requested but repository failed to initialize: " + e.getMessage(), e);
             }
         }
         return new com.campx.academic.course.repository.InMemoryCourseRepository();
@@ -76,7 +88,12 @@ public class CourseDomainService {
         activeDepartments.add("DEP_MECH");
         activeDepartments.add("DEP_MATH");
 
-        // Seed an initial active course
+        // When PostgreSQL is the configured source of truth, do not seed in-memory mock courses
+        if (isPostgresMode() || courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository) {
+            return;
+        }
+
+        // Seed an initial active course only for in-memory mode
         Course c1 = new Course();
         c1.setId("CRS_CS101");
         c1.setCourseCode("CS101");
@@ -194,9 +211,12 @@ public class CourseDomainService {
                 course.setId(saved.getId());
                 course.setStatus(saved.getStatus());
                 course.setTenantId(saved.getTenantId());
+                course.setLevel(saved.getLevel());
                 course.setCreatedAt(saved.getCreatedAt());
                 course.setUpdatedAt(saved.getUpdatedAt());
                 course.setCurrentVersion(saved.getCurrentVersion());
+            } else if (isPostgresMode() || courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository) {
+                throw CourseSecurityException.unauthorized("Tenant context required for course creation in PostgreSQL mode");
             } else {
                 // Scoped uniqueness (BR-01)
                 for (Course existing : courses.values()) {
@@ -216,7 +236,9 @@ public class CourseDomainService {
                 course.setUpdatedAt(System.currentTimeMillis());
             }
 
-            courses.put(course.getId(), course);
+            if (!isPostgresMode() && !(courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository)) {
+                courses.put(course.getId(), course);
+            }
 
             // Record initial history
             recordHistory(course.getId(), "CREATE", null, "DRAFT", "Initial draft course creation");
@@ -255,9 +277,17 @@ public class CourseDomainService {
                 if (opt.isPresent()) {
                     return opt.get();
                 }
+                opt = courseRepository.findByCode(context, normalizeCode(id));
+                if (opt.isPresent()) {
+                    return opt.get();
+                }
             } catch (Exception e) {
                 logger.warn("Error finding course from repository: {}", e.getMessage());
             }
+            throw new CourseNotFoundException("Course", id);
+        }
+        if (isPostgresMode() || courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository) {
+            throw new CourseNotFoundException("Course", id);
         }
         Course c = courses.get(id);
         if (c == null) {
@@ -288,13 +318,16 @@ public class CourseDomainService {
         }
         if (context != null && context.getTenantId() != null) {
             try {
-                List<Course> dbCourses = courseRepository.listCourses(context, null);
-                if (!dbCourses.isEmpty()) {
-                    return dbCourses;
-                }
+                return courseRepository.listCourses(context, null);
             } catch (Exception e) {
                 logger.warn("Error fetching courses from repository: {}", e.getMessage());
+                if (isPostgresMode() || courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository) {
+                    return Collections.emptyList();
+                }
             }
+        }
+        if (isPostgresMode() || courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository) {
+            return Collections.emptyList();
         }
         return new ArrayList<>(courses.values());
     }
@@ -318,15 +351,21 @@ public class CourseDomainService {
             if (context != null && courseRepository != null) {
                 try {
                     existing = courseRepository.findById(context, id).orElse(null);
+                    if (existing == null) {
+                        existing = courseRepository.findByCode(context, normalizeCode(id)).orElse(null);
+                    }
                 } catch (Exception e) {
                     logger.warn("Could not find course in repository: {}", e.getMessage());
                 }
             }
             if (existing == null) {
+                if (isPostgresMode() || courseRepository instanceof com.campx.academic.course.repository.PostgresCourseRepository) {
+                    throw new CourseNotFoundException("Course", id);
+                }
                 existing = courses.get(id);
             }
             if (existing == null) {
-                existing = getCourse(id);
+                existing = getCourse(context, id);
             }
 
             // If course is already ACTIVE, direct in-place update is prohibited (BR-06, BR-11)
@@ -343,6 +382,9 @@ public class CourseDomainService {
             }
             if (update.getTotalCredits() > 0.0) {
                 existing.setTotalCredits(update.getTotalCredits());
+            }
+            if (update.getLevel() != null && !update.getLevel().trim().isEmpty()) {
+                existing.setLevel(update.getLevel().trim());
             }
             if (update.getDurationYears() > 0) {
                 existing.setDurationYears(update.getDurationYears());
@@ -374,6 +416,29 @@ public class CourseDomainService {
             recordAudit("UPDATE", "COURSE", existing.getId(), "SUCCESS", "Updated draft course: " + existing.getCourseCode());
             return existing;
         }
+    }
+
+    public void deleteCourse(String id) {
+        deleteCourse(null, id);
+    }
+
+    public void deleteCourse(com.campx.academic.course.security.UserSecurityContext context, String id) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && courseRepository != null) {
+            courseRepository.deleteCourse(context, id);
+        }
+        courses.remove(id);
+        for (Iterator<Map.Entry<String, Course>> it = courses.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Course> entry = it.next();
+            if (id.equals(entry.getValue().getId()) || id.equalsIgnoreCase(entry.getValue().getCourseCode())) {
+                it.remove();
+            }
+        }
+        recordHistory(id, "DELETE", null, "DELETED", "Course soft deleted");
+        recordAudit("DELETE", "COURSE", id, "SUCCESS", "Soft deleted course: " + id);
     }
 
     // =========================================================================
@@ -458,12 +523,23 @@ public class CourseDomainService {
      * @throws InvalidCourseStateException if course is not in DRAFT status
      */
     public Course submitForApproval(String courseId) {
-        Course c = getCourse(courseId);
+        return submitForApproval(null, courseId);
+    }
+
+    public Course submitForApproval(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Course c = getCourse(context, courseId);
         if (!"DRAFT".equalsIgnoreCase(c.getStatus())) {
             throw new InvalidCourseStateException(c.getStatus(), "UNDER_REVIEW");
         }
         c.setStatus("UNDER_REVIEW");
         c.setUpdatedAt(System.currentTimeMillis());
+        if (context != null && courseRepository != null) {
+            courseRepository.updateStatus(context, c.getId(), "UNDER_REVIEW");
+        }
         recordHistory(c.getId(), "SUBMIT", "DRAFT", "UNDER_REVIEW", "Submitted course for academic review");
         emitOutboxEvent("CourseSubmitted", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
         return c;
@@ -477,12 +553,23 @@ public class CourseDomainService {
      * @throws InvalidCourseStateException if course is not UNDER_REVIEW
      */
     public Course approveCourse(String courseId) {
-        Course c = getCourse(courseId);
+        return approveCourse(null, courseId);
+    }
+
+    public Course approveCourse(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Course c = getCourse(context, courseId);
         if (!"UNDER_REVIEW".equalsIgnoreCase(c.getStatus())) {
             throw new InvalidCourseStateException(c.getStatus(), "APPROVED");
         }
         c.setStatus("APPROVED");
         c.setUpdatedAt(System.currentTimeMillis());
+        if (context != null && courseRepository != null) {
+            courseRepository.updateStatus(context, c.getId(), "APPROVED");
+        }
         recordHistory(c.getId(), "APPROVE", "UNDER_REVIEW", "APPROVED", "Course approved by academic board");
         emitOutboxEvent("CourseApproved", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
         return c;
@@ -496,8 +583,16 @@ public class CourseDomainService {
      * @throws CourseValidationException if a regulatory course lacks mandatory accreditation details
      */
     public Course publishCourse(String courseId) {
+        return publishCourse(null, courseId);
+    }
+
+    public Course publishCourse(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
         try (FlowTracker flow = logger.flow("CoursePublish", "publishCourse")) {
-            Course c = getCourse(courseId);
+            if (context == null && LogContext.getTenantId() != null) {
+                context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                        LogContext.getUserId(), LogContext.getTenantId());
+            }
+            Course c = getCourse(context, courseId);
 
             // Mandatory accreditation check for regulatory course categories (BR-12, User Story 36)
             if ("REGULATORY".equalsIgnoreCase(c.getCourseCategory())) {
@@ -530,6 +625,10 @@ public class CourseDomainService {
             // Sync to catalog projection (FR-09)
             syncCatalogProjection(c);
 
+            if (context != null && courseRepository != null) {
+                courseRepository.updateStatus(context, c.getId(), "ACTIVE");
+            }
+
             recordHistory(c.getId(), "PUBLISH", oldStatus, "ACTIVE", "Course published to institutional catalog");
             emitOutboxEvent("CoursePublished", c.getId(), c.getTenantId(),
                     "{\"id\":\"" + c.getId() + "\",\"version\":" + c.getCurrentVersion() + "}");
@@ -547,11 +646,22 @@ public class CourseDomainService {
      * @return updated course in ACTIVE status
      */
     public Course activateCourse(String courseId) {
-        Course c = getCourse(courseId);
+        return activateCourse(null, courseId);
+    }
+
+    public Course activateCourse(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Course c = getCourse(context, courseId);
         String old = c.getStatus();
         c.setStatus("ACTIVE");
         c.setUpdatedAt(System.currentTimeMillis());
         syncCatalogProjection(c);
+        if (context != null && courseRepository != null) {
+            courseRepository.updateStatus(context, c.getId(), "ACTIVE");
+        }
         recordHistory(c.getId(), "ACTIVATE", old, "ACTIVE", "Course activated");
         emitOutboxEvent("CourseActivated", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
         return c;
@@ -564,12 +674,23 @@ public class CourseDomainService {
      * @return updated course in SUSPENDED status
      */
     public Course suspendCourse(String courseId) {
-        Course c = getCourse(courseId);
+        return suspendCourse(null, courseId);
+    }
+
+    public Course suspendCourse(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Course c = getCourse(context, courseId);
         String old = c.getStatus();
         c.setStatus("SUSPENDED");
         c.setUpdatedAt(System.currentTimeMillis());
         // Remove from public catalog while suspended
         courseCatalog.remove(c.getId());
+        if (context != null && courseRepository != null) {
+            courseRepository.updateStatus(context, c.getId(), "SUSPENDED");
+        }
         recordHistory(c.getId(), "SUSPEND", old, "SUSPENDED", "Course temporarily suspended");
         emitOutboxEvent("CourseSuspended", c.getId(), c.getTenantId(), "{\"id\":\"" + c.getId() + "\"}");
         return c;
@@ -583,8 +704,16 @@ public class CourseDomainService {
      * @throws ActiveBatchOfferingsException if active batch offerings are still linked to the course
      */
     public Course deactivateCourse(String courseId) {
+        return deactivateCourse(null, courseId);
+    }
+
+    public Course deactivateCourse(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
         try (FlowTracker flow = logger.flow("CourseDeactivate", "deactivateCourse")) {
-            Course c = getCourse(courseId);
+            if (context == null && LogContext.getTenantId() != null) {
+                context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                        LogContext.getUserId(), LogContext.getTenantId());
+            }
+            Course c = getCourse(context, courseId);
 
             // Block course deactivation while active batch offerings exist (BR-08, User Story 44, 83)
             int activeBatches = 0;
@@ -604,6 +733,10 @@ public class CourseDomainService {
             // Remove from active catalog
             courseCatalog.remove(c.getId());
 
+            if (context != null && courseRepository != null) {
+                courseRepository.updateStatus(context, c.getId(), "DEACTIVATED");
+            }
+
             recordHistory(c.getId(), "DEACTIVATE", old, "DEACTIVATED", "Course deactivated");
             emitOutboxEvent("CourseDeactivated", c.getId(), c.getTenantId(), "{\"courseId\":\"" + c.getId() + "\",\"id\":\"" + c.getId() + "\"}");
             emitOutboxEvent("CourseCatalogUpdated", c.getId(), c.getTenantId(), "{\"courseId\":\"" + c.getId() + "\",\"id\":\"" + c.getId() + "\"}");
@@ -619,11 +752,22 @@ public class CourseDomainService {
      * @return updated course in ARCHIVED status
      */
     public Course archiveCourse(String courseId) {
-        Course c = getCourse(courseId);
+        return archiveCourse(null, courseId);
+    }
+
+    public Course archiveCourse(com.campx.academic.course.security.UserSecurityContext context, String courseId) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.academic.course.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Course c = getCourse(context, courseId);
         String old = c.getStatus();
         c.setStatus("ARCHIVED");
         c.setUpdatedAt(System.currentTimeMillis());
         courseCatalog.remove(c.getId());
+        if (context != null && courseRepository != null) {
+            courseRepository.updateStatus(context, c.getId(), "ARCHIVED");
+        }
         recordHistory(c.getId(), "ARCHIVE", old, "ARCHIVED", "Course archived into historical repository");
         emitOutboxEvent("CourseArchived", c.getId(), c.getTenantId(), "{\"courseId\":\"" + c.getId() + "\",\"id\":\"" + c.getId() + "\"}");
         return c;

@@ -34,10 +34,9 @@ public class PostgresRoleTemplateRepositoryTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require database configuration", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
+
         repository = new PostgresRoleTemplateRepository(connectionManager);
 
         platformContext = UserSecurityContext.forPlatformAdmin(SUPER_ADMIN_UUID);
@@ -46,6 +45,9 @@ public class PostgresRoleTemplateRepositoryTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
+        if (connectionManager == null || connectionManager.isClosed()) {
+            return;
+        }
         try (Connection conn = connectionManager.getConnection()) {
             conn.setAutoCommit(true);
             for (String code : createdRoleCodes) {

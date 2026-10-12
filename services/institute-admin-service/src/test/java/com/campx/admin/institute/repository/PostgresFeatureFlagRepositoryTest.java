@@ -26,10 +26,9 @@ public class PostgresFeatureFlagRepositoryTest {
 
     @Before
     public void setUp() {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Requires live JDBC configuration", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
+
         repository = new PostgresFeatureFlagRepository(connectionManager);
 
         // Platform admin context
@@ -39,11 +38,12 @@ public class PostgresFeatureFlagRepositoryTest {
 
     @After
     public void tearDown() {
-        if (testFlagKey != null) {
-            try {
-                repository.deleteFlag(platformContext, testFlagKey);
-            } catch (Exception ignored) {}
+        if (connectionManager == null || connectionManager.isClosed() || testFlagKey == null) {
+            return;
         }
+        try {
+            repository.deleteFlag(platformContext, testFlagKey);
+        } catch (Exception ignored) {}
     }
 
     @Test
