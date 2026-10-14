@@ -8,8 +8,6 @@ import {
   ShieldCheck,
   Plus,
   RefreshCw,
-  Search,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Database,
@@ -24,16 +22,65 @@ import {
   Clock,
   Zap,
   Tag,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { api, DEFAULT_CONTEXT } from './services/api';
+import { useAuth } from './context/AuthContext';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [context, setContext] = useState(DEFAULT_CONTEXT);
+  const {
+    tenantId,
+    userRole,
+    userEmail,
+    isAuthenticated,
+    isConfigured: isSupabaseConfigured,
+    isMockFallback,
+    apiContext,
+    login,
+    logout
+  } = useAuth();
+
+  // Auth Modal States
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [authFormError, setAuthFormError] = useState(null);
+
+  // Dynamic context derived from Supabase session or explicit developer mock mode
+  const context = React.useMemo(() => {
+    if (isAuthenticated) {
+      return {
+        ...apiContext,
+        userName: userEmail ? userEmail.split('@')[0] : 'Authenticated User',
+        userRole: userRole || 'authenticated',
+        tenantName: tenantId ? `Tenant ${tenantId.substring(0, 8)}` : DEFAULT_CONTEXT.tenantName,
+        tenantCode: tenantId ? `T-${tenantId.substring(0, 6)}`.toUpperCase() : DEFAULT_CONTEXT.tenantCode
+      };
+    }
+    if (isMockFallback) {
+      return {
+        ...DEFAULT_CONTEXT,
+        accessToken: null,
+        isMock: true
+      };
+    }
+    return {
+      accessToken: null,
+      userId: null,
+      userName: 'Unauthenticated',
+      userEmail: '',
+      userRole: 'ANONYMOUS',
+      tenantId: null,
+      tenantName: 'No Tenant Attached',
+      tenantCode: 'UNAUTHENTICATED',
+      isAuthenticated: false
+    };
+  }, [isAuthenticated, apiContext, userEmail, userRole, tenantId, isMockFallback]);
 
   // Live Data States
-  const [institutes, setInstitutes] = useState([]);
   const [colleges, setColleges] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -64,7 +111,6 @@ export default function App() {
   const [selectedCollegeId, setSelectedCollegeId] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Modals
   const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | 'calendar' | 'calendar-event' | 'sequence' | 'edit-profile' | 'setting' | 'policy' | 'document' | null
@@ -72,75 +118,123 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: '' }
 
+  // Auth Form Submission Handler
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setIsAuthSubmitting(true);
+    setAuthFormError(null);
+    try {
+      await login(authEmail, authPassword);
+      setShowAuthModal(false);
+      setAuthPassword('');
+      setFeedback({ type: 'success', message: 'Authenticated successfully with Supabase Auth!' });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setAuthFormError(err.message || 'Authentication failed');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
   // Load Initial Data
   const loadData = async () => {
+    // If unauthenticated and mock mode is disabled, inform user
+    if (!isAuthenticated && !isMockFallback) {
+      setGatewayStatus('STANDBY');
+      setFeedback({
+        type: 'error',
+        message: 'Unauthenticated: Sign in via Supabase Auth or enable developer mock mode (VITE_ENABLE_MOCK_FALLBACK=true) to load data.'
+      });
+      return;
+    }
+
     try {
-      const [
-        gwHealth,
-        gwRoutes,
-        instData,
-        colData,
-        depData,
-        progData,
-        crsData,
-        calData,
-        seqData,
-        lkpData,
-        accData,
-        chgData,
-        retData,
-        profData,
-        setgData,
-        ovrData,
-        polData,
-        docData
-      ] = await Promise.all([
+      const activeCtx = context;
+      const results = await Promise.allSettled([
         api.getGatewayHealth(),
         api.getGatewayRoutes(),
-        api.getInstitutes(context),
-        api.getColleges(context),
-        api.getDepartments(context),
-        api.getPrograms(context),
-        api.getCourses(context),
-        api.getCalendars(context),
-        api.getNumberSequences(context),
-        api.getLookupTypes(context),
-        api.getAccessEvents(25, context),
-        api.getChangeLogs(25, context),
-        api.getRetentionPolicies(context),
-        api.getCollegeProfile(context).then(p => { setCollegeProfileError(null); return p; }).catch(e => { setCollegeProfileError(e.message || 'Error fetching college profile'); return null; }),
-        api.getCollegeSettings(context),
-        api.getFeatureOverrides(context),
-        api.getLocalPolicies(context),
-        api.getGovernanceDocuments(context)
+        api.getInstitutes(activeCtx),
+        api.getColleges(activeCtx),
+        api.getDepartments(activeCtx),
+        api.getPrograms(activeCtx),
+        api.getCourses(activeCtx),
+        api.getCalendars(activeCtx),
+        api.getNumberSequences(activeCtx),
+        api.getLookupTypes(activeCtx),
+        api.getAccessEvents(25, activeCtx),
+        api.getChangeLogs(25, activeCtx),
+        api.getRetentionPolicies(activeCtx),
+        api.getCollegeProfile(activeCtx).then(p => { setCollegeProfileError(null); return p; }).catch(e => { setCollegeProfileError(e.message || 'Error fetching college profile'); return null; }),
+        api.getCollegeSettings(activeCtx),
+        api.getFeatureOverrides(activeCtx),
+        api.getLocalPolicies(activeCtx),
+        api.getGovernanceDocuments(activeCtx)
       ]);
 
-      setGatewayStatus(gwHealth.status === 'UP' ? 'ONLINE' : 'STANDBY');
-      setGatewayRoutes(gwRoutes.routes || []);
-      setInstitutes(instData.institutes || []);
-      setColleges(colData.colleges || []);
-      setDepartments(depData.departments || []);
-      setPrograms(progData.programs || []);
-      setCourses(crsData.courses || []);
-      setCalendars(calData.calendars || []);
-      setNumberSequences(seqData.sequences || []);
-      setLookupTypes(lkpData.lookupTypes || []);
-      setAccessEvents(accData.accessEvents || []);
-      setChangeLogs(chgData.changeLogs || []);
-      setRetentionPolicies(retData.retentionPolicies || []);
-      setCollegeProfile(profData || null);
-      setCollegeSettings(setgData.settings || []);
-      setFeatureOverrides(ovrData.overrides || []);
-      setLocalPolicies(polData.policies || []);
-      setGovernanceDocuments(docData.documents || []);
+      const [
+        gwHealthRes,
+        gwRoutesRes,
+        instRes,
+        colRes,
+        depRes,
+        progRes,
+        crsRes,
+        calRes,
+        seqRes,
+        lkpRes,
+        accRes,
+        chgRes,
+        retRes,
+        profRes,
+        setgRes,
+        ovrRes,
+        polRes,
+        docRes
+      ] = results;
 
-      if (colData.colleges && colData.colleges.length > 0 && !selectedCollegeId) {
-        setSelectedCollegeId(colData.colleges[0].id);
+      if (gwHealthRes.status === 'fulfilled') {
+        setGatewayStatus(gwHealthRes.value?.status === 'UP' ? 'ONLINE' : (gwHealthRes.value?.status || 'STANDBY'));
+      } else {
+        setGatewayStatus('OFFLINE');
       }
-      if (calData.calendars && calData.calendars.length > 0) {
-        const initCalId = selectedCalendarId || calData.calendars[0].id;
-        setSelectedCalendarId(initCalId);
-        loadCalendarEvents(initCalId);
+
+      if (gwRoutesRes.status === 'fulfilled') setGatewayRoutes(gwRoutesRes.value?.routes || []);
+      if (instRes.status === 'fulfilled') setInstitutes(instRes.value?.institutes || []);
+      if (colRes.status === 'fulfilled') {
+        const colList = colRes.value?.colleges || [];
+        setColleges(colList);
+        if (colList.length > 0 && !selectedCollegeId) setSelectedCollegeId(colList[0].id);
+      }
+      if (depRes.status === 'fulfilled') setDepartments(depRes.value?.departments || []);
+      if (progRes.status === 'fulfilled') setPrograms(progRes.value?.programs || []);
+      if (crsRes.status === 'fulfilled') setCourses(crsRes.value?.courses || []);
+      if (calRes.status === 'fulfilled') {
+        const calList = calRes.value?.calendars || [];
+        setCalendars(calList);
+        if (calList.length > 0) {
+          const initCalId = selectedCalendarId || calList[0].id;
+          setSelectedCalendarId(initCalId);
+          loadCalendarEvents(initCalId);
+        }
+      }
+      if (seqRes.status === 'fulfilled') setNumberSequences(seqRes.value?.sequences || []);
+      if (lkpRes.status === 'fulfilled') setLookupTypes(lkpRes.value?.lookupTypes || []);
+      if (accRes.status === 'fulfilled') setAccessEvents(accRes.value?.accessEvents || []);
+      if (chgRes.status === 'fulfilled') setChangeLogs(chgRes.value?.changeLogs || []);
+      if (retRes.status === 'fulfilled') setRetentionPolicies(retRes.value?.retentionPolicies || []);
+      if (profRes.status === 'fulfilled') setCollegeProfile(profRes.value || null);
+      if (setgRes.status === 'fulfilled') setCollegeSettings(setgRes.value?.settings || []);
+      if (ovrRes.status === 'fulfilled') setFeatureOverrides(ovrRes.value?.overrides || []);
+      if (polRes.status === 'fulfilled') setLocalPolicies(polRes.value?.policies || []);
+      if (docRes.status === 'fulfilled') setGovernanceDocuments(docRes.value?.documents || []);
+
+      const rejected = results.filter(r => r.status === 'rejected');
+      if (rejected.length > 0) {
+        const errors = rejected.map(r => r.reason?.message || 'Request failed');
+        setFeedback({
+          type: 'error',
+          message: `${rejected.length} API operation(s) failed: ${errors.slice(0, 2).join(' | ')}${errors.length > 2 ? ' ...' : ''}`
+        });
       }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -182,7 +276,7 @@ export default function App() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isAuthenticated, isMockFallback]);
 
   // Filtered views
   const currentCollege = colleges.find(c => c.id === selectedCollegeId) || colleges[0];
@@ -471,17 +565,30 @@ export default function App() {
         </nav>
 
         {/* User Context Footer */}
-        <div style={{ padding: '20px', borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              CA
+            <div style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: isAuthenticated
+                ? 'linear-gradient(135deg, #10b981, #06b6d4)'
+                : (isMockFallback ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #475569, #334155)'),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '0.82rem',
+              color: '#ffffff'
+            }}>
+              {isAuthenticated ? (userEmail ? userEmail.substring(0, 2).toUpperCase() : 'AU') : (isMockFallback ? 'DK' : 'UN')}
             </div>
-            <div style={{ overflow: 'hidden' }}>
+            <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ fontSize: '0.85rem', fontWeight: '600', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {context.userName}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                {context.userRole}
+                {isAuthenticated ? `Role: ${context.userRole}` : (isMockFallback ? 'Dev Mock Mode' : 'Unauthenticated')}
               </div>
             </div>
           </div>
@@ -506,8 +613,17 @@ export default function App() {
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Status Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Developer Mock Mode Warning Pill */}
+            {isMockFallback && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: 'rgba(245,158,11,0.15)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#fbbf24' }}>
+                  Mock Mode Active
+                </span>
+              </div>
+            )}
+
+            {/* Gateway Status Pill */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-subtle)' }}>
               <div className={`pulse-dot ${gatewayStatus === 'ONLINE' ? 'online' : ''}`} style={{ backgroundColor: gatewayStatus === 'ONLINE' ? '#10b981' : '#f59e0b' }} />
               <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
@@ -515,12 +631,41 @@ export default function App() {
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(99,102,241,0.1)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(99,102,241,0.25)' }}>
-              <Database size={13} color="#a5b4fc" />
-              <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#c7d2fe' }}>
-                Supabase RLS: Active
-              </span>
-            </div>
+            {/* Supabase Auth State / Controls */}
+            {isAuthenticated ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'rgba(16,185,129,0.1)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                  <KeyRound size={13} color="#10b981" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#6ee7b7' }}>
+                    {userEmail}
+                  </span>
+                  {tenantId && (
+                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', background: 'rgba(99,102,241,0.25)', borderRadius: '4px', color: '#c7d2fe', marginLeft: '4px' }}>
+                      Tenant: {tenantId.substring(0, 8)}...
+                    </span>
+                  )}
+                </div>
+                <button
+                  id="btn-sign-out"
+                  className="btn btn-secondary btn-sm"
+                  onClick={logout}
+                  title="Sign Out of Supabase Auth"
+                >
+                  <LogOut size={13} />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                id="btn-open-login"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowAuthModal(true)}
+                title="Sign In with Supabase"
+              >
+                <KeyRound size={14} />
+                <span>Sign In</span>
+              </button>
+            )}
 
             <button
               id="btn-refresh-data"
@@ -795,7 +940,7 @@ export default function App() {
                     <tbody>
                       {colleges.map((col) => {
                         const colDepts = departments.filter(d => !d.collegeId || d.collegeId === col.id);
-                        return colDepts.map((dep, dIdx) => {
+                        return colDepts.map((dep) => {
                           const depProgs = programs.filter(p => !p.departmentId || p.departmentId === dep.id);
                           return (
                             <tr key={`${col.id}-${dep.id}`}>
@@ -2396,6 +2541,93 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Supabase Authentication Modal */}
+      {showAuthModal && (
+        <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="brand-icon" style={{ width: '32px', height: '32px' }}>
+                  <KeyRound size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Supabase Authentication</h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sign in to authenticate with Supabase Auth</p>
+                </div>
+              </div>
+              <button className="btn-close" onClick={() => setShowAuthModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              {!isSupabaseConfigured && (
+                <div className="banner banner-info" style={{ marginBottom: '16px' }}>
+                  <AlertCircle size={16} />
+                  <span style={{ fontSize: '0.8rem' }}>
+                    Supabase URL or Anon Key is not set in environment (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+                  </span>
+                </div>
+              )}
+
+              {authFormError && (
+                <div className="banner" style={{ background: 'rgba(244,63,94,0.15)', borderColor: 'rgba(244,63,94,0.3)', color: '#fda4af', marginBottom: '16px' }}>
+                  <AlertCircle size={16} />
+                  <span style={{ fontSize: '0.82rem' }}>{authFormError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleAuthSubmit}>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label className="form-label">Email Address</label>
+                  <input
+                    id="input-auth-email"
+                    type="email"
+                    className="form-input"
+                    required
+                    value={authEmail}
+                    onChange={e => setAuthEmail(e.target.value)}
+                    placeholder="e.g. staging-admin@campx.edu"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label className="form-label">Password</label>
+                  <input
+                    id="input-auth-password"
+                    type="password"
+                    className="form-input"
+                    required
+                    value={authPassword}
+                    onChange={e => setAuthPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                  />
+                </div>
+
+                <div className="modal-footer" style={{ padding: '0', border: 'none', background: 'transparent' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowAuthModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="btn-auth-submit"
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isAuthSubmitting || !isSupabaseConfigured}
+                  >
+                    {isAuthSubmitting ? 'Authenticating...' : 'Sign In'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
