@@ -1,9 +1,9 @@
 # GSD System State — CampXSync V2.0
 
-**Last Updated**: 2026-10-13  
+**Last Updated**: 2026-10-14  
 **Active Workstreams**: `track-a`, `track-b`  
-**Current Phase**: Phase 3 — Staging Completion (Read-Only Complete | Writes Gated)  
-**Next Phase**: Phase 3 Step Execution (Track A) / Phase 4 — MVP Baseline & Backlog (Track B)  
+**Current Phase**: Phase 5 — MVP Implementation Loop (Track B Cycle 1: MVP-ADM01-04)  
+**Next Phase**: Track A Step Execution (Writes Gated) / Track B Next MVP Tasks  
 
 ---
 
@@ -17,18 +17,29 @@
 - **Catalog Verification**: 20 schemas, 458 tables, 458 PKs, 403 UQ, 1,239 FKs, 1,158 non-constraint indexes (100% catalog match verified)
 - **Pending Approvals**: Awaiting user write approval for `GO PARTITION-RLS-FIX` and `GO PROVISION-TEST-TENANT`, plus Dashboard Hook toggle confirmation (`CRIT-09`).
 
-### TRACK-B: MVP Implementation & Validation
-- **Status**: Phase 4 Baseline & Backlog Complete; Parallel MVP Implementation Active
+### TRACK-B: MVP Implementation & Validation (Backlog Revised 2026-10-14)
+- **Status**: Phase 5 Cycle 1 Active (MVP-ADM01-04)
 - **Priority Sequence**: ADM-01 -> ADM-02 -> ACD-01
-- **ADM-01 Step 1 (User Profile Management)**:
-  - Implementation: COMPLETE locally (`InstituteAdminController`, `UserProfileModels`, `UserProfileRepository`).
-  - Unit/HTTP Test Suite: 47 passed (23 HTTP + 24 validation).
-  - Live Verification: PENDING Track A test tenant provisioning.
-- **ADM-01 Step 2 (Platform Role Template Authorization & Validation — MVP-ADM01-02)**:
-  - Implementation: COMPLETE locally (`InMemoryRoleTemplateRepository`, `PostgresRoleTemplateRepository`).
-  - Validation Test Suite: 39 passed (33 `RoleTemplateRepositoryValidationTest` + 6 `InMemoryRoleTemplateRepositoryTest`).
-  - Total ADM-01 Passing Unit/Validation Tests: 293 / 293 passed (0 failures, 0 errors).
-- **Current Objective**: Phase 4 MVP Implementation Loop (`MVP-ADM01-03` next).
+- **Status Board Summary**:
+  | ID | Module | Title | Status | Class |
+  |---|---|---|---|---|
+  | MVP-ADM01-01 | ADM-01 | Step 1 user profiles: live verification | DONE-LOCAL | STAGING-GATED / RELEASE-CRITICAL |
+  | MVP-ADM01-02 | ADM-01 | Role template authorization + validation suite | DONE-LOCAL | RELEASE-CRITICAL |
+  | MVP-ADM01-03 | ADM-01 | Role template HTTP endpoints, outbox, audit | DONE-LOCAL | RELEASE-CRITICAL (UI NOT IMPLEMENTED) |
+  | MVP-ADM01-04 | ADM-01 | Tenant provisioning state machine safety | DONE-LOCAL | LOCAL (51 tests passed) |
+  | MVP-ADM01-05 | ADM-01 | Role template UI (REQUIRED by owner) | NOT STARTED | LOCAL+INFRA |
+  | MVP-ADM01-06 | ADM-01/02 | Platform vs tenant tier isolation regression tests | DONE-LOCAL | LOCAL (18 tests passed) |
+  | MVP-ADM01-07 | ADM-01 | User profile UI gap check | UNKNOWN | PROPOSED (LOCAL) |
+  | MVP-FE-01 | Frontend | Real Supabase Auth & JWT token propagation | DONE-LOCAL | LOCAL (9 tests, build ok) |
+  | MVP-FE-02 | Frontend | Removal of silent mock fallbacks & RFC 7807 errors | DONE-LOCAL | LOCAL (9 tests, build ok) |
+  | MVP-ADM02-01 | ADM-02 | Live college admin verification | DONE-LOCAL | STAGING-GATED / RELEASE-CRITICAL |
+  | MVP-ADM02-02 | ADM-02 | Governance immutability and idempotent approvals | PARTIAL | LOCAL |
+  | MVP-ADM02-03 | ADM-02 | Scope gap analysis: profile, departments, programs, settings | UNKNOWN | PROPOSED (LOCAL read-only) |
+  | MVP-ACD01-01 | ACD-01 | Live RLS enforcement on `acd.courses` | DONE-LOCAL | STAGING-GATED / RELEASE-CRITICAL |
+  | MVP-ACD01-02 | ACD-01 | Course offering status transitions | PARTIAL | LOCAL |
+  | MVP-ACD01-03 | ACD-01 | Course UI journey check | UNKNOWN | PROPOSED (LOCAL) |
+  | MVP-E2E-00 | Cross-Cutting | E2E architectural readiness trace (`04-e2e-readiness.md`) | DONE-LOCAL | LOCAL (Read-only) |
+- **Current Objective**: MVP-ADM01-04, MVP-ADM01-06, MVP-FE-01, MVP-FE-02 Complete. Next task: MVP-ADM02-02 (Governance immutability and idempotent approvals).
 
 ---
 
@@ -39,9 +50,9 @@
 | **Phase 0** | **Preflight** | `docs/audit/00-preflight.md`, `docs/audit/backup/*`, GSD tracks | **COMPLETE** | 2026-10-13 |
 | **Phase 1** | **Audit** | `docs/audit/01-change-inventory.md`, `02-prior-fixes.md`, `03-git-status.md` | **COMPLETE** | 2026-10-13 |
 | **Phase 2** | **Staging Audit + Verification Pack** | `docs/staging/01-bootstrap-table.md`, `verify-readonly.sql`, `02-manual-checklist.md`, `03-config-audit.md`, `04-completion-criteria.md`, `00-checkpoint.md` | **COMPLETE** | 2026-10-13 |
-| **Phase 3** | **Staging Completion** | `docs/staging/05-execution-log.md`, `docs/staging/04-completion-criteria.md`, `docs/staging/00-checkpoint.md` | **WRITES AWAITING APPROVAL** | - |
+| **Phase 3** | **Staging Completion** | `docs/staging/05-execution-log.md`, `docs/staging/04-completion-criteria.md`, `00-checkpoint.md` | **WRITES AWAITING APPROVAL** | - |
 | **Phase 4** | **MVP Baseline & Backlog** | `docs/mvp/01-baseline.md`, `02-backlog.md` | **COMPLETE** | 2026-10-13 |
-| **Phase 5** | **MVP Implementation Loop** | `RoleTemplateRepositoryValidationTest.java`, `docs/mvp/03-progress.md` | **IN PROGRESS (Task 2 Done)** | - |
+| **Phase 5** | **MVP Implementation Loop** | `docs/mvp/03-progress.md`, Cycle 1: MVP-ADM01-04 | **CYCLE 1 COMPLETE (MVP-ADM01-04 DONE-LOCAL)** | 2026-10-14 |
 | **Phase 6** | **Module Migration Continuation** | Per-module migration | **NOT STARTED** | - |
 
 ---
