@@ -29,7 +29,19 @@ public interface TenantProvisioningRepository {
     List<TenantProvisioning> listProvisioningJobs(UserSecurityContext context, UUID tenantId);
 
     /**
-     * Updates status and current step of a provisioning job.
+     * Updates status and current step of a provisioning job using automatic current state detection.
      */
     TenantProvisioning updateProvisioningStatus(UserSecurityContext context, UUID id, String status, String currentStep);
+
+    /**
+     * Updates status and current step conditionally matching the expectedCurrentStatus (optimistic locking / state safety).
+     * Lost races throw a conflict exception.
+     */
+    TenantProvisioning updateProvisioningStatus(UserSecurityContext context, UUID id, String expectedCurrentStatus, String newStatus, String currentStep);
+
+    /**
+     * Authorized platform-administrator retry operation transitioning a FAILED job back to IN_PROGRESS.
+     * Records the retry attempt and details. Lost races return conflict, never silent success.
+     */
+    TenantProvisioning retryProvisioningJob(UserSecurityContext context, UUID id);
 }
