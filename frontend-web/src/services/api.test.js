@@ -188,3 +188,69 @@ test('Test 6: Failed mutations are never presented as successful persistence', a
     global.fetch = originalFetch;
   }
 });
+
+test('Test 7: Role template operations propagate RFC 7807 403 Forbidden for non-platform admins', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url, opts) => {
+    return {
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      text: async () => JSON.stringify({
+        type: 'https://campxsync.io/errors/forbidden',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Platform administrator authorization required for role templates'
+      })
+    };
+  };
+
+  try {
+    await assert.rejects(
+      async () => {
+        await api.createRoleTemplate({ code: 'LAB_INSTRUCTOR', name: 'Lab Instructor' }, { accessToken: 'tenant-user' });
+      },
+      (err) => {
+        assert.equal(err.status, 403);
+        assert.match(err.message, /Platform administrator authorization required/);
+        return true;
+      }
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Test 8: Role template permission binding and unbinding format endpoints correctly', async () => {
+  const originalFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (url, opts) => {
+    calls.push({ url, method: opts?.method, body: opts?.body });
+    if (opts?.method === 'GET') {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ permissions: [{ permissionCode: 'acd01.write' }] })
+      };
+    }
+    return {
+      ok: true,
+      status: 201,
+      json: async () => ({ roleCode: 'FACULTY', permissionCode: 'acd01.write' })
+    };
+  };
+
+  try {
+    const perms = await api.getRoleTemplatePermissions('FACULTY', { accessToken: 'token' });
+    assert.equal(perms.permissions.length, 1);
+    assert.equal(perms.permissions[0].permissionCode, 'acd01.write');
+
+    await api.bindRoleTemplatePermission('FACULTY', 'acd01.write', { accessToken: 'token' });
+    assert.equal(calls[1].method, 'POST');
+    assert.match(calls[1].url, /\/api\/v1\/admin\/role-templates\/FACULTY\/permissions/);
+    assert.match(calls[1].body, /"permissionCode":"acd01.write"/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+

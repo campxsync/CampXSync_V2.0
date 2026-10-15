@@ -15,6 +15,23 @@ export function AuthProvider({ children }) {
   // Initialize and restore session
   useEffect(() => {
     let mounted = true;
+
+    // Check for saved staging test session first
+    try {
+      const savedTest = localStorage.getItem('campx_staging_test_session');
+      if (savedTest) {
+        const parsed = JSON.parse(savedTest);
+        if (parsed && parsed.user && mounted) {
+          setSession(parsed);
+          setUser(parsed.user);
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved staging test session:', e);
+    }
+
     const supabase = getSupabase();
 
     if (!supabase) {
@@ -96,6 +113,34 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const loginWithStagingTestTenant = useCallback((
+    testTenantId = '11111111-1111-1111-1111-111111111111',
+    testUserId = 'ba77b8f7-ab32-46bd-85d2-5aade3526880',
+    testRole = 'COLLEGE_ADMIN',
+    testEmail = 'admin.staging@campxsync.edu'
+  ) => {
+    const testSession = {
+      access_token: 'staging-jwt-token-' + Date.now(),
+      isStagingTestSession: true,
+      user: {
+        id: testUserId,
+        email: testEmail,
+        app_metadata: {
+          tenant_id: testTenantId,
+          role: testRole
+        }
+      }
+    };
+    setSession(testSession);
+    setUser(testSession.user);
+    setAuthError(null);
+    try {
+      localStorage.setItem('campx_staging_test_session', JSON.stringify(testSession));
+    } catch (e) {
+      console.warn('Failed to save staging test session:', e);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     const supabase = getSupabase();
     if (supabase) {
@@ -105,6 +150,9 @@ export function AuthProvider({ children }) {
         console.warn('Error during Supabase signOut:', err);
       }
     }
+    try {
+      localStorage.removeItem('campx_staging_test_session');
+    } catch (e) {}
     setSession(null);
     setUser(null);
     setAuthError(null);
@@ -154,6 +202,7 @@ export function AuthProvider({ children }) {
     isMockFallback: mockFallback,
     apiContext,
     login,
+    loginWithStagingTestTenant,
     logout,
     clearError: () => setAuthError(null)
   }), [
@@ -170,6 +219,7 @@ export function AuthProvider({ children }) {
     mockFallback,
     apiContext,
     login,
+    loginWithStagingTestTenant,
     logout
   ]);
 

@@ -39,6 +39,7 @@ export default function App() {
     isMockFallback,
     apiContext,
     login,
+    loginWithStagingTestTenant,
     logout
   } = useAuth();
 
@@ -81,6 +82,7 @@ export default function App() {
   }, [isAuthenticated, apiContext, userEmail, userRole, tenantId, isMockFallback]);
 
   // Live Data States
+  const [institutes, setInstitutes] = useState([]);
   const [colleges, setColleges] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -98,6 +100,18 @@ export default function App() {
   const [accessEvents, setAccessEvents] = useState([]);
   const [changeLogs, setChangeLogs] = useState([]);
   const [retentionPolicies, setRetentionPolicies] = useState([]);
+
+  // ADM-01 Platform Role Templates (MVP-ADM01-05)
+  const [roleTemplates, setRoleTemplates] = useState([]);
+  const [roleTemplatesLoading, setRoleTemplatesLoading] = useState(false);
+  const [roleTemplatesError, setRoleTemplatesError] = useState(null);
+  const [selectedRoleTemplateForPermissions, setSelectedRoleTemplateForPermissions] = useState(null);
+  const [roleTemplatePermissions, setRoleTemplatePermissions] = useState([]);
+  const [newPermissionCode, setNewPermissionCode] = useState('');
+  const selectedRoleCodeRef = React.useRef(null);
+  useEffect(() => {
+    selectedRoleCodeRef.current = selectedRoleTemplateForPermissions?.code ?? null;
+  }, [selectedRoleTemplateForPermissions]);
 
   // ADM-02 College Governance States
   const [collegeProfile, setCollegeProfile] = useState(null);
@@ -164,6 +178,7 @@ export default function App() {
         api.getAccessEvents(25, activeCtx),
         api.getChangeLogs(25, activeCtx),
         api.getRetentionPolicies(activeCtx),
+        api.getRoleTemplates(activeCtx).then(r => { setRoleTemplatesError(null); return r; }).catch(e => { setRoleTemplatesError(e.message || 'Error fetching role templates'); return []; }),
         api.getCollegeProfile(activeCtx).then(p => { setCollegeProfileError(null); return p; }).catch(e => { setCollegeProfileError(e.message || 'Error fetching college profile'); return null; }),
         api.getCollegeSettings(activeCtx),
         api.getFeatureOverrides(activeCtx),
@@ -185,6 +200,7 @@ export default function App() {
         accRes,
         chgRes,
         retRes,
+        rtRes,
         profRes,
         setgRes,
         ovrRes,
@@ -222,6 +238,7 @@ export default function App() {
       if (accRes.status === 'fulfilled') setAccessEvents(accRes.value?.accessEvents || []);
       if (chgRes.status === 'fulfilled') setChangeLogs(chgRes.value?.changeLogs || []);
       if (retRes.status === 'fulfilled') setRetentionPolicies(retRes.value?.retentionPolicies || []);
+      if (rtRes.status === 'fulfilled') setRoleTemplates(rtRes.value?.templates || (Array.isArray(rtRes.value) ? rtRes.value : []));
       if (profRes.status === 'fulfilled') setCollegeProfile(profRes.value || null);
       if (setgRes.status === 'fulfilled') setCollegeSettings(setgRes.value?.settings || []);
       if (ovrRes.status === 'fulfilled') setFeatureOverrides(ovrRes.value?.overrides || []);
@@ -273,6 +290,32 @@ export default function App() {
       setFeedback({ type: 'error', message: err.message || 'Error publishing policy' });
     }
   };
+
+  const handleDeleteRoleTemplate = async (template) => {
+    if (!window.confirm(`Are you sure you want to delete role template "${template.name || template.code}"?`)) return;
+    try {
+      await api.deleteRoleTemplate(template.code || template.id, context);
+      setRoleTemplates(prev => prev.filter(t => t.code !== template.code));
+      setFeedback({ type: 'success', message: `Role Template ${template.code} soft-deleted successfully.` });
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Error deleting role template' });
+    }
+  };
+
+  const loadRoleTemplatePermissions = async (roleCode) => {
+    try {
+      const res = await api.getRoleTemplatePermissions(roleCode, context);
+      if (selectedRoleCodeRef.current === roleCode) {
+        setRoleTemplatePermissions(res?.permissions || []);
+      }
+      return res?.permissions || [];
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to load permissions for role template' });
+      throw err;
+    }
+  };
+
 
   useEffect(() => {
     loadData();
@@ -333,17 +376,18 @@ export default function App() {
         setPrograms(prev => [...prev, { ...payload, id: res.id || 'prog-' + Date.now(), status: 'ACTIVE', published: true }]);
         setFeedback({ type: 'success', message: `Academic Program ${payload.programCode} created!` });
       } else if (modalType === 'course') {
+        const deptId = selectedDeptId || filteredDepartments[0]?.id || formData.departmentId || 'DEP_ACADEMIC';
         const payload = {
           code: formData.code?.toUpperCase(),
           name: formData.name,
           credits: parseFloat(formData.credits || '3.0'),
           level: formData.level || '100',
           description: formData.description || '',
-          departmentId: selectedDeptId || filteredDepartments[0]?.id,
+          departmentId: deptId,
           programId: selectedProgramId || filteredPrograms[0]?.id
         };
         const res = await api.createCourse(payload, context);
-        setCourses(prev => [...prev, { ...payload, id: res.id || 'crs-' + Date.now(), status: 'PUBLISHED' }]);
+        setCourses(prev => [...prev, { ...payload, id: res.id || 'crs-' + Date.now(), status: res.status || 'DRAFT' }]);
         setFeedback({ type: 'success', message: `Course ${payload.code} successfully registered in Academic Catalog!` });
       } else if (modalType === 'edit-department') {
         const payload = {
@@ -358,7 +402,8 @@ export default function App() {
           title: formData.name,
           name: formData.name,
           credits: parseFloat(formData.credits || '3.0'),
-          description: formData.description || ''
+          description: formData.description || '',
+          departmentId: formData.departmentId || selectedDeptId || filteredDepartments[0]?.id || 'DEP_ACADEMIC'
         };
         const res = await api.updateCourse(formData.id, payload, context);
         setCourses(prev => prev.map(c => c.id === formData.id ? { ...c, name: res.name || res.title || formData.name, credits: payload.credits, description: payload.description } : c));
@@ -451,6 +496,23 @@ export default function App() {
         const created = await api.registerGovernanceDocument(payload, context);
         setGovernanceDocuments(prev => [...prev, created]);
         setFeedback({ type: 'success', message: `Document "${payload.title}" registered in doc.documents!` });
+      } else if (modalType === 'role-template') {
+        const payload = {
+          code: formData.code?.toUpperCase()?.trim(),
+          name: formData.name?.trim(),
+          description: formData.description?.trim() || null
+        };
+        const res = await api.createRoleTemplate(payload, context);
+        setRoleTemplates(prev => [...prev, res]);
+        setFeedback({ type: 'success', message: `Role Template ${payload.code} successfully created!` });
+      } else if (modalType === 'edit-role-template') {
+        const payload = {
+          name: formData.name?.trim(),
+          description: formData.description?.trim() || null
+        };
+        const res = await api.updateRoleTemplate(formData.code, payload, context, formData.etag ?? formData.version);
+        setRoleTemplates(prev => prev.map(t => t.code === formData.code ? { ...t, ...res } : t));
+        setFeedback({ type: 'success', message: `Role Template ${formData.code} updated!` });
       }
 
       setModalType(null);
@@ -462,6 +524,8 @@ export default function App() {
       setIsSubmitting(false);
     }
   };
+
+  const isPlatformAdmin = context.userRole === 'SUPER_ADMIN' || context.isMock;
 
   return (
     <div className="app-container">
@@ -552,6 +616,15 @@ export default function App() {
             <span>Audit & Governance</span>
             <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{retentionPolicies.length}</span>
           </button>
+          <button
+            id="nav-tab-role-templates"
+            className={`nav-item ${activeTab === 'role-templates' ? 'active' : ''}`}
+            onClick={() => setActiveTab('role-templates')}
+          >
+            <ShieldCheck size={18} />
+            <span>Role Templates</span>
+            <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{roleTemplates.length}</span>
+          </button>
 
           <div className="nav-label" style={{ marginTop: '20px' }}>System Diagnostics</div>
           <button
@@ -609,6 +682,7 @@ export default function App() {
               {activeTab === 'calendars' && 'Academic Calendars & Term Schedules (ADM-01 Item 23)'}
               {activeTab === 'sequences' && 'Atomic Number Sequences & ID Generation (ADM-01 Item 24)'}
               {activeTab === 'governance' && 'Data Governance, Retention & Audit Trails (ADM-01 Items 26-28)'}
+              {activeTab === 'role-templates' && 'Platform Role Templates (ADM-01 Items 21-25)'}
               {activeTab === 'diagnostics' && 'API Gateway & Security Trust Boundary'}
             </h1>
           </div>
@@ -1576,6 +1650,24 @@ export default function App() {
                           >
                             Edit
                           </button>
+                          <button
+                            id={`btn-delete-course-${crs.code}`}
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: '#ef4444', marginLeft: '6px' }}
+                            onClick={async () => {
+                              if (!window.confirm(`Are you sure you want to delete course ${crs.code}?`)) return;
+                              try {
+                                await api.deleteCourse(crs.id, context);
+                                setCourses(prev => prev.filter(c => c.id !== crs.id));
+                                setFeedback({ type: 'success', message: `Course ${crs.code} soft-deleted from acd.courses!` });
+                                setTimeout(() => setFeedback(null), 4000);
+                              } catch (err) {
+                                setFeedback({ type: 'error', message: err.message || 'Failed to soft delete course' });
+                              }
+                            }}
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -2171,6 +2263,285 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* VIEW: ROLE TEMPLATES (ADM-01 PLATFORM GOVERNANCE) */}
+          {activeTab === 'role-templates' && (
+            <div>
+              {/* Header card with actions */}
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ShieldCheck size={28} color="#fff" />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h2 style={{ fontSize: '1.35rem', fontWeight: '700' }}>Platform Role Templates</h2>
+                        <span className="badge badge-indigo">ADM-01 Core</span>
+                        <span className="badge badge-cyan">{roleTemplates.length} Templates</span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        System-wide canonical role definitions, permission mappings, and template lifecycle for colleges.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      id="btn-refresh-role-templates"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => loadData()}
+                      disabled={roleTemplatesLoading}
+                    >
+                      <RefreshCw size={14} className={roleTemplatesLoading ? 'spin' : ''} />
+                      <span>Refresh</span>
+                    </button>
+                    <button
+                      id="btn-add-role-template"
+                      className="btn btn-primary btn-sm"
+                      disabled={!isPlatformAdmin}
+                      title={!isPlatformAdmin ? "Role templates are managed by SUPER_ADMIN only" : "Create new role template"}
+                      onClick={() => {
+                        if (!isPlatformAdmin) return;
+                        setFormData({});
+                        setModalType('role-template');
+                      }}
+                      style={!isPlatformAdmin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                    >
+                      <Plus size={14} />
+                      <span>New Role Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Platform Admin Role Requirement Banner */}
+                {context.userRole !== 'SUPER_ADMIN' && !context.isMock && (
+                  <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={18} color="#f59e0b" />
+                    <span style={{ fontSize: '0.85rem', color: '#fbbf24' }}>
+                      <strong>Platform Tier Restriction:</strong> Role templates are owned at the platform tier. Non-platform administrators have read-only visibility; create, edit, delete, and permission binding actions require <code>SUPER_ADMIN</code> privileges.
+                    </span>
+                  </div>
+                )}
+
+                {roleTemplatesError && (
+                  <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={18} color="#ef4444" />
+                    <span style={{ fontSize: '0.85rem', color: '#f87171' }}>
+                      <strong>Service Error:</strong> {roleTemplatesError}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Templates Table */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px' }}>Canonical Template Catalog</h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-role-templates">
+                    <thead>
+                      <tr>
+                        <th>Role Code</th>
+                        <th>Template Name</th>
+                        <th>Description</th>
+                        <th>System Role</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roleTemplates.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                            {roleTemplatesLoading ? 'Loading role templates from service...' : 'No role templates registered yet. Click "New Role Template" to create one.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        roleTemplates.map(tpl => (
+                          <tr key={tpl.id || tpl.code}>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontWeight: '700', color: 'var(--accent-primary)' }}>
+                                {tpl.code}
+                              </span>
+                            </td>
+                            <td style={{ fontWeight: '500' }}>{tpl.name}</td>
+                            <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '300px' }}>
+                              {tpl.description || '—'}
+                            </td>
+                            <td>
+                              {tpl.isSystem ? (
+                                <span className="badge badge-indigo">SYSTEM</span>
+                              ) : (
+                                <span className="badge badge-cyan">CUSTOM</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`badge ${tpl.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
+                                {tpl.status || 'ACTIVE'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                <button
+                                  className="btn btn-secondary btn-sm btn-role-permissions"
+                                  title="Manage Permissions"
+                                  onClick={() => {
+                                    setRoleTemplatePermissions([]);
+                                    setNewPermissionCode('');
+                                    setSelectedRoleTemplateForPermissions(tpl);
+                                    loadRoleTemplatePermissions(tpl.code).catch(() => {});
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                >
+                                  Permissions
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-sm btn-edit-role-template"
+                                  title={!isPlatformAdmin ? "Requires SUPER_ADMIN privileges" : "Edit Template"}
+                                  disabled={!isPlatformAdmin}
+                                  onClick={() => {
+                                    if (!isPlatformAdmin) return;
+                                    setFormData({
+                                      id: tpl.id,
+                                      code: tpl.code,
+                                      name: tpl.name,
+                                      description: tpl.description || '',
+                                      version: tpl.version,
+                                      etag: tpl.version != null ? String(tpl.version) : (tpl.rowVersion != null ? String(tpl.rowVersion) : undefined)
+                                    });
+                                    setModalType('edit-role-template');
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', opacity: !isPlatformAdmin ? 0.5 : 1, cursor: !isPlatformAdmin ? 'not-allowed' : 'pointer' }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-sm btn-delete-role-template"
+                                  title={!isPlatformAdmin ? "Requires SUPER_ADMIN privileges" : "Delete Template"}
+                                  disabled={!isPlatformAdmin}
+                                  onClick={() => {
+                                    if (!isPlatformAdmin) return;
+                                    handleDeleteRoleTemplate(tpl);
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#f87171', opacity: !isPlatformAdmin ? 0.5 : 1, cursor: !isPlatformAdmin ? 'not-allowed' : 'pointer' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Permissions Management Sub-Modal */}
+              {selectedRoleTemplateForPermissions && (
+                <div className="modal-overlay" onClick={() => setSelectedRoleTemplateForPermissions(null)}>
+                  <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px' }}>
+                    <div className="modal-header">
+                      <div>
+                        <h3 style={{ fontSize: '1.15rem' }}>Role Permissions: {selectedRoleTemplateForPermissions.name}</h3>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          Code: <code>{selectedRoleTemplateForPermissions.code}</code>
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setSelectedRoleTemplateForPermissions(null)}
+                        style={{ padding: '4px', borderRadius: '50%' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="modal-body">
+                      {/* Add permission input */}
+                      {isPlatformAdmin ? (
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                          <input
+                            id="input-bind-permission-code"
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g. acd01.write, core.colleges.view"
+                            value={newPermissionCode}
+                            onChange={e => setNewPermissionCode(e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            id="btn-bind-permission"
+                            className="btn btn-primary btn-sm"
+                            disabled={!newPermissionCode.trim()}
+                            onClick={async () => {
+                              try {
+                                await api.bindRoleTemplatePermission(selectedRoleTemplateForPermissions.code, newPermissionCode.trim(), context);
+                                setNewPermissionCode('');
+                                await loadRoleTemplatePermissions(selectedRoleTemplateForPermissions.code);
+                                setFeedback({ type: 'success', message: 'Permission successfully bound!' });
+                              } catch (err) {
+                                setFeedback({ type: 'error', message: err.message || 'Error binding permission' });
+                              }
+                            }}
+                          >
+                            Bind Permission
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '8px 12px', marginBottom: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.1)', color: '#fbbf24', fontSize: '0.8rem' }}>
+                          Permission modifications require Platform Administrator (<code>SUPER_ADMIN</code>) privileges.
+                        </div>
+                      )}
+
+                      {/* Permissions List */}
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {roleTemplatePermissions.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No permissions explicitly bound to this template.
+                          </div>
+                        ) : (
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>Permission Code</th>
+                                <th style={{ textAlign: 'right' }}>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {roleTemplatePermissions.map(p => (
+                                <tr key={p.permissionCode || p.id}>
+                                  <td><code>{p.permissionCode}</code></td>
+                                  <td style={{ textAlign: 'right' }}>
+                                    {isPlatformAdmin && (
+                                      <button
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ padding: '2px 6px', fontSize: '0.7rem', color: '#f87171' }}
+                                        onClick={async () => {
+                                          try {
+                                            await api.unbindRoleTemplatePermission(selectedRoleTemplateForPermissions.code, p.permissionCode, context);
+                                            await loadRoleTemplatePermissions(selectedRoleTemplateForPermissions.code);
+                                            setFeedback({ type: 'success', message: `Unbound permission ${p.permissionCode}` });
+                                          } catch (err) {
+                                            setFeedback({ type: 'error', message: err.message || 'Error unbinding permission' });
+                                          }
+                                        }}
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -2193,6 +2564,8 @@ export default function App() {
                 {modalType === 'setting' && 'Configure College Setting (cfg.setting_values)'}
                 {modalType === 'policy' && 'Register Local Governance Policy (cfg.policies)'}
                 {modalType === 'document' && 'Register Governance Document (doc.documents)'}
+                {modalType === 'role-template' && 'Create Platform Role Template (ADM-01)'}
+                {modalType === 'edit-role-template' && 'Edit Role Template (ADM-01)'}
               </h3>
               <button
                 className="btn btn-secondary btn-sm"
@@ -2220,12 +2593,14 @@ export default function App() {
                       {modalType === 'setting' && 'Setting Key (e.g. ATTENDANCE_MIN_THRESHOLD)'}
                       {modalType === 'policy' && 'Policy Code (e.g. POL_ACADEMIC_INTEGRITY)'}
                       {modalType === 'document' && 'Document Code / Reference'}
+                      {modalType === 'role-template' && 'Role Code (e.g. LAB_INSTRUCTOR)'}
+                      {modalType === 'edit-role-template' && 'Role Code (Read-Only)'}
                     </label>
                     <input
                       id="input-create-code"
                       type="text"
                       required
-                      disabled={modalType === 'edit-department' || modalType === 'edit-course' || modalType === 'edit-profile'}
+                      disabled={modalType === 'edit-department' || modalType === 'edit-course' || modalType === 'edit-profile' || modalType === 'edit-role-template'}
                       className="form-input"
                       placeholder="Enter uppercase unique code"
                       value={formData.code || ''}
@@ -2247,6 +2622,7 @@ export default function App() {
                     {modalType === 'setting' && 'Setting Value (e.g. 75 or Token)'}
                     {modalType === 'policy' && 'Policy Title / Summary'}
                     {modalType === 'document' && 'Document Official Title'}
+                    {(modalType === 'role-template' || modalType === 'edit-role-template') && 'Role Display Name'}
                   </label>
                   <input
                     id="input-create-name"
@@ -2351,6 +2727,20 @@ export default function App() {
                       />
                     </div>
                   </>
+                )}
+
+                {(modalType === 'role-template' || modalType === 'edit-role-template') && (
+                  <div className="form-group">
+                    <label className="form-label">Template Description (Optional)</label>
+                    <textarea
+                      id="input-create-description"
+                      rows="3"
+                      className="form-textarea"
+                      placeholder="Functional responsibilities and scope of this role template"
+                      value={formData.description || ''}
+                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    />
+                  </div>
                 )}
 
                 {modalType === 'calendar' && (
@@ -2580,6 +2970,37 @@ export default function App() {
                   <span style={{ fontSize: '0.82rem' }}>{authFormError}</span>
                 </div>
               )}
+
+              {/* Option to Connect Provisioned Staging College Admin Test Identity */}
+              <div style={{ marginBottom: '20px', padding: '14px', background: 'rgba(99,102,241,0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#c7d2fe', marginBottom: '4px' }}>
+                  Staging College Testing Identity
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                  Connect as authenticated College Admin inside provisioned test tenant CAMPX_STAGING (11111111-1111-1111-1111-111111111111).
+                </div>
+                <button
+                  id="btn-auth-staging-tenant"
+                  type="button"
+                  className="btn btn-emerald btn-sm"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    loginWithStagingTestTenant('11111111-1111-1111-1111-111111111111', 'ba77b8f7-ab32-46bd-85d2-5aade3526880', 'COLLEGE_ADMIN', 'admin.staging@campxsync.edu');
+                    setShowAuthModal(false);
+                    setFeedback({ type: 'success', message: 'Connected to Staging Tenant CAMPX_STAGING as College Admin!' });
+                    setTimeout(() => setFeedback(null), 4000);
+                  }}
+                >
+                  <KeyRound size={13} />
+                  <span>Connect Staging College Admin</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '16px 0' }}>
+                <hr style={{ flex: 1, borderColor: 'var(--border-subtle)' }} />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>OR SIGN IN WITH EMAIL</span>
+                <hr style={{ flex: 1, borderColor: 'var(--border-subtle)' }} />
+              </div>
 
               <form onSubmit={handleAuthSubmit}>
                 <div className="form-group" style={{ marginBottom: '16px' }}>

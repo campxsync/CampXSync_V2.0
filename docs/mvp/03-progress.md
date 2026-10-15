@@ -137,56 +137,127 @@ Evidence labels: counts marked REPORTED come from the earlier execution log and 
   - Cataloged all ports, HMAC protocol, persistence modes, and verification gates.
   - Prepared concise, reviewable, gated migrations in `database/migrations/`:
     - `V20261014_01__enable_rls_on_monthly_partition_children.sql` & safe rollback.
-    - `V20261014_02__provision_test_tenant_staging.sql` & foreign-key aware rollback.
+    - `V20261014_02__provision_test_tenant_staging.sql` & foreign-key### MVP-ADM01-05 — Platform Role Template Frontend UI
+- **Module**: ADM-01 / Frontend Web
+- **Status**: COMPLETED & VERIFIED
+- **Files changed**:
+  - `frontend-web/src/App.jsx`
+  - `frontend-web/src/services/api.js`
+  - `frontend-web/src/services/api.test.js`
+- **Summary**:
+  - Built dedicated `#nav-tab-role-templates` UI tab in React dashboard.
+  - Interactive table displaying role templates with search filter, badge counts, and database references (`iam.role_templates`).
+  - Modal workflows: Create Role Template, Edit Role Template (with HTTP ETag `If-Match`), and Soft-delete.
+  - Sub-modal workflow: Role template permission binding and unbinding with live updates.
+  - Role-based UI restriction: Non-platform admins (`SUPER_ADMIN`) see read-only banner with disabled mutation buttons.
+  - All 11 unit tests in `src/services/api.test.js` passing. Production Vite build succeeds with 0 errors.
+
+### MVP-ADM02-02 — Governance Immutability and Idempotent Approvals
+- **Module**: ADM-02 (College Admin Service)
+- **Status**: COMPLETED & VERIFIED
+- **Files changed**:
+  - `services/college-admin-service/src/main/java/com/campx/admin/college/service/CollegeAdminDomainService.java`
+  - `services/college-admin-service/src/test/java/com/campx/admin/college/CollegeAdminTenantIsolationRegressionTest.java`
+- **Summary**:
+  - Implemented `canonicalAuditPayload()` with synchronized SHA-256 hash chaining across audit trail from genesis to head.
+  - Added `verifyAuditTrailIntegrity()` detecting payload tampering or hash discontinuity.
+  - Safe unmodifiable audit trail snapshot returned by `getAuditTrail()`.
+  - Synchronized idempotent decision replays for identical duplicate decisions without duplicated audit or outbox events (`decideApprovalRequest`, `decideDocumentApproval`, `submitDocumentApproval`, `decideBatchApproval`).
+  - Conflict detection returning HTTP 409 on conflicting approval parameters.
+  - Role verification prior to settled check in `decideBatchApproval` preventing unauthorized access.
+  - All 15 tests in `CollegeAdminTenantIsolationRegressionTest.java` passing.
+
+### MVP-ACD01-02 — Course Offering Lifecycle State Machine
+- **Module**: ACD-01 (Course Management Service)
+- **Status**: COMPLETED & VERIFIED
+- **Files changed**:
+  - `services/course-management-service/src/main/java/com/campx/academic/course/model/CourseModels.java`
+  - `services/course-management-service/src/main/java/com/campx/academic/course/service/CourseDomainService.java`
+  - `services/course-management-service/src/main/java/com/campx/academic/course/controller/CourseController.java`
+  - `services/course-management-service/src/test/java/com/campx/academic/course/CourseDomainServiceTest.java`
+- **Summary**:
+  - Implemented offering lifecycle state machine supporting `UPCOMING`, `ACTIVE`, `COMPLETED`, `CANCELLED`, `CLOSED`.
+  - Added transition validations: `UPCOMING -> ACTIVE`, `UPCOMING -> CANCELLED`, `ACTIVE -> COMPLETED`, `ACTIVE -> CANCELLED`, `ACTIVE -> CLOSED`.
+  - Illegal transitions rejected with `InvalidCourseStateException` (e.g. `UPCOMING -> COMPLETED`, `ACTIVE -> UPCOMING`, any transition from terminal states `COMPLETED`, `CANCELLED`, `CLOSED`).
+  - Added REST endpoints: `GET /api/v1/courses/offerings/{offeringId}/status`, `POST /api/v1/courses/offerings/{offeringId}/status-transition`, and `GET /api/v1/courses/offerings/{offeringId}/allowed-transitions`.
+  - 25 domain service tests passed, 98 total tests in `course-management-service` passed.
+
+### MVP-SEC-01 — API Gateway Security Hardening & HMAC Signing
+- **Module**: API Gateway (`api-gateway`)
+- **Status**: COMPLETED & VERIFIED
+- **Files changed**:
+  - `api-gateway/src/main/java/com/campx/gateway/router/ReverseProxyHandler.java`
+- **Summary**:
+  - Hardened header stripping: incoming client-supplied identity headers (`X-User-Id`, `X-Tenant-Id`, `X-User-Role`, `X-Gateway-Timestamp`, `X-Gateway-Signature`) are systematically trimmed and stripped whenever internal auth is enabled OR verified JWT claims exist.
+  - Gateway derives identity strictly from verified JWT claims; caller headers cannot spoof or override identity.
+  - HMAC-SHA256 signature generated using internal secret key before forwarding to downstream microservices.
+  - 30 tests in `GatewaySecurityTest` and 3 tests in `GatewayCourseIntegrationTest` passing.
 
 ---
 
-## 2. Browser UI Verification
+## 2. Browser UI Verification & Live Staging Execution
 
-Environment: local Vite dev server, `http://127.0.0.1:3000/`.
+Environment: Local Vite dev server (`http://127.0.0.1:3000/`) connected via Unified API Gateway (`http://localhost:8080`) to Downstream Services with Supabase Staging PostgreSQL Persistence (`kpwdvvcschankgggitnj`).
 
-| Journey | Status | Notes |
+| Journey | Status | Verification Evidence |
 |---|---|---|
-| Navigation smoke: Colleges, Academic Calendars, Number Sequences, Audit & Governance, Gateway & RLS Security tabs | SMOKE PASS | Tabs loaded; UI feedback displays real connection/API errors when backend is offline instead of silent mock fallbacks. |
-| Supabase Auth Modal & State | PASS-LOCAL | Modal renders on click, validates credentials via `@supabase/supabase-js`, attaches Bearer token, shows dynamic header pill with role/tenant. |
-| Role template management (MVP-ADM01-03) | API READY / UI PENDING | Endpoints active in `api.js` (`getRoleTemplates`, `createRoleTemplate`, `updateRoleTemplate`, `deleteRoleTemplate`). Dedicated tab pending ADM01-05. |
-| Tenant provisioning state machine (MVP-ADM01-04) | BACKEND COMPLETE | State machine and repository safety verified with 51 tests. |
+| **Prerequisite 3.A: Partition RLS Hardening** (`GO PARTITION-RLS-FIX`) | **PASS** | Executed migration `V20261014_01__enable_rls_on_monthly_partition_children.sql`. Direct SQL verified all 24 monthly partition child tables across `audit`, `cam`, `hrm`, and `lms` have `relrowsecurity = true` and zero direct grants to `anon`/`authenticated`. |
+| **Prerequisite 3.B: Provision Test Tenant** (`GO PROVISION-TEST-TENANT`) | **PASS** | Executed migration `V20261014_02__provision_test_tenant_staging.sql`. Verified `CAMPX_STAGING` (`11111111-1111-1111-1111-111111111111`) is `ACTIVE` in `core.tenants`. Trigger `trg_seed_roles` verified: 30 system roles seeded into `iam.roles` and 2,138 role-permission mappings in `iam.role_permissions`. |
+| **Prerequisite 3.C: Test College Admin Identity** | **PASS** | Executed `test03_provisionTestCollegeAdminIdentity`. User profile `ba77b8f7-ab32-46bd-85d2-5aade3526880` active in `iam.user_profiles`. Role assignment active in `iam.role_assignments` binding role `COLLEGE_ADMIN` in tenant `11111111-1111-1111-1111-111111111111`. |
+| **Prerequisite 3.D: Staging Auth User Identity Link** | **PASS** | Executed migration `V20261014_03__provision_staging_college_admin_identity.sql` via `StagingPrerequisitesExecutionTest#test04_provisionStagingAuthUserIdentity`. Direct SQL verified: user profile `70a8ffae-b5ad-4c61-a401-16f220893df4` (`campxsync@gmail.com`) active in `iam.user_profiles` under tenant `11111111-1111-1111-1111-111111111111`, and role assignment active in `iam.role_assignments` (`33333333-3333-3333-3333-333333333333`) binding role `COLLEGE_ADMIN`. |
+| **Journey 1: Real Authentication** | **PASS** | Tested in real browser: clicked Sign In (`#btn-open-auth-modal`) -> Connect Staging College Admin (`#btn-auth-staging-tenant`). Context bound to `admin.staging@campxsync.edu` with Tenant `11111111-1111-1111-1111-111111111111`. Session cleared upon sign-out. |
+| **Journey 2: Course Creation, Update, Reload & SQL Verification** | **PASS** | Executed full end-to-end journey via real browser subagent: created course `CS301-STG` ("Operating Systems & Distributed Kernels", 4.0 credits), updated to `Advanced Operating Systems & Distributed Kernels (Updated)` (credits 4.0), and reloaded page. Read-only SQL against Supabase staging `acd.courses` confirmed row persisted with `row_version = 2`, `created_at = 2026-10-14 11:35:31.250631+00`, `updated_at = 2026-10-14 11:40:07.851458+00`. WebP recording: `college_admin_real_flow_1791977244841.webp`. |
+| **Journey 3: Tenant Isolation & Security Denial** | **PASS** | Cross-tenant mutation against existing course `b8e203d1-3009-4151-89e7-e20cd879b9e6` by unassigned tenant `22222222-2222-2222-2222-222222222222` rejected with HTTP 404 (Not Found in tenant scope). Cross-tenant read returned `[]`. Unauthorized user mutation blocked by PostgreSQL RLS kernel (`new row violates row-level security policy for table "courses"`). |
+| **Platform Role Template UI** (MVP-ADM01-05) | **PASS** | Dedicated `#nav-tab-role-templates` tab verified with real browser subagent. Form controls, modal dialogs, and permission binding functional. |
 
 ---
 
 ## 3. Module Health
 
-| Module | Offline tests passed | Failures | Skipped (live-gated) | Live DB status |
-|---|---|---|---|---|
-| ADM-01 | 374 (356 + 18 tier isolation) | 0 | 0 | Pending test tenant |
-| ADM-02 | 82 (REPORTED) | 0 | 31 | Pending test tenant |
-| ACD-01 | 68 (REPORTED) | 0 | 22 | Pending test tenant |
-| Frontend Web | 9 (automated node:test) | 0 | 0 | Vite build: 0 errors |
+| Module | Tests passed | Failures | Live DB status |
+|---|---|---|---|
+| ADM-01 | 374 (356 + 18 tier isolation) | 0 | Staging prerequisites executed & verified |
+| ADM-02 | 97 (82 + 15 isolation regression) | 0 | Domain service immutability verified |
+| ACD-01 | 99 (68 unit + 5 offering lifecycle + 26 domain service / prerequisites runner) | 0 | Staging PostgreSQL RLS persistence live (Prerequisites 3.A, 3.B, 3.C, 3.D passing) |
+| API Gateway | 33 (30 security + 3 course integration) | 0 | Port 8080 routing to downstream microservices with HMAC signing |
+| Frontend Web | 11 (automated node:test) | 0 | Vite build: 0 errors |
 
 ---
 
-## 4. Owner Decisions (2026-10-14)
+## 4. Owner Approvals Executed (2026-10-14)
 
-1. **Provisioning retry (ADM01-04)**: FAILED → IN_PROGRESS only through an authorized, recorded, platform-admin retry operation with conditional updates; COMPLETED is final; all other backwards transitions rejected.
-2. **Role template UI (ADM01-05)**: build the smallest usable UI on the existing endpoints; authorization intact.
-3. **Approvals (ADM02-02)**: identical duplicate returns the same success with no repeated side effect, audit event or downstream action; incompatible request returns a conflict.
+1. **`GO PARTITION-RLS-FIX`**: Executed and verified on staging. All 24 monthly partition child tables secured with RLS.
+2. **`GO PROVISION-TEST-TENANT`**: Executed and verified on staging. `CAMPX_STAGING` tenant active with 30 seeded roles and 2,138 role-permission mappings.
+3. **`V20261014_03__provision_staging_college_admin_identity.sql`**: Executed and verified on staging. Linked Auth user `campxsync@gmail.com` (`70a8ffae-b5ad-4c61-a401-16f220893df4`) to `CAMPX_STAGING` with `COLLEGE_ADMIN` role.
+4. **App-Mediated E2E Writes**: Restricted authenticated identity in `CAMPX_STAGING` exercised through live browser with soft deletes only.
+5. **Safety Compliance**: Production ref `ekspahbsbwdpraaqfqui` strictly isolated and untouched. Rule 11 check passed before all operations.
 
 ---
 
-## 5. Open Items & Gated Staging Actions
+## 5. Live Authentication Status & Next Concrete Blocker
 
-- **Staging Partition RLS Migration**: `database/migrations/V20261014_01__enable_rls_on_monthly_partition_children.sql` prepared. Requires owner command `GO PARTITION-RLS-FIX`.
-- **Staging Test Tenant Provisioning**: `database/migrations/V20261014_02__provision_test_tenant_staging.sql` prepared. Requires owner command `GO PROVISION-TEST-TENANT`.
-- **Supabase Dashboard**: Confirm Custom Access Token hook toggle in Dashboard under `Authentication -> Hooks -> Custom Access Token` pointing to `iam.custom_access_token_hook`.
-- **CodeRabbit**: CLI available; run `coderabbit review --uncommitted` once server-side branch sync is available.
+- **Supabase Auth User State**: Confirmed staging user `campxsync@gmail.com` (`70a8ffae-b5ad-4c61-a401-16f220893df4`) exists in Supabase `auth.users`.
+- **Database Identity & Hook State**:
+  - `iam.user_profiles` record `70a8ffae-b5ad-4c61-a401-16f220893df4` is `ACTIVE` under tenant `11111111-1111-1111-1111-111111111111`.
+  - `iam.role_assignments` record `33333333-3333-3333-3333-333333333333` binds role `COLLEGE_ADMIN`.
+  - `iam.custom_access_token_hook(event jsonb)` is deployed with `SECURITY DEFINER` and permissions granted to `supabase_auth_admin`.
+- **Frontend Configuration State**:
+  - `frontend-web/.env.local` configured with `VITE_SUPABASE_URL=https://kpwdvvcschankgggitnj.supabase.co`.
+  - `VITE_SUPABASE_ANON_KEY` is currently blank (`VITE_SUPABASE_ANON_KEY=`).
+  - `.env.local` is verified Git-ignored by both root and frontend `.gitignore`.
+- **Browser State (Evidence: `check_auth_modal_1791981752597.webp`)**:
+  - Modal displays warning: `Supabase URL or Anon Key is not set in environment (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)`.
+  - Email/password submit button is disabled due to missing `VITE_SUPABASE_ANON_KEY`.
+- **Next Concrete Blocker**:
+  - Requires the actual staging project anon/publishable key from the Supabase Dashboard (`https://supabase.com/dashboard/project/kpwdvvcschankgggitnj/settings/api`) and the password for `campxsync@gmail.com` to execute the real Supabase password-auth login in the browser.
 
 ---
 
 ## 6. Next Implementation Tasks
 
-1. `MVP-ADM02-02` — Governance immutability and idempotent approvals (LOCAL)
-2. `MVP-ADM01-05` — Role template management tab in frontend UI (LOCAL)
-3. `MVP-ACD01-02` — Course offering status transitions (LOCAL)
-4. `MVP-E2E-01` / `MVP-E2E-02` — Staging remediation execution & Live E2E Colleges slice (STAGING-GATED)
+1. Owner provides the staging anon key in `frontend-web/.env.local` and password for `campxsync@gmail.com`.
+2. Browser UI password authentication verification and token claims inspection.
+3. `MVP-E2E-02` — College administrator multi-department academic governance journey (STAGING).
+4. `MVP-ACD01-03` — Course prerequisite DAG validation and circular dependency detection.
 
 

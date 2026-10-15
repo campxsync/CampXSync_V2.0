@@ -718,7 +718,8 @@ public class CourseDomainService {
             // Block course deactivation while active batch offerings exist (BR-08, User Story 44, 83)
             int activeBatches = 0;
             for (CourseBatchOffering offering : batchOfferings.values()) {
-                if (offering.getCourseId().equals(c.getId()) && "ACTIVE".equalsIgnoreCase(offering.getStatus())) {
+                if (offering.getCourseId().equals(c.getId())
+                        && ("ACTIVE".equalsIgnoreCase(offering.getStatus()) || "UPCOMING".equalsIgnoreCase(offering.getStatus()))) {
                     activeBatches++;
                 }
             }
@@ -886,25 +887,124 @@ public class CourseDomainService {
     }
 
     // =========================================================================
-    // Epic 8: Course Batch Offerings Management
+    // Epic 8: Course Batch Offerings Lifecycle Management (MVP-ACD01-02)
     // =========================================================================
 
     public CourseBatchOffering addBatchOffering(String courseId, String batchId, String term) {
-        getCourse(courseId); // validate existence
+        return addBatchOffering(courseId, batchId, term, "ACTIVE");
+    }
+
+    public CourseBatchOffering addBatchOffering(String courseId, String batchId, String term, String initialStatus) {
+        Course c = getCourse(courseId); // validate existence
         CourseBatchOffering offering = new CourseBatchOffering();
         offering.setId("BO_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        offering.setCourseId(courseId);
+        offering.setCourseId(c.getId());
         offering.setBatchId(batchId);
         offering.setTerm(term != null ? term : "FALL_2026");
-        offering.setStatus("ACTIVE");
+
+        String status = (initialStatus != null && !initialStatus.trim().isEmpty())
+                ? initialStatus.trim().toUpperCase() : "UPCOMING";
+        if (!"UPCOMING".equals(status) && !"ACTIVE".equals(status)) {
+            throw new InvalidCourseStateException("Initial offering status must be UPCOMING or ACTIVE: received " + status);
+        }
+        offering.setStatus(status);
         batchOfferings.put(offering.getId(), offering);
+
+        emitOutboxEvent("CourseOfferingCreated", c.getId(), c.getTenantId(),
+                "{\"offeringId\":\"" + offering.getId() + "\",\"courseId\":\"" + c.getId()
+                + "\",\"batchId\":\"" + batchId + "\",\"status\":\"" + status + "\"}");
+        recordAudit("CREATE", "COURSE_OFFERING", offering.getId(), "SUCCESS",
+                "Created course offering for course " + c.getCourseCode() + " in status " + status);
         return offering;
+    }
+
+    public CourseBatchOffering getBatchOffering(String offeringId) {
+        CourseBatchOffering offering = batchOfferings.get(offeringId);
+        if (offering == null) {
+            throw new CourseNotFoundException("Course offering not found: " + offeringId);
+        }
+        return offering;
+    }
+
+    /**
+     * Executes validated state transitions on course batch offerings (MVP-ACD01-02):
+     * Allowed:
+     * - UPCOMING -> ACTIVE
+     * - UPCOMING -> CANCELLED
+     * - ACTIVE -> COMPLETED
+     * - ACTIVE -> CANCELLED
+     * - ACTIVE -> CLOSED (backward-compatible synonym for COMPLETED)
+     *
+     * Disallowed (throws InvalidCourseStateException):
+     * - UPCOMING -> COMPLETED (cannot complete without being active)
+     * - ACTIVE -> UPCOMING (cannot revert active offering to upcoming)
+     * - COMPLETED -> ANY (terminal state)
+     * - CANCELLED -> ANY (terminal state)
+     * - CLOSED -> ANY (terminal state)
+     *
+     * @param offeringId target offering ID
+     * @param targetStatus new lifecycle status
+     * @return updated CourseBatchOffering
+     */
+    public CourseBatchOffering updateOfferingStatus(String offeringId, String targetStatus) {
+        CourseBatchOffering offering = getBatchOffering(offeringId);
+        if (targetStatus == null || targetStatus.trim().isEmpty()) {
+            throw new InvalidCourseStateException("Target offering status cannot be null or empty");
+        }
+        String target = targetStatus.trim().toUpperCase();
+        String current = offering.getStatus() != null ? offering.getStatus().trim().toUpperCase() : "UPCOMING";
+
+        // Terminal states cannot transition
+        if ("COMPLETED".equals(current) || "CANCELLED".equals(current) || "CLOSED".equals(current)) {
+            throw new InvalidCourseStateException(
+                    "Illegal course offering transition: cannot transition from terminal state " + current + " to " + target);
+        }
+
+        if (current.equals(target)) {
+            return offering; // Idempotent no-op
+        }
+
+        boolean valid = false;
+        if ("UPCOMING".equals(current)) {
+            if ("ACTIVE".equals(target) || "CANCELLED".equals(target)) {
+                valid = true;
+            }
+        } else if ("ACTIVE".equals(current)) {
+            if ("COMPLETED".equals(target) || "CANCELLED".equals(target) || "CLOSED".equals(target)) {
+                valid = true;
+            }
+        }
+
+        if (!valid) {
+            throw new InvalidCourseStateException(
+                    "Illegal course offering transition: " + current + " -> " + target);
+        }
+
+        offering.setStatus(target);
+        emitOutboxEvent("CourseOfferingStatusChanged", offering.getCourseId(), "BATCH",
+                "{\"offeringId\":\"" + offering.getId() + "\",\"fromStatus\":\"" + current
+                + "\",\"toStatus\":\"" + target + "\"}");
+        recordAudit("TRANSITION", "COURSE_OFFERING", offering.getId(), "SUCCESS",
+                "Transitioned offering from " + current + " to " + target);
+        return offering;
+    }
+
+    public CourseBatchOffering activateOffering(String offeringId) {
+        return updateOfferingStatus(offeringId, "ACTIVE");
+    }
+
+    public CourseBatchOffering completeOffering(String offeringId) {
+        return updateOfferingStatus(offeringId, "COMPLETED");
+    }
+
+    public CourseBatchOffering cancelOffering(String offeringId) {
+        return updateOfferingStatus(offeringId, "CANCELLED");
     }
 
     public void closeBatchOffering(String offeringId) {
         CourseBatchOffering offering = batchOfferings.get(offeringId);
         if (offering != null) {
-            offering.setStatus("CLOSED");
+            updateOfferingStatus(offeringId, "CLOSED");
         }
     }
 

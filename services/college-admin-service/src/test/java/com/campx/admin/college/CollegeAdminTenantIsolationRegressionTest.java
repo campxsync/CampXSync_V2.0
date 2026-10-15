@@ -1,6 +1,7 @@
 package com.campx.admin.college;
 
 import com.campx.admin.college.exception.CollegeLifecycleException;
+import com.campx.admin.college.exception.CollegeResourceConflictException;
 import com.campx.admin.college.exception.CollegeResourceNotFoundException;
 import com.campx.admin.college.exception.CollegeSecurityViolationException;
 import com.campx.admin.college.model.CollegeModels.*;
@@ -13,6 +14,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
 
@@ -397,6 +399,229 @@ public class CollegeAdminTenantIsolationRegressionTest {
             fail("Expected CollegeLifecycleException when approving already PUBLISHED policy");
         } catch (CollegeLifecycleException e) {
             assertTrue(e.getMessage().contains("Only DRAFT policies can be approved"));
+        }
+    }
+
+    // =========================================================================
+    // MVP-ADM02-02: Governance Immutability & Idempotent Approvals
+    // =========================================================================
+
+    @Test
+    public void testMVP_ADM02_02_AuditTrailTamperingAndDiscontinuityDetection() {
+        LogContext.setTenantId(tenantA.toString());
+        LogContext.setUserId(userA.toString());
+        LogContext.setUserRole("COLLEGE_ADMIN");
+
+        GovernanceDocument doc = new GovernanceDocument();
+        doc.setId(UUID.randomUUID().toString());
+        doc.setTitle("Audit Integrity Test Charter");
+        doc.setClassification("INTERNAL");
+        domainService.registerDocument(doc);
+
+        domainService.createDocumentVersion(doc.getId(), "s3://docs/integrity_v1.pdf", "DEAN_OFFICE");
+        domainService.submitDocumentApproval(doc.getId(), "CHANCELLOR_01");
+
+        // 1. Unaltered audit trail must verify cleanly
+        domainService.verifyAuditTrailIntegrity();
+
+        List<Map<String, Object>> snapshot = domainService.getAuditTrail();
+        assertTrue("Audit trail should contain records", snapshot.size() >= 2);
+
+        // Verify getAuditTrail provides safe copies
+        List<Map<String, Object>> internalTrail = domainService.getInternalAuditTrailForTesting();
+
+        // 2. Tampering detection: modify an action payload in stored internal record
+        Map<String, Object> tamperedRecord = internalTrail.get(0);
+        Object origAction = tamperedRecord.get("action");
+        try {
+            tamperedRecord.put("action", "TAMPERED_ACTION_MALICIOUS");
+            domainService.verifyAuditTrailIntegrity();
+            fail("Expected CollegeSecurityViolationException when audit trail payload is tampered");
+        } catch (CollegeSecurityViolationException e) {
+            assertEquals("ADM02_AUDIT_HASH_CHAIN_TAMPERED", e.getErrorCode());
+        } finally {
+            tamperedRecord.put("action", origAction);
+        }
+
+        // Re-verify clean after restoring
+        domainService.verifyAuditTrailIntegrity();
+
+        // 3. Discontinuity detection: break the beforeHash chain on record 1
+        Map<String, Object> record1 = internalTrail.get(1);
+        Object origBefore = record1.get("beforeHash");
+        try {
+            record1.put("beforeHash", "BROKEN_CHAIN_HASH_1234567890");
+            domainService.verifyAuditTrailIntegrity();
+            fail("Expected CollegeSecurityViolationException on audit chain discontinuity");
+        } catch (CollegeSecurityViolationException e) {
+            assertEquals("ADM02_AUDIT_HASH_CHAIN_DISCONTINUITY", e.getErrorCode());
+        } finally {
+            record1.put("beforeHash", origBefore);
+        }
+
+        domainService.verifyAuditTrailIntegrity();
+    }
+
+    @Test
+    public void testMVP_ADM02_02_ApprovalRequest_IdempotentDuplicateSubmission() {
+        LogContext.setTenantId(tenantA.toString());
+        LogContext.setUserId(userA.toString());
+
+        ApprovalRequest req = new ApprovalRequest();
+        req.setRequestType("CURRICULUM_CHANGE");
+        req.setSubjectType("COURSE");
+        req.setSubjectId("CS201");
+        req.setSubmittedBy("FACULTY_01");
+
+        ApprovalRequest submitted = domainService.submitApprovalRequest(req);
+        assertEquals("PENDING", submitted.getStatus());
+
+        int outboxBefore = domainService.getOutboxEvents().size();
+
+        // Initial decision: APPROVE by DEAN_ACADEMICS
+        ApprovalRequest decided1 = domainService.decideApprovalRequest(
+                submitted.getId(), "DEAN_ACADEMICS", "APPROVE", "Board review passed");
+        assertEquals("APPROVED", decided1.getStatus());
+        assertEquals("DEAN_ACADEMICS", decided1.getDecidedBy());
+        long firstDecidedAt = decided1.getDecidedAt();
+        int outboxAfterFirst = domainService.getOutboxEvents().size();
+        assertEquals(outboxBefore + 1, outboxAfterFirst);
+
+        // Idempotent duplicate: submit exact same decision by same approver
+        ApprovalRequest decided2 = domainService.decideApprovalRequest(
+                submitted.getId(), "DEAN_ACADEMICS", "APPROVE", "Second duplicate submission");
+        assertEquals("APPROVED", decided2.getStatus());
+        assertEquals("DEAN_ACADEMICS", decided2.getDecidedBy());
+        assertEquals(firstDecidedAt, decided2.getDecidedAt());
+
+        // Zero duplicate outbox events emitted
+        assertEquals("No duplicate outbox event must be emitted for idempotent replay",
+                outboxAfterFirst, domainService.getOutboxEvents().size());
+    }
+
+    @Test
+    public void testMVP_ADM02_02_ApprovalRequest_ConflictingDecisionRejected() {
+        LogContext.setTenantId(tenantA.toString());
+        LogContext.setUserId(userA.toString());
+
+        ApprovalRequest req = new ApprovalRequest();
+        req.setRequestType("SYLLABUS_OVERHAUL");
+        req.setSubjectType("PROGRAM");
+        req.setSubjectId("BTECH_CSE");
+        req.setSubmittedBy("HOD_CSE");
+
+        ApprovalRequest submitted = domainService.submitApprovalRequest(req);
+
+        // Initial decision: APPROVE by DEAN_ACADEMICS
+        domainService.decideApprovalRequest(submitted.getId(), "DEAN_ACADEMICS", "APPROVE", "Approved");
+
+        // Conflict 1: different decision by same approver -> 409 Conflict
+        try {
+            domainService.decideApprovalRequest(submitted.getId(), "DEAN_ACADEMICS", "REJECT", "Changed my mind");
+            fail("Expected CollegeResourceConflictException for conflicting decision");
+        } catch (CollegeResourceConflictException e) {
+            assertEquals(409, e.getStatus());
+            assertTrue(e.getMessage().contains("already been settled"));
+        }
+
+        // Conflict 2: different approver attempting to decide -> 409 Conflict
+        try {
+            domainService.decideApprovalRequest(submitted.getId(), "VICE_CHANCELLOR", "APPROVE", "Re-approval by VC");
+            fail("Expected CollegeResourceConflictException for different approver on settled request");
+        } catch (CollegeResourceConflictException e) {
+            assertEquals(409, e.getStatus());
+            assertTrue(e.getMessage().contains("already been settled"));
+        }
+    }
+
+    @Test
+    public void testMVP_ADM02_02_ApprovalRequest_ConcurrentDoubleSubmit() throws Exception {
+        LogContext.setTenantId(tenantA.toString());
+        LogContext.setUserId(userA.toString());
+
+        ApprovalRequest req = new ApprovalRequest();
+        req.setRequestType("EXAM_TIMETABLE_CHANGE");
+        req.setSubjectType("BATCH");
+        req.setSubjectId("BATCH_2026_A");
+        req.setSubmittedBy("EXAM_OFFICER_01");
+
+        ApprovalRequest submitted = domainService.submitApprovalRequest(req);
+        String reqId = submitted.getId();
+
+        int threads = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threads);
+        List<ApprovalRequest> results = Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threads; i++) {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    ApprovalRequest r = domainService.decideApprovalRequest(reqId, "EXAM_CONTROLLER", "APPROVE", "Concurrent OK");
+                    results.add(r);
+                } catch (Throwable t) {
+                    errors.add(t);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        assertTrue("Concurrent executions must finish within 5s", doneLatch.await(5, TimeUnit.SECONDS));
+        executor.shutdown();
+
+        assertTrue("All concurrent submissions must succeed idempotently without errors: " + errors, errors.isEmpty());
+        assertEquals(threads, results.size());
+        for (ApprovalRequest r : results) {
+            assertEquals("APPROVED", r.getStatus());
+            assertEquals("EXAM_CONTROLLER", r.getDecidedBy());
+        }
+
+        // Verify outbox has exactly 1 ApprovalDecided event for this reqId
+        long outboxDecideCount = domainService.getOutboxEvents().stream()
+                .filter(e -> "ApprovalDecided".equals(e.getEventType()) && reqId.equals(e.getAggregateId()))
+                .count();
+        assertEquals("Exactly 1 outbox event must be emitted despite concurrent submissions", 1, outboxDecideCount);
+    }
+
+    @Test
+    public void testMVP_ADM02_02_DocumentApproval_IdempotentAndConflict() {
+        LogContext.setTenantId(tenantA.toString());
+        LogContext.setUserId(userA.toString());
+
+        GovernanceDocument doc = new GovernanceDocument();
+        doc.setId(UUID.randomUUID().toString());
+        doc.setTitle("College Academic Integrity Code");
+        doc.setClassification("INTERNAL");
+        domainService.registerDocument(doc);
+
+        DocumentVersion v1 = domainService.createDocumentVersion(doc.getId(), "s3://docs/integrity_v1.pdf", "DEAN_OFFICE");
+        DocumentApproval app = domainService.submitDocumentForApproval(doc.getId(), 1, "DEAN_OFFICE", "CHANCELLOR_01");
+
+        int outboxBefore = domainService.getOutboxEvents().size();
+        int auditBefore = domainService.getAuditTrail().size();
+
+        // 1. Initial decision -> APPROVED
+        DocumentApproval dec1 = domainService.decideDocumentApproval(app.getId(), "CHANCELLOR_01", "APPROVED", "Formal sanction granted");
+        assertEquals("APPROVED", dec1.getDecision());
+        assertEquals("CHANCELLOR_01", dec1.getApproverId());
+        int auditAfter1 = domainService.getAuditTrail().size();
+        assertEquals(auditBefore + 1, auditAfter1);
+
+        // 2. Idempotent duplicate -> same result, no new audit record
+        DocumentApproval dec2 = domainService.decideDocumentApproval(app.getId(), "CHANCELLOR_01", "APPROVED", "Duplicate approval call");
+        assertEquals("APPROVED", dec2.getDecision());
+        assertEquals(auditAfter1, domainService.getAuditTrail().size());
+
+        // 3. Conflicting decision -> 409 Conflict
+        try {
+            domainService.decideDocumentApproval(app.getId(), "CHANCELLOR_01", "REJECTED", "Flip to reject");
+            fail("Expected CollegeResourceConflictException for conflicting decision on settled document approval");
+        } catch (CollegeResourceConflictException e) {
+            assertEquals(409, e.getStatus());
         }
     }
 }

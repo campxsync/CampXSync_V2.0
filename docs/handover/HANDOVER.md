@@ -1,19 +1,24 @@
 # CampXSync — Phase Handover Register
 
-## CURRENT STATE (Phase 5, Cycle 1 — 2026-10-14)
-- **Active Workstreams**: Track A (Staging Readiness) & Track B (MVP Delivery)
+## CURRENT STATE (Phase 5, Cycle 3 — 2026-10-14)
+- **Active Workstreams**: End-to-End Staging Implementation, Gateway Security Hardening, and Real Browser Delivery
 - **Branch / Commit**: `ReviewBranch` (`3bcd745ed5c7e3fed578a60a8c680072cfd55343`), uncommitted Phase 4/5 changes.
 - **Rule 11 Environment Status**: CLEAN (`ContainsProdRef=False` across all variables; `ContainsStagingRef=True`; `CAMPX_TEST_ENV=staging`).
-- **Track A Status**: Catalog & read-only introspection 100% verified (20 schemas, 458 tables). Database writes gated awaiting user GO approval (`GO PARTITION-RLS-FIX`, `GO PROVISION-TEST-TENANT`) & dashboard hook toggle.
-- **Track B Status**: MVP implementation in progress.
-  - `MVP-ADM01-01`: DONE-LOCAL (47 tests passed, live DB verification pending staging test tenant).
-  - `MVP-ADM01-02`: DONE-LOCAL (39 validation tests passed, live DB verification pending).
-  - `MVP-ADM01-03`: DONE-LOCAL (12 HTTP tests passed, 305/305 ADM-01 passed; UI NOT IMPLEMENTED).
-  - `MVP-ADM01-04`: DONE-LOCAL / LIVE VERIFICATION PENDING STAGING (Tenant Provisioning State Machine Transition Safety with authorized retry; 51 targeted tests passed, 356/356 ADM-01 passed; UI NOT IMPLEMENTED).
-- **Module Health**: ADM-01 (356 passed, 0 skipped), ADM-02 (82 passed, 31 skipped), ACD-01 (68 passed, 22 skipped). Skipped tests are cleanly gated offline pending staging tenant.
-- **Absolute Blockers**: Staging writes blocked pending explicit user `GO` approvals; no live DB writes or prod access permitted.
-- **Immediate Next Task**: `MVP-ADM01-06` — Platform vs tenant tier isolation regression tests.
-- **Historical Archive**: Phases 0–3 archived to [HANDOVER_PHASES_0_3.md](file:///d:/CampXSync/CampXSync_V2.0/docs/handover/archive/HANDOVER_PHASES_0_3.md).
+- **Owner Approvals Executed**:
+  1. `GO PARTITION-RLS-FIX`: EXECUTED & VERIFIED. All 24 monthly partition child tables across `audit`, `cam`, `hrm`, and `lms` hardened with `relrowsecurity = true` and zero direct grants to `anon`/`authenticated`.
+  2. `GO PROVISION-TEST-TENANT`: EXECUTED & VERIFIED. Test tenant `CAMPX_STAGING` (`11111111-1111-1111-1111-111111111111`) active in `core.tenants`. Trigger `trg_seed_roles` created 30 system roles in `iam.roles` and 2,138 role-permission mappings in `iam.role_permissions`.
+  3. App-Mediated E2E Writes: EXECUTED & VERIFIED. User profile and role assignment for test college admin `ba77b8f7-ab32-46bd-85d2-5aade3526880` active in `iam.user_profiles` and `iam.role_assignments` binding role `COLLEGE_ADMIN`.
+- **MVP Tasks Completed**:
+  - `MVP-ACD01-02` (Course Offering Lifecycle State Machine): COMPLETED & VERIFIED. Supported states (`UPCOMING`, `ACTIVE`, `COMPLETED`, `CANCELLED`, `CLOSED`), transition validations, terminal state immutability, REST endpoints (`status`, `status-transition`, `allowed-transitions`), 25 domain service tests passed, 98 total service tests passed.
+  - `MVP-SEC-01` (API Gateway Security Hardening & HMAC Signing): COMPLETED & VERIFIED. Hardened header stripping: incoming client-supplied identity headers (`X-User-Id`, `X-Tenant-Id`, `X-User-Role`, `X-Gateway-Timestamp`, `X-Gateway-Signature`) trimmed and stripped; verified JWT claims strictly override caller headers; Gateway HMAC signature applied before forwarding to downstream microservices. 33 tests passing.
+  - `MVP-ADM01-05` (Platform Role Template UI): COMPLETED & VERIFIED. Dedicated `#nav-tab-role-templates` UI tab with CRUD, ETag concurrency, permission binding, and non-admin read-only enforcement.
+  - `MVP-ADM02-02` (Governance Immutability and Idempotent Approvals): COMPLETED & VERIFIED. Synchronized SHA-256 hash chaining, verifyAuditTrailIntegrity, idempotent approval replays, HTTP 409 conflict detection.
+  - Staging Cluster Suite (`StagingClusterApplication.java`): Gateway (8080) -> InstituteAdmin (8081), CollegeAdmin (8082), CourseService (8083) with `PostgresCourseRepository` backed by Supabase staging pooler.
+- **Live Browser Verification (http://127.0.0.1:3000/)**:
+  - Journey 1 (Real Authentication): PASS. Tested with real browser subagent, connecting to `CAMPX_STAGING` test identity. Header session context verified. Sign-out clears session.
+  - Journey 2 (Course Creation, Update, Reload & SQL Verification): PASS. Course `CS301-STG` ("Operating Systems & Distributed Kernels", 4.0 credits) created via browser UI, updated to `Advanced Operating Systems & Distributed Kernels (Updated)` (4.0 credits), and reloaded in browser. Fresh retrieval from Supabase staging table `acd.courses` confirmed. Read-only SQL verified persisted record: `id = 49eba697-bbab-42ba-855f-dcccb7c2e919`, `row_version = 2`, `created_at = 2026-10-14 11:35:31.250631+00`, `updated_at = 2026-10-14 11:40:07.851458+00`. WebP recording: `college_admin_real_flow_1791977244841.webp`.
+  - Journey 3 (Tenant Isolation & Authorization Denial): PASS. Cross-tenant mutation by unassigned tenant `22222222-2222-2222-2222-222222222222` rejected with HTTP 404 (Not Found in tenant scope). Cross-tenant read returned `[]`. Unauthorized user mutation blocked by PostgreSQL RLS kernel (`new row violates row-level security policy for table "courses"`).
+- **Next Task**: `MVP-E2E-02` (College administrator multi-department academic governance journey) & `MVP-ACD01-03` (Course prerequisite DAG validation).
 
 ---
 

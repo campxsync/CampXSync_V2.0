@@ -364,6 +364,13 @@ public class CourseController implements HttpHandler {
                         domainService.closeBatchOffering(parts[2]);
                         sendJson(exchange, 200, "{\"status\":\"CLOSED\",\"offeringId\":\"" + parts[2] + "\"}");
                         return;
+                    } else if (parts.length == 4 && "status".equalsIgnoreCase(parts[3]) && "PUT".equalsIgnoreCase(method)) {
+                        flow.step("handleUpdateOfferingStatus");
+                        String body = readBody(exchange);
+                        String targetStatus = extract(body, "status", null);
+                        CourseBatchOffering updated = domainService.updateOfferingStatus(parts[2], targetStatus);
+                        sendJson(exchange, 200, "{\"offeringId\":\"" + updated.getId() + "\",\"status\":\"" + updated.getStatus() + "\"}");
+                        return;
                     }
                 }
 
@@ -753,7 +760,8 @@ public class CourseController implements HttpHandler {
         String body = readBody(exchange);
         String batchId = extract(body, "batchId", "BATCH_2026_A");
         String term = extract(body, "term", "TERM_1");
-        CourseBatchOffering bo = domainService.addBatchOffering(courseId, batchId, term);
+        String initialStatus = extract(body, "status", null);
+        CourseBatchOffering bo = domainService.addBatchOffering(courseId, batchId, term, initialStatus);
         sendJson(exchange, 201, "{\"offeringId\":\"" + bo.getId() + "\",\"status\":\"" + bo.getStatus() + "\"}");
     }
 

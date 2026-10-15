@@ -609,6 +609,17 @@ export const api = {
     return await res.json();
   },
 
+  async deleteCourse(courseId, context) {
+    const res = await fetch(`${API_BASE}/api/v1/courses/${courseId}`, {
+      method: 'DELETE',
+      headers: getHeaders(context)
+    });
+    if (!res.ok) {
+      throw await parseApiError(res, 'deleteCourse');
+    }
+    return await res.json();
+  },
+
   // 6. Academic Calendars (ADM-01 Item 23)
   async getCalendars(context, collegeId) {
     try {
@@ -849,5 +860,38 @@ export const api = {
       throw await parseApiError(res, 'deleteRoleTemplate');
     }
     return await res.json();
+  },
+
+  async getRoleTemplatePermissions(roleCode, context) {
+    const res = await fetch(`${API_BASE}/api/v1/admin/role-templates/${encodeURIComponent(roleCode)}/permissions`, {
+      method: 'GET',
+      headers: getHeaders(context)
+    });
+    if (res.ok) return await res.json();
+    throw await parseApiError(res, 'getRoleTemplatePermissions');
+  },
+
+  async bindRoleTemplatePermission(roleCode, permissionCode, context) {
+    const res = await fetch(`${API_BASE}/api/v1/admin/role-templates/${encodeURIComponent(roleCode)}/permissions`, {
+      method: 'POST',
+      headers: getHeaders(context),
+      body: JSON.stringify({ permissionCode })
+    });
+    if (!res.ok) {
+      throw await parseApiError(res, 'bindRoleTemplatePermission');
+    }
+    return await res.json();
+  },
+
+  async unbindRoleTemplatePermission(roleCode, permissionCode, context) {
+    const res = await fetch(`${API_BASE}/api/v1/admin/role-templates/${encodeURIComponent(roleCode)}/permissions/${encodeURIComponent(permissionCode)}`, {
+      method: 'DELETE',
+      headers: getHeaders(context)
+    });
+    if (!res.ok) {
+      throw await parseApiError(res, 'unbindRoleTemplatePermission');
+    }
+    return await res.json();
   }
 };
+

@@ -35,7 +35,7 @@ public class CollegeAdminDomainService {
     private final List<OutboxEvent> outboxEvents = Collections.synchronizedList(new ArrayList<>());
     private final Map<String, InboxEvent> inboxEvents = new ConcurrentHashMap<>();
     private final List<DeadLetterEvent> deadLetterEvents = Collections.synchronizedList(new ArrayList<>());
-    private String lastAuditHash = "GENESIS_HASH_0000000000000000";
+    private volatile String lastAuditHash = "GENESIS_HASH_0000000000000000";
 
     // Phase 3: Configuration & Governance collections (User Story Lines 8–10)
     private final Map<String, CollegeSetting> collegeSettings = new ConcurrentHashMap<>();
@@ -59,6 +59,16 @@ public class CollegeAdminDomainService {
     private final Map<String, CollegeAccessReview> collegeAccessReviews = new ConcurrentHashMap<>();
     private final Map<String, BatchApprovalDetails> batchApprovals = new ConcurrentHashMap<>();
 
+    private static String canonicalAuditPayload(Map<String, Object> record) {
+        StringBuilder sb = new StringBuilder();
+        for (String k : Arrays.asList("beforeHash", "eventId", "action", "principalId", "principalRole",
+                "resourceType", "resourceId", "status", "description", "timestamp", "traceId", "tenantId")) {
+            String v = String.valueOf(record.get(k));
+            sb.append(k).append('=').append(v.length()).append(':').append(v).append(';');
+        }
+        return sb.toString();
+    }
+
     private Map<String, Object> recordAudit(AuditEvent event) {
         logger.audit(event);
         Map<String, Object> record = new LinkedHashMap<>();
@@ -76,24 +86,87 @@ public class CollegeAdminDomainService {
         record.put("tenantId", LogContext.getTenantId());
 
         // Tamper-evident hash chain (CSV Line 34)
-        String beforeHash = lastAuditHash;
-        String payloadToHash = beforeHash + ":" + eventId + ":" + event.getAction() + ":" + event.getResourceId() + ":" + event.getTimestamp();
-        String afterHash = sha256(payloadToHash);
-        record.put("beforeHash", beforeHash);
-        record.put("afterHash", afterHash);
-        lastAuditHash = afterHash;
+        synchronized (auditTrail) {
+            String beforeHash = lastAuditHash;
+            record.put("beforeHash", beforeHash);
+            String afterHash = sha256(canonicalAuditPayload(record));
+            record.put("afterHash", afterHash);
+            lastAuditHash = afterHash;
 
-        auditTrail.add(record);
+            auditTrail.add(record);
+        }
         return record;
     }
 
     /**
      * Returns an unmodifiable snapshot of the tamper-evident cryptographic audit trail records.
      *
-     * @return copy of audit records
+     * @return unmodifiable copy of audit records
      */
     public List<Map<String, Object>> getAuditTrail() {
-        return new ArrayList<>(auditTrail);
+        synchronized (auditTrail) {
+            List<Map<String, Object>> snapshot = new ArrayList<>(auditTrail.size());
+            for (Map<String, Object> r : auditTrail) {
+                snapshot.add(new LinkedHashMap<>(r));
+            }
+            return Collections.unmodifiableList(snapshot);
+        }
+    }
+
+    /**
+     * Testing-only public accessor for tests simulating storage tampering on internal records.
+     */
+    public List<Map<String, Object>> getInternalAuditTrailForTesting() {
+        return auditTrail;
+    }
+
+    public List<OutboxEvent> getOutboxEvents() {
+        return new ArrayList<>(outboxEvents);
+    }
+
+    /**
+     * Cryptographically verifies the full audit trail hash chain integrity from genesis to current head.
+     * Detects tampering, record modifications, deletion, reordering, or discontinuity across all fields.
+     *
+     * @throws CollegeSecurityViolationException if any hash mismatch or chain discontinuity is discovered
+     */
+    public void verifyAuditTrailIntegrity() {
+        synchronized (auditTrail) {
+            if (auditTrail.isEmpty()) {
+                if (!"GENESIS_HASH_0000000000000000".equals(lastAuditHash)) {
+                    throw new CollegeSecurityViolationException("ADM02_AUDIT_HASH_CHAIN_DISCONTINUITY",
+                            "Empty audit trail with non-genesis lastAuditHash: " + lastAuditHash);
+                }
+                return;
+            }
+
+            String expectedPreviousHash = "GENESIS_HASH_0000000000000000";
+            for (int i = 0; i < auditTrail.size(); i++) {
+                Map<String, Object> record = auditTrail.get(i);
+                String beforeHash = (String) record.get("beforeHash");
+                if (beforeHash == null || !beforeHash.equals(expectedPreviousHash)) {
+                    throw new CollegeSecurityViolationException("ADM02_AUDIT_HASH_CHAIN_DISCONTINUITY",
+                            "Audit chain discontinuity at record index " + i + ": expected beforeHash '"
+                                    + expectedPreviousHash + "' but found '" + beforeHash + "'");
+                }
+
+                String recordedAfterHash = (String) record.get("afterHash");
+                String recomputedHash = sha256(canonicalAuditPayload(record));
+
+                if (recordedAfterHash == null || !recordedAfterHash.equals(recomputedHash)) {
+                    throw new CollegeSecurityViolationException("ADM02_AUDIT_HASH_CHAIN_TAMPERED",
+                            "Tampered audit record detected at index " + i + " (eventId: " + record.get("eventId")
+                                    + "): recorded hash '" + recordedAfterHash + "' does not match recomputed hash '" + recomputedHash + "'");
+                }
+
+                expectedPreviousHash = recordedAfterHash;
+            }
+
+            if (!expectedPreviousHash.equals(lastAuditHash)) {
+                throw new CollegeSecurityViolationException("ADM02_AUDIT_HASH_CHAIN_DISCONTINUITY",
+                        "Audit chain head mismatch: expected '" + expectedPreviousHash + "' but current lastAuditHash is '" + lastAuditHash + "'");
+            }
+        }
     }
 
     private final DepartmentRepository departmentRepository;
@@ -945,28 +1018,36 @@ public class CollegeAdminDomainService {
 
         try (FlowTracker flow = logger.flow("SubmitDocumentApprovalWorkflow", "DOC-APPR-" + documentId)) {
             flow.step("VerifyApproverAuthorization");
-            doc.setStatus("APPROVED");
 
-            flow.step("PublishImmutableVersion");
-            AuditEvent audit = AuditEvent.builder()
-                    .action("GOVERNANCE_DOCUMENT_APPROVED")
-                    .principalId(approverId != null ? approverId : "COLLEGE_DEAN")
-                    .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "APPROVER")
-                    .resourceType("DOCUMENT")
-                    .resourceId(documentId)
-                    .status("SUCCESS")
-                    .description("Approved governance document: " + doc.getTitle() + " (checksum: " + doc.getChecksum() + ")")
-                    .build();
-            recordAudit(audit);
+            synchronized (doc) {
+                if ("APPROVED".equalsIgnoreCase(doc.getStatus())) {
+                    logger.info("[ADM-02 DocGov] Governance document [{}] is already APPROVED; returning existing document idempotently", documentId);
+                    return doc;
+                }
 
-            if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
-                com.campx.admin.college.security.UserSecurityContext context =
-                        com.campx.admin.college.security.UserSecurityContext.fromHeaders(
-                                LogContext.getUserId(), LogContext.getTenantId());
-                governanceDocumentRepository.updateDocument(context, doc);
+                doc.setStatus("APPROVED");
+
+                flow.step("PublishImmutableVersion");
+                AuditEvent audit = AuditEvent.builder()
+                        .action("GOVERNANCE_DOCUMENT_APPROVED")
+                        .principalId(approverId != null ? approverId : "COLLEGE_DEAN")
+                        .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "APPROVER")
+                        .resourceType("DOCUMENT")
+                        .resourceId(documentId)
+                        .status("SUCCESS")
+                        .description("Approved governance document: " + doc.getTitle() + " (checksum: " + doc.getChecksum() + ")")
+                        .build();
+                recordAudit(audit);
+
+                if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+                    com.campx.admin.college.security.UserSecurityContext context =
+                            com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                                    LogContext.getUserId(), LogContext.getTenantId());
+                    governanceDocumentRepository.updateDocument(context, doc);
+                }
+
+                return doc;
             }
-
-            return doc;
         }
     }
 
@@ -1244,48 +1325,64 @@ public class CollegeAdminDomainService {
         if (approval == null) {
             throw new CollegeResourceNotFoundException("DocumentApproval", approvalId);
         }
-        if (!"PENDING".equalsIgnoreCase(approval.getDecision())) {
-            throw new CollegeResourceConflictException(
-                    "Document approval " + approvalId + " has already been decided: " + approval.getDecision());
+        if (decision == null || !(decision.equalsIgnoreCase("APPROVE") || decision.equalsIgnoreCase("APPROVED")
+                || decision.equalsIgnoreCase("REJECT") || decision.equalsIgnoreCase("REJECTED"))) {
+            throw new CollegeMalformedPayloadException("Decision must be APPROVED or REJECTED");
         }
-        approval.setDecision(decision);
-        approval.setApproverId(approverId != null ? approverId : "COLLEGE_DEAN");
-        approval.setComments(comments);
-        approval.setDecidedAt(System.currentTimeMillis());
+        synchronized (approval) {
+            String targetDecision = decision.toUpperCase().startsWith("APPROVE") ? "APPROVED" : "REJECTED";
+            String effectiveApprover = approverId != null ? approverId : "COLLEGE_DEAN";
 
-        if ("APPROVED".equalsIgnoreCase(decision)) {
-            // Auto-publish the version
-            List<DocumentVersion> versions = documentVersions.get(approval.getDocumentId());
-            if (versions != null) {
-                for (DocumentVersion v : versions) {
-                    if (v.getVersionNo() == approval.getVersionNo()) {
-                        v.setStatus("PUBLISHED");
-                        break;
+            if (!"PENDING".equalsIgnoreCase(approval.getDecision())) {
+                boolean sameDecision = approval.getDecision().equalsIgnoreCase(targetDecision);
+                boolean sameApprover = approval.getApproverId() != null && approval.getApproverId().equalsIgnoreCase(effectiveApprover);
+                if (sameDecision && sameApprover) {
+                    logger.info("[ADM-02 DocGov] Idempotent duplicate decision for document approval [{}]", approvalId);
+                    return approval;
+                }
+                throw new CollegeResourceConflictException(
+                        "Document approval " + approvalId + " has already been decided: " + approval.getDecision());
+            }
+
+            approval.setDecision(targetDecision);
+            approval.setApproverId(effectiveApprover);
+            approval.setComments(comments);
+            approval.setDecidedAt(System.currentTimeMillis());
+
+            if ("APPROVED".equalsIgnoreCase(targetDecision)) {
+                // Auto-publish the version
+                List<DocumentVersion> versions = documentVersions.get(approval.getDocumentId());
+                if (versions != null) {
+                    for (DocumentVersion v : versions) {
+                        if (v.getVersionNo() == approval.getVersionNo()) {
+                            v.setStatus("PUBLISHED");
+                            break;
+                        }
+                    }
+                }
+                GovernanceDocument doc = resolveDocument(approval.getDocumentId());
+                if (doc != null) {
+                    doc.setStatus("PUBLISHED");
+                    if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
+                        com.campx.admin.college.security.UserSecurityContext context =
+                                com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                                        LogContext.getUserId(), LogContext.getTenantId());
+                        governanceDocumentRepository.updateDocument(context, doc);
                     }
                 }
             }
-            GovernanceDocument doc = resolveDocument(approval.getDocumentId());
-            if (doc != null) {
-                doc.setStatus("PUBLISHED");
-                if (governanceDocumentRepository != null && LogContext.getTenantId() != null) {
-                    com.campx.admin.college.security.UserSecurityContext context =
-                            com.campx.admin.college.security.UserSecurityContext.fromHeaders(
-                                    LogContext.getUserId(), LogContext.getTenantId());
-                    governanceDocumentRepository.updateDocument(context, doc);
-                }
-            }
-        }
 
-        AuditEvent audit = AuditEvent.builder()
-                .action("DOCUMENT_APPROVAL_DECIDED")
-                .principalId(approval.getApproverId()).principalRole("APPROVER")
-                .resourceType("DOCUMENT_APPROVAL").resourceId(approvalId)
-                .status("SUCCESS")
-                .description("Approval decision [" + decision + "] for document " + approval.getDocumentId() + " version " + approval.getVersionNo())
-                .build();
-        recordAudit(audit);
-        logger.info("[ADM-02 DocGov] Decided approval [{}] decision=[{}]", approvalId, decision);
-        return approval;
+            AuditEvent audit = AuditEvent.builder()
+                    .action("DOCUMENT_APPROVAL_DECIDED")
+                    .principalId(approval.getApproverId()).principalRole("APPROVER")
+                    .resourceType("DOCUMENT_APPROVAL").resourceId(approvalId)
+                    .status("SUCCESS")
+                    .description("Approval decision [" + targetDecision + "] for document " + approval.getDocumentId() + " version " + approval.getVersionNo())
+                    .build();
+            recordAudit(audit);
+            logger.info("[ADM-02 DocGov] Decided approval [{}] decision=[{}]", approvalId, targetDecision);
+            return approval;
+        }
     }
 
     // =========================================================================
@@ -2199,25 +2296,48 @@ public class CollegeAdminDomainService {
         if (req == null) {
             throw new CollegeResourceNotFoundException("ApprovalRequest", requestId);
         }
-        if (!"PENDING".equalsIgnoreCase(req.getStatus())) {
-            throw new CollegeLifecycleException("Cannot decide on already settled approval request");
+        if (batchApprovals.containsKey(requestId)) {
+            throw new CollegeLifecycleException("Batch split/merge requests must be decided via the batch approval workflow");
         }
 
         // Anti-self-certification enforcement (CSV Line 31)
-        if (req.getSubmittedBy().equalsIgnoreCase(approverId)) {
+        if (req.getSubmittedBy() != null && req.getSubmittedBy().equalsIgnoreCase(approverId)) {
             throw new CollegeSecurityViolationException("ADM02_SELF_CERTIFICATION_BLOCKED",
                     "Self-certification violation: submitter '" + approverId + "' cannot approve their own request");
         }
 
-        String targetStatus = "APPROVE".equalsIgnoreCase(decision) ? "APPROVED" : "REJECTED";
-        req.setStatus(targetStatus);
-        req.setDecidedBy(approverId);
-        req.setDecidedAt(System.currentTimeMillis());
-        req.setDecisionNotes(notes != null ? notes : "Decision recorded");
+        if (decision == null || !(decision.equalsIgnoreCase("APPROVE") || decision.equalsIgnoreCase("APPROVED")
+                || decision.equalsIgnoreCase("REJECT") || decision.equalsIgnoreCase("REJECTED"))) {
+            throw new CollegeMalformedPayloadException("Decision must be APPROVED or REJECTED");
+        }
+        String targetStatus = decision.toUpperCase().startsWith("APPROVE") ? "APPROVED" : "REJECTED";
+        String effectiveApprover = approverId != null ? approverId : "COLLEGE_DEAN";
 
-        emitOutboxEvent("ApprovalDecided", req.getId(), req.getRequestType(), "{\"status\":\"" + targetStatus + "\",\"decidedBy\":\"" + approverId + "\"}");
-        logger.info("[ADM-02 Approvals] Request [{}] {} by [{}]", requestId, targetStatus, approverId);
-        return req;
+        synchronized (req) {
+            if (!"PENDING".equalsIgnoreCase(req.getStatus())) {
+                boolean sameDecision = req.getStatus().equalsIgnoreCase(targetStatus);
+                boolean sameApprover = req.getDecidedBy() != null && req.getDecidedBy().equalsIgnoreCase(effectiveApprover);
+
+                if (sameDecision && sameApprover) {
+                    logger.info("[ADM-02 Approvals] Idempotent duplicate decision for request [{}] by [{}]: returning existing result",
+                            requestId, effectiveApprover);
+                    return req;
+                }
+
+                throw new CollegeResourceConflictException(
+                        "Approval request '" + requestId + "' has already been settled as '" + req.getStatus()
+                                + "' by '" + req.getDecidedBy() + "' and cannot be re-decided with conflicting parameters");
+            }
+
+            req.setStatus(targetStatus);
+            req.setDecidedBy(effectiveApprover);
+            req.setDecidedAt(System.currentTimeMillis());
+            req.setDecisionNotes(notes != null ? notes : "Decision recorded");
+
+            emitOutboxEvent("ApprovalDecided", req.getId(), req.getRequestType(), "{\"status\":\"" + targetStatus + "\",\"decidedBy\":\"" + effectiveApprover + "\"}");
+            logger.info("[ADM-02 Approvals] Request [{}] {} by [{}]", requestId, targetStatus, effectiveApprover);
+            return req;
+        }
     }
 
     public ApprovalRequest getApprovalRequest(String requestId) {
@@ -2634,45 +2754,53 @@ public class CollegeAdminDomainService {
             if (details == null) {
                 throw new CollegeResourceNotFoundException("BatchApprovalRequest", requestId);
             }
-            if (!"PENDING".equalsIgnoreCase(details.getStatus())) {
-                throw new CollegeLifecycleException("Batch approval request '" + requestId + "' already settled with status: " + details.getStatus());
-            }
-
-            // Role / permission authorization check (Story 39 & 40)
-            boolean isRegistrar = "REGISTRAR".equalsIgnoreCase(userRole);
-            if (!isRegistrar && decidedBy != null) {
-                for (CollegeRoleBinding b : collegeRoleBindings.values()) {
-                    if (b.getPrincipalId().equalsIgnoreCase(decidedBy)) {
-                        CollegeRole r = collegeRoles.get(b.getRoleId());
-                        if (r != null && "REGISTRAR".equalsIgnoreCase(r.getRoleCode())) {
-                            isRegistrar = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (!isRegistrar) {
-                throw new CollegeSecurityViolationException(403, "ADM02_UNAUTHORIZED_APPROVER",
-                        "Security violation: Only Registrar role can approve or reject batch split/merge requests");
-            }
-
-            // Separation of duties / Anti-Self-Certification (CSV Line 40 & Story 39)
-            if (decidedBy != null && decidedBy.equalsIgnoreCase(details.getRequestedBy())) {
-                throw new CollegeSecurityViolationException(400, "ADM02_SELF_CERTIFICATION_BLOCKED",
-                        "Self-certification violation: requester '" + decidedBy + "' cannot approve or reject their own batch " + details.getRequestType() + " request");
-            }
-
             if (decision == null || (!decision.equalsIgnoreCase("APPROVED") && !decision.equalsIgnoreCase("REJECTED"))) {
                 throw new CollegeMalformedPayloadException("Decision must be either 'APPROVED' or 'REJECTED'");
             }
             decision = decision.toUpperCase();
+            String effectiveDecidedBy = decidedBy != null ? decidedBy : "REGISTRAR";
 
-            long now = System.currentTimeMillis();
-            details.setStatus(decision);
-            details.setDecision(decision);
-            details.setDecidedBy(decidedBy != null ? decidedBy : "REGISTRAR");
-            details.setDecidedAt(now);
-            details.setDecisionReason(reason != null ? reason : "Decision recorded by Registrar");
+            synchronized (details) {
+                // Role / permission authorization check (Story 39 & 40)
+                boolean isRegistrar = "REGISTRAR".equalsIgnoreCase(userRole);
+                if (!isRegistrar && decidedBy != null) {
+                    for (CollegeRoleBinding b : collegeRoleBindings.values()) {
+                        if (b.getPrincipalId().equalsIgnoreCase(decidedBy)) {
+                            CollegeRole r = collegeRoles.get(b.getRoleId());
+                            if (r != null && "REGISTRAR".equalsIgnoreCase(r.getRoleCode())) {
+                                isRegistrar = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!isRegistrar) {
+                    throw new CollegeSecurityViolationException(403, "ADM02_UNAUTHORIZED_APPROVER",
+                            "Security violation: Only Registrar role can approve or reject batch split/merge requests");
+                }
+
+                if (!"PENDING".equalsIgnoreCase(details.getStatus())) {
+                    boolean sameDecision = details.getStatus().equalsIgnoreCase(decision);
+                    boolean sameApprover = details.getDecidedBy() != null && details.getDecidedBy().equalsIgnoreCase(effectiveDecidedBy);
+                    if (sameDecision && sameApprover) {
+                        logger.info("[ADM-02 Approvals] Idempotent duplicate decision for batch approval [{}]", requestId);
+                        return details;
+                    }
+                    throw new CollegeResourceConflictException("Batch approval request '" + requestId + "' already settled with status: " + details.getStatus());
+                }
+
+                // Separation of duties / Anti-Self-Certification (CSV Line 40 & Story 39)
+                if (decidedBy != null && decidedBy.equalsIgnoreCase(details.getRequestedBy())) {
+                    throw new CollegeSecurityViolationException(400, "ADM02_SELF_CERTIFICATION_BLOCKED",
+                            "Self-certification violation: requester '" + decidedBy + "' cannot approve or reject their own batch " + details.getRequestType() + " request");
+                }
+
+                long now = System.currentTimeMillis();
+                details.setStatus(decision);
+                details.setDecision(decision);
+                details.setDecidedBy(effectiveDecidedBy);
+                details.setDecidedAt(now);
+                details.setDecisionReason(reason != null ? reason : "Decision recorded by Registrar");
 
             // Update ApprovalRequest
             ApprovalRequest appReq = approvalRequests.get(requestId);
@@ -2745,6 +2873,7 @@ public class CollegeAdminDomainService {
 
             flow.step("BatchApprovalFinalized");
             return details;
+            }
         }
     }
 

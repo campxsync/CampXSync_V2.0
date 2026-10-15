@@ -253,7 +253,7 @@ public final class CourseModels {
         private String courseId;
         private String batchId;
         private String term;
-        private String status = "ACTIVE"; // ACTIVE, CLOSED
+        private String status = "ACTIVE"; // UPCOMING, ACTIVE, COMPLETED, CANCELLED, CLOSED
         private String academicYear = "2026-2027";
 
         public String getId() { return id; }
