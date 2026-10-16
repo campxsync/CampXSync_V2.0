@@ -242,6 +242,10 @@ public class CourseController implements HttpHandler {
                         flow.step("handleUpdateCourse");
                         handleUpdateCourse(exchange, id);
                         return;
+                    } else if ("DELETE".equalsIgnoreCase(method)) {
+                        flow.step("handleDeleteCourse");
+                        handleDeleteCourse(exchange, id);
+                        return;
                     }
                 }
 
@@ -292,37 +296,43 @@ public class CourseController implements HttpHandler {
                 // Lifecycle Actions
                 if ("submit".equalsIgnoreCase(actionOrResource) && "POST".equalsIgnoreCase(method)) {
                     flow.step("handleSubmitCourse");
-                    Course c = domainService.submitForApproval(courseId);
+                    com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+                    Course c = domainService.submitForApproval(context, courseId);
                     sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\"}");
                     return;
                 }
                 if ("approve".equalsIgnoreCase(actionOrResource) && "POST".equalsIgnoreCase(method)) {
                     flow.step("handleApproveCourse");
-                    Course c = domainService.approveCourse(courseId);
+                    com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+                    Course c = domainService.approveCourse(context, courseId);
                     sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\"}");
                     return;
                 }
                 if ("publish".equalsIgnoreCase(actionOrResource) && "POST".equalsIgnoreCase(method)) {
                     flow.step("handlePublishCourse");
-                    Course c = domainService.publishCourse(courseId);
+                    com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+                    Course c = domainService.publishCourse(context, courseId);
                     sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\",\"version\":" + c.getCurrentVersion() + "}");
                     return;
                 }
                 if ("activate".equalsIgnoreCase(actionOrResource) && "POST".equalsIgnoreCase(method)) {
                     flow.step("handleActivateCourse");
-                    Course c = domainService.activateCourse(courseId);
+                    com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+                    Course c = domainService.activateCourse(context, courseId);
                     sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\"}");
                     return;
                 }
                 if ("suspend".equalsIgnoreCase(actionOrResource) && "POST".equalsIgnoreCase(method)) {
                     flow.step("handleSuspendCourse");
-                    Course c = domainService.suspendCourse(courseId);
+                    com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+                    Course c = domainService.suspendCourse(context, courseId);
                     sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\"}");
                     return;
                 }
                 if ("deactivate".equalsIgnoreCase(actionOrResource) && "POST".equalsIgnoreCase(method)) {
                     flow.step("handleDeactivateCourse");
-                    Course c = domainService.deactivateCourse(courseId);
+                    com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+                    Course c = domainService.deactivateCourse(context, courseId);
                     sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\"}");
                     return;
                 }
@@ -353,6 +363,13 @@ public class CourseController implements HttpHandler {
                         flow.step("handleCloseBatchOffering");
                         domainService.closeBatchOffering(parts[2]);
                         sendJson(exchange, 200, "{\"status\":\"CLOSED\",\"offeringId\":\"" + parts[2] + "\"}");
+                        return;
+                    } else if (parts.length == 4 && "status".equalsIgnoreCase(parts[3]) && "PUT".equalsIgnoreCase(method)) {
+                        flow.step("handleUpdateOfferingStatus");
+                        String body = readBody(exchange);
+                        String targetStatus = extract(body, "status", null);
+                        CourseBatchOffering updated = domainService.updateOfferingStatus(parts[2], targetStatus);
+                        sendJson(exchange, 200, "{\"offeringId\":\"" + updated.getId() + "\",\"status\":\"" + updated.getStatus() + "\"}");
                         return;
                     }
                 }
@@ -490,6 +507,7 @@ public class CourseController implements HttpHandler {
         c.setCourseCategory(extract(body, "courseCategory", "CORE"));
         c.setDepartmentId(extract(body, "departmentId", null));
         c.setProgramId(extract(body, "programId", null));
+        c.setLevel(extract(body, "level", "100"));
 
         String creditsStr = extract(body, "totalCredits", extract(body, "credits", "4.0"));
         try {
@@ -518,6 +536,7 @@ public class CourseController implements HttpHandler {
                 + "\"courseName\":\"" + escape(created.getCourseName()) + "\","
                 + "\"departmentId\":\"" + (created.getDepartmentId() != null ? escape(created.getDepartmentId()) : "") + "\","
                 + "\"programId\":\"" + (created.getProgramId() != null ? escape(created.getProgramId()) : "") + "\","
+                + "\"level\":\"" + (created.getLevel() != null ? escape(created.getLevel()) : "100") + "\","
                 + "\"status\":\"" + created.getStatus() + "\","
                 + "\"version\":\"" + created.getCurrentVersion() + ".0\","
                 + "\"credits\":" + created.getTotalCredits() + ","
@@ -541,6 +560,7 @@ public class CourseController implements HttpHandler {
               .append("\",\"name\":\"").append(escape(c.getCourseName()))
               .append("\",\"courseName\":\"").append(escape(c.getCourseName()))
               .append("\",\"status\":\"").append(c.getStatus())
+              .append("\",\"level\":\"").append(c.getLevel() != null ? escape(c.getLevel()) : "100")
               .append("\",\"departmentId\":\"").append(c.getDepartmentId() != null ? c.getDepartmentId() : "")
               .append("\",\"programId\":\"").append(c.getProgramId() != null ? c.getProgramId() : "")
               .append("\",\"credits\":").append(c.getTotalCredits())
@@ -560,6 +580,7 @@ public class CourseController implements HttpHandler {
                 + "\"courseCode\":\"" + c.getCourseCode() + "\","
                 + "\"courseName\":\"" + escape(c.getCourseName()) + "\","
                 + "\"description\":\"" + escape(c.getDescription()) + "\","
+                + "\"level\":\"" + (c.getLevel() != null ? escape(c.getLevel()) : "100") + "\","
                 + "\"departmentId\":\"" + (c.getDepartmentId() != null ? c.getDepartmentId() : "") + "\","
                 + "\"durationYears\":" + c.getDurationYears() + ","
                 + "\"totalCredits\":" + c.getTotalCredits() + ","
@@ -582,6 +603,7 @@ public class CourseController implements HttpHandler {
         update.setCourseName(name);
         update.setDescription(extract(body, "description", null));
         update.setDepartmentId(extract(body, "departmentId", null));
+        update.setLevel(extract(body, "level", null));
 
         String creds = extract(body, "credits", null);
         if (creds == null || creds.trim().isEmpty()) {
@@ -699,27 +721,28 @@ public class CourseController implements HttpHandler {
     }
 
     private void handleUpdateStatus(HttpExchange exchange, String courseId) throws IOException {
+        com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
         String body = readBody(exchange);
         String targetStatus = extract(body, "status", "").toUpperCase();
         Course c;
         switch (targetStatus) {
             case "UNDER_REVIEW":
-                c = domainService.submitForApproval(courseId);
+                c = domainService.submitForApproval(context, courseId);
                 break;
             case "APPROVED":
-                c = domainService.approveCourse(courseId);
+                c = domainService.approveCourse(context, courseId);
                 break;
             case "ACTIVE":
-                c = domainService.publishCourse(courseId);
+                c = domainService.publishCourse(context, courseId);
                 break;
             case "SUSPENDED":
-                c = domainService.suspendCourse(courseId);
+                c = domainService.suspendCourse(context, courseId);
                 break;
             case "DEACTIVATED":
-                c = domainService.deactivateCourse(courseId);
+                c = domainService.deactivateCourse(context, courseId);
                 break;
             case "ARCHIVED":
-                c = domainService.archiveCourse(courseId);
+                c = domainService.archiveCourse(context, courseId);
                 break;
             default:
                 throw new CourseException(400, "ACD_INVALID_STATUS", "Unrecognized lifecycle status: " + targetStatus);
@@ -727,11 +750,18 @@ public class CourseController implements HttpHandler {
         sendJson(exchange, 200, "{\"id\":\"" + c.getId() + "\",\"status\":\"" + c.getStatus() + "\"}");
     }
 
+    private void handleDeleteCourse(HttpExchange exchange, String id) throws IOException {
+        com.campx.academic.course.security.UserSecurityContext context = getSecurityContext(exchange);
+        domainService.deleteCourse(context, id);
+        sendJson(exchange, 200, "{\"id\":\"" + escape(id) + "\",\"status\":\"DELETED\"}");
+    }
+
     private void handleAddBatchOffering(HttpExchange exchange, String courseId) throws IOException {
         String body = readBody(exchange);
         String batchId = extract(body, "batchId", "BATCH_2026_A");
         String term = extract(body, "term", "TERM_1");
-        CourseBatchOffering bo = domainService.addBatchOffering(courseId, batchId, term);
+        String initialStatus = extract(body, "status", null);
+        CourseBatchOffering bo = domainService.addBatchOffering(courseId, batchId, term, initialStatus);
         sendJson(exchange, 201, "{\"offeringId\":\"" + bo.getId() + "\",\"status\":\"" + bo.getStatus() + "\"}");
     }
 

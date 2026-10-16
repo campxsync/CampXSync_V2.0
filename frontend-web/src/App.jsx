@@ -8,8 +8,6 @@ import {
   ShieldCheck,
   Plus,
   RefreshCw,
-  Search,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Database,
@@ -24,13 +22,64 @@ import {
   Clock,
   Zap,
   Tag,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { api, DEFAULT_CONTEXT } from './services/api';
+import { useAuth } from './context/AuthContext';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [context, setContext] = useState(DEFAULT_CONTEXT);
+  const {
+    tenantId,
+    userRole,
+    userEmail,
+    isAuthenticated,
+    isConfigured: isSupabaseConfigured,
+    isMockFallback,
+    apiContext,
+    login,
+    loginWithStagingTestTenant,
+    logout
+  } = useAuth();
+
+  // Auth Modal States
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [authFormError, setAuthFormError] = useState(null);
+
+  // Dynamic context derived from Supabase session or explicit developer mock mode
+  const context = React.useMemo(() => {
+    if (isAuthenticated) {
+      return {
+        ...apiContext,
+        userName: userEmail ? userEmail.split('@')[0] : 'Authenticated User',
+        userRole: userRole || 'authenticated',
+        tenantName: tenantId ? `Tenant ${tenantId.substring(0, 8)}` : DEFAULT_CONTEXT.tenantName,
+        tenantCode: tenantId ? `T-${tenantId.substring(0, 6)}`.toUpperCase() : DEFAULT_CONTEXT.tenantCode
+      };
+    }
+    if (isMockFallback) {
+      return {
+        ...DEFAULT_CONTEXT,
+        accessToken: null,
+        isMock: true
+      };
+    }
+    return {
+      accessToken: null,
+      userId: null,
+      userName: 'Unauthenticated',
+      userEmail: '',
+      userRole: 'ANONYMOUS',
+      tenantId: null,
+      tenantName: 'No Tenant Attached',
+      tenantCode: 'UNAUTHENTICATED',
+      isAuthenticated: false
+    };
+  }, [isAuthenticated, apiContext, userEmail, userRole, tenantId, isMockFallback]);
 
   // Live Data States
   const [institutes, setInstitutes] = useState([]);
@@ -52,75 +101,161 @@ export default function App() {
   const [changeLogs, setChangeLogs] = useState([]);
   const [retentionPolicies, setRetentionPolicies] = useState([]);
 
+  // ADM-01 Platform Role Templates (MVP-ADM01-05)
+  const [roleTemplates, setRoleTemplates] = useState([]);
+  const [roleTemplatesLoading, setRoleTemplatesLoading] = useState(false);
+  const [roleTemplatesError, setRoleTemplatesError] = useState(null);
+  const [selectedRoleTemplateForPermissions, setSelectedRoleTemplateForPermissions] = useState(null);
+  const [roleTemplatePermissions, setRoleTemplatePermissions] = useState([]);
+  const [newPermissionCode, setNewPermissionCode] = useState('');
+  const selectedRoleCodeRef = React.useRef(null);
+  useEffect(() => {
+    selectedRoleCodeRef.current = selectedRoleTemplateForPermissions?.code ?? null;
+  }, [selectedRoleTemplateForPermissions]);
+
+  // ADM-02 College Governance States
+  const [collegeProfile, setCollegeProfile] = useState(null);
+  const [collegeProfileError, setCollegeProfileError] = useState(null);
+  const [collegeSettings, setCollegeSettings] = useState([]);
+  const [featureOverrides, setFeatureOverrides] = useState([]);
+  const [localPolicies, setLocalPolicies] = useState([]);
+  const [governanceDocuments, setGovernanceDocuments] = useState([]);
+
   // Selected Filters
   const [selectedCollegeId, setSelectedCollegeId] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Modals
-  const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | 'calendar' | 'calendar-event' | 'sequence' | null
+  const [modalType, setModalType] = useState(null); // 'college' | 'department' | 'program' | 'course' | 'calendar' | 'calendar-event' | 'sequence' | 'edit-profile' | 'setting' | 'policy' | 'document' | null
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: '' }
 
+  // Auth Form Submission Handler
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setIsAuthSubmitting(true);
+    setAuthFormError(null);
+    try {
+      await login(authEmail, authPassword);
+      setShowAuthModal(false);
+      setAuthPassword('');
+      setFeedback({ type: 'success', message: 'Authenticated successfully with Supabase Auth!' });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setAuthFormError(err.message || 'Authentication failed');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
   // Load Initial Data
   const loadData = async () => {
+    // If unauthenticated and mock mode is disabled, inform user
+    if (!isAuthenticated && !isMockFallback) {
+      setGatewayStatus('STANDBY');
+      setFeedback({
+        type: 'error',
+        message: 'Unauthenticated: Sign in via Supabase Auth or enable developer mock mode (VITE_ENABLE_MOCK_FALLBACK=true) to load data.'
+      });
+      return;
+    }
+
     try {
-      const [
-        gwHealth,
-        gwRoutes,
-        instData,
-        colData,
-        depData,
-        progData,
-        crsData,
-        calData,
-        seqData,
-        lkpData,
-        accData,
-        chgData,
-        retData
-      ] = await Promise.all([
+      const activeCtx = context;
+      const results = await Promise.allSettled([
         api.getGatewayHealth(),
         api.getGatewayRoutes(),
-        api.getInstitutes(context),
-        api.getColleges(context),
-        api.getDepartments(context),
-        api.getPrograms(context),
-        api.getCourses(context),
-        api.getCalendars(context),
-        api.getNumberSequences(context),
-        api.getLookupTypes(context),
-        api.getAccessEvents(25, context),
-        api.getChangeLogs(25, context),
-        api.getRetentionPolicies(context)
+        api.getInstitutes(activeCtx),
+        api.getColleges(activeCtx),
+        api.getDepartments(activeCtx),
+        api.getPrograms(activeCtx),
+        api.getCourses(activeCtx),
+        api.getCalendars(activeCtx),
+        api.getNumberSequences(activeCtx),
+        api.getLookupTypes(activeCtx),
+        api.getAccessEvents(25, activeCtx),
+        api.getChangeLogs(25, activeCtx),
+        api.getRetentionPolicies(activeCtx),
+        api.getRoleTemplates(activeCtx).then(r => { setRoleTemplatesError(null); return r; }).catch(e => { setRoleTemplatesError(e.message || 'Error fetching role templates'); return []; }),
+        api.getCollegeProfile(activeCtx).then(p => { setCollegeProfileError(null); return p; }).catch(e => { setCollegeProfileError(e.message || 'Error fetching college profile'); return null; }),
+        api.getCollegeSettings(activeCtx),
+        api.getFeatureOverrides(activeCtx),
+        api.getLocalPolicies(activeCtx),
+        api.getGovernanceDocuments(activeCtx)
       ]);
 
-      setGatewayStatus(gwHealth.status === 'UP' ? 'ONLINE' : 'STANDBY');
-      setGatewayRoutes(gwRoutes.routes || []);
-      setInstitutes(instData.institutes || []);
-      setColleges(colData.colleges || []);
-      setDepartments(depData.departments || []);
-      setPrograms(progData.programs || []);
-      setCourses(crsData.courses || []);
-      setCalendars(calData.calendars || []);
-      setNumberSequences(seqData.sequences || []);
-      setLookupTypes(lkpData.lookupTypes || []);
-      setAccessEvents(accData.accessEvents || []);
-      setChangeLogs(chgData.changeLogs || []);
-      setRetentionPolicies(retData.retentionPolicies || []);
+      const [
+        gwHealthRes,
+        gwRoutesRes,
+        instRes,
+        colRes,
+        depRes,
+        progRes,
+        crsRes,
+        calRes,
+        seqRes,
+        lkpRes,
+        accRes,
+        chgRes,
+        retRes,
+        rtRes,
+        profRes,
+        setgRes,
+        ovrRes,
+        polRes,
+        docRes
+      ] = results;
 
-      if (colData.colleges && colData.colleges.length > 0 && !selectedCollegeId) {
-        setSelectedCollegeId(colData.colleges[0].id);
+      if (gwHealthRes.status === 'fulfilled') {
+        setGatewayStatus(gwHealthRes.value?.status === 'UP' ? 'ONLINE' : (gwHealthRes.value?.status || 'STANDBY'));
+      } else {
+        setGatewayStatus('OFFLINE');
       }
-      if (calData.calendars && calData.calendars.length > 0) {
-        const initCalId = selectedCalendarId || calData.calendars[0].id;
-        setSelectedCalendarId(initCalId);
-        loadCalendarEvents(initCalId);
+
+      if (gwRoutesRes.status === 'fulfilled') setGatewayRoutes(gwRoutesRes.value?.routes || []);
+      if (instRes.status === 'fulfilled') setInstitutes(instRes.value?.institutes || []);
+      if (colRes.status === 'fulfilled') {
+        const colList = colRes.value?.colleges || [];
+        setColleges(colList);
+        if (colList.length > 0 && !selectedCollegeId) setSelectedCollegeId(colList[0].id);
+      }
+      if (depRes.status === 'fulfilled') setDepartments(depRes.value?.departments || []);
+      if (progRes.status === 'fulfilled') setPrograms(progRes.value?.programs || []);
+      if (crsRes.status === 'fulfilled') setCourses(crsRes.value?.courses || []);
+      if (calRes.status === 'fulfilled') {
+        const calList = calRes.value?.calendars || [];
+        setCalendars(calList);
+        if (calList.length > 0) {
+          const initCalId = selectedCalendarId || calList[0].id;
+          setSelectedCalendarId(initCalId);
+          loadCalendarEvents(initCalId);
+        }
+      }
+      if (seqRes.status === 'fulfilled') setNumberSequences(seqRes.value?.sequences || []);
+      if (lkpRes.status === 'fulfilled') setLookupTypes(lkpRes.value?.lookupTypes || []);
+      if (accRes.status === 'fulfilled') setAccessEvents(accRes.value?.accessEvents || []);
+      if (chgRes.status === 'fulfilled') setChangeLogs(chgRes.value?.changeLogs || []);
+      if (retRes.status === 'fulfilled') setRetentionPolicies(retRes.value?.retentionPolicies || []);
+      if (rtRes.status === 'fulfilled') setRoleTemplates(rtRes.value?.templates || (Array.isArray(rtRes.value) ? rtRes.value : []));
+      if (profRes.status === 'fulfilled') setCollegeProfile(profRes.value || null);
+      if (setgRes.status === 'fulfilled') setCollegeSettings(setgRes.value?.settings || []);
+      if (ovrRes.status === 'fulfilled') setFeatureOverrides(ovrRes.value?.overrides || []);
+      if (polRes.status === 'fulfilled') setLocalPolicies(polRes.value?.policies || []);
+      if (docRes.status === 'fulfilled') setGovernanceDocuments(docRes.value?.documents || []);
+
+      const rejected = results.filter(r => r.status === 'rejected');
+      if (rejected.length > 0) {
+        const errors = rejected.map(r => r.reason?.message || 'Request failed');
+        setFeedback({
+          type: 'error',
+          message: `${rejected.length} API operation(s) failed: ${errors.slice(0, 2).join(' | ')}${errors.length > 2 ? ' ...' : ''}`
+        });
       }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
+      setFeedback({ type: 'error', message: err.message || 'Error loading dashboard data' });
     }
   };
 
@@ -145,9 +280,46 @@ export default function App() {
     }
   };
 
+  const handlePublishPolicy = async (policyCode) => {
+    try {
+      await api.publishLocalPolicy(policyCode, context);
+      setLocalPolicies(prev => prev.map(p => p.policyCode === policyCode ? { ...p, status: 'PUBLISHED' } : p));
+      setFeedback({ type: 'success', message: `Local Policy ${policyCode} published and active across college!` });
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Error publishing policy' });
+    }
+  };
+
+  const handleDeleteRoleTemplate = async (template) => {
+    if (!window.confirm(`Are you sure you want to delete role template "${template.name || template.code}"?`)) return;
+    try {
+      await api.deleteRoleTemplate(template.code || template.id, context);
+      setRoleTemplates(prev => prev.filter(t => t.code !== template.code));
+      setFeedback({ type: 'success', message: `Role Template ${template.code} soft-deleted successfully.` });
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Error deleting role template' });
+    }
+  };
+
+  const loadRoleTemplatePermissions = async (roleCode) => {
+    try {
+      const res = await api.getRoleTemplatePermissions(roleCode, context);
+      if (selectedRoleCodeRef.current === roleCode) {
+        setRoleTemplatePermissions(res?.permissions || []);
+      }
+      return res?.permissions || [];
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to load permissions for role template' });
+      throw err;
+    }
+  };
+
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isAuthenticated, isMockFallback]);
 
   // Filtered views
   const currentCollege = colleges.find(c => c.id === selectedCollegeId) || colleges[0];
@@ -204,17 +376,18 @@ export default function App() {
         setPrograms(prev => [...prev, { ...payload, id: res.id || 'prog-' + Date.now(), status: 'ACTIVE', published: true }]);
         setFeedback({ type: 'success', message: `Academic Program ${payload.programCode} created!` });
       } else if (modalType === 'course') {
+        const deptId = selectedDeptId || filteredDepartments[0]?.id || formData.departmentId || 'DEP_ACADEMIC';
         const payload = {
           code: formData.code?.toUpperCase(),
           name: formData.name,
           credits: parseFloat(formData.credits || '3.0'),
           level: formData.level || '100',
           description: formData.description || '',
-          departmentId: selectedDeptId || filteredDepartments[0]?.id,
+          departmentId: deptId,
           programId: selectedProgramId || filteredPrograms[0]?.id
         };
         const res = await api.createCourse(payload, context);
-        setCourses(prev => [...prev, { ...payload, id: res.id || 'crs-' + Date.now(), status: 'PUBLISHED' }]);
+        setCourses(prev => [...prev, { ...payload, id: res.id || 'crs-' + Date.now(), status: res.status || 'DRAFT' }]);
         setFeedback({ type: 'success', message: `Course ${payload.code} successfully registered in Academic Catalog!` });
       } else if (modalType === 'edit-department') {
         const payload = {
@@ -229,7 +402,8 @@ export default function App() {
           title: formData.name,
           name: formData.name,
           credits: parseFloat(formData.credits || '3.0'),
-          description: formData.description || ''
+          description: formData.description || '',
+          departmentId: formData.departmentId || selectedDeptId || filteredDepartments[0]?.id || 'DEP_ACADEMIC'
         };
         const res = await api.updateCourse(formData.id, payload, context);
         setCourses(prev => prev.map(c => c.id === formData.id ? { ...c, name: res.name || res.title || formData.name, credits: payload.credits, description: payload.description } : c));
@@ -267,6 +441,78 @@ export default function App() {
         const res = await api.createNumberSequence(payload, context);
         setNumberSequences(prev => [...prev, { ...payload, id: res.id || 'seq-' + Date.now() }]);
         setFeedback({ type: 'success', message: `Number Sequence ${payload.scopeKey} registered for atomic generation!` });
+      } else if (modalType === 'edit-profile') {
+        const payload = {
+          collegeCode: formData.code?.toUpperCase() || formData.collegeCode || currentCollege?.code || 'COL_NCET',
+          displayName: formData.name || formData.displayName || 'National College of Engineering',
+          legalName: formData.legalName || formData.name || 'NCET Educational Trust',
+          status: formData.status || 'ACTIVE',
+          accreditationRefs: typeof formData.accreditationRefs === 'string'
+            ? formData.accreditationRefs.split(',').map(s => s.trim()).filter(Boolean)
+            : (formData.accreditationRefs || ['NAAC_A_PLUS', 'NBA_TIER_1'])
+        };
+        const updated = await api.updateCollegeProfile(payload, context);
+        setCollegeProfile(updated);
+        setFeedback({ type: 'success', message: `Operational profile for ${payload.collegeCode} updated in core.colleges!` });
+      } else if (modalType === 'setting') {
+        const isSec = !!formData.isSecret;
+        const payload = {
+          key: formData.code?.toUpperCase() || formData.key?.toUpperCase(),
+          value: formData.name || formData.value || '',
+          dataType: formData.dataType || 'STRING',
+          secret: isSec,
+          isSecret: isSec
+        };
+        const saved = await api.setCollegeSetting(payload, context);
+        setCollegeSettings(prev => {
+          const idx = prev.findIndex(s => s.key === payload.key);
+          const fullSaved = {
+            ...payload,
+            ...saved,
+            value: isSec ? '********' : (saved.value || payload.value),
+            dataType: saved.dataType || payload.dataType
+          };
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = fullSaved;
+            return next;
+          }
+          return [...prev, fullSaved];
+        });
+        setFeedback({ type: 'success', message: `Setting ${payload.key} persisted to cfg.setting_values!` });
+      } else if (modalType === 'policy') {
+        const payload = {
+          policyCode: formData.code?.toUpperCase() || formData.policyCode?.toUpperCase()
+        };
+        const created = await api.createLocalPolicy(payload, context);
+        setLocalPolicies(prev => [...prev, created]);
+        setFeedback({ type: 'success', message: `Local Policy ${payload.policyCode} registered in cfg.policies!` });
+      } else if (modalType === 'document') {
+        const payload = {
+          title: formData.name || formData.title,
+          classification: formData.classification || 'INTERNAL',
+          status: formData.status || 'DRAFT'
+        };
+        const created = await api.registerGovernanceDocument(payload, context);
+        setGovernanceDocuments(prev => [...prev, created]);
+        setFeedback({ type: 'success', message: `Document "${payload.title}" registered in doc.documents!` });
+      } else if (modalType === 'role-template') {
+        const payload = {
+          code: formData.code?.toUpperCase()?.trim(),
+          name: formData.name?.trim(),
+          description: formData.description?.trim() || null
+        };
+        const res = await api.createRoleTemplate(payload, context);
+        setRoleTemplates(prev => [...prev, res]);
+        setFeedback({ type: 'success', message: `Role Template ${payload.code} successfully created!` });
+      } else if (modalType === 'edit-role-template') {
+        const payload = {
+          name: formData.name?.trim(),
+          description: formData.description?.trim() || null
+        };
+        const res = await api.updateRoleTemplate(formData.code, payload, context, formData.etag ?? formData.version);
+        setRoleTemplates(prev => prev.map(t => t.code === formData.code ? { ...t, ...res } : t));
+        setFeedback({ type: 'success', message: `Role Template ${formData.code} updated!` });
       }
 
       setModalType(null);
@@ -278,6 +524,8 @@ export default function App() {
       setIsSubmitting(false);
     }
   };
+
+  const isPlatformAdmin = context.userRole === 'SUPER_ADMIN' || context.isMock;
 
   return (
     <div className="app-container">
@@ -368,6 +616,15 @@ export default function App() {
             <span>Audit & Governance</span>
             <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{retentionPolicies.length}</span>
           </button>
+          <button
+            id="nav-tab-role-templates"
+            className={`nav-item ${activeTab === 'role-templates' ? 'active' : ''}`}
+            onClick={() => setActiveTab('role-templates')}
+          >
+            <ShieldCheck size={18} />
+            <span>Role Templates</span>
+            <span className="badge badge-indigo" style={{ marginLeft: 'auto' }}>{roleTemplates.length}</span>
+          </button>
 
           <div className="nav-label" style={{ marginTop: '20px' }}>System Diagnostics</div>
           <button
@@ -381,17 +638,30 @@ export default function App() {
         </nav>
 
         {/* User Context Footer */}
-        <div style={{ padding: '20px', borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              CA
+            <div style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: isAuthenticated
+                ? 'linear-gradient(135deg, #10b981, #06b6d4)'
+                : (isMockFallback ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #475569, #334155)'),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '0.82rem',
+              color: '#ffffff'
+            }}>
+              {isAuthenticated ? (userEmail ? userEmail.substring(0, 2).toUpperCase() : 'AU') : (isMockFallback ? 'DK' : 'UN')}
             </div>
-            <div style={{ overflow: 'hidden' }}>
+            <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ fontSize: '0.85rem', fontWeight: '600', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {context.userName}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                {context.userRole}
+                {isAuthenticated ? `Role: ${context.userRole}` : (isMockFallback ? 'Dev Mock Mode' : 'Unauthenticated')}
               </div>
             </div>
           </div>
@@ -412,12 +682,22 @@ export default function App() {
               {activeTab === 'calendars' && 'Academic Calendars & Term Schedules (ADM-01 Item 23)'}
               {activeTab === 'sequences' && 'Atomic Number Sequences & ID Generation (ADM-01 Item 24)'}
               {activeTab === 'governance' && 'Data Governance, Retention & Audit Trails (ADM-01 Items 26-28)'}
+              {activeTab === 'role-templates' && 'Platform Role Templates (ADM-01 Items 21-25)'}
               {activeTab === 'diagnostics' && 'API Gateway & Security Trust Boundary'}
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Status Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Developer Mock Mode Warning Pill */}
+            {isMockFallback && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: 'rgba(245,158,11,0.15)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#fbbf24' }}>
+                  Mock Mode Active
+                </span>
+              </div>
+            )}
+
+            {/* Gateway Status Pill */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-subtle)' }}>
               <div className={`pulse-dot ${gatewayStatus === 'ONLINE' ? 'online' : ''}`} style={{ backgroundColor: gatewayStatus === 'ONLINE' ? '#10b981' : '#f59e0b' }} />
               <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
@@ -425,12 +705,41 @@ export default function App() {
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(99,102,241,0.1)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(99,102,241,0.25)' }}>
-              <Database size={13} color="#a5b4fc" />
-              <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#c7d2fe' }}>
-                Supabase RLS: Active
-              </span>
-            </div>
+            {/* Supabase Auth State / Controls */}
+            {isAuthenticated ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'rgba(16,185,129,0.1)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                  <KeyRound size={13} color="#10b981" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#6ee7b7' }}>
+                    {userEmail}
+                  </span>
+                  {tenantId && (
+                    <span style={{ fontSize: '0.68rem', padding: '2px 6px', background: 'rgba(99,102,241,0.25)', borderRadius: '4px', color: '#c7d2fe', marginLeft: '4px' }}>
+                      Tenant: {tenantId.substring(0, 8)}...
+                    </span>
+                  )}
+                </div>
+                <button
+                  id="btn-sign-out"
+                  className="btn btn-secondary btn-sm"
+                  onClick={logout}
+                  title="Sign Out of Supabase Auth"
+                >
+                  <LogOut size={13} />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                id="btn-open-login"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowAuthModal(true)}
+                title="Sign In with Supabase"
+              >
+                <KeyRound size={14} />
+                <span>Sign In</span>
+              </button>
+            )}
 
             <button
               id="btn-refresh-data"
@@ -705,7 +1014,7 @@ export default function App() {
                     <tbody>
                       {colleges.map((col) => {
                         const colDepts = departments.filter(d => !d.collegeId || d.collegeId === col.id);
-                        return colDepts.map((dep, dIdx) => {
+                        return colDepts.map((dep) => {
                           const depProgs = programs.filter(p => !p.departmentId || p.departmentId === dep.id);
                           return (
                             <tr key={`${col.id}-${dep.id}`}>
@@ -747,76 +1056,345 @@ export default function App() {
             </div>
           )}
 
-          {/* VIEW: COLLEGES */}
+          {/* VIEW: COLLEGES (ADM-01 / ADM-02 GOVERNANCE) */}
           {activeTab === 'colleges' && (
-            <div className="glass-panel" style={{ padding: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>College Operational Tier (core.colleges)</h2>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    Autonomous operational colleges provisioned under {context.tenantName}.
-                  </p>
-                </div>
-                <button
-                  id="btn-add-college"
-                  className="btn btn-primary"
-                  onClick={() => setModalType('college')}
-                >
-                  <Plus size={16} />
-                  <span>Add College</span>
-                </button>
+            <div>
+              {/* 1. College Operational Profile Card (ADM-02 Live Kernel) */}
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+                {collegeProfileError ? (
+                  <div style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', fontWeight: '600' }}>
+                      <AlertCircle size={18} />
+                      <span>Operational Profile Service Error</span>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      {collegeProfileError}
+                    </p>
+                  </div>
+                ) : !collegeProfile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={26} color="var(--text-muted)" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                            No Operational College Profile Provisioned
+                          </h2>
+                          <span className="badge badge-amber">HTTP 404 / Not Provisioned</span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Tenant <span style={{ color: 'var(--text-secondary)' }}>{context.tenantName}</span> ({context.tenantCode}) does not currently have an active operational profile in core.colleges.
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <button
+                        id="btn-add-college-unprovisioned"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setModalType('college')}
+                      >
+                        <Plus size={14} />
+                        <span>Provision New College</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={28} color="#fff" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <h2 style={{ fontSize: '1.35rem', fontWeight: '700' }}>
+                            {collegeProfile.displayName || collegeProfile.legalName || collegeProfile.collegeCode}
+                          </h2>
+                          <span className="badge badge-emerald">
+                            {collegeProfile.status || 'ACTIVE'}
+                          </span>
+                          <span className="badge badge-indigo">
+                            Code: {collegeProfile.collegeCode}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          Legal Entity: <span style={{ color: 'var(--text-primary)' }}>{collegeProfile.legalName || 'Unspecified Legal Entity'}</span> • Version: v{collegeProfile.version || collegeProfile.currentVersion || 1}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Accreditations:</span>
+                          {(collegeProfile.accreditationRefs && collegeProfile.accreditationRefs.length > 0) ? (
+                            collegeProfile.accreditationRefs.map((acc, idx) => (
+                              <span key={idx} className="badge badge-amber" style={{ fontSize: '0.75rem' }}>
+                                {acc}
+                              </span>
+                            ))
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>None registered</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        id="btn-edit-operational-profile"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          setFormData({
+                            code: collegeProfile.collegeCode,
+                            name: collegeProfile.displayName || '',
+                            legalName: collegeProfile.legalName || '',
+                            accreditationRefs: (collegeProfile.accreditationRefs || []).join(', ')
+                          });
+                          setModalType('edit-profile');
+                        }}
+                      >
+                        <Sparkles size={14} />
+                        <span>Edit Operational Profile</span>
+                      </button>
+                      <button
+                        id="btn-add-college"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setModalType('college')}
+                      >
+                        <Plus size={14} />
+                        <span>Add College</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="table-container">
-                <table className="data-table" id="table-colleges">
-                  <thead>
-                    <tr>
-                      <th>College Code</th>
-                      <th>College Name</th>
-                      <th>Affiliation</th>
-                      <th>Established</th>
-                      <th>Departments</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {colleges.map((col) => (
-                      <tr key={col.id}>
-                        <td>
-                          <span style={{ fontWeight: '700', color: '#fff', letterSpacing: '0.04em' }}>{col.code}</span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: '600' }}>{col.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{col.email || '—'}</div>
-                        </td>
-                        <td>{col.affiliatingUniversity || 'Autonomous'}</td>
-                        <td>{col.establishedYear || '—'}</td>
-                        <td>
-                          <span className="badge badge-indigo">
-                            {departments.filter(d => !d.collegeId || d.collegeId === col.id).length} Departments
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${col.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
-                            {col.status}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              setSelectedCollegeId(col.id);
-                              setActiveTab('departments');
-                            }}
-                          >
-                            Select & View
-                          </button>
-                        </td>
+              {/* 2. Provisioned Colleges Table */}
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px' }}>Provisioned College Units (core.colleges)</h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-colleges">
+                    <thead>
+                      <tr>
+                        <th>College Code</th>
+                        <th>College Name</th>
+                        <th>Affiliation</th>
+                        <th>Established</th>
+                        <th>Departments</th>
+                        <th>Status</th>
+                        <th>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {colleges.map((col) => (
+                        <tr key={col.id}>
+                          <td>
+                            <span style={{ fontWeight: '700', color: '#fff', letterSpacing: '0.04em' }}>{col.code}</span>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: '600' }}>{col.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{col.email || '—'}</div>
+                          </td>
+                          <td>{col.affiliatingUniversity || 'Autonomous'}</td>
+                          <td>{col.establishedYear || '—'}</td>
+                          <td>
+                            <span className="badge badge-indigo">
+                              {departments.filter(d => !d.collegeId || d.collegeId === col.id).length} Departments
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${col.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {col.status}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setSelectedCollegeId(col.id);
+                                setActiveTab('departments');
+                              }}
+                            >
+                              Select & View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 3. Settings & Feature Overrides (cfg.setting_values & cfg.policies) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                {/* College Settings */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>College Setting Overrides</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>cfg.setting_values (scope: COLLEGE)</p>
+                    </div>
+                    <button
+                      id="btn-add-setting"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setFormData({});
+                        setModalType('setting');
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>Add Setting</span>
+                    </button>
+                  </div>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Setting Key</th>
+                          <th>Value</th>
+                          <th>Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {collegeSettings.map((s, idx) => (
+                          <tr key={idx}>
+                            <td><code>{s.key}</code></td>
+                            <td>
+                              <span style={{ color: s.secret || s.isSecret ? 'var(--accent-amber)' : 'inherit', fontFamily: 'monospace' }}>
+                                {s.secret || s.isSecret ? '********' : s.value}
+                              </span>
+                            </td>
+                            <td><span className="badge badge-indigo">{s.dataType}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Feature Flag Overrides (cfg.feature_overrides)</span>
+                        <span className="badge badge-indigo">{featureOverrides.length} Active</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {featureOverrides.map((fo, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{fo.flagKey}</span>
+                            <span className={`badge ${fo.overrideValue === 'true' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {fo.overrideValue === 'true' ? 'ENABLED' : 'DISABLED'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Local Policies */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>Local Policies & Compliance</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>cfg.policies (enforcement: ENFORCE)</p>
+                    </div>
+                    <button
+                      id="btn-add-policy"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setFormData({});
+                        setModalType('policy');
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>New Policy</span>
+                    </button>
+                  </div>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Policy Code</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {localPolicies.map((p, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <div style={{ fontWeight: '600' }}>{p.policyCode}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Approved: {p.approvedBy || 'Pending'}</div>
+                            </td>
+                            <td>
+                              <span className={`badge ${p.status === 'PUBLISHED' ? 'badge-emerald' : p.status === 'APPROVED' ? 'badge-cyan' : 'badge-amber'}`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td>
+                              {p.status !== 'PUBLISHED' && (
+                                <button
+                                  className="btn btn-emerald btn-sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+                                  onClick={() => handlePublishPolicy(p.policyCode)}
+                                >
+                                  Publish
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Governance Documents (doc.documents) */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>Governance Charters & Document Versions</h3>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>doc.documents & doc.document_versions</p>
+                  </div>
+                  <button
+                    id="btn-add-document"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setFormData({});
+                      setModalType('document');
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span>Register Document</span>
+                  </button>
+                </div>
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Document Title</th>
+                        <th>Classification</th>
+                        <th>Current Version</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {governanceDocuments.map((doc, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <div style={{ fontWeight: '600', color: '#fff' }}>{doc.title}</div>
+                          </td>
+                          <td>
+                            <span className="badge badge-indigo">{doc.classification}</span>
+                          </td>
+                          <td>
+                            <span className="badge badge-cyan">v{doc.currentVersion || 1}</span>
+                          </td>
+                          <td>
+                            <span className={`badge ${doc.status === 'PUBLISHED' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {doc.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -1071,6 +1649,24 @@ export default function App() {
                             }}
                           >
                             Edit
+                          </button>
+                          <button
+                            id={`btn-delete-course-${crs.code}`}
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: '#ef4444', marginLeft: '6px' }}
+                            onClick={async () => {
+                              if (!window.confirm(`Are you sure you want to delete course ${crs.code}?`)) return;
+                              try {
+                                await api.deleteCourse(crs.id, context);
+                                setCourses(prev => prev.filter(c => c.id !== crs.id));
+                                setFeedback({ type: 'success', message: `Course ${crs.code} soft-deleted from acd.courses!` });
+                                setTimeout(() => setFeedback(null), 4000);
+                              } catch (err) {
+                                setFeedback({ type: 'error', message: err.message || 'Failed to soft delete course' });
+                              }
+                            }}
+                          >
+                            Delete
                           </button>
                         </td>
                       </tr>
@@ -1667,6 +2263,285 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* VIEW: ROLE TEMPLATES (ADM-01 PLATFORM GOVERNANCE) */}
+          {activeTab === 'role-templates' && (
+            <div>
+              {/* Header card with actions */}
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ShieldCheck size={28} color="#fff" />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h2 style={{ fontSize: '1.35rem', fontWeight: '700' }}>Platform Role Templates</h2>
+                        <span className="badge badge-indigo">ADM-01 Core</span>
+                        <span className="badge badge-cyan">{roleTemplates.length} Templates</span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        System-wide canonical role definitions, permission mappings, and template lifecycle for colleges.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      id="btn-refresh-role-templates"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => loadData()}
+                      disabled={roleTemplatesLoading}
+                    >
+                      <RefreshCw size={14} className={roleTemplatesLoading ? 'spin' : ''} />
+                      <span>Refresh</span>
+                    </button>
+                    <button
+                      id="btn-add-role-template"
+                      className="btn btn-primary btn-sm"
+                      disabled={!isPlatformAdmin}
+                      title={!isPlatformAdmin ? "Role templates are managed by SUPER_ADMIN only" : "Create new role template"}
+                      onClick={() => {
+                        if (!isPlatformAdmin) return;
+                        setFormData({});
+                        setModalType('role-template');
+                      }}
+                      style={!isPlatformAdmin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                    >
+                      <Plus size={14} />
+                      <span>New Role Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Platform Admin Role Requirement Banner */}
+                {context.userRole !== 'SUPER_ADMIN' && !context.isMock && (
+                  <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={18} color="#f59e0b" />
+                    <span style={{ fontSize: '0.85rem', color: '#fbbf24' }}>
+                      <strong>Platform Tier Restriction:</strong> Role templates are owned at the platform tier. Non-platform administrators have read-only visibility; create, edit, delete, and permission binding actions require <code>SUPER_ADMIN</code> privileges.
+                    </span>
+                  </div>
+                )}
+
+                {roleTemplatesError && (
+                  <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={18} color="#ef4444" />
+                    <span style={{ fontSize: '0.85rem', color: '#f87171' }}>
+                      <strong>Service Error:</strong> {roleTemplatesError}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Templates Table */}
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px' }}>Canonical Template Catalog</h3>
+                <div className="table-container">
+                  <table className="data-table" id="table-role-templates">
+                    <thead>
+                      <tr>
+                        <th>Role Code</th>
+                        <th>Template Name</th>
+                        <th>Description</th>
+                        <th>System Role</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roleTemplates.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                            {roleTemplatesLoading ? 'Loading role templates from service...' : 'No role templates registered yet. Click "New Role Template" to create one.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        roleTemplates.map(tpl => (
+                          <tr key={tpl.id || tpl.code}>
+                            <td>
+                              <span style={{ fontFamily: 'monospace', fontWeight: '700', color: 'var(--accent-primary)' }}>
+                                {tpl.code}
+                              </span>
+                            </td>
+                            <td style={{ fontWeight: '500' }}>{tpl.name}</td>
+                            <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '300px' }}>
+                              {tpl.description || '—'}
+                            </td>
+                            <td>
+                              {tpl.isSystem ? (
+                                <span className="badge badge-indigo">SYSTEM</span>
+                              ) : (
+                                <span className="badge badge-cyan">CUSTOM</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`badge ${tpl.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
+                                {tpl.status || 'ACTIVE'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                <button
+                                  className="btn btn-secondary btn-sm btn-role-permissions"
+                                  title="Manage Permissions"
+                                  onClick={() => {
+                                    setRoleTemplatePermissions([]);
+                                    setNewPermissionCode('');
+                                    setSelectedRoleTemplateForPermissions(tpl);
+                                    loadRoleTemplatePermissions(tpl.code).catch(() => {});
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                >
+                                  Permissions
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-sm btn-edit-role-template"
+                                  title={!isPlatformAdmin ? "Requires SUPER_ADMIN privileges" : "Edit Template"}
+                                  disabled={!isPlatformAdmin}
+                                  onClick={() => {
+                                    if (!isPlatformAdmin) return;
+                                    setFormData({
+                                      id: tpl.id,
+                                      code: tpl.code,
+                                      name: tpl.name,
+                                      description: tpl.description || '',
+                                      version: tpl.version,
+                                      etag: tpl.version != null ? String(tpl.version) : (tpl.rowVersion != null ? String(tpl.rowVersion) : undefined)
+                                    });
+                                    setModalType('edit-role-template');
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', opacity: !isPlatformAdmin ? 0.5 : 1, cursor: !isPlatformAdmin ? 'not-allowed' : 'pointer' }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-sm btn-delete-role-template"
+                                  title={!isPlatformAdmin ? "Requires SUPER_ADMIN privileges" : "Delete Template"}
+                                  disabled={!isPlatformAdmin}
+                                  onClick={() => {
+                                    if (!isPlatformAdmin) return;
+                                    handleDeleteRoleTemplate(tpl);
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#f87171', opacity: !isPlatformAdmin ? 0.5 : 1, cursor: !isPlatformAdmin ? 'not-allowed' : 'pointer' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Permissions Management Sub-Modal */}
+              {selectedRoleTemplateForPermissions && (
+                <div className="modal-overlay" onClick={() => setSelectedRoleTemplateForPermissions(null)}>
+                  <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px' }}>
+                    <div className="modal-header">
+                      <div>
+                        <h3 style={{ fontSize: '1.15rem' }}>Role Permissions: {selectedRoleTemplateForPermissions.name}</h3>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          Code: <code>{selectedRoleTemplateForPermissions.code}</code>
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setSelectedRoleTemplateForPermissions(null)}
+                        style={{ padding: '4px', borderRadius: '50%' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="modal-body">
+                      {/* Add permission input */}
+                      {isPlatformAdmin ? (
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                          <input
+                            id="input-bind-permission-code"
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g. acd01.write, core.colleges.view"
+                            value={newPermissionCode}
+                            onChange={e => setNewPermissionCode(e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            id="btn-bind-permission"
+                            className="btn btn-primary btn-sm"
+                            disabled={!newPermissionCode.trim()}
+                            onClick={async () => {
+                              try {
+                                await api.bindRoleTemplatePermission(selectedRoleTemplateForPermissions.code, newPermissionCode.trim(), context);
+                                setNewPermissionCode('');
+                                await loadRoleTemplatePermissions(selectedRoleTemplateForPermissions.code);
+                                setFeedback({ type: 'success', message: 'Permission successfully bound!' });
+                              } catch (err) {
+                                setFeedback({ type: 'error', message: err.message || 'Error binding permission' });
+                              }
+                            }}
+                          >
+                            Bind Permission
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '8px 12px', marginBottom: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.1)', color: '#fbbf24', fontSize: '0.8rem' }}>
+                          Permission modifications require Platform Administrator (<code>SUPER_ADMIN</code>) privileges.
+                        </div>
+                      )}
+
+                      {/* Permissions List */}
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {roleTemplatePermissions.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No permissions explicitly bound to this template.
+                          </div>
+                        ) : (
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>Permission Code</th>
+                                <th style={{ textAlign: 'right' }}>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {roleTemplatePermissions.map(p => (
+                                <tr key={p.permissionCode || p.id}>
+                                  <td><code>{p.permissionCode}</code></td>
+                                  <td style={{ textAlign: 'right' }}>
+                                    {isPlatformAdmin && (
+                                      <button
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ padding: '2px 6px', fontSize: '0.7rem', color: '#f87171' }}
+                                        onClick={async () => {
+                                          try {
+                                            await api.unbindRoleTemplatePermission(selectedRoleTemplateForPermissions.code, p.permissionCode, context);
+                                            await loadRoleTemplatePermissions(selectedRoleTemplateForPermissions.code);
+                                            setFeedback({ type: 'success', message: `Unbound permission ${p.permissionCode}` });
+                                          } catch (err) {
+                                            setFeedback({ type: 'error', message: err.message || 'Error unbinding permission' });
+                                          }
+                                        }}
+                                      >
+                                        Remove
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -1685,6 +2560,12 @@ export default function App() {
                 {modalType === 'calendar' && 'Create Academic Calendar (ADM-01)'}
                 {modalType === 'calendar-event' && 'Schedule Calendar Milestone / Event (ADM-01)'}
                 {modalType === 'sequence' && 'Define Atomic Number Sequence (ADM-01)'}
+                {modalType === 'edit-profile' && 'Edit College Operational Profile (core.colleges)'}
+                {modalType === 'setting' && 'Configure College Setting (cfg.setting_values)'}
+                {modalType === 'policy' && 'Register Local Governance Policy (cfg.policies)'}
+                {modalType === 'document' && 'Register Governance Document (doc.documents)'}
+                {modalType === 'role-template' && 'Create Platform Role Template (ADM-01)'}
+                {modalType === 'edit-role-template' && 'Edit Role Template (ADM-01)'}
               </h3>
               <button
                 className="btn btn-secondary btn-sm"
@@ -1708,12 +2589,18 @@ export default function App() {
                       {modalType === 'edit-course' && 'Course Code (Read-Only)'}
                       {modalType === 'calendar' && 'Calendar Code (e.g. AY2026_FALL)'}
                       {modalType === 'sequence' && 'Scope Key (e.g. STU_ID, APP_NUM)'}
+                      {modalType === 'edit-profile' && 'College Code (Read-Only)'}
+                      {modalType === 'setting' && 'Setting Key (e.g. ATTENDANCE_MIN_THRESHOLD)'}
+                      {modalType === 'policy' && 'Policy Code (e.g. POL_ACADEMIC_INTEGRITY)'}
+                      {modalType === 'document' && 'Document Code / Reference'}
+                      {modalType === 'role-template' && 'Role Code (e.g. LAB_INSTRUCTOR)'}
+                      {modalType === 'edit-role-template' && 'Role Code (Read-Only)'}
                     </label>
                     <input
                       id="input-create-code"
                       type="text"
                       required
-                      disabled={modalType === 'edit-department' || modalType === 'edit-course'}
+                      disabled={modalType === 'edit-department' || modalType === 'edit-course' || modalType === 'edit-profile' || modalType === 'edit-role-template'}
                       className="form-input"
                       placeholder="Enter uppercase unique code"
                       value={formData.code || ''}
@@ -1731,6 +2618,11 @@ export default function App() {
                     {modalType === 'calendar' && 'Calendar Display Name'}
                     {modalType === 'calendar-event' && 'Event Milestone Title'}
                     {modalType === 'sequence' && 'Scope Description / Label'}
+                    {modalType === 'edit-profile' && 'Display Name (e.g. NCET Campus)'}
+                    {modalType === 'setting' && 'Setting Value (e.g. 75 or Token)'}
+                    {modalType === 'policy' && 'Policy Title / Summary'}
+                    {modalType === 'document' && 'Document Official Title'}
+                    {(modalType === 'role-template' || modalType === 'edit-role-template') && 'Role Display Name'}
                   </label>
                   <input
                     id="input-create-name"
@@ -1837,6 +2729,20 @@ export default function App() {
                   </>
                 )}
 
+                {(modalType === 'role-template' || modalType === 'edit-role-template') && (
+                  <div className="form-group">
+                    <label className="form-label">Template Description (Optional)</label>
+                    <textarea
+                      id="input-create-description"
+                      rows="3"
+                      className="form-textarea"
+                      placeholder="Functional responsibilities and scope of this role template"
+                      value={formData.description || ''}
+                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    />
+                  </div>
+                )}
+
                 {modalType === 'calendar' && (
                   <div className="form-group">
                     <label className="form-label">Calendar Category</label>
@@ -1919,6 +2825,91 @@ export default function App() {
                     </div>
                   </>
                 )}
+
+                {modalType === 'edit-profile' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Legal Name (core.colleges.legal_name)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Legal Trust or Foundation Name"
+                        value={formData.legalName || ''}
+                        onChange={e => setFormData({ ...formData, legalName: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Accreditations (comma-separated: NAAC, NBA, NIRF)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="NAAC_A_PLUS, NBA_TIER_1, NIRF_TOP_50"
+                        value={formData.accreditationRefs || ''}
+                        onChange={e => setFormData({ ...formData, accreditationRefs: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'setting' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Configuration Data Type</label>
+                      <select
+                        className="form-select"
+                        value={formData.dataType || 'STRING'}
+                        onChange={e => setFormData({ ...formData, dataType: e.target.value })}
+                      >
+                        <option value="STRING">STRING</option>
+                        <option value="NUMBER">NUMBER</option>
+                        <option value="BOOLEAN">BOOLEAN</option>
+                        <option value="JSON">JSON</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                      <input
+                        type="checkbox"
+                        id="chk-setting-secret"
+                        checked={!!formData.isSecret}
+                        onChange={e => setFormData({ ...formData, isSecret: e.target.checked })}
+                      />
+                      <label htmlFor="chk-setting-secret" className="form-label" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                        Mask as Sensitive Secret (Value masked as ******** in queries)
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {modalType === 'policy' && (
+                  <div className="form-group">
+                    <label className="form-label">Policy Status Lifecycle</label>
+                    <select
+                      className="form-select"
+                      value={formData.status || 'DRAFT'}
+                      onChange={e => setFormData({ ...formData, status: e.target.value })}
+                    >
+                      <option value="DRAFT">DRAFT (Under Review)</option>
+                      <option value="APPROVED">APPROVED (Awaiting Publication)</option>
+                      <option value="PUBLISHED">PUBLISHED (Active Enforcement)</option>
+                    </select>
+                  </div>
+                )}
+
+                {modalType === 'document' && (
+                  <div className="form-group">
+                    <label className="form-label">Security Classification</label>
+                    <select
+                      className="form-select"
+                      value={formData.classification || 'INTERNAL'}
+                      onChange={e => setFormData({ ...formData, classification: e.target.value })}
+                    >
+                      <option value="INTERNAL">INTERNAL (Campus Members)</option>
+                      <option value="PUBLIC">PUBLIC (External Access)</option>
+                      <option value="CONFIDENTIAL">CONFIDENTIAL (Leadership Only)</option>
+                      <option value="RESTRICTED">RESTRICTED (Board Only)</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">
@@ -1940,6 +2931,124 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Supabase Authentication Modal */}
+      {showAuthModal && (
+        <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="brand-icon" style={{ width: '32px', height: '32px' }}>
+                  <KeyRound size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Supabase Authentication</h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sign in to authenticate with Supabase Auth</p>
+                </div>
+              </div>
+              <button className="btn-close" onClick={() => setShowAuthModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              {!isSupabaseConfigured && (
+                <div className="banner banner-info" style={{ marginBottom: '16px' }}>
+                  <AlertCircle size={16} />
+                  <span style={{ fontSize: '0.8rem' }}>
+                    Supabase URL or Anon Key is not set in environment (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+                  </span>
+                </div>
+              )}
+
+              {authFormError && (
+                <div className="banner" style={{ background: 'rgba(244,63,94,0.15)', borderColor: 'rgba(244,63,94,0.3)', color: '#fda4af', marginBottom: '16px' }}>
+                  <AlertCircle size={16} />
+                  <span style={{ fontSize: '0.82rem' }}>{authFormError}</span>
+                </div>
+              )}
+
+              {/* Option to Connect Provisioned Staging College Admin Test Identity */}
+              <div style={{ marginBottom: '20px', padding: '14px', background: 'rgba(99,102,241,0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#c7d2fe', marginBottom: '4px' }}>
+                  Staging College Testing Identity
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                  Connect as authenticated College Admin inside provisioned test tenant CAMPX_STAGING (11111111-1111-1111-1111-111111111111).
+                </div>
+                <button
+                  id="btn-auth-staging-tenant"
+                  type="button"
+                  className="btn btn-emerald btn-sm"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    loginWithStagingTestTenant('11111111-1111-1111-1111-111111111111', 'ba77b8f7-ab32-46bd-85d2-5aade3526880', 'COLLEGE_ADMIN', 'admin.staging@campxsync.edu');
+                    setShowAuthModal(false);
+                    setFeedback({ type: 'success', message: 'Connected to Staging Tenant CAMPX_STAGING as College Admin!' });
+                    setTimeout(() => setFeedback(null), 4000);
+                  }}
+                >
+                  <KeyRound size={13} />
+                  <span>Connect Staging College Admin</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '16px 0' }}>
+                <hr style={{ flex: 1, borderColor: 'var(--border-subtle)' }} />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>OR SIGN IN WITH EMAIL</span>
+                <hr style={{ flex: 1, borderColor: 'var(--border-subtle)' }} />
+              </div>
+
+              <form onSubmit={handleAuthSubmit}>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label className="form-label">Email Address</label>
+                  <input
+                    id="input-auth-email"
+                    type="email"
+                    className="form-input"
+                    required
+                    value={authEmail}
+                    onChange={e => setAuthEmail(e.target.value)}
+                    placeholder="e.g. staging-admin@campx.edu"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label className="form-label">Password</label>
+                  <input
+                    id="input-auth-password"
+                    type="password"
+                    className="form-input"
+                    required
+                    value={authPassword}
+                    onChange={e => setAuthPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                  />
+                </div>
+
+                <div className="modal-footer" style={{ padding: '0', border: 'none', background: 'transparent' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowAuthModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="btn-auth-submit"
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isAuthSubmitting || !isSupabaseConfigured}
+                  >
+                    {isAuthSubmitting ? 'Authenticating...' : 'Sign In'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

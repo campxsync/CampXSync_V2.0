@@ -40,22 +40,12 @@ public class PostgresDelegationRepositoryTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require database configuration", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        tenantId = com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
+
         repository = new PostgresDelegationRepository(connectionManager);
 
         try (Connection conn = connectionManager.getConnection()) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tenantId = (UUID) rs.getObject("id");
-                    }
-                }
-            }
-
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT id FROM iam.roles WHERE tenant_id = ? AND deleted_at IS NULL LIMIT 1")) {
                 ps.setObject(1, tenantId);
@@ -66,7 +56,6 @@ public class PostgresDelegationRepositoryTest {
                 }
             }
         }
-        assumeNotNull("Requires an active tenant", tenantId);
         assumeNotNull("Requires an active role in tenant", roleId);
 
         otherTenantId = UUID.randomUUID();
@@ -113,6 +102,9 @@ public class PostgresDelegationRepositoryTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
+        if (tenantId == null || connectionManager == null || connectionManager.isClosed()) {
+            return;
+        }
         try (Connection conn = connectionManager.getConnection()) {
             conn.setAutoCommit(true);
             for (UUID delId : createdDelegationIds) {
