@@ -224,3 +224,60 @@
   - TypeScript compilation: 100% clean (`npx tsc --noEmit` completed with 0 errors).
   - Autonomous browser walkthrough: Recorded video session `phase5_college_setup_1792139744282.webp` and 11 visual screenshots across all College Admin screens.
   - Status: **PASS (100% COMPLETE)**.
+
+---
+
+## Phase 6 — Faculty Attendance (ACD-06) & Corrections
+
+- **Files Created / Modified**:
+  - `frontend/src/app/(dashboard)/faculty/page.tsx`: Complete overhaul of Faculty Workspace. Displays today's timetable slots with live attendance state (`Not started`, `Open (In Progress)`, `Submitted`), "Start Attendance" / "Resume Sheet" / "View Session" direct triggers, upcoming timetable slots forward schedule, and missed/overdue sessions alert banner with quick completion trigger.
+  - `frontend/src/app/(dashboard)/faculty/attendance/page.tsx`: Server component supporting `searchParams` (`slotId`, `sessionId`), resolving authenticated faculty identity, timetable entries, and tenant student roster.
+  - `frontend/src/app/(dashboard)/faculty/attendance/faculty-attendance-view.tsx`: Fast interactive attendance capture sheet with running counts breakdown (Present, Absent, Leave, Late, On Duty, Overall Percentage), unsaved changes guard (`beforeunload` + slot/date change confirmation), submission confirmation modal with counts summary and ledger warning, and post-submission read-only locked sheet mode with "Submitted & Read-Only" status badge.
+  - `frontend/src/app/(dashboard)/faculty/sessions/page.tsx`: Fixed database schema join to canonical `acd.course_sections` (`sec.section_code`), integrated direct review links to `/faculty/attendance?slotId=...&sessionId=...`, and added session headcount metrics.
+  - `frontend/src/app/api/college/attendance/sessions/route.ts`: Backend enforcement verifying timetable slot existence and tenant scoping, duplicate session prevention (returns existing session with `isExisting: true`), and immutable audit event logging (`ATTENDANCE_SESSION_OPENED`).
+  - `frontend/src/app/api/college/attendance/records/route.ts`: Roster student membership validation, locked session enforcement (HTTP 409 if modified post-closure), partial index conflict target `ON CONFLICT (tenant_id, session_id, student_id) WHERE (deleted_at IS NULL)`, and immutable audit event logging (`ATTENDANCE_SUBMITTED`).
+  - `frontend/src/app/api/college/attendance/corrections/route.ts`: Audited corrections with optimistic concurrency locking (`expectedVersion` vs `row_version`), mandatory justification validation (min 5 characters), domain persistence into `acd.attendance_corrections`, change logging in `audit.change_log`, audit event logging in `audit.events` (`ATTENDANCE_CORRECTED`), and asynchronous domain event emission into `sys.outbox_events` (`AttendanceCorrected`).
+  - `docs/trial/DECISIONS.md`: Added `DEC-14: Statutory Attendance Shortage Threshold (75%) Baseline Assumption` per V4 requirements.
+  - `scripts/verify_phase6_attendance.mjs`: Automated 37-test verification suite covering access control, session deduplication, roster validation, idempotent submission, read-only locking, correction permissions, optimistic locking conflicts, domain persistence, outbox event emission, 75% shortage threshold, and cross-tenant data isolation.
+- **Verification Results**:
+  - Automated verification suite: **37/37 PASSED (0 FAILED)** across 5 suites:
+    1. Route Guarding & Role Boundaries: 7/7 PASS
+    2. Session Opening & Duplicate Prevention: 6/6 PASS
+    3. Roster Validation & Attendance Submission: 8/8 PASS
+    4. Audited Attendance Corrections (ACD-06): 11/11 PASS
+    5. Shortage Reporting & Cross-Tenant Isolation: 5/5 PASS
+  - TypeScript compilation: **100% clean** (`npx tsc --noEmit` exited with 0 errors).
+  - Next.js production build: **100% clean** (`npm run build` compiled all 33 routes successfully in 11.1s).
+  - Autonomous browser walkthrough: Recorded video session `phase6_attendance_walkthrough_1792141848113.webp` and captured screenshots (`faculty_dashboard_1792141895895.png`, `faculty_attendance_sheet_1792141941950.png`, `attendance_page_loaded_1792142154003.png`).
+  - Database persistence confirmed: Staging PostgreSQL assertions verified rows in `acd.attendance_corrections`, `audit.change_log`, `audit.events`, and `sys.outbox_events`.
+  - Status: **PASS (100% COMPLETE)**.
+
+---
+
+## Phase 7 — Role-Specific Dashboards, Preferences & Reports (ACD-10)
+
+- **Files Created / Modified**:
+  - `frontend/src/app/(dashboard)/college/page.tsx`: Complete College Operations Dashboard querying real PostgreSQL counts for enrolled students (42), appointed faculty (5), attendance sessions (6), overall attendance percentage (80.8%), shortage students (4), 14-day attendance trend line points, and batch/subject distribution.
+  - `frontend/src/app/(dashboard)/college/college-dashboard-view.tsx`: Client dashboard view integrating Recharts responsive 14-day trend line chart, batch/subject bar chart, shortage student table with percentage badges, unsubmitted missed sessions alert, recent sessions table, and dynamic widget reordering.
+  - `frontend/src/app/(dashboard)/platform/page.tsx` & `platform-dashboard-view.tsx`: Platform Operator dashboard with aggregate-only metrics (institutes by lifecycle status: Active, Onboarding, Suspended, Offboarded; total platform users; system roles; recent platform audit events) with strict isolation preventing any exposure of raw tenant student or faculty rows.
+  - `frontend/src/app/(dashboard)/faculty/page.tsx` & `faculty-dashboard-view.tsx`: Faculty workspace with today's timetable slots, attendance states (`Not started`, `Open`, `Submitted`), quick Start/Resume actions, upcoming schedule slots, and missed sessions alerts.
+  - `frontend/src/lib/preferences/preference-model.ts`: Enhanced typed, versioned UserPreferences schema (version 1) supporting theme, table density (`comfortable` / `compact`), date range (7, 14, 30 days), accessibility options (high contrast, reduced motion), and role-isolated widget configuration (`college_admin`, `faculty`, `platform_admin`). Implemented `ServerPreferenceAdapter` providing authoritative PostgreSQL persistence with device local storage fallback.
+  - `frontend/src/components/preferences/preference-modal.tsx`: Workspace preferences modal with Display & Accessibility tab, Dashboard Widgets tab (ordering/hiding widgets), reset-to-defaults, live theme and DOM reactivity, and clear persistence disclosure.
+  - `frontend/src/app/api/user/preferences/route.ts`: New API route with Zod validation. `GET` loads typed preferences from `iam.user_profiles.preferences`. `PUT` updates `iam.user_profiles.preferences` in PostgreSQL, incrementing `row_version` and ensuring role widget isolation without escalation.
+  - `frontend/src/app/api/college/attendance/report/route.ts`: Enhanced ACD-10 cumulative attendance report API supporting query filters (`sectionId`, `subjectId`, `startDate`, `endDate`, `studentId`, `shortageOnly`) and formula-safe CSV export (`format=csv`).
+  - `frontend/src/components/ui/badge.tsx`: Added `label?: string` support in `BadgeProps` for custom badges.
+  - `frontend/src/middleware.ts`: Guarded unauthenticated API requests returning HTTP 401 JSON instead of page redirection.
+  - `scripts/verify_phase7_dashboards_preferences.mjs`: Automated 26-test verification suite covering role dashboard authorization, data reconciliation, Platform aggregate-only compliance, typed preference validation, PostgreSQL profile persistence, role isolation, and ACD-10 reports.
+- **Verification Results**:
+  - Automated verification suite: **26/26 PASSED (0 FAILED)** across 5 test suites:
+    1. Role Dashboard Route Guarding: 6/6 PASS
+    2. Platform Admin Aggregate-Only Compliance: 2/2 PASS
+    3. College Admin Data Reconciliation with PostgreSQL: 6/6 PASS
+    4. Preferences Foundation & PostgreSQL Persistence: 8/8 PASS
+    5. Cumulative Attendance Report & CSV Export: 4/4 PASS
+  - TypeScript compilation: **100% clean** (`npx tsc --noEmit` exited with 0 errors).
+  - Next.js production build: **100% clean** (`npm run build` compiled all 34 routes successfully with code 0).
+  - Autonomous browser walkthrough: Recorded video `phase7_dashboards_walkthrough_1792144886693.webp` and 5 screenshots across College Admin dashboard, Preference Modal, Cumulative Report, and Faculty dashboard.
+  - Status: **PASS (100% COMPLETE)**.
+
+

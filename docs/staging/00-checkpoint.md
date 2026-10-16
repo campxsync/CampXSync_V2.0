@@ -165,15 +165,34 @@
     - Status: **PASS (100% COMPLETE)**.
 
 ### 2. Next Unfinished Step
-- **Phase 5 College Admin Setup Views, People, and Assignments**: **100% COMPLETE**.
-- **Next Phase**: Phase 6/7 — Close any remaining Phase 6/7 acceptance criteria per `CampXSync_MVP_Master_Prompt_v4.md` (or proceed to Phase 8 UI polish & pre-deployment readiness).
+- **Phase 6 Faculty Attendance (ACD-06) & Corrections**: **100% COMPLETE**.
+  - Verified deliverables:
+    - `/faculty` Home: Today's scheduled timetable slots with attendance states (`Not started`, `Open (In Progress)`, `Submitted`), "Start Attendance" action, upcoming weekly slots, and missed sessions alert banner with catch-up trigger.
+    - `/faculty/attendance`: Timetable slot roster marking, real-time running counts breakdown, unsaved changes guard (`beforeunload` + slot change guard), submit confirmation modal with counts summary, and post-submission read-only locking.
+    - `/faculty/sessions`: Teaching Sessions & Attendance Archive with headcount statistics and direct session review links.
+    - `/api/college/attendance/sessions`: Slot validation, tenant scoping, duplicate session prevention (returns existing session with `isExisting: true`), and audit logging.
+    - `/api/college/attendance/records`: Roster student validation, session lock enforcement (HTTP 409 if modified post-closure), partial unique index conflict target `ON CONFLICT (tenant_id, session_id, student_id) WHERE (deleted_at IS NULL)`, and audit logging.
+    - `/api/college/attendance/corrections`: Audited corrections with optimistic locking (`expectedVersion` vs `row_version`), mandatory justification validation (min 5 characters), domain persistence in `acd.attendance_corrections`, audit logging in `audit.change_log` and `audit.events`, and event emission in `sys.outbox_events`.
+    - `DEC-14`: Statutory 75% attendance shortage threshold baseline assumption recorded in `DECISIONS.md`.
+    - Automated verification suite `scripts/verify_phase6_attendance.mjs`: **37/37 PASSED (0 FAILED)**.
+    - Production Next.js build: **100% clean** across all 33 routes.
+- **Phase 7 Deliverables Verified Live**:
+    - Complete College Operations Dashboard (`/college` & `college-dashboard-view.tsx`): Real PostgreSQL counts for enrolled students (42), faculty (5), attendance sessions (6), overall attendance (80.8%), shortage students (4), 14-day attendance trend line chart, and batch/subject distribution bar chart.
+    - Platform Operator Dashboard (`/platform` & `platform-dashboard-view.tsx`): Lifecycle state grouping (Active, Onboarding, Suspended, Offboarded), total platform users, system roles, recent platform audit logs with strict aggregate-only compliance (0 student/faculty rows exposed).
+    - Faculty Teaching Workspace (`/faculty` & `faculty-dashboard-view.tsx`): Today's timetable slots, live attendance states (`Not started`, `Open`, `Submitted`), quick actions, and unsubmitted session catch-up alerts.
+    - Typed Preferences Contract & Durable PostgreSQL Persistence: Schema v1 allowlisted payload stored in `iam.user_profiles.preferences` with `row_version` increment, role widget isolation (`college_admin`, `faculty`, `platform_admin`), display & accessibility toggles, and local device fallback.
+    - Enhanced ACD-10 Cumulative Attendance Report (`/college/attendance` & `/api/college/attendance/report`): Parameterized filters (`sectionId`, `subjectId`, `startDate`, `endDate`, `studentId`, `shortageOnly`) and formula-safe CSV export stream (`format=csv`).
+    - Automated verification suite `scripts/verify_phase7_dashboards_preferences.mjs`: **26/26 PASSED (0 FAILED)**.
+    - Production Next.js build: **100% clean** across all 34 routes.
+    - Autonomous browser walkthrough: Recorded video `phase7_dashboards_walkthrough_1792144886693.webp` and 5 screenshots.
+- **Next Phase**: Phase 8 (Professional UI Polish and Visual QA).
 
 ### 3. Exact Blocker & Classification
-- **Blockers**: **NONE**. All Phase 5 requirements, setup views, people workflows, batch assignments, soft deletes, and cross-tenant tests are fully verified.
+- **Blockers**: **NONE**. All Phase 7 requirements, role dashboards, preferences, and reports are fully implemented and verified.
 - **Classification**: **ZERO ACTIVE BLOCKERS**.
 
 ### 4. Minimum Action to Resolve
-- None required. Phase 5 is closed.
+- None required. Phase 7 is complete and verified.
 
 ### 5. Which Completed Steps Must NOT Be Repeated
 - **DO NOT re-run `GO PARTITION-RLS-FIX`**: Verified with `relrowsecurity = true` (24/24).
@@ -183,8 +202,11 @@
 - **DO NOT re-provision APEX_SCI**: Tenant `APEX_SCI` is already active in staging.
 - **DO NOT re-run Phase 4 onboarding checks**: 19/19 PASS.
 - **DO NOT re-run Phase 5 college setup checks**: 31/31 PASS.
+- **DO NOT re-run Phase 6 attendance checks**: 37/37 PASS.
+- **DO NOT re-run Phase 7 dashboard/preference checks**: 26/26 PASS.
 - **DO NOT modify production**: `ekspahbsbwdpraaqfqui` remains strictly forbidden.
 - **DO NOT commit or push**: No git commits or pushes without explicit approval.
+
 
 
 

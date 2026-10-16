@@ -357,3 +357,74 @@
      - Recorded walkthrough: `phase5_college_setup_1792139744282.webp`.
      - Screenshots captured: `college_dashboard_1792139775255.png`, `departments_programs_1792139784354.png`, `batches_subjects_1792139793925.png`, `timetable_week_grid_1792139808850.png`, `timetable_list_view_1792139822838.png`, `faculty_roster_1792139841293.png`, `faculty_enroll_modal_1792139857709.png`, `student_roster_1792139883171.png`, `student_enroll_modal_1792139912852.png`, `attendance_sessions_1792139981377.png`, `audit_trail_1792140025177.png`.
      - Status: **PASS (100% COMPLETE)**.
+
+---
+
+### Step 11: Faculty Attendance (ACD-06) & Corrections (Phase 6 MVP)
+- **Date**: 2026-10-16
+- **Status**: **COMPLETE & VERIFIED (Automated Suite: 37/37 PASS, Browser Walkthrough: PASS)**
+- **Scope & Objectives**:
+  1. **Faculty Home & Timetable (`/faculty`)**:
+     - Display today's assigned timetable slots with discrete attendance states: `Not started`, `Open (In Progress)`, or `Submitted`.
+     - Slot action triggers: "Start Attendance" on unstarted slots, "Resume Sheet" on open slots, and "View Session" on submitted slots.
+     - Section for upcoming weekly timetable slots.
+     - Section for missed / overdue sessions (past scheduled days with unsubmitted attendance).
+  2. **Attendance Capture Sheet (`/faculty/attendance`)**:
+     - Dynamic query param support (`slotId`, `sessionId`).
+     - Session deduplication: opening an existing timetable slot and date reuses the session instead of creating duplicates.
+     - Real-time running counts breakdown: Present, Absent, Leave, Late, On Duty, and cumulative percentage.
+     - Unsaved changes guard: `beforeunload` listener and slot switch alert when unsubmitted marks are pending.
+     - Submission confirmation modal: displays attendance counts breakdown and immutable ledger warning.
+     - Post-submission read-only locking: finalized sessions display "Submitted & Read-Only" badge with disabled controls.
+  3. **Teaching Sessions History (`/faculty/sessions`)**:
+     - Chronological session archive with headcount statistics, status badges, and review links.
+  4. **Backend Enforcement**:
+     - `POST /api/college/attendance/sessions`: Validates timetable slot existence within tenant, deduplicates by slot/date, logs `ATTENDANCE_SESSION_OPENED` in `audit.events`.
+     - `POST /api/college/attendance/records`: Enforces roster student membership, locks closed sessions (rejects modifications with HTTP 409), executes idempotent upsert using matching partial unique index target `ON CONFLICT (tenant_id, session_id, student_id) WHERE (deleted_at IS NULL)`, and logs `ATTENDANCE_SUBMITTED` in `audit.events`.
+     - `POST /api/college/attendance/corrections`: Enforces College Admin authorization, mandatory reason validation (min 5 chars), optimistic concurrency locking (`expectedVersion` vs `row_version`), persists to `acd.attendance_corrections`, logs `audit.change_log` and `audit.events`, emits `AttendanceCorrected` event to `sys.outbox_events`, and recalculates session summaries.
+  5. **Shortage Analytics**:
+     - `GET /api/college/attendance/report`: Evaluates student compliance against the statutory 75% threshold, records assumption in `DEC-14` in `docs/trial/DECISIONS.md`.
+  6. **Automated Verification Suite (`scripts/verify_phase6_attendance.mjs`)**:
+     - **37/37 PASSED (0 FAILED)** across 5 suites (route boundaries, session deduplication, roster validation, optimistic lock corrections, shortage reporting, and cross-tenant isolation).
+  7. **Autonomous Browser Walkthrough**:
+     - Video session: `phase6_attendance_walkthrough_1792141848113.webp`.
+     - Screenshots: `faculty_dashboard_1792141895895.png`, `faculty_attendance_sheet_1792141941950.png`, `attendance_page_loaded_1792142154003.png`.
+
+---
+
+### Step 12: Role-Specific Dashboards, Preferences & Reports (Phase 7 MVP ACD-10)
+- **Date**: 2026-10-16
+- **Status**: **COMPLETE & VERIFIED (Automated Suite: 26/26 PASS, Browser Walkthrough: PASS)**
+- **Scope & Implemented Evidence**:
+  1. **College Operations Dashboard (`/college` & `college-dashboard-view.tsx`)**:
+     - Real PostgreSQL counts from staging: Enrolled Students (42), Appointed Faculty (5), Attendance Sessions (6), Overall Attendance (80.8%), Shortage Students (4).
+     - 14-day attendance trend line chart rendered using Recharts (`ResponsiveContainer`, `LineChart`, `Line`, `XAxis`, `YAxis`, `Tooltip`, `CartesianGrid`).
+     - Attendance distribution by batch and subject bar chart (`BarChart`, `Bar`).
+     - Shortage alert table listing students with <75% attendance with roll numbers, percentages, and inspection links.
+     - Missed sessions alert showing unsubmitted past sessions from the timetable (`OPEN` status).
+     - Recent sessions overview with status badges and quick actions.
+  2. **Platform Operator Dashboard (`/platform` & `platform-dashboard-view.tsx`)**:
+     - Multi-tenant node lifecycle distribution: Active, Onboarding, Suspended, Offboarded.
+     - Total platform users, system role templates, recent platform audit logs.
+     - Aggregate-only cross-tenant compliance: zero raw tenant student or faculty rows exposed.
+  3. **Faculty Teaching Workspace (`/faculty` & `faculty-dashboard-view.tsx`)**:
+     - Today's timetable slots with live status badges (`Not started`, `Open`, `Submitted`).
+     - Quick actions to Start or Resume attendance.
+     - Upcoming curriculum schedule and unsubmitted session catch-up alerts.
+  4. **Typed Preferences Contract & PostgreSQL Persistence**:
+     - Versioned schema (version 1) allowlisting theme, table density, default date range (7, 14, 30 days), accessibility (high contrast, reduced motion), and role-scoped widget configuration (`college_admin`, `faculty`, `platform_admin`).
+     - Route `GET /api/user/preferences`: Fetches typed preferences from `iam.user_profiles.preferences`.
+     - Route `PUT /api/user/preferences`: Validates payload via Zod, updates `iam.user_profiles.preferences` with `row_version` increment, enforcing role widget isolation without escalation.
+     - Transparent fallback disclosure to local device cache when server context is offline or unprovisioned.
+     - Preferences modal with Display & Accessibility tab, Dashboard Widgets tab, reset-to-defaults, and live theme DOM reactivity.
+  5. **Enhanced Cumulative Attendance Report (ACD-10)**:
+     - Route `/api/college/attendance/report`: Parameterized query filters for `sectionId`, `subjectId`, `startDate`, `endDate`, `studentId`, `shortageOnly`.
+     - Formula-safe CSV export stream (`format=csv`) with attachment headers.
+  6. **Automated Verification Suite (`scripts/verify_phase7_dashboards_preferences.mjs`)**:
+     - **26/26 PASSED (0 FAILED)** across 5 test suites (route guarding, Platform aggregate compliance, College data reconciliation with PostgreSQL, Preferences validation and database persistence, and ACD-10 reports).
+  7. **TypeScript & Production Build**:
+     - `npx tsc --noEmit`: 100% clean (0 errors).
+     - `npm run build`: 100% clean across all 34 routes.
+  8. **Autonomous Browser Walkthrough**:
+     - Recorded video: `phase7_dashboards_walkthrough_1792144886693.webp`.
+     - Screenshots: `college_admin_dashboard_phase7_1792144953497.png`, `college_admin_dashboard_kpis_phase7_1792144961170.png`, `preferences_modal_open_phase7_1792144982034.png`, `attendance_report_phase7_1792145065741.png`, `faculty_dashboard_phase7_1792145110259.png`.

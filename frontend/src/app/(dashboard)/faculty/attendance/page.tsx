@@ -6,7 +6,14 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FacultyAttendancePage() {
+interface PageProps {
+  searchParams?: Promise<{
+    slotId?: string;
+    sessionId?: string;
+  }>;
+}
+
+export default async function FacultyAttendancePage(props: PageProps) {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
 
@@ -19,6 +26,10 @@ export default async function FacultyAttendancePage() {
 
   const tenantId = resolution.session.tenantId || '11111111-1111-1111-1111-111111111111';
   const userId = resolution.session.userId;
+  const searchParams = props.searchParams ? await props.searchParams : {};
+  const initialSlotId = searchParams.slotId;
+  const initialSessionId = searchParams.sessionId;
+
   let slots: any[] = [];
   let students: any[] = [];
   let employeeId: string | undefined;
@@ -63,6 +74,7 @@ export default async function FacultyAttendancePage() {
       LEFT JOIN acd.subjects sub ON sub.id = tte.subject_id
       LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
       WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
+      ORDER BY tte.day_of_week ASC, tte.start_time ASC
     `, [tenantId]);
 
     slots = entryRes.rows.map((e: any) => ({
@@ -111,7 +123,13 @@ export default async function FacultyAttendancePage() {
         </p>
       </div>
 
-      <FacultyAttendanceView slots={slots} students={students} employeeId={employeeId} />
+      <FacultyAttendanceView 
+        slots={slots} 
+        students={students} 
+        employeeId={employeeId} 
+        initialSlotId={initialSlotId}
+        initialSessionId={initialSessionId}
+      />
     </div>
   );
 }

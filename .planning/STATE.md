@@ -2,8 +2,8 @@
 
 **Last Updated**: 2026-10-16  
 **Active Workstreams**: `track-a`, `track-b`  
-**Current Phase**: Phase 6/7 — Audited Attendance Corrections & Statutory Shortage Analytics (ACD-06 & ACD-10)  
-**Next Phase**: Phase 8 & 9 — Professional UI Polish, Accessibility Audit & Pre-Deployment Security Suite  
+**Current Phase**: Phase 7 Complete — Role Dashboards, Preferences & Reports (ACD-10)  
+**Next Phase**: Phase 8 — Professional UI Polish and Visual QA (Section 5 Standard)  
 
 ---
 
@@ -53,9 +53,9 @@
 | **Phase 3** | **Staging Seed & Role Routing** | Gate A (Idempotency): PASS (Verified 2nd run with 0 duplicates, intentional ON CONFLICT state update); Gate B (Role Routing): PASS (20/20) | **COMPLETE** | 2026-10-16 |
 | **Phase 4** | **Platform → College Onboarding (ADM)** | `/platform`, `/platform/institutes`, `/platform/institutes/new`, 5-step ADM saga progress, retry path, conflict detection, tenant suspension guard. Live provisioning: PASS (`GO PROVISION-TENANT` executed & catalog verified on staging). Automated suite: 19/19 PASS. | **COMPLETE** | 2026-10-16 |
 | **Phase 5** | **College Admin Setup Views, People & Assignments** | `/college`, `/college/departments`, `/college/batches`, `/college/timetable` (grid + list view), `/college/faculty` (IAM provisioning, EXITED soft-delete), `/college/students` (batch assignments, WITHDRAWN soft-delete). Automated suite: 31/31 PASS. Browser walkthrough: PASS. | **COMPLETE** | 2026-10-16 |
-| **Phase 6** | **Faculty Attendance (ACD-06) & Corrections** | `/faculty/attendance`, `/college/attendance`, `/api/college/attendance/corrections` | **COMPLETE** | 2026-10-16 |
-| **Phase 7** | **Role Dashboards & Shortage Reporting (ACD-10)** | `/college/attendance` Report tab, statutory shortage (<75%), `/college/audit` | **COMPLETE** | 2026-10-16 |
-| **Phase 8** | **Professional UI Polish & Accessibility QA** | Accessibility scan, token adherence, responsive layouts | **NEXT** | - |
+| **Phase 6** | **Faculty Attendance (ACD-06) & Corrections** | `/faculty` (today's slots, slot states, Start Attendance action, upcoming slots, missed sessions), `/faculty/attendance` (slot roster, running counts, unsaved guard, submit confirmation modal, read-only lock), `/faculty/sessions` (My Sessions archive), `/api/college/attendance/sessions` (slot validation, duplicate prevention), `/api/college/attendance/records` (roster validation, partial index conflict target, idempotent upsert, audit event), `/api/college/attendance/corrections` (optimistic concurrency lock, mandatory reason, `acd.attendance_corrections`, `audit.change_log`, `audit.events`, `sys.outbox_events`). Automated suite: 37/37 PASS (`scripts/verify_phase6_attendance.mjs`). Browser walkthrough: PASS. | **COMPLETE** | 2026-10-16 |
+| **Phase 7** | **Role Dashboards, Preferences & Reports (ACD-10)** | Dedicated Platform, College Admin, and Faculty dashboards. Recharts 14-day attendance trend & batch distribution. Shortage list (<75%) and unsubmitted missed sessions. Typed preferences foundation (schema v1, allowlist, role isolation) with authoritative PostgreSQL persistence in `iam.user_profiles.preferences` and local fallback. Enhanced ACD-10 cumulative report with parameterized filters & formula-safe CSV export. Automated suite: 26/26 PASS (`scripts/verify_phase7_dashboards_preferences.mjs`). Browser walkthrough: PASS (`phase7_dashboards_walkthrough`). | **COMPLETE** | 2026-10-16 |
+| **Phase 8** | **Professional UI Polish and Visual QA** | Apply Section 5 tokens, responsive 1440/1024/390 captures, `@axe-core/playwright` accessibility audit | **NEXT** | - |
 | **Phase 9** | **Pre-Deployment Security Suite** | IDOR testing, forged tenant rejection, cross-tenant RLS proof | **PENDING** | - |
 | **Phase 10**| **Vercel Staging Deployment** | Live deployment to Vercel targeting Supabase Staging | **PENDING** | - |
 

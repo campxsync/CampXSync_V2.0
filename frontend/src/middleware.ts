@@ -59,6 +59,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/unauthorized',
+          title: 'Unauthorized',
+          status: 401,
+          detail: 'Authentication required to access API endpoint.',
+        },
+        { status: 401 }
+      );
+    }
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('returnTo', pathname);
     return NextResponse.redirect(loginUrl);

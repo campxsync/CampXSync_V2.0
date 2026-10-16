@@ -21,6 +21,7 @@ export type LifecycleState =
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: LifecycleState | string;
+  label?: string;
   variant?: 'default' | 'role' | 'outline';
   roleType?: 'platform' | 'college' | 'faculty' | 'student';
 }
@@ -28,6 +29,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 export function Badge({
   className,
   status,
+  label,
   variant = 'default',
   roleType,
   children,
@@ -78,7 +80,7 @@ export function Badge({
       )}
       {...props}
     >
-      {children || status}
+      {children || label || status}
     </span>
   );
 }

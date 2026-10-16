@@ -86,3 +86,19 @@
   - `frontend-web/` inspection showing monolithic client-only Vite SPA.
   - Java microservices requiring `localhost:8080` (incompatible with serverless Vercel hosting).
   - Vercel deployment requirements in prompt Section 4 (Phase 1, 2, 10).
+
+---
+
+### DEC-14: Statutory Attendance Shortage Threshold (75%) Baseline Assumption
+- **Context:** CampXSync MVP Master Prompt V4 Phase 6 specifies: "Shortage detection updates the summary flag using the configured threshold. If none is configured, use 75% and record it in DECISIONS.md as an assumption."
+- **Resolution:** In the absence of institution-specific custom academic regulatory overrides in database configuration for the current semester, a statutory shortage threshold of **75.0%** (`SHORTAGE_THRESHOLD = 75`) is enforced across all institutional attendance analytics, student compliance tracking, and administrative oversight drawers.
+- **Rules Enforced:**
+  - Attended marks are computed as `PRESENT`, `LATE`, and `ON_DUTY` per `acd.v_attendance_summary`.
+  - Non-attended marks include `ABSENT` and `LEAVE`.
+  - Cumulative attendance percentage is calculated as `round((attended / total) * 100)`.
+  - Any student whose cumulative attendance falls strictly below 75% is flagged with `hasShortage: true` and triggers shortage warnings in reporting interfaces and administrative drawers.
+- **Repository Evidence:**
+  - `frontend/src/app/api/college/attendance/report/route.ts` (enforcing statutory `SHORTAGE_THRESHOLD = 75`).
+  - `frontend/src/app/(dashboard)/college/attendance/attendance-manager.tsx` (shortage filter toggle and badge alerts).
+  - Database analytical view `acd.v_attendance_summary`.
+

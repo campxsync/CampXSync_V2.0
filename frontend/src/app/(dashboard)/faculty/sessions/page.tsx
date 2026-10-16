@@ -33,19 +33,20 @@ export default async function FacultySessionsPage() {
         sess.status,
         sess.created_at,
         sess.locked_at,
+        te.id as timetable_entry_id,
         sub.code as subject_code,
         sub.name as subject_name,
-        sec.name as section_name,
+        sec.section_code as section_name,
         count(ar.id)::int as total_students_marked,
         count(CASE WHEN ar.status = 'PRESENT' THEN 1 END)::int as present_count,
         count(CASE WHEN ar.status = 'ABSENT' THEN 1 END)::int as absent_count
       FROM acd.attendance_sessions sess
       LEFT JOIN acd.timetable_entries te ON te.id = sess.timetable_entry_id
       LEFT JOIN acd.subjects sub ON sub.id = te.subject_id
-      LEFT JOIN acd.sections sec ON sec.id = sess.section_id
+      LEFT JOIN acd.course_sections sec ON sec.id = sess.section_id
       LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id
       WHERE sess.tenant_id = $1 AND sess.deleted_at IS NULL
-      GROUP BY sess.id, sess.session_date, sess.start_time, sess.end_time, sess.status, sess.created_at, sess.locked_at, sub.code, sub.name, sec.name
+      GROUP BY sess.id, sess.session_date, sess.start_time, sess.end_time, sess.status, sess.created_at, sess.locked_at, te.id, sub.code, sub.name, sec.section_code
       ORDER BY sess.session_date DESC, sess.start_time DESC
     `, [tenantId || '11111111-1111-1111-1111-111111111111']);
 
@@ -162,7 +163,7 @@ export default async function FacultySessionsPage() {
                           )}
                         </td>
                         <td className="py-3.5 text-right">
-                          <Link href="/faculty/attendance">
+                          <Link href={`/faculty/attendance?slotId=${sess.timetable_entry_id || ''}&sessionId=${sess.id}`}>
                             <Button variant={isClosed ? 'outline' : 'primary'} size="sm">
                               {isClosed ? 'Review Sheet' : 'Mark Roster'}
                             </Button>

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Fetch current record to check existence and optimistic lock version
     const checkRes = await query(`
-      SELECT id, session_id, student_id, status, remarks, row_version
+      SELECT id, session_id, student_id, status, remarks, COALESCE(row_version, 1) as row_version
       FROM acd.attendance_records
       WHERE id = $1 AND session_id = $2 AND tenant_id = $3 AND deleted_at IS NULL
       LIMIT 1
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
           type: 'https://campxsync.edu/errors/conflict',
           title: 'Optimistic Concurrency Conflict',
           status: 409,
-          detail: `Record was updated by another user or session. Expected version was ${expectedVersion}, but current database version is ${existingRecord.row_version}. Please reload and review latest data.`,
+          detail: `This record was updated by another administrator or session. Expected version was v${expectedVersion}, but current database version is v${existingRecord.row_version}. Please reload and review the latest data before retrying.`,
           currentVersion: existingRecord.row_version,
           currentStatus: existingRecord.status,
         },
@@ -101,7 +101,18 @@ export async function POST(req: NextRequest) {
     const oldStatus = existingRecord.status;
     const oldVersion = existingRecord.row_version;
     const newVersion = oldVersion + 1;
-    const userId = resolution.session.userId || '70a8ffae-b5ad-4c61-a401-16f220893df4';
+    const userId = resolution.session.userId;
+
+    // Verify if userId exists in iam.user_profiles for this tenant to satisfy FK constraint
+    let validUserProfileId: string | null = null;
+    if (userId) {
+      const upCheck = await query(`
+        SELECT id FROM iam.user_profiles WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL LIMIT 1
+      `, [userId, tenantId]);
+      if (upCheck.rows.length > 0) {
+        validUserProfileId = userId;
+      }
+    }
 
     // 3. Update acd.attendance_records atomically with version increment
     const updateRes = await query(`
@@ -111,7 +122,7 @@ export async function POST(req: NextRequest) {
         remarks = $2,
         row_version = $3,
         updated_at = now()
-      WHERE id = $4 AND tenant_id = $5 AND row_version = $6
+      WHERE id = $4 AND tenant_id = $5 AND COALESCE(row_version, 1) = $6
       RETURNING id, session_id, student_id, status, remarks, row_version, updated_at
     `, [newStatus, reason, newVersion, recordId, tenantId, expectedVersion]);
 
@@ -129,7 +140,38 @@ export async function POST(req: NextRequest) {
 
     const updatedRecord = updateRes.rows[0];
 
-    // 4. Append immutable change log in audit.change_log
+    // 4. Insert into domain contract table: acd.attendance_corrections
+    try {
+      await query(`
+        INSERT INTO acd.attendance_corrections (
+          tenant_id,
+          record_id,
+          old_status,
+          new_status,
+          reason,
+          requested_by,
+          approved_by,
+          status,
+          decided_at,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, 'APPROVED', now(), now(), now()
+        )
+      `, [
+        tenantId,
+        recordId,
+        oldStatus,
+        newStatus,
+        reason,
+        validUserProfileId,
+        validUserProfileId,
+      ]);
+    } catch (domainErr: any) {
+      console.warn('Failed to insert acd.attendance_corrections entry:', domainErr.message);
+    }
+
+    // 5. Append immutable change log in audit.change_log
     try {
       await query(`
         INSERT INTO audit.change_log (
@@ -144,7 +186,7 @@ export async function POST(req: NextRequest) {
           request_id,
           created_at
         ) VALUES (
-          $1, 'acd', 'attendance_records', $2, 'U', ARRAY['status', 'remarks'],
+          $1, 'acd', 'attendance_records', $2, 'U', ARRAY['status', 'remarks', 'row_version'],
           $3, $4, $5, now()
         )
       `, [
@@ -158,7 +200,7 @@ export async function POST(req: NextRequest) {
       console.warn('Failed to insert audit.change_log entry:', changeLogErr.message);
     }
 
-    // 5. Append immutable audit event in audit.events
+    // 6. Append immutable audit event in audit.events
     try {
       await query(`
         INSERT INTO audit.events (
@@ -192,33 +234,90 @@ export async function POST(req: NextRequest) {
       console.warn('Failed to insert audit.events entry:', auditErr.message);
     }
 
-    // 6. Recalculate session summary
+    // 7. Emit AttendanceCorrected event via existing outbox: sys.outbox_events
+    try {
+      await query(`
+        INSERT INTO sys.outbox_events (
+          tenant_id,
+          service,
+          aggregate_type,
+          aggregate_id,
+          event_type,
+          payload,
+          status,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1,
+          'attendance-service',
+          'AttendanceRecord',
+          $2,
+          'AttendanceCorrected',
+          $3,
+          'PENDING',
+          now(),
+          now()
+        )
+      `, [
+        tenantId,
+        recordId,
+        JSON.stringify({
+          recordId,
+          sessionId,
+          studentId: existingRecord.student_id,
+          oldStatus,
+          newStatus,
+          reason,
+          rowVersion: newVersion,
+          correctedBy: resolution.session.displayName || 'College Administrator',
+          timestamp: new Date().toISOString(),
+        }),
+      ]);
+    } catch (outboxErr: any) {
+      console.warn('Failed to emit to sys.outbox_events:', outboxErr.message);
+    }
+
+    // 8. Recalculate session summary
     const summaryRes = await query(`
       SELECT 
         count(*)::int as total,
         count(CASE WHEN status = 'PRESENT' THEN 1 END)::int as present_count,
         count(CASE WHEN status = 'ABSENT' THEN 1 END)::int as absent_count,
-        count(CASE WHEN status = 'LEAVE' THEN 1 END)::int as leave_count
+        count(CASE WHEN status = 'LEAVE' THEN 1 END)::int as leave_count,
+        count(CASE WHEN status = 'LATE' THEN 1 END)::int as late_count,
+        count(CASE WHEN status = 'ON_DUTY' THEN 1 END)::int as on_duty_count
       FROM acd.attendance_records
       WHERE session_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
     `, [sessionId, tenantId]);
 
-    const summaryRow = summaryRes.rows[0] || { total: 0, present_count: 0, absent_count: 0, leave_count: 0 };
+    const summaryRow = summaryRes.rows[0] || { 
+      total: 0, 
+      present_count: 0, 
+      absent_count: 0, 
+      leave_count: 0,
+      late_count: 0,
+      on_duty_count: 0,
+    };
     const total = summaryRow.total || 0;
     const presentCount = summaryRow.present_count || 0;
     const absentCount = summaryRow.absent_count || 0;
     const leaveCount = summaryRow.leave_count || 0;
-    const attendancePercentage = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+    const lateCount = summaryRow.late_count || 0;
+    const onDutyCount = summaryRow.on_duty_count || 0;
+    const attendedCount = presentCount + lateCount + onDutyCount;
+    const attendancePercentage = total > 0 ? Math.round((attendedCount / total) * 100) : 0;
 
     return NextResponse.json({
       success: true,
-      message: `Attendance corrected from ${oldStatus} to ${newStatus}. Version incremented to ${newVersion}.`,
+      message: `Attendance corrected from ${oldStatus} to ${newStatus}. Record updated to v${newVersion}.`,
       record: updatedRecord,
       summary: {
         total,
         presentCount,
         absentCount,
         leaveCount,
+        lateCount,
+        onDutyCount,
         attendancePercentage,
       },
     });
