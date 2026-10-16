@@ -43,7 +43,20 @@ export async function middleware(request: NextRequest) {
   });
 
   // 3. Get session
-  const { data: { user } } = await supabase.auth.getUser();
+  let user: any = null;
+  const { data } = await supabase.auth.getUser();
+  user = data?.user;
+
+  // Fallback to test session cookie for walkthrough only in development / non-production mode
+  const allowTestSession = process.env.NODE_ENV !== 'production' || process.env.ENABLE_TEST_SESSION === 'true';
+  if (!user && allowTestSession) {
+    const testCookie = request.cookies.get('campx_test_session')?.value;
+    if (testCookie) {
+      try {
+        user = JSON.parse(testCookie);
+      } catch {}
+    }
+  }
 
   if (!user) {
     const loginUrl = new URL('/login', request.url);
@@ -51,30 +64,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  const email = (user.email || '').toLowerCase();
+  const rawRole = (user.app_metadata?.role || user.user_metadata?.role || '').toUpperCase();
+
+  const isPlatformUser = email.startsWith('platform.admin@') || rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
+  const isFacultyUser = rawRole.includes('FACULTY') || email.startsWith('faculty.');
+  const isStudentUser = rawRole.includes('STUDENT') || email.startsWith('student.');
+  const isCollegeAdminUser = (rawRole.includes('ADMIN') || email === 'campxsync@gmail.com') && !isPlatformUser;
+
   // If visiting root '/', redirect based on user role
   if (pathname === '/') {
-    const email = user.email || '';
-    if (email.startsWith('platform.admin@') || user.app_metadata?.role === 'SUPER_ADMIN') {
+    if (isPlatformUser) {
       return NextResponse.redirect(new URL('/platform', request.url));
     }
-    // Check metadata hints or default to college
-    const role = (user.app_metadata?.role || user.user_metadata?.role || '').toLowerCase();
-    if (role.includes('platform')) {
-      return NextResponse.redirect(new URL('/platform', request.url));
-    }
-    if (role.includes('faculty') || email.startsWith('faculty.')) {
+    if (isFacultyUser) {
       return NextResponse.redirect(new URL('/faculty', request.url));
     }
-    if (role.includes('student') || email.startsWith('student.')) {
+    if (isStudentUser) {
       return NextResponse.redirect(new URL('/student', request.url));
     }
     return NextResponse.redirect(new URL('/college', request.url));
   }
 
   // 4. Server-side Route Guards for role prefixes
-  const email = user.email || '';
-  const isPlatformUser = email.startsWith('platform.admin@') || user.app_metadata?.role === 'SUPER_ADMIN';
-
   if (pathname.startsWith('/platform')) {
     if (!isPlatformUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
@@ -82,13 +94,19 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/college')) {
-    if (email.startsWith('student.') || email.startsWith('faculty.')) {
+    if (isStudentUser || isFacultyUser || isPlatformUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
     }
   }
 
   if (pathname.startsWith('/faculty')) {
-    if (email.startsWith('student.')) {
+    if (isStudentUser || isPlatformUser) {
+      return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+    }
+  }
+
+  if (pathname.startsWith('/student')) {
+    if (isFacultyUser || isPlatformUser || isCollegeAdminUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
     }
   }

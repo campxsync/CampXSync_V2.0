@@ -258,5 +258,141 @@ public class StagingPrerequisitesExecutionTest {
             }
         }
     }
+
+    @Test
+    public void test05_executeDualTenantStagingSeed() throws Exception {
+        File seedFile = new File("../../database/seed-data/staging_seed_college_a_and_b.sql");
+        if (!seedFile.exists()) {
+            seedFile = new File("database/seed-data/staging_seed_college_a_and_b.sql");
+        }
+        assertTrue("Seed file must exist: " + seedFile.getAbsolutePath(), seedFile.exists());
+
+        String sql = new String(Files.readAllBytes(seedFile.toPath()), "UTF-8");
+
+        try (Connection conn = connectionManager.getConnection()) {
+            // 1. Execute DO block
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute(sql);
+            }
+
+            // 2. Postcondition Assertions: College records
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM core.colleges WHERE code IN ('DIT', 'TCS')")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 2 colleges", 2, rs.getInt(1));
+                }
+            }
+
+            // 3. Departments
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM core.departments WHERE code IN ('CSE', 'ECE', 'PCS')")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 3 departments", 3, rs.getInt(1));
+                }
+            }
+
+            // 4. Programs
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM acd.programs WHERE code IN ('BTECH_CSE', 'BTECH_ECE', 'BSC_PHY')")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 3 programs", 3, rs.getInt(1));
+                }
+            }
+
+            // 5. Batches
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM acd.batches WHERE code IN ('CSE_2024_A', 'CSE_2024_B', 'ECE_2024_A', 'PCS_2024')")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 4 batches", 4, rs.getInt(1));
+                }
+            }
+
+            // 6. Subjects
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM acd.subjects WHERE code IN ('CS301', 'CS302', 'CS303', 'EC301', 'PH101')")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 5 subjects", 5, rs.getInt(1));
+                }
+            }
+
+            // 7. Faculty Employees
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM hrm.employees WHERE employee_no IN ('FAC-CSE-001', 'FAC-CSE-002', 'FAC-ECE-001', 'FAC-PCS-001')")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 4 faculty employees", 4, rs.getInt(1));
+                }
+            }
+
+            // 8. Students: 40 in College A, 10 in College B
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM stu.students WHERE enrollment_no LIKE '2024-CSE-%'")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 40 students in College A", 40, rs.getInt(1));
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM stu.students WHERE enrollment_no LIKE '2024-PCS-%'")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 10 students in College B", 10, rs.getInt(1));
+                }
+            }
+
+            // 9. Timetable entries: 2 in College A, 1 in College B
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM acd.timetable_entries WHERE id IN (" +
+                    "'11111111-7700-0000-0000-000000000003'::uuid, '11111111-7700-0000-0000-000000000004'::uuid, '22222222-7700-0000-0000-000000000003'::uuid)")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 3 timetable entries across both colleges", 3, rs.getInt(1));
+                }
+            }
+
+            // 10. Attendance: 2 sessions, 20 attendance records
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM acd.attendance_sessions WHERE id IN (" +
+                    "'11111111-5e55-0000-0000-000000000001'::uuid, '11111111-5e55-0000-0000-000000000002'::uuid)")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 2 attendance sessions", 2, rs.getInt(1));
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM acd.attendance_records WHERE session_id = '11111111-5e55-0000-0000-000000000001'::uuid")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals("Expected 20 attendance records for closed session", 20, rs.getInt(1));
+                }
+            }
+
+            // 11. Cross-Tenant Isolation: Tenant A (CAMPX_STAGING) vs Tenant B (TEST_COLL_B)
+            UUID tenantA = UUID.fromString("11111111-1111-1111-1111-111111111111");
+            UUID tenantB = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM stu.students WHERE tenant_id = ?")) {
+                ps.setObject(1, tenantA);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals(40, rs.getInt(1));
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM stu.students WHERE tenant_id = ?")) {
+                ps.setObject(1, tenantB);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    assertEquals(10, rs.getInt(1));
+                }
+            }
+        }
+    }
 }
 

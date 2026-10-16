@@ -16,6 +16,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
+import { query } from '@/lib/db';
+
 export const dynamic = 'force-dynamic';
 
 export default async function CollegeAdminDashboardPage() {
@@ -34,23 +36,18 @@ export default async function CollegeAdminDashboardPage() {
   let sessionCount = 0;
 
   try {
-    const { count: sCount } = await supabase
-      .schema('stu')
-      .from('students')
-      .select('id', { count: 'exact' });
-    studentCount = sCount || 0;
+    const res = await query(`
+      SELECT 
+        (SELECT count(*) FROM stu.students WHERE tenant_id = $1 AND deleted_at IS NULL) as student_count,
+        (SELECT count(*) FROM hrm.employees WHERE tenant_id = $1 AND deleted_at IS NULL) as employee_count,
+        (SELECT count(*) FROM acd.attendance_sessions WHERE tenant_id = $1 AND deleted_at IS NULL) as session_count
+    `, [tenantId || '11111111-1111-1111-1111-111111111111']);
 
-    const { count: eCount } = await supabase
-      .schema('hrm')
-      .from('employees')
-      .select('id', { count: 'exact' });
-    employeeCount = eCount || 0;
-
-    const { count: sesCount } = await supabase
-      .schema('acd')
-      .from('attendance_sessions')
-      .select('id', { count: 'exact' });
-    sessionCount = sesCount || 0;
+    if (res.rows.length > 0) {
+      studentCount = Number(res.rows[0].student_count) || 0;
+      employeeCount = Number(res.rows[0].employee_count) || 0;
+      sessionCount = Number(res.rows[0].session_count) || 0;
+    }
   } catch (err) {
     console.error('College admin aggregate query error:', err);
   }

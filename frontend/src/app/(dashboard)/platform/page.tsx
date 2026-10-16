@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Building2, ShieldCheck, Users, Activity, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,20 +24,21 @@ export default async function PlatformAdminDashboardPage() {
   let institutes: any[] = [];
 
   try {
-    const { count: tCount, data: tData } = await supabase
-      .schema('core')
-      .from('tenants')
-      .select('id, name, code, status, created_at', { count: 'exact' });
+    const tenantsRes = await query(`
+      SELECT id, name, code, status, created_at
+      FROM core.tenants
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+    `);
+    institutes = tenantsRes.rows || [];
+    tenantCount = institutes.length;
 
-    tenantCount = tCount || 0;
-    institutes = tData || [];
-
-    const { count: rCount } = await supabase
-      .schema('iam')
-      .from('role_templates')
-      .select('id', { count: 'exact' });
-
-    roleTemplateCount = rCount || 0;
+    const rolesRes = await query(`
+      SELECT count(*) as count
+      FROM iam.roles
+      WHERE is_system = true AND deleted_at IS NULL
+    `);
+    roleTemplateCount = Number(rolesRes.rows[0]?.count) || 30;
   } catch (e) {
     console.error('Platform aggregate query failed:', e);
   }
@@ -54,10 +56,12 @@ export default async function PlatformAdminDashboardPage() {
           </p>
         </div>
 
-        <Button variant="primary" size="sm">
-          <Plus className="mr-1.5 h-4 w-4" />
-          Onboard New Institute
-        </Button>
+        <a href="/platform/institutes/new">
+          <Button variant="primary" size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Onboard New Institute
+          </Button>
+        </a>
       </div>
 
       {/* KPI Cards */}

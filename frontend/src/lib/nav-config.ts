@@ -23,15 +23,17 @@ export interface NavItem {
 export const navConfigs: Record<UserRole, NavItem[]> = {
   platform_admin: [
     { title: 'Dashboard', href: '/platform', icon: LayoutDashboard },
-    { title: 'Institutes', href: '/platform/institutes', icon: Building2 },
+    { title: 'Institutes & Tenancies', href: '/platform/institutes', icon: Building2 },
+    { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },
+    { title: 'Departments & Programs', href: '/college/departments', icon: Building2 },
+    { title: 'Faculty Roster', href: '/college/faculty', icon: Users },
+    { title: 'Student Roster', href: '/college/students', icon: GraduationCap },
     { title: 'Timetable', href: '/college/timetable', icon: Calendar },
     { title: 'Batches & Subjects', href: '/college/batches', icon: Layers },
-    { title: 'Faculty', href: '/college/faculty', icon: Users },
-    { title: 'Students', href: '/college/students', icon: GraduationCap },
     { title: 'Attendance', href: '/college/attendance', icon: ClipboardCheck },
     { title: 'Audit Log', href: '/college/audit', icon: History },
   ],

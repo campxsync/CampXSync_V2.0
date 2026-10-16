@@ -44,3 +44,129 @@
   - `scripts/seed-staging.ts` & `database/seed-data/staging_seed_college_a_and_b.sql`: Idempotent seed script and SQL definition for Phase 3.
 - **Build & Verification**:
   - Next.js 15 production build compiled in 4.9s with 0 errors across all 8 static and dynamic routes.
+
+---
+
+## Phase 3 — Staging Verification & State Recovery
+- **Live Staging Audit (PostgreSQL 17.11 on aarch64, project `kpwdvvcschankgggitnj`)**:
+  - Partition RLS Status: Directly inspected all 24 monthly partition child tables (`audit`, `cam`, `hrm`, `lms`). Confirmed `relrowsecurity = true` across all 24 tables (Finding 1 resolved). Confirmed 0 role table grants for `anon` and `authenticated`.
+  - Test Tenant Provisioning: Confirmed `CAMPX_STAGING` (`11111111-1111-1111-1111-111111111111`) is active in `core.tenants`. Trigger `trg_seed_roles` created 30 system roles in `iam.roles` and 2,138 role-permission mappings.
+  - Staging Identities: Confirmed `ba77b8f7-ab32-46bd-85d2-5aade3526880` and `70a8ffae-b5ad-4c61-a401-16f220893df4` (`campxsync@gmail.com`) active in `iam.user_profiles` with `COLLEGE_ADMIN` role assignment in `iam.role_assignments`.
+  - Auth Hook: Introspected `iam.custom_access_token_hook` confirming `app_metadata.tenant_id` stamping.
+  - Pending Staging Gate: CRIT-09 Dashboard hook toggle confirmation in Supabase Dashboard. Dual-tenant staging seed (`staging_seed_college_a_and_b.sql`) awaiting explicit user approval phrase `GO SEED-STAGING`.
+
+---
+
+## Phase 4 — Platform Admin Onboarding Wizard
+- **Files Created**:
+  - `frontend/src/app/(dashboard)/platform/institutes/page.tsx`: Full institutional tenancy registry table with status badges and creation timestamps.
+  - `frontend/src/app/(dashboard)/platform/institutes/new/page.tsx`: Server-guarded onboarding page (restricted to `platform_admin`).
+  - `frontend/src/app/(dashboard)/platform/institutes/new/onboarding-wizard.tsx`: 4-step interactive client wizard (Tenant Identity, Primary College, Administrator Account, Review & Confirmation) with real-time validation, error handling, and success feedback.
+  - `frontend/src/app/api/platform/onboard-tenant/route.ts`: API route with server-side `resolveUserRole` check (strict 403 Forbidden for non-platform admins), Zod schema validation, duplicate tenant code check (regex `^[A-Z0-9_-]{2,30}$`), and transactional persistence into `core.tenants` and `core.colleges`.
+
+---
+
+## Phase 5 — College Setup & Roster Views
+- **Files Created**:
+  - `frontend/src/app/(dashboard)/college/departments/page.tsx`: Server-guarded College Admin view querying `core.departments` and `acd.programs` strictly for authenticated `tenant_id`.
+  - `frontend/src/app/(dashboard)/college/departments/departments-manager.tsx`: Interactive client component with tabbed views for Departments and Programs, creation modal forms, and real-time status alerts.
+  - `frontend/src/app/api/college/departments/route.ts`: API route for department creation under tenant boundary.
+  - `frontend/src/app/api/college/programs/route.ts`: API route for degree program creation under tenant boundary.
+  - `frontend/src/app/(dashboard)/college/faculty/page.tsx`: Server-guarded Faculty Roster view joining `hrm.employees`, `core.persons`, and `core.departments` under tenant scope.
+  - `frontend/src/app/(dashboard)/college/faculty/faculty-roster.tsx`: Interactive client component with search, department filtering, and faculty enrollment form.
+  - `frontend/src/app/api/college/faculty/route.ts`: API route creating `core.persons` + `hrm.employees` with tenant scoping.
+  - `frontend/src/app/(dashboard)/college/students/page.tsx`: Server-guarded Student Body Roster view joining `stu.students`, `core.persons`, and `acd.programs` under tenant scope.
+  - `frontend/src/app/(dashboard)/college/students/student-roster.tsx`: Interactive client component with search, program filtering, and student enrollment form.
+  - `frontend/src/app/api/college/students/route.ts`: API route creating `core.persons` + `stu.students` with tenant scoping.
+- **Files Modified**:
+  - `frontend/src/lib/nav-config.ts`: Updated sidebar navigation for Platform Admin and College Admin to include new routes (`/platform/institutes`, `/platform/institutes/new`, `/college/departments`, `/college/faculty`, `/college/students`).
+  - `frontend/src/app/(dashboard)/platform/page.tsx`: Linked 'Onboard New Institute' button directly to `/platform/institutes/new`.
+- **Build & Verification**:
+  - Next.js 15 production build compiled in 6.9s with 0 errors across all 18 static, dynamic, and API routes.
+
+---
+
+## Phase 5 (Continued) — Timetable Grid & Attendance Session Workflow
+- **Seed Script Safety & Catalog Audit**:
+  - Audited `database/seed-data/staging_seed_college_a_and_b.sql` against live staging catalog schemas.
+  - Corrected 7 catalog defects:
+    1. Fixed `core.persons` column from `email` to `primary_email`.
+    2. Fixed `acd.batches` column from `academic_year_id` to `admission_year_id`.
+    3. Added mandatory not-null `subject_type` (Constraint `ck_subjects_subject_type`) and `department_id` to `acd.subjects`.
+    4. Corrected `acd.course_offerings` status from invalid `'ACTIVE'` to `'OPEN'`, added mandatory not-null `college_id`, and linked `term_id` to `acd.calendar_terms`.
+    5. Added missing prerequisite records in `core.calendars` and `acd.calendar_terms` required for FKs.
+    6. Added mandatory `term_id` to `acd.timetables`.
+    7. Enforced strict idempotency with deterministic UUIDs and partial unique index conflict targets on `acd.batch_students` and `acd.attendance_records`.
+- **Files Created**:
+  - `frontend/src/app/api/college/timetable/entries/route.ts`: API route creating timetable entries under tenant scope with exclusion constraint clash detection (`ex_tte_employee`).
+  - `frontend/src/app/(dashboard)/college/timetable/page.tsx`: Server component querying published timetable versions and weekly slots.
+  - `frontend/src/app/(dashboard)/college/timetable/timetable-grid.tsx`: Interactive weekly calendar grid component with day filters and slot scheduling drawer.
+  - `frontend/src/app/api/college/attendance/sessions/route.ts`: API route for opening and retrieving attendance sessions anchored to timetable entries.
+  - `frontend/src/app/api/college/attendance/records/route.ts`: API route for submitting and persisting student attendance marks into `acd.attendance_records` with idempotent upsert.
+  - `frontend/src/app/(dashboard)/college/attendance/page.tsx`: College Admin attendance oversight view with real session breakdown and attendance percentage metrics.
+  - `frontend/src/app/(dashboard)/college/attendance/attendance-manager.tsx`: Client component for inspecting attendance session statuses.
+  - `frontend/src/app/(dashboard)/faculty/attendance/page.tsx`: Faculty attendance capture page with live timetable slot selection.
+  - `frontend/src/app/(dashboard)/faculty/attendance/faculty-attendance-view.tsx`: Fast-marking interactive roster component with Present/Absent/Leave toggles, "Mark All Present", and finalized locking.
+- **Build & Verification**:
+  - Next.js 15 production build compiled cleanly in 4.2s with 0 errors across all 24 static, dynamic, and API routes.
+
+---
+
+## Phase 6 & 7 — Audited Attendance Corrections & Statutory Shortage Analytics
+- **Files Created**:
+  - `frontend/src/app/api/college/attendance/corrections/route.ts`: API route for audited attendance corrections with Zod validation, optimistic concurrency locking (`row_version`), immutable audit trail creation in `audit.change_log` (`action = 'U'`), and governance event logging in `audit.events` (`action = 'ATTENDANCE_CORRECTED'`).
+  - `frontend/src/app/api/college/attendance/report/route.ts`: API route computing cumulative student attendance percentages across published courses, evaluating the statutory 75% shortage threshold, and returning actionable analytics.
+- **Files Modified**:
+  - `frontend/src/app/api/college/attendance/records/route.ts`: Added `GET` endpoint returning detailed student roster for a session, along with historical corrections from `audit.change_log` and real-time attendance percentage recalculation.
+  - `frontend/src/app/(dashboard)/college/attendance/attendance-manager.tsx`: Complete overhaul with two primary tabs: (1) Sessions Oversight & Governance with row-level session record expansion, slide-over correction drawer with mandatory reason enforcement and concurrency conflict alerts, and historical correction timeline; (2) Institutional Attendance & Shortage Report with summary KPI cards, statutory shortage indicators, interactive shortage-only filtering, and client-side CSV export.
+- **Verification & Testing**:
+  - `npx tsc --noEmit`: 100% clean, 0 type errors.
+  - `npm run build`: Production build succeeded across all 30 routes in 37.5s.
+  - Real browser walkthrough (`attendance_audit_verified_1792131796219.webp`): Verified session inspection, correction drawer submission with justification `"Audited administrative review complete"`, live `row_version` increment from `v2` to `v3`, session percentage update (90%), shortage report filtering, and immutable ledger verification on `/college/audit`.
+  - Staging PostgreSQL assertions: Read-only MCP query confirmed `audit.events` and `audit.change_log` entries present and linked to tenant `11111111-1111-1111-1111-111111111111`.
+
+## Phase 3 — Gate A (Seed Idempotency) & Gate B (Role Routing Verification)
+- **Files Modified**:
+  - `frontend/src/middleware.ts`: Refined server-side route guards and role boundary definitions for `platform_admin`, `college_admin`, `faculty`, and `student`.
+  - `docs/staging/00-checkpoint.md`: Updated Phase 3 gate statuses (Gate A: BLOCKED awaiting write approval; Gate B: PASS).
+  - `docs/staging/05-execution-log.md`: Recorded Steps P3-25 and P3-26 and detailed Step 8 and Step 9 logs.
+  - `.planning/STATE.md`: Reconciled Phase 3 state to reflect Gate A write blocker.
+- **Files Created**:
+  - `scripts/verify_role_routing.mjs`: Automated 20-case test matrix validating all role routes, access boundaries, unauthenticated redirects, and negative no-profile user denials.
+  - `scripts/verify_real_supabase_auth_routing.mjs`: Live Supabase Auth sign-in script verifying JWT claims and profile association on staging.
+- **Verification & Testing**:
+  - Gate B (Role Routing): 20/20 tests passed on live Next.js server (`http://localhost:3000`).
+  - Real Supabase Auth: Successfully signed in as staging administrator `campxsync@gmail.com` against `https://kpwdvvcschankgggitnj.supabase.co`.
+  - Gate A (Seed Idempotency): PASS. User provided explicit write authorization phrase `GO SEED-IDEMPOTENCY-TEST`. Executed second run of `database/seed-data/staging_seed_college_a_and_b.sql` via `StagingPrerequisitesExecutionTest#test05_executeDualTenantStagingSeed` against staging (`kpwdvvcschankgggitnj`). Verified 0 duplicates across 9 business tables, 100% stable pre/post entity counts, and confirmed intentional `ON CONFLICT DO UPDATE` state behavior on `acd.attendance_records`. Phase 3 is 100% COMPLETE.
+
+---
+
+## Frontend Presentation & Shared Styling Defect Resolution
+- **Issue**:
+  - Browser rendering at `http://localhost:3000/platform` defaulted to raw browser serif typography (Times New Roman), blue underlined links, unstyled native buttons, and vertically collapsed layout elements (`document.styleSheets.length === 0`).
+- **Root Cause Analysis**:
+  - Frontend styling architecture (`frontend/src/app/globals.css`, `frontend/src/app/layout.tsx`, `frontend/tailwind.config.ts`, `frontend/postcss.config.mjs`) was structurally complete and correct (`npx tailwindcss` produced a valid 37KB bundle).
+  - During the preceding Phase 3 gate execution, a production build (`npm run build`) was run concurrently in the workspace while the Next.js dev server was actively serving requests in the background.
+  - `next build` purged and rebuilt the `.next/` build artifact directory with production webpack chunks, corrupting the active dev server's in-memory chunk map (`Cannot find module './897.js'`).
+  - The running dev server subsequently served stale CSS link tags with outdated compilation hashes (`/_next/static/css/app/layout.css?v=...`), which Chromium was unable to bind to the active document (`sheet === null`), causing a fallback to default browser styling.
+  - Additionally, catalog discrepancies in `faculty/page.tsx` and `faculty/timetable/page.tsx` queried nonexistent table `acd.sections` and column `tte.room_number`, which threw server-side query errors during faculty dashboard rendering.
+- **Files Modified**:
+  - `frontend/src/app/(dashboard)/faculty/page.tsx`: Corrected join to canonical `acd.course_sections sec` using `sec.section_code`, removed nonexistent `tte.room_number`.
+  - `frontend/src/app/(dashboard)/faculty/timetable/page.tsx`: Corrected join to `acd.course_sections sec` using `sec.section_code`, removed nonexistent `tte.room_number`.
+  - `docs/trial/CHANGES.md`: Recorded incident root cause, files changed, checks, and verification artifacts.
+- **Checks Performed**:
+  - Confirmed Tailwind compilation directly via CLI (`npx tailwindcss -i src/app/globals.css`).
+  - Terminated corrupted dev server background task (`task-208`).
+  - Spawned fresh Next.js dev server instance on port 3000 (`task-483`).
+  - `npx tsc --noEmit`: 100% clean type check across all frontend components.
+  - Live dev server compilation: Verified clean 200 responses with zero webpack chunk missing errors.
+- **Browser Verification Results**:
+  - DOM stylesheet inspection: Verified `document.styleSheets.length > 0` with 1,768 compiled CSS rules, `--navy-950` `#0B1F3A` and `--blue-600` `#1F6FEB` custom properties, Inter typography, and proper flex/grid layout containment.
+  - Role dashboards verified:
+    - `/platform`: Full enterprise presentation restored (navy sidebar, KPI stat cards, institute status badges, responsive grid). Verified via artifact `platform_dashboard_final_verified_1792134846312.png`.
+    - `/college`: Restored metric cards, department/program stats, and timetable section. Verified via artifact `college_dashboard_verified_1792134737152.png`.
+    - `/faculty`: Restored weekly schedule timetable cards with status badges and attendance action triggers. Verified via artifact `faculty_dashboard_verified_1792134765869.png`.
+    - `/student`: Server-side route boundary guard verified. Verified via artifact `student_dashboard_initial_1792134806272.png`.
+  - Comprehensive browser recording: `verify_all_dashboards_1792134615032.webp`.
+
+
