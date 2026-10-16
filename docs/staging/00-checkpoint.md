@@ -238,12 +238,22 @@
   - **Rule 11 Verification**: Clean (`Rule11_overall: True`, 0 production references).
 - **Next Phase**: Phase 10 — Deploy to Vercel and Deployed Acceptance.
 
-### 3. Exact Blocker & Classification
-- **Blockers**: **NONE**. All Phase 9 security assertions, real-browser walkthroughs, and regression checks are fully satisfied.
-- **Classification**: **ZERO ACTIVE BLOCKERS**.
+### 3. Phase 10 Deployment & Deployed Acceptance (MVP V4 Release Milestone)
+- **Status**: **COMPLETE & VERIFIED LIVE ON VERCEL**
+- **Vercel Project**: `camp-xs-ync/frontend` linked to GitHub repo `CampXSync_V2.0`
+- **Root Directory**: `frontend/` (Next.js 15)
+- **Branch**: `ReviewBranch` (`main` untouched)
+- **Preview Deployment URL**: `https://frontend-n34dbtn83-camp-xs-ync.vercel.app` (Deployment ID: `dpl_7oE8yDDTT6TAKJyDkkg8aAmpWdfe`)
+- **Live Alias URL**: `https://frontend-murex-one-58.vercel.app` (Deployment ID: `dpl_ExCRqLCy6Z88Bz3VsiPmv6FaKQbX`)
+- **Staging Target**: Supabase PostgreSQL Staging (`kpwdvvcschankgggitnj`)
+- **Phase 10 Deployed Live Acceptance**: **10/10 PASS** (`scripts/verify_phase10_deployed_browser.mjs`)
+- **Phase 9 Deployed Security Suite**: **36/36 PASS** (`scripts/verify_phase9_security_browser.mjs`)
+- **Visual Evidence**: 10 screenshots in `docs/trial/screenshots/phase10/`
+- **Visible Desktop Browser**: Launched and verified on user desktop
 
-### 4. Minimum Action to Resolve
-- None required. Phase 9 is complete and verified. Proceed directly to Phase 10 (Deploy to Vercel and Deployed Acceptance).
+### 4. Exact Blocker & Classification
+- **Blockers**: **NONE**. All Phase 10 deployment requirements, environment variables, live URL testing, and real-browser workflows are 100% verified.
+- **Classification**: **ZERO ACTIVE BLOCKERS — MVP V4 READY FOR OWNER ACCEPTANCE**.
 
 ### 5. Which Completed Steps Must NOT Be Repeated
 - **DO NOT re-run `GO PARTITION-RLS-FIX`**: Verified with `relrowsecurity = true` (24/24).
@@ -257,8 +267,10 @@
 - **DO NOT re-run Phase 7 dashboard/preference checks**: 26/26 PASS.
 - **DO NOT re-run Phase 8 visual QA suite**: 46/46 PASS.
 - **DO NOT re-run Phase 9 security acceptance suite**: 36/36 PASS.
+- **DO NOT re-run Phase 10 deployed acceptance suite**: 10/10 PASS.
 - **DO NOT modify production**: `ekspahbsbwdpraaqfqui` remains strictly forbidden.
-- **DO NOT commit or push**: No git commits or pushes without explicit approval.
+- **DO NOT commit, push, or merge to main**: `main` must remain completely untouched.
+
 
 
 

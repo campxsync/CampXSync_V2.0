@@ -524,3 +524,80 @@
      - TypeScript Compilation: **PASS** (`npx tsc --noEmit` exited code 0).
      - Next.js Production Build: **PASS** (`npm run build` compiled all 34 routes cleanly).
      - Rule 11 Staging Compliance: **PASS** (`Rule11_overall: True`, 0 production references).
+
+### Step 15: Vercel Preview Deployment & Live Deployed Acceptance (Phase 10 MVP)
+- **Date**: 2026-10-16
+- **Status**: **COMPLETE & VERIFIED (Vercel Preview Deployed, Live Acceptance Suite: 10/10 PASS, Security Suite on Live URL: 36/36 PASS, Real Desktop Browser Launched)**
+- **Scope & Implemented Evidence**:
+  1. **Vercel Project & Deployment Pipeline**:
+     - Vercel CLI authenticated as `campxsync-7218`.
+     - Project linked: `camp-xs-ync/frontend` linked to GitHub repo `https://github.com/campxsync/CampXSync_V2.0`.
+     - Target directory: `frontend/` (Next.js 15).
+     - Target branch: `ReviewBranch` (`main` untouched).
+     - Environment variables configured securely for staging (`production`, `preview`, `development`):
+       - `NEXT_PUBLIC_SUPABASE_URL`: `https://kpwdvvcschankgggitnj.supabase.co`
+       - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: `sb_publishable_1B6QXXcsRiUaxj-Bk1pPuw_JMqgh4-J`
+       - `SUPABASE_JDBC_URL`: Staging AWS AP-Southeast pooler JDBC string
+       - `SUPABASE_USER`: `postgres.kpwdvvcschankgggitnj`
+       - `SUPABASE_PASSWORD`: (Encrypted Staging Database Password)
+       - `CAMPX_TEST_ENV`: `staging`
+       - `ENABLE_TEST_SESSION`: `true`
+       - `CAMPX_STAGING_TEST_PASSWORD`: (Encrypted Staging Test Password)
+     - Zero production references (strictly isolated from `ekspahbsbwdpraaqfqui`).
+     - Preview Deployment URL: `https://frontend-n34dbtn83-camp-xs-ync.vercel.app` (Deployment ID: `dpl_7oE8yDDTT6TAKJyDkkg8aAmpWdfe`).
+     - Live Alias URL: `https://frontend-murex-one-58.vercel.app` (Deployment ID: `dpl_ExCRqLCy6Z88Bz3VsiPmv6FaKQbX`).
+     - All 34 Next.js routes built and serverless functions compiled and ready on Vercel edge.
+  2. **Live Deployed Real-Browser Interactive Acceptance (`scripts/verify_phase10_deployed_browser.mjs`)**:
+     - **P10-AUTH-01 (PASS)**: Real Supabase Auth login (`campxsync@gmail.com`) with password and cookie persistence lands on `/college`.
+     - **P10-COL-01 (PASS)**: College Dashboard reconciles live PostgreSQL metrics (49 students, 12 faculty, 95.1% attendance) without hardcoded numbers.
+     - **P10-COL-02 (PASS)**: College Admin views institutional department hierarchy (`Academic Departments & Programs`).
+     - **P10-COL-03 (PASS)**: College Admin views active faculty roster (`Faculty & Academic Staff Roster`).
+     - **P10-COL-04 (PASS)**: College Admin views student enrollment roster (`Student Body Roster`).
+     - **P10-ATT-01 (PASS)**: Faculty selects class slot, marks attendance, confirms modal submission to institutional ledger, reloads, and verifies read-only lock.
+     - **P10-CORR-01 (PASS)**: College Admin performs audited attendance correction with optimistic concurrency lock and version increment (`v3 -> v4`).
+     - **P10-PLAT-01 (PASS)**: Platform Admin views multi-tenant aggregate operator dashboard.
+     - **P10-SEC-01 (PASS)**: Platform Admin strictly denied from accessing tenant-level student raw APIs (HTTP 403 Forbidden).
+     - **P10-SEC-02 (PASS)**: Unauthorized student access to `/college` redirected to `/access-denied?reason=forbidden`.
+     - **Result**: **10/10 PASSED (0 FAILED, 0 BLOCKED)**.
+  3. **Deployed Security & Integration Regression (`scripts/verify_phase9_security_browser.mjs`)**:
+     - Re-executed full 36-criterion suite directly against live Vercel URL `https://frontend-murex-one-58.vercel.app`.
+     - **Result**: **36/36 PASSED (0 FAILED, 0 BLOCKED)**.
+  4. **Visible Desktop Browser Verification**:
+     - Live deployed application launched in visible Microsoft Edge browser window on user desktop (`https://frontend-murex-one-58.vercel.app/login`).
+     - 10 verification screenshots captured in `docs/trial/screenshots/phase10/`.
+
+### Step 16: Trial Pack and Architecture Traceability (Phase 11 MVP Complete)
+- **Date**: 2026-10-16
+- **Status**: **COMPLETE & VERIFIED (Full Trial Pack Generated, Architecture Traceability Complete Across 62 Modules, Decisions Register DEC-01..15 Synchronized, Zero Blockers)**
+- **Scope & Implemented Deliverables (`docs/trial/`)**:
+  1. **Evaluator Manual & Trial Guide (`docs/trial/TRIAL_GUIDE.md`)**:
+     - 3-line product overview defining single-origin multi-tenancy, timetable-validated attendance, and optimistic concurrency audit trails.
+     - Live deployment endpoints: Alias URL `https://frontend-murex-one-58.vercel.app`, Preview URL `https://frontend-n34dbtn83-camp-xs-ync.vercel.app`.
+     - Demo account matrix and one-click role switch credentials for College Administrator (`campxsync@gmail.com`), Platform Operator, and Faculty Member (Dr. Robert Vance).
+     - Step-by-step role journeys: Faculty attendance capture & ledger lock, College Admin shortage analytics (<75%) & audited correction drawer, Platform Admin multi-tenant governance saga, and typed workspace preferences sync.
+     - Out-of-scope boundaries and defect reporting instructions.
+  2. **Architecture Traceability Matrix & Specification Register (`docs/trial/ARCHITECTURE_TRACEABILITY.md`)**:
+     - Traceability matrix accounting for **every single module (62 services)** in the canonical AllModules architecture (ACD-01..10, ADM Platform & College, LMS-01..10, EXM-01..09, FIN-01..10, HRM-01..09, CAM, plus cross-cutting core).
+     - Breakdown: 10 Staging-verified, 1 Partial (Staging-verified), 51 Specified (not in MVP slice). Zero architecture lost or silently omitted.
+     - Canonical source-of-truth register with versions, superseded files, and decision linkages.
+  3. **Architecture Decisions Register (`docs/trial/DECISIONS.md`)**:
+     - Complete documentation of DEC-01 through DEC-15 with problem context, architectural resolution, and repository/staging evidence.
+  4. **Prerequisites, Known Limitations & Blocker Register (`docs/trial/KNOWN_LIMITATIONS.md`)**:
+     - Evaluator browser and network prerequisites.
+     - Documented scope boundaries (examinations, finance, advanced LMS deferred to post-trial roadmap).
+     - Academic concurrency locking rules (single active session per timetable slot; submitted sessions permanently locked for faculty editing).
+     - Administrative correction rules (College Admin authorization, optimistic version lock, >= 5 character justification).
+     - Blocker assessment: **Zero blockers (0)** for trial execution.
+  5. **Post-Trial Backlog & Roadmap Sequencing (`docs/trial/POST_TRIAL_BACKLOG.md`)**:
+     - Structured roadmap aligned with `docs/reference/product_lifecycle.md` Section 20: Phase 3 (Academic & LMS expansion), Phase 4 (Examinations & Fee Ledger), Phase 5 (HRMS, Announcements & Governed AI), Phase 6 (Multi-Campus Federation).
+     - Detailed backlog items per module with priority, user journey, target database schema, and governance preconditions.
+  6. **5-Minute Stakeholder Demo Script (`docs/trial/DEMO_SCRIPT.md`)**:
+     - Minute-by-minute cue script (0:00 to 5:00) with spoken narrative and live UI actions covering authentication, faculty attendance, college governance, audited corrections, platform operator, and workspace preferences.
+  7. **Standardized Defect Log Template (`docs/trial/DEFECT_LOG.csv`)**:
+     - Standard CSV format (`ID,Date,Reporter,Role Used,Page/URL,Steps To Reproduce,Expected,Actual,Severity,Screenshot Link,Status,Owner,Notes`) populated with 3 illustrative example entries.
+  8. **Phase Changelog Update (`docs/trial/CHANGES.md`)**:
+     - Chronological changelog updated with Phase 10 and Phase 11 deliverables and test results.
+  9. **System State & Execution Log (`.planning/STATE.md` & `docs/staging/05-execution-log.md`)**:
+     - Formally transitioned system state to Phase 11 Complete.
+  10. **Live Deployment Verification**:
+      - Live Vercel Preview & Alias endpoints verified reachable with HTTP 200 OK.
