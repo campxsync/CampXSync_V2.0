@@ -12,6 +12,9 @@ export type LifecycleState =
   | 'ONBOARDING'
   | 'ACTIVE'
   | 'SUSPENDED'
+  | 'OFFBOARDED'
+  | 'INACTIVE'
+  | 'ARCHIVED'
   | 'PENDING'
   | 'APPROVED'
   | 'REJECTED';
@@ -44,6 +47,9 @@ export function Badge({
     ONBOARDING: 'bg-[#FEF7EA] text-[#E39B16] border-[#FCE2B3]',
     ACTIVE: 'bg-[#EAF8F1] text-[#1E9E6A] border-[#B2E6CE]',
     SUSPENDED: 'bg-[#FDECEC] text-[#D64545] border-[#F8BDBD]',
+    OFFBOARDED: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
+    INACTIVE: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
+    ARCHIVED: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
     PENDING: 'bg-[#FEF7EA] text-[#E39B16] border-[#FCE2B3]',
     APPROVED: 'bg-[#EAF8F1] text-[#1E9E6A] border-[#B2E6CE]',
     REJECTED: 'bg-[#FDECEC] text-[#D64545] border-[#F8BDBD]',

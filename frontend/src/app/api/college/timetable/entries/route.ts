@@ -110,6 +110,19 @@ export async function POST(req: NextRequest) {
 
     const entry = entryRes.rows[0];
 
+    // 4. Record Audit Event in audit.events
+    await query(`
+      INSERT INTO audit.events (
+        tenant_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
+      )
+      VALUES ($1, now(), 'TIMETABLE_ENTRY_CREATED', 'COLLEGE_ADMIN', $2, 'TIMETABLE_ENTRY', $3, 'SUCCESS', 'INFO', $4)
+    `, [
+      tenantId,
+      resolution.session.userId || null,
+      entry.id,
+      JSON.stringify({ timetableVersionId, sectionId, subjectId, employeeId, dayOfWeek, startTime, endTime, entryType }),
+    ]);
+
     return NextResponse.json(
       {
         success: true,

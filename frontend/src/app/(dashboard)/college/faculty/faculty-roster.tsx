@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Briefcase,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,10 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
   const [email, setEmail] = useState('');
   const [employeeNo, setEmployeeNo] = useState('');
   const [departmentId, setDepartmentId] = useState(departments[0]?.id || '');
-  const [employmentType, setEmploymentType] = useState<'FULL_TIME' | 'PART_TIME' | 'ADJUNCT' | 'CONTRACT' | 'VISITING'>('FULL_TIME');
+  const [employmentType, setEmploymentType] = useState<'PERMANENT' | 'CONTRACT' | 'VISITING' | 'PART_TIME' | 'INTERN' | 'DEPUTATION'>('PERMANENT');
+
+  // Deactivate modal state
+  const [facultyToDelete, setFacultyToDelete] = useState<FacultyMember | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
@@ -87,6 +91,35 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
         setEmail('');
         setEmployeeNo('');
         setShowAddModal(false);
+        router.refresh();
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Network error occurred.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteFacultySubmit = async () => {
+    if (!facultyToDelete) return;
+
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch('/api/college/faculty', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: facultyToDelete.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setStatusMessage({ type: 'error', text: data.detail || 'Failed to deactivate faculty.' });
+      } else {
+        setStatusMessage({ type: 'success', text: data.message });
+        setFacultyToDelete(null);
         router.refresh();
       }
     } catch (err: any) {
@@ -166,7 +199,7 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
           <CardHeader>
             <CardTitle>Enroll New Faculty Member</CardTitle>
             <CardDescription>
-              Registers human identity in core.persons and faculty appointment in hrm.employees.
+              Registers human identity in core.persons, faculty appointment in hrm.employees, and creates an IAM user profile.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -249,11 +282,12 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
                   value={employmentType}
                   onChange={(e: any) => setEmploymentType(e.target.value)}
                 >
-                  <option value="FULL_TIME">Full Time</option>
-                  <option value="PART_TIME">Part Time</option>
-                  <option value="ADJUNCT">Adjunct</option>
-                  <option value="CONTRACT">Contract</option>
+                  <option value="PERMANENT">Permanent / Full-Time</option>
+                  <option value="CONTRACT">Contractual</option>
                   <option value="VISITING">Visiting Faculty</option>
+                  <option value="PART_TIME">Part Time</option>
+                  <option value="INTERN">Teaching Intern</option>
+                  <option value="DEPUTATION">On Deputation</option>
                 </select>
               </div>
 
@@ -268,6 +302,46 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
             </form>
           </CardContent>
         </Card>
+      )}
+
+      {/* Deactivate Faculty Confirmation Modal */}
+      {facultyToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <Card className="w-full max-w-md shadow-xl border-[#D64545]/30 bg-white">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2 text-[#D64545]">
+                <Trash2 className="h-5 w-5 text-[#D64545]" />
+                Confirm Faculty Deactivation
+              </CardTitle>
+              <CardDescription>
+                Are you sure you want to deactivate faculty member <strong>{facultyToDelete.display_name}</strong> ({facultyToDelete.employee_no})?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-[#6B7688]">
+                This will soft-delete their employment record in <code className="font-mono text-[#0B1F3A]">hrm.employees</code>, deactivate their profile, and log an immutable audit event in <code className="font-mono text-[#0B1F3A]">audit.events</code>.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setFacultyToDelete(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[#D64545] hover:bg-[#B93838] text-white"
+                  isLoading={isLoading}
+                  onClick={handleDeleteFacultySubmit}
+                >
+                  Deactivate Faculty
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Roster Table */}
@@ -304,6 +378,7 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
                     <th className="pb-3 font-semibold uppercase tracking-wider">Email</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Type</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Status</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E3E8EF]">
@@ -335,6 +410,17 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
                       <td className="py-3.5">
                         <Badge status={fac.status || 'ACTIVE'} />
                       </td>
+                      <td className="py-3.5 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-[11px] hover:text-[#D64545]"
+                          title="Deactivate Faculty Member"
+                          onClick={() => setFacultyToDelete(fac)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-[#D64545]" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -346,3 +432,4 @@ export function FacultyRoster({ initialFaculty, departments }: Props) {
     </div>
   );
 }
+

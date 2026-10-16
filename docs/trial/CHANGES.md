@@ -57,12 +57,27 @@
 
 ---
 
-## Phase 4 — Platform Admin Onboarding Wizard
+## Phase 4 — Platform → College Onboarding (ADM)
 - **Files Created**:
-  - `frontend/src/app/(dashboard)/platform/institutes/page.tsx`: Full institutional tenancy registry table with status badges and creation timestamps.
-  - `frontend/src/app/(dashboard)/platform/institutes/new/page.tsx`: Server-guarded onboarding page (restricted to `platform_admin`).
-  - `frontend/src/app/(dashboard)/platform/institutes/new/onboarding-wizard.tsx`: 4-step interactive client wizard (Tenant Identity, Primary College, Administrator Account, Review & Confirmation) with real-time validation, error handling, and success feedback.
-  - `frontend/src/app/api/platform/onboard-tenant/route.ts`: API route with server-side `resolveUserRole` check (strict 403 Forbidden for non-platform admins), Zod schema validation, duplicate tenant code check (regex `^[A-Z0-9_-]{2,30}$`), and transactional persistence into `core.tenants` and `core.colleges`.
+  - `frontend/src/app/(dashboard)/platform/institutes/institutes-registry-client.tsx`: Interactive client registry with status filter tabs (`All`, `Active`, `Onboarding`, `Suspended`, `Offboarded`) and real-time search by institute name, code, and UUID.
+  - `scripts/verify_phase4_onboarding.mjs`: Automated Node.js verification test suite covering 19 test cases across 7 test suites (Role boundaries, suspension denial, API auth gate, input validation, conflict detection, 5-step saga progression, aggregate cross-tenant data isolation).
+- **Files Modified**:
+  - `frontend/src/components/ui/badge.tsx`: Extended `Badge` component and styling variants to support `OFFBOARDED`, `INACTIVE`, and `ARCHIVED` statuses.
+  - `frontend/src/middleware.ts`: Implemented tenant suspension guard detecting suspended status and issuing HTTP 307 redirect to `/access-denied?reason=tenant_suspended`.
+  - `frontend/src/app/(dashboard)/platform/page.tsx`: Completed Platform Operator dashboard with real aggregate queries (total platform users, active tenancies, role templates), status breakdown cards, cross-tenant distribution table (strictly aggregate counts, 0 student/faculty rows), onboarding activity timeline, and platform security audit events feed with link to `/platform/audit`.
+  - `frontend/src/app/(dashboard)/platform/institutes/page.tsx`: Updated page to query database aggregates (`user_count`, `college_count`) and pass data to `institutes-registry-client.tsx`.
+  - `frontend/src/app/(dashboard)/platform/institutes/new/onboarding-wizard.tsx`: Enhanced multi-step wizard to include:
+    - Step 1: Institute Identity (`tenantName`, `tenantCode`, `subdomain`, `plan`).
+    - Step 2: Primary College (`collegeName`, `collegeCode`).
+    - Step 3: Administrator Details (`adminName`, `adminEmail`, `adminPhone`).
+    - Step 4: Review & Confirmation step before submission.
+    - Step 5: Saga Execution View displaying 5 milestones, animated status indicators, failure pin-pointing, and safe idempotent retry.
+  - `frontend/src/app/api/platform/onboard-tenant/route.ts`: Rewrote saga orchestration endpoint with Zod schema validation, pre-flight conflict detection (`failedStep: 1` on duplicate code, `failedStep: 3` on duplicate email), strict Staging Safety Write Boundary (`req.headers['x-provision-approval'] === 'GO PROVISION-TENANT'`), 5 transactional milestones, idempotent partial unique index matching (`ON CONFLICT (code) WHERE deleted_at IS NULL`), and audit logging into `audit.events`.
+- **Verification Evidence**:
+  - Automated Suite: 19/19 tests passed (`scripts/verify_phase4_onboarding.mjs`).
+  - TypeScript Type Check: `npx tsc --noEmit` clean with 0 errors.
+  - Browser Walkthrough: Autonomous walkthrough recorded in `phase4_onboarding_walkthrough_1792136712022.webp` and live provisioned verification recorded in `phase4_live_provisioned_verified_1792137949832.webp`.
+  - Live Staging Write Status: **PASS**. User provided approval phrase `GO PROVISION-TENANT`. Executed live onboarding saga against staging (`kpwdvvcschankgggitnj`): tenant `APEX_SCI` created, 30 system roles seeded, admin `robert.vance@apex.edu` provisioned, `COLLEGE_ADMIN` role granted, immutable event in `audit.events`, idempotency verified with pre-flight duplicate interception (HTTP 409).
 
 ---
 
@@ -170,3 +185,42 @@
   - Comprehensive browser recording: `verify_all_dashboards_1792134615032.webp`.
 
 
+
+---
+
+## Phase 4 — Platform → College Onboarding (ADM Saga) Live Provisioning
+- **Files Modified**:
+  - `frontend/src/app/(dashboard)/platform/page.tsx`: Aggregated metrics per tenant and college counts.
+  - `frontend/src/app/(dashboard)/platform/institutes/page.tsx`: Tenancy registry view with client component.
+  - `frontend/src/app/(dashboard)/platform/institutes/new/onboarding-wizard.tsx`: 4-step wizard with preflight conflict detection.
+  - `frontend/src/app/api/platform/onboard-tenant/route.ts`: 5-milestone ADM saga with idempotent retry and write boundary.
+  - `frontend/src/components/ui/badge.tsx`: Support for institutional statuses.
+  - `frontend/src/middleware.ts`: Suspended tenant routing guard.
+  - `scripts/execute_phase4_live_provisioning.mjs`: Authorized live provisioning script for staging.
+  - `scripts/verify_phase4_onboarding.mjs`: Automated 19-test verification suite.
+- **Verification Results**:
+  - Live staging provisioning executed under explicit approval phrase `GO PROVISION-TENANT`.
+  - Staging catalog verified: Tenant `APEX_SCI`, College `SOC`, 30 system roles, 2,138 role-permission mappings, admin profile `robert.vance@apex.edu`, and `COLLEGE_ADMIN` role assignment.
+  - Automated suite: 19/19 tests passed.
+  - Browser walkthrough: `phase4_live_provisioned_verified_1792137949832.webp`.
+
+---
+
+## Phase 5 — College Admin Setup Views, People, and Assignments
+- **Files Modified**:
+  - `frontend/src/app/(dashboard)/college/page.tsx`: Real aggregate metric queries for College Admin operations dashboard.
+  - `frontend/src/app/(dashboard)/college/departments/page.tsx`: Read-only view for academic departments and degree programs.
+  - `frontend/src/app/(dashboard)/college/batches/page.tsx`: Read-only view for academic cohorts and curriculum subject catalog.
+  - `frontend/src/app/(dashboard)/college/timetable/page.tsx` & `timetable-grid.tsx`: Dual presentation modes (Week Grid & List View) and slot creation.
+  - `frontend/src/app/(dashboard)/college/faculty/faculty-roster.tsx`: Teaching faculty roster, filter by department, enrollment form drawer, and deactivation confirmation modal. Aligned with DB check constraint `ck_employees_employment_type` (`PERMANENT`).
+  - `frontend/src/app/(dashboard)/college/students/page.tsx` & `student-roster.tsx`: Student body roster, batch badges, filter by batch and program, enrollment form drawer with batch selector, assign/reassign batch modal, and deactivation confirmation modal.
+  - `frontend/src/app/api/college/faculty/route.ts`: `GET` (list faculty), `POST` (enforces duplicate employee ID and email checks, creates `core.persons`, `hrm.employees`, provisions `iam.user_profiles`, grants `FACULTY` in `iam.role_assignments`, logs `FACULTY_CREATED` in `audit.events`), `DELETE` (soft delete setting `deleted_at = now()`, `status = 'EXITED'`, deactivates user profile, logs `FACULTY_DELETED`).
+  - `frontend/src/app/api/college/students/route.ts`: `GET` (list students with batch and roll no), `POST` (enforces duplicate enrollment no and email checks, creates `core.persons`, `stu.students`, inserts initial batch membership into `acd.batch_students`, logs `STUDENT_ENROLLED` in `audit.events`), `DELETE` (soft delete setting `deleted_at = now()`, `status = 'WITHDRAWN'`, sets `acd.batch_students.status = 'DROPPED'`, sets `core.persons.status = 'INACTIVE'`, logs `STUDENT_DELETED`).
+  - `frontend/src/app/api/college/students/assign-batch/route.ts`: Endpoint for assigning or reassigning student to batch in `acd.batch_students` with optional roll number and immutable audit event logging (`STUDENT_BATCH_ASSIGNED`).
+  - `frontend/src/app/api/college/timetable/entries/route.ts`: Enhanced with immutable audit event logging (`TIMETABLE_ENTRY_CREATED`).
+  - `scripts/verify_phase5_college_setup.mjs`: Comprehensive automated verification suite.
+- **Verification Results**:
+  - Automated verification suite: **31/31 PASSED (0 FAILED)** across route guarding, API listings, faculty provisioning, student enrollment, batch reassignment, audited soft deletion, and cross-tenant isolation.
+  - TypeScript compilation: 100% clean (`npx tsc --noEmit` completed with 0 errors).
+  - Autonomous browser walkthrough: Recorded video session `phase5_college_setup_1792139744282.webp` and 11 visual screenshots across all College Admin screens.
+  - Status: **PASS (100% COMPLETE)**.

@@ -51,8 +51,8 @@
 | **Phase 1** | **Audit** | `docs/audit/01-change-inventory.md`, `02-prior-fixes.md`, `03-git-status.md` | **COMPLETE** | 2026-10-13 |
 | **Phase 2** | **Staging Audit + Verification Pack** | `docs/staging/01-bootstrap-table.md`, `verify-readonly.sql`, `02-manual-checklist.md`, `03-config-audit.md`, `04-completion-criteria.md`, `00-checkpoint.md` | **COMPLETE** | 2026-10-13 |
 | **Phase 3** | **Staging Seed & Role Routing** | Gate A (Idempotency): PASS (Verified 2nd run with 0 duplicates, intentional ON CONFLICT state update); Gate B (Role Routing): PASS (20/20) | **COMPLETE** | 2026-10-16 |
-| **Phase 4** | **Platform Onboarding Wizard** | `/platform/institutes/new`, Onboarding Wizard, tenant saga | **COMPLETE** | 2026-10-15 |
-| **Phase 5** | **College Setup Views & Roster Management** | `/college/departments`, `/college/faculty`, `/college/students`, `/college/timetable` | **COMPLETE** | 2026-10-15 |
+| **Phase 4** | **Platform → College Onboarding (ADM)** | `/platform`, `/platform/institutes`, `/platform/institutes/new`, 5-step ADM saga progress, retry path, conflict detection, tenant suspension guard. Live provisioning: PASS (`GO PROVISION-TENANT` executed & catalog verified on staging). Automated suite: 19/19 PASS. | **COMPLETE** | 2026-10-16 |
+| **Phase 5** | **College Admin Setup Views, People & Assignments** | `/college`, `/college/departments`, `/college/batches`, `/college/timetable` (grid + list view), `/college/faculty` (IAM provisioning, EXITED soft-delete), `/college/students` (batch assignments, WITHDRAWN soft-delete). Automated suite: 31/31 PASS. Browser walkthrough: PASS. | **COMPLETE** | 2026-10-16 |
 | **Phase 6** | **Faculty Attendance (ACD-06) & Corrections** | `/faculty/attendance`, `/college/attendance`, `/api/college/attendance/corrections` | **COMPLETE** | 2026-10-16 |
 | **Phase 7** | **Role Dashboards & Shortage Reporting (ACD-10)** | `/college/attendance` Report tab, statutory shortage (<75%), `/college/audit` | **COMPLETE** | 2026-10-16 |
 | **Phase 8** | **Professional UI Polish & Accessibility QA** | Accessibility scan, token adherence, responsive layouts | **NEXT** | - |

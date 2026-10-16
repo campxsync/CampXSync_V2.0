@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Building2,
@@ -11,15 +12,22 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
-  ShieldAlert,
+  ShieldCheck,
+  Globe,
+  Tag,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 interface OnboardingFormState {
   tenantName: string;
   tenantCode: string;
+  subdomain: string;
+  plan: 'ENTERPRISE' | 'GROWTH' | 'STANDARD' | 'TRIAL';
   collegeName: string;
   collegeCode: string;
   adminName: string;
@@ -27,16 +35,27 @@ interface OnboardingFormState {
   adminPhone: string;
 }
 
+interface SagaStepState {
+  step: number;
+  name: string;
+  title: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'GATED';
+  detail?: string;
+}
+
 export function OnboardingWizard() {
   const router = useRouter();
   const [step, setStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failedStepNum, setFailedStepNum] = useState<number | null>(null);
   const [successData, setSuccessData] = useState<any | null>(null);
 
   const [formData, setFormData] = useState<OnboardingFormState>({
     tenantName: '',
     tenantCode: '',
+    subdomain: '',
+    plan: 'ENTERPRISE',
     collegeName: '',
     collegeCode: '',
     adminName: '',
@@ -44,9 +63,28 @@ export function OnboardingWizard() {
     adminPhone: '',
   });
 
+  const [sagaSteps, setSagaSteps] = useState<SagaStepState[]>([
+    { step: 1, name: 'CREATE_TENANT', title: '1. Create Institute in Onboarding Status', status: 'PENDING' },
+    { step: 2, name: 'SEED_CONFIG', title: '2. Seed Tenant Config & 30 System Roles', status: 'PENDING' },
+    { step: 3, name: 'PROVISION_ADMIN', title: '3. Provision First College Administrator', status: 'PENDING' },
+    { step: 4, name: 'GRANT_ROLE', title: '4. Grant COLLEGE_ADMIN Role Assignment', status: 'PENDING' },
+    { step: 5, name: 'ACTIVATE_NODE', title: '5. Activate Institutional Tenancy Node', status: 'PENDING' },
+  ]);
+
   const updateField = (field: keyof OnboardingFormState, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      // Auto-suggest subdomain and college code if empty
+      if (field === 'tenantCode' && !prev.subdomain) {
+        next.subdomain = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      }
+      if (field === 'tenantName' && !prev.collegeName) {
+        next.collegeName = value;
+      }
+      return next;
+    });
     setErrorMessage(null);
+    setFailedStepNum(null);
   };
 
   const validateStep = (currentStep: number): boolean => {
@@ -57,7 +95,13 @@ export function OnboardingWizard() {
       }
       const codeRegex = /^[A-Z0-9_-]{2,30}$/;
       if (!codeRegex.test(formData.tenantCode.trim())) {
-        setErrorMessage('Tenant code must be 2-30 uppercase characters, numbers, underscores, or hyphens (e.g. DIT_TECH).');
+        setErrorMessage('Institute code must be 2-30 uppercase characters, numbers, underscores, or hyphens (e.g. XAVIER_TECH).');
+        return false;
+      }
+      const subRegex = /^[a-z0-9-]{2,30}$/;
+      const effectiveSubdomain = formData.subdomain.trim() || formData.tenantCode.toLowerCase();
+      if (!subRegex.test(effectiveSubdomain)) {
+        setErrorMessage('Subdomain must be 2-30 lowercase characters, numbers, or hyphens (e.g. xavier).');
         return false;
       }
     } else if (currentStep === 2) {
@@ -67,12 +111,12 @@ export function OnboardingWizard() {
       }
       const codeRegex = /^[A-Z0-9_-]{2,30}$/;
       if (!codeRegex.test(formData.collegeCode.trim())) {
-        setErrorMessage('College code must be 2-30 uppercase characters, numbers, underscores, or hyphens (e.g. DIT).');
+        setErrorMessage('College code must be 2-30 uppercase characters, numbers, underscores, or hyphens (e.g. ENGG).');
         return false;
       }
     } else if (currentStep === 3) {
       if (!formData.adminName.trim() || formData.adminName.length < 2) {
-        setErrorMessage('Administrator name is required.');
+        setErrorMessage('First College Administrator name is required.');
         return false;
       }
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -82,6 +126,7 @@ export function OnboardingWizard() {
       }
     }
     setErrorMessage(null);
+    setFailedStepNum(null);
     return true;
   };
 
@@ -93,35 +138,71 @@ export function OnboardingWizard() {
 
   const handlePrev = () => {
     setErrorMessage(null);
+    setFailedStepNum(null);
     setStep((prev) => Math.max(1, prev - 1));
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setErrorMessage(null);
+    setFailedStepNum(null);
+    setStep(5); // Move to saga progress view
+
+    // Simulate animated step progression for UI responsiveness
+    setSagaSteps((prev) =>
+      prev.map((s, idx) => (idx === 0 ? { ...s, status: 'IN_PROGRESS' } : { ...s, status: 'PENDING' }))
+    );
 
     try {
+      const payload = {
+        ...formData,
+        subdomain: formData.subdomain.trim() || formData.tenantCode.toLowerCase(),
+      };
+
       const res = await fetch('/api/platform/onboard-tenant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data.detail || data.title || 'Institutional onboarding failed.');
+        const failStep = data.failedStep || 1;
+        setFailedStepNum(failStep);
+        setSagaSteps((prev) =>
+          prev.map((s) => {
+            if (s.step === failStep) return { ...s, status: 'FAILED' };
+            if (s.step < failStep) return { ...s, status: 'COMPLETED' };
+            return { ...s, status: 'PENDING' };
+          })
+        );
+        setErrorMessage(data.detail || data.title || 'Institutional onboarding saga failed.');
         setIsSubmitting(false);
         return;
       }
 
+      // Mark saga steps completed per backend report
+      setSagaSteps((prev) =>
+        prev.map((s) => ({
+          ...s,
+          status: data.gated && s.step === 5 ? 'GATED' : 'COMPLETED',
+        }))
+      );
+
       setSuccessData(data);
-      setStep(5); // Complete state
     } catch (err: any) {
       setErrorMessage(err.message || 'Network error communicating with platform service.');
+      setSagaSteps((prev) => prev.map((s, idx) => (idx === 0 ? { ...s, status: 'FAILED' } : s)));
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    setErrorMessage(null);
+    setFailedStepNum(null);
+    handleSubmit();
   };
 
   return (
@@ -132,7 +213,7 @@ export function OnboardingWizard() {
           { num: 1, label: 'Tenant Identity', icon: Building2 },
           { num: 2, label: 'Primary College', icon: GraduationCap },
           { num: 3, label: 'Administrator', icon: UserCheck },
-          { num: 4, label: 'Review & Launch', icon: CheckCircle2 },
+          { num: 4, label: 'Review & Saga', icon: CheckCircle2 },
         ].map(({ num, label, icon: Icon }) => (
           <div
             key={num}
@@ -140,7 +221,7 @@ export function OnboardingWizard() {
               step === num
                 ? 'border-[#1F6FEB] bg-[#E8F0FE] text-[#1F6FEB]'
                 : step > num
-                ? 'border-[#107C41] bg-[#DFF6DD]/50 text-[#107C41]'
+                ? 'border-[#1E9E6A] bg-[#EAF8F1] text-[#1E9E6A]'
                 : 'border-[#E3E8EF] bg-white text-[#6B7688]'
             }`}
           >
@@ -149,7 +230,7 @@ export function OnboardingWizard() {
                 step === num
                   ? 'bg-[#1F6FEB] text-white'
                   : step > num
-                  ? 'bg-[#107C41] text-white'
+                  ? 'bg-[#1E9E6A] text-white'
                   : 'bg-[#F6F8FB] text-[#6B7688]'
               }`}
             >
@@ -162,12 +243,20 @@ export function OnboardingWizard() {
 
       {/* Error Alert */}
       {errorMessage && (
-        <div className="p-4 rounded-[8px] border border-[#D64545] bg-[#FDF3F3] text-xs text-[#D64545] flex items-start gap-2">
+        <div className="p-4 rounded-[8px] border border-[#D64545] bg-[#FDF3F3] text-xs text-[#D64545] flex items-start gap-2.5">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold">Validation or Operation Error</p>
+          <div className="flex-1">
+            <p className="font-semibold">
+              {failedStepNum ? `Saga Failure at Step ${failedStepNum}` : 'Validation or Operation Error'}
+            </p>
             <p className="mt-0.5">{errorMessage}</p>
           </div>
+          {step === 5 && failedStepNum && (
+            <Button variant="outline" size="sm" onClick={handleRetry} className="bg-white hover:bg-white text-[#D64545] border-[#D64545]">
+              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+              Retry Step
+            </Button>
+          )}
         </div>
       )}
 
@@ -195,28 +284,62 @@ export function OnboardingWizard() {
               </p>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                  Institutional Tenant Code <span className="text-[#D64545]">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. XAVIER_TECH"
+                  className="font-mono uppercase"
+                  value={formData.tenantCode}
+                  onChange={(e) => updateField('tenantCode', e.target.value.toUpperCase())}
+                />
+                <p className="text-[11px] text-[#6B7688] mt-1">
+                  Unique uppercase identifier (2-30 chars, e.g. DIT).
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                  Institutional Subdomain <span className="text-[#D64545]">*</span>
+                </label>
+                <div className="flex rounded-[6px] border border-[#E3E8EF] focus-within:border-[#1F6FEB]">
+                  <Input
+                    placeholder="e.g. xavier"
+                    className="border-0 focus-visible:ring-0 text-xs font-mono lowercase"
+                    value={formData.subdomain}
+                    onChange={(e) => updateField('subdomain', e.target.value.toLowerCase())}
+                  />
+                  <span className="inline-flex items-center px-3 rounded-r-[6px] bg-[#F6F8FB] text-[11px] font-mono text-[#6B7688] border-l border-[#E3E8EF]">
+                    .campxsync.edu
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#6B7688] mt-1">
+                  Custom tenant URL routing handle.
+                </p>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Institutional Tenant Code <span className="text-[#D64545]">*</span>
+                Subscription Plan <span className="text-[#D64545]">*</span>
               </label>
-              <Input
-                placeholder="e.g. SXIET"
-                value={formData.tenantCode}
-                onChange={(e) => updateField('tenantCode', e.target.value.toUpperCase())}
-                className="font-mono uppercase"
-              />
-              <p className="text-[11px] text-[#6B7688] mt-1">
-                Must match regex <code>^[A-Z0-9_-]&#123;2,30&#125;$</code>. Used for subdomain and tenant-routing keys.
-              </p>
+              <select
+                className="w-full rounded-[6px] border border-[#E3E8EF] px-3 py-2 text-xs focus:border-[#1F6FEB] focus:outline-none bg-white text-[#0B1F3A]"
+                value={formData.plan}
+                onChange={(e) => updateField('plan', e.target.value)}
+              >
+                <option value="ENTERPRISE">Enterprise Multi-Campus (Unlimited Departments & Students)</option>
+                <option value="GROWTH">Institutional Growth (Up to 10 Departments, 5,000 Students)</option>
+                <option value="STANDARD">Standard Academic (Up to 4 Departments, 1,000 Students)</option>
+                <option value="TRIAL">Trial Pilot (30 Days Evaluation)</option>
+              </select>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="ghost" onClick={() => router.push('/platform/institutes')}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleNext}>
-              Next: Primary College
-              <ArrowRight className="ml-1.5 h-4 w-4" />
+          <CardFooter className="flex justify-end border-t border-[#E3E8EF] pt-4">
+            <Button variant="primary" size="sm" onClick={handleNext}>
+              Next: Primary College <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
@@ -226,18 +349,18 @@ export function OnboardingWizard() {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 2: Primary College Setup</CardTitle>
+            <CardTitle>Step 2: Primary College & Campus</CardTitle>
             <CardDescription>
-              Establish the initial operational college unit inside this institutional tenant.
+              Create the initial primary academic college within this institutional tenancy.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Primary College Name <span className="text-[#D64545]">*</span>
+                Primary College / Campus Name <span className="text-[#D64545]">*</span>
               </label>
               <Input
-                placeholder="e.g. Faculty of Engineering and Applied Sciences"
+                placeholder="e.g. Faculty of Engineering and Technology"
                 value={formData.collegeName}
                 onChange={(e) => updateField('collegeName', e.target.value)}
               />
@@ -248,21 +371,22 @@ export function OnboardingWizard() {
                 College Code <span className="text-[#D64545]">*</span>
               </label>
               <Input
-                placeholder="e.g. FEAS"
+                placeholder="e.g. FET"
+                className="font-mono uppercase"
                 value={formData.collegeCode}
                 onChange={(e) => updateField('collegeCode', e.target.value.toUpperCase())}
-                className="font-mono uppercase"
               />
+              <p className="text-[11px] text-[#6B7688] mt-1">
+                Scoped uppercase campus code (e.g. FET, ENGG, MED).
+              </p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={handlePrev}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Back
+          <CardFooter className="flex justify-between border-t border-[#E3E8EF] pt-4">
+            <Button variant="outline" size="sm" onClick={handlePrev}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
-            <Button variant="primary" onClick={handleNext}>
-              Next: Administrator
-              <ArrowRight className="ml-1.5 h-4 w-4" />
+            <Button variant="primary" size="sm" onClick={handleNext}>
+              Next: Administrator <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
@@ -272,9 +396,9 @@ export function OnboardingWizard() {
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 3: Initial College Administrator Account</CardTitle>
+            <CardTitle>Step 3: First College Administrator</CardTitle>
             <CardDescription>
-              Designate the primary administrator responsible for academic setup, faculty rosters, and timetables.
+              Provision the root institutional administrator account with COLLEGE_ADMIN privileges.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -283,7 +407,7 @@ export function OnboardingWizard() {
                 Administrator Full Name <span className="text-[#D64545]">*</span>
               </label>
               <Input
-                placeholder="e.g. Dr. Arthur Pendelton"
+                placeholder="e.g. Dr. Rajesh Kumar"
                 value={formData.adminName}
                 onChange={(e) => updateField('adminName', e.target.value)}
               />
@@ -291,22 +415,22 @@ export function OnboardingWizard() {
 
             <div>
               <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Official Email Address <span className="text-[#D64545]">*</span>
+                Administrator Email Address <span className="text-[#D64545]">*</span>
               </label>
               <Input
                 type="email"
-                placeholder="e.g. admin@sxiet.edu"
+                placeholder="e.g. admin.xavier@campxsync.edu"
                 value={formData.adminEmail}
                 onChange={(e) => updateField('adminEmail', e.target.value)}
               />
               <p className="text-[11px] text-[#6B7688] mt-1">
-                A verification link and institutional activation invite will be linked to this email address.
+                Must be an active institutional email. Receives root credential invite and RBAC assignments.
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Phone Number (Optional)
+                Contact Phone Number (Optional)
               </label>
               <Input
                 placeholder="e.g. +91 98765 43210"
@@ -315,125 +439,273 @@ export function OnboardingWizard() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={handlePrev}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Back
+          <CardFooter className="flex justify-between border-t border-[#E3E8EF] pt-4">
+            <Button variant="outline" size="sm" onClick={handlePrev}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
-            <Button variant="primary" onClick={handleNext}>
-              Next: Review & Launch
-              <ArrowRight className="ml-1.5 h-4 w-4" />
+            <Button variant="primary" size="sm" onClick={handleNext}>
+              Review Configuration <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>
       )}
 
-      {/* Step 4: Review & Finalize */}
+      {/* Step 4: Review & Confirmation */}
       {step === 4 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 4: Review Institutional Onboarding</CardTitle>
+            <CardTitle>Step 4: Review & Launch Onboarding Saga</CardTitle>
             <CardDescription>
-              Confirm tenancy details before triggering tenant provisioning and system role triggers.
+              Please verify the institutional parameters before triggering the multi-step ADM provisioning saga.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="p-3 bg-[#F6F8FB] rounded-[8px] space-y-1">
-                <span className="text-[#6B7688]">Tenant Name</span>
-                <p className="font-semibold text-[#0B1F3A]">{formData.tenantName}</p>
+          <CardContent className="space-y-4">
+            <div className="rounded-[8px] border border-[#E3E8EF] divide-y divide-[#E3E8EF] bg-[#F6F8FB]/30">
+              {/* Tenant Summary */}
+              <div className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-[#1F6FEB]" /> Institutional Tenancy
+                  </span>
+                  <Badge status="ONBOARDING" />
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Institute Name</span>
+                    <span className="font-semibold text-[#0B1F3A]">{formData.tenantName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Tenant Code</span>
+                    <span className="font-mono font-semibold text-[#0B1F3A]">{formData.tenantCode}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Subdomain Routing</span>
+                    <span className="font-mono text-[#1F6FEB]">{formData.subdomain || formData.tenantCode.toLowerCase()}.campxsync.edu</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Subscription Plan</span>
+                    <span className="font-semibold text-[#0B1F3A]">{formData.plan}</span>
+                  </div>
+                </div>
               </div>
-              <div className="p-3 bg-[#F6F8FB] rounded-[8px] space-y-1">
-                <span className="text-[#6B7688]">Tenant Code</span>
-                <p className="font-mono font-semibold text-[#0B1F3A]">{formData.tenantCode}</p>
+
+              {/* Primary College Summary */}
+              <div className="p-4 space-y-2">
+                <span className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider flex items-center gap-1.5">
+                  <GraduationCap className="h-3.5 w-3.5 text-[#1F6FEB]" /> Primary College & Campus
+                </span>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">College Name</span>
+                    <span className="font-semibold text-[#0B1F3A]">{formData.collegeName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Campus Code</span>
+                    <span className="font-mono font-semibold text-[#0B1F3A]">{formData.collegeCode}</span>
+                  </div>
+                </div>
               </div>
-              <div className="p-3 bg-[#F6F8FB] rounded-[8px] space-y-1">
-                <span className="text-[#6B7688]">Primary College</span>
-                <p className="font-semibold text-[#0B1F3A]">{formData.collegeName} ({formData.collegeCode})</p>
-              </div>
-              <div className="p-3 bg-[#F6F8FB] rounded-[8px] space-y-1">
-                <span className="text-[#6B7688]">Administrator</span>
-                <p className="font-semibold text-[#0B1F3A]">{formData.adminName} &lt;{formData.adminEmail}&gt;</p>
+
+              {/* Administrator Summary */}
+              <div className="p-4 space-y-2">
+                <span className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider flex items-center gap-1.5">
+                  <UserCheck className="h-3.5 w-3.5 text-[#1F6FEB]" /> First College Administrator
+                </span>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Administrator</span>
+                    <span className="font-semibold text-[#0B1F3A]">{formData.adminName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">Admin Email</span>
+                    <span className="font-mono font-semibold text-[#0B1F3A]">{formData.adminEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7688] block text-[11px]">RBAC Role</span>
+                    <span className="font-semibold text-[#1F6FEB]">COLLEGE_ADMIN (Root Access)</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="p-4 rounded-[8px] bg-[#E8F0FE] border border-[#1F6FEB]/20 text-xs text-[#12315C] flex items-start gap-3">
-              <ShieldAlert className="h-5 w-5 text-[#1F6FEB] shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-semibold">Security & Multi-Tenant Isolation Guarantee</p>
-                <p className="text-[11px] leading-relaxed text-[#1B2433]">
-                  Creating this record activates PostgreSQL trigger <code>trg_seed_roles</code>, seeding 30 system roles and 2,138 permission mappings in isolated schemas. Row-Level Security ensures data from this tenant is strictly invisible to other colleges.
-                </p>
-              </div>
+            <div className="p-3 rounded-[6px] border border-[#B8D3FC] bg-[#E8F0FE]/40 text-xs text-[#0B1F3A]">
+              <p className="font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-[#1F6FEB]" /> Automated ADM Saga Execution
+              </p>
+              <p className="text-[11px] text-[#6B7688] mt-1">
+                Submitting will initiate the 5-step transactional provisioning saga: initializing the tenant node in ONBOARDING status, generating system roles, provisioning administrator credentials, granting RBAC permissions, and activating the tenant.
+              </p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={handlePrev} disabled={isSubmitting}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Back
+          <CardFooter className="flex justify-between border-t border-[#E3E8EF] pt-4">
+            <Button variant="outline" size="sm" onClick={handlePrev} disabled={isSubmitting}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Edit Parameters
             </Button>
-            <Button variant="primary" onClick={handleSubmit} isLoading={isSubmitting}>
-              {isSubmitting ? 'Provisioning Tenant...' : 'Confirm & Onboard Tenant'}
+            <Button variant="primary" size="sm" onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  Initiating Saga...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                  Confirm & Launch Onboarding Saga
+                </>
+              )}
             </Button>
           </CardFooter>
         </Card>
       )}
 
-      {/* Step 5: Success */}
+      {/* Step 5: Saga Execution Progress & Completion */}
       {step === 5 && (
-        <Card className="border-[#107C41]/30">
-          <CardContent className="pt-8 pb-8 text-center space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#DFF6DD] text-[#107C41]">
-              <CheckCircle2 className="h-8 w-8" />
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>ADM Onboarding Saga Execution</CardTitle>
+                <CardDescription>
+                  Tracking multi-step institutional provisioning workflow
+                </CardDescription>
+              </div>
+              {isSubmitting && (
+                <div className="flex items-center gap-1.5 text-xs text-[#1F6FEB] font-medium font-mono">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Executing...
+                </div>
+              )}
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-[#0B1F3A]">Tenant Onboarded Successfully</h2>
-              <p className="text-xs text-[#6B7688] mt-1 max-w-md mx-auto">
-                {formData.tenantName} ({formData.tenantCode}) is now registered in <code>core.tenants</code>.
-              </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Step-by-Step Saga Progress */}
+            <div className="space-y-3">
+              {sagaSteps.map((s) => {
+                const isComplete = s.status === 'COMPLETED';
+                const isFailed = s.status === 'FAILED';
+                const isGated = s.status === 'GATED';
+                const inProgress = s.status === 'IN_PROGRESS';
+
+                return (
+                  <div
+                    key={s.step}
+                    className={`flex items-center justify-between p-3.5 rounded-[8px] border transition-all ${
+                      isComplete
+                        ? 'border-[#B2E6CE] bg-[#EAF8F1]/40'
+                        : isFailed
+                        ? 'border-[#F8BDBD] bg-[#FDECEC]/50'
+                        : isGated
+                        ? 'border-[#FCE2B3] bg-[#FEF7EA]/50'
+                        : inProgress
+                        ? 'border-[#B8D3FC] bg-[#E8F0FE]/40'
+                        : 'border-[#E3E8EF] bg-white opacity-70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                          isComplete
+                            ? 'bg-[#1E9E6A] text-white'
+                            : isFailed
+                            ? 'bg-[#D64545] text-white'
+                            : isGated
+                            ? 'bg-[#E39B16] text-white'
+                            : inProgress
+                            ? 'bg-[#1F6FEB] text-white'
+                            : 'bg-[#E3E8EF] text-[#6B7688]'
+                        }`}
+                      >
+                        {isComplete ? '✓' : isFailed ? '✕' : inProgress ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          s.step
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-[#0B1F3A]">{s.title}</p>
+                        <p className="text-[11px] text-[#6B7688] mt-0.5">
+                          {isComplete
+                            ? 'Milestone verified and locked in audit trail.'
+                            : isFailed
+                            ? 'Saga stopped. Error preserved; retry available.'
+                            : isGated
+                            ? 'Validated in simulation. Staging write gated awaiting approval.'
+                            : inProgress
+                            ? 'Executing transactional operation...'
+                            : 'Queued in dependency order.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full ${
+                        isComplete
+                          ? 'bg-[#1E9E6A]/10 text-[#1E9E6A]'
+                          : isFailed
+                          ? 'bg-[#D64545]/10 text-[#D64545]'
+                          : isGated
+                          ? 'bg-[#E39B16]/10 text-[#E39B16]'
+                          : inProgress
+                          ? 'bg-[#1F6FEB]/10 text-[#1F6FEB]'
+                          : 'bg-[#F0F2F5] text-[#6B7688]'
+                      }`}
+                    >
+                      {s.status}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
-            {successData && (
-              <div className="max-w-md mx-auto text-left p-3 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-xs font-mono space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-[#6B7688]">Tenant ID:</span>
-                  <span className="text-[#0B1F3A] font-semibold">{successData.tenant?.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#6B7688]">College ID:</span>
-                  <span className="text-[#0B1F3A] font-semibold">{successData.college?.id || 'Pending setup'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#6B7688]">Status:</span>
-                  <span className="text-[#107C41] font-semibold">{successData.tenant?.status}</span>
-                </div>
+            {/* Staging Write Gate Notice */}
+            {successData?.gated && (
+              <div className="p-4 rounded-[8px] border border-[#FCE2B3] bg-[#FEF7EA] text-xs text-[#0B1F3A] space-y-1">
+                <p className="font-semibold text-[#E39B16] flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4" /> Staging Safety Write Boundary Active
+                </p>
+                <p className="text-[11px] text-[#6B7688]">
+                  Phase 4 saga inputs, validation schemas, and pre-flight conflict checks succeeded. Per Master Prompt Rule 3, creating permanent tenants and accounts in staging requires explicit approval: <span className="font-mono font-bold text-[#0B1F3A]">GO PROVISION-TENANT</span>.
+                </p>
               </div>
             )}
 
-            <div className="pt-4 flex justify-center gap-3">
-              <Button variant="primary" onClick={() => router.push('/platform/institutes')}>
-                View Institutes Registry
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setFormData({
-                    tenantName: '',
-                    tenantCode: '',
-                    collegeName: '',
-                    collegeCode: '',
-                    adminName: '',
-                    adminEmail: '',
-                    adminPhone: '',
-                  });
-                  setStep(1);
-                  setSuccessData(null);
-                }}
-              >
-                Onboard Another
-              </Button>
-            </div>
+            {/* Success Summary if Completed */}
+            {successData && !successData.gated && (
+              <div className="p-4 rounded-[8px] border border-[#B2E6CE] bg-[#EAF8F1] text-xs text-[#0B1F3A] space-y-1">
+                <p className="font-semibold text-[#1E9E6A] flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" /> Institute Onboarded Successfully
+                </p>
+                <p className="text-[11px] text-[#6B7688]">
+                  {successData.message}
+                </p>
+              </div>
+            )}
           </CardContent>
+          <CardFooter className="flex justify-between border-t border-[#E3E8EF] pt-4">
+            {failedStepNum ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setStep(4)}>
+                  <ArrowLeft className="mr-1.5 h-4 w-4" /> Edit Parameters
+                </Button>
+                <Button variant="primary" size="sm" onClick={handleRetry}>
+                  <RefreshCw className="mr-1.5 h-4 w-4" /> Retry Onboarding Saga
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/platform">
+                  <Button variant="outline" size="sm">
+                    Return to Dashboard
+                  </Button>
+                </Link>
+                <Link href="/platform/institutes">
+                  <Button variant="primary" size="sm">
+                    View in Registry <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </Link>
+              </>
+            )}
+          </CardFooter>
         </Card>
       )}
     </div>

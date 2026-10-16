@@ -18,6 +18,7 @@ export default async function CollegeStudentsPage() {
   const tenantId = resolution.session.tenantId || '11111111-1111-1111-1111-111111111111';
   let studentsList: any[] = [];
   let programs: any[] = [];
+  let batches: any[] = [];
 
   try {
     const progRes = await query(`
@@ -28,6 +29,14 @@ export default async function CollegeStudentsPage() {
     `, [tenantId]);
     programs = progRes.rows;
 
+    const batchRes = await query(`
+      SELECT id, name, code, program_id
+      FROM acd.batches
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+      ORDER BY name
+    `, [tenantId]);
+    batches = batchRes.rows;
+
     const stuRes = await query(`
       SELECT 
         s.id,
@@ -37,10 +46,16 @@ export default async function CollegeStudentsPage() {
         s.created_at,
         p.display_name,
         p.primary_email,
-        pr.name as program_name
+        pr.name as program_name,
+        b.id as batch_id,
+        b.name as batch_name,
+        b.code as batch_code,
+        bs.roll_no
       FROM stu.students s
       LEFT JOIN core.persons p ON p.id = s.person_id
       LEFT JOIN acd.programs pr ON pr.id = s.program_id
+      LEFT JOIN acd.batch_students bs ON bs.student_id = s.id AND bs.status = 'ACTIVE' AND bs.deleted_at IS NULL
+      LEFT JOIN acd.batches b ON b.id = bs.batch_id
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
       ORDER BY s.enrollment_no ASC
     `, [tenantId]);
@@ -51,6 +66,10 @@ export default async function CollegeStudentsPage() {
       status: s.status,
       program_id: s.program_id,
       program_name: s.program_name,
+      batch_id: s.batch_id,
+      batch_name: s.batch_name,
+      batch_code: s.batch_code,
+      roll_no: s.roll_no,
       display_name: s.display_name || 'Unnamed Student',
       primary_email: s.primary_email || 'No Email',
       created_at: s.created_at,
@@ -70,7 +89,7 @@ export default async function CollegeStudentsPage() {
         </p>
       </div>
 
-      <StudentRoster initialStudents={studentsList} programs={programs} />
+      <StudentRoster initialStudents={studentsList} programs={programs} batches={batches} />
     </div>
   );
 }

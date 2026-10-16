@@ -241,3 +241,119 @@
   - **Gate B (Seeded Role Routing)**: **PASS** (20/20 test cases verified live)
   - **Phase 3**: **100% COMPLETE**.
 
+### Step 10: Phase 4 Platform & College Onboarding (ADM Saga) Verification
+- **Status**: **VERIFIED COMPLETE (Implementation, Validation & UI Walkthrough)**; **LIVE PROVISIONING BLOCKED (Awaiting GO PROVISION-TENANT)**
+- **Date**: 2026-10-16
+- **Target Project Reference**: `kpwdvvcschankgggitnj` (Supabase Staging) & `http://localhost:3000` (Next.js 15 dev server)
+- **Implemented Scope & Evidence**:
+  1. **Platform Operator Dashboard (`/platform`)**:
+     - Status cards grouped by lifecycle: `Active: 2`, `Onboarding: 0`, `Suspended: 0`, `Offboarded: 0`.
+     - Cross-tenant aggregate query returning `user_count` and `college_count` per tenant.
+     - Strict tenant tier shielding: Verified no individual student/faculty enrollment rows (`2024-CSE-001`, `2024-PCS-001`) are exposed to the Platform Admin view.
+     - Recent onboarding activity feed and platform security audit events feed with direct link to `/platform/audit`.
+  2. **Institute Registry (`/platform/institutes`)**:
+     - Interactive client component `institutes-registry-client.tsx` with search by institute name, tenant code, and UUID.
+     - Status badge filter tabs: `All`, `Active`, `Onboarding`, `Suspended`, `Offboarded`.
+     - Badges updated in `badge.tsx` supporting all standard institutional statuses.
+  3. **Onboard Institute Wizard (`/platform/institutes/new`)**:
+     - 4-step wizard:
+       - Step 1: Institute Details (`tenantName`, `tenantCode`, `subdomain`, `plan`).
+       - Step 2: Primary College (`collegeName`, `collegeCode`).
+       - Step 3: First College Administrator (`adminName`, `adminEmail`, `adminPhone`).
+       - Step 4: Review & Confirmation step displaying all configured parameters before submission.
+     - Validation: Zod schema, uppercase alphanumeric regex `^[A-Z0-9_-]{2,30}$` for tenant code, email validation, and human-readable error messages.
+  4. **ADM 5-Step Saga API (`POST /api/platform/onboard-tenant`)**:
+     - Sequence:
+       1. Create Institute in `onboarding` status.
+       2. Seed Tenant Configuration & 30 System Roles.
+       3. Provision First College Administrator Profile.
+       4. Grant `COLLEGE_ADMIN` Role Assignment via IAM.
+       5. Activate Tenancy Node (`ACTIVE`).
+     - Pre-flight conflict detection:
+       - Duplicate tenant code triggers HTTP 409 Conflict with `failedStep: 1`.
+       - Duplicate administrator email triggers HTTP 409 Conflict with `failedStep: 3`.
+     - Idempotent safe retry: identifies failed step, preserves onboarding record, and provides safe re-execution path.
+     - Strict Staging Safety Write Boundary: Enforces `ALLOW_STAGING_PROVISION === 'true'`. Returns `gated: true` with all milestones validated when live writes are unapproved, preventing accidental tenant proliferation.
+  5. **Tenant Suspension & Isolation**:
+     - Middleware inspection in `frontend/src/middleware.ts` detects suspended tenant state from `iam.user_profiles` join `core.tenants` and issues HTTP 307 redirect to `/access-denied?reason=tenant_suspended`.
+  6. **Automated Verification Suite (`scripts/verify_phase4_onboarding.mjs`)**:
+     - 19/19 automated tests passed:
+       - Platform Admin access to `/platform`, `/platform/institutes`, `/platform/institutes/new` (PASS)
+       - College Admin blocked from `/platform` (PASS - 307 to `/access-denied?reason=forbidden`)
+       - Faculty blocked from `/platform/institutes` (PASS - 307 to `/access-denied?reason=forbidden`)
+       - Suspended tenant user denied access (PASS - 307 to `/access-denied?reason=tenant_suspended`)
+       - Non-platform admin rejected from `POST /api/platform/onboard-tenant` (PASS - HTTP 403)
+       - Malformed payload rejected with validation details (PASS - HTTP 400)
+       - Duplicate tenant code rejected with failed step 1 (PASS - HTTP 409)
+       - Duplicate admin email rejected with failed step 3 (PASS - HTTP 409)
+       - Saga validation and milestone progress structure (PASS - HTTP 200, 5 milestones)
+       - Staging write safety boundary active (PASS - `gated: true`, Step 5 `GATED`)
+       - Cross-tenant data isolation: aggregate metrics present, raw student rows blocked (PASS)
+  7. **Autonomous Browser Walkthrough**:
+     - Session recording: `phase4_onboarding_walkthrough_1792136712022.webp`
+     - Artifact screenshots: `platform_dashboard_1792136724408.png`, `institute_registry_1792136733840.png`, `onboarding_step1_1792136744709.png`, `onboarding_step2_1792136788691.png`, `onboarding_step3_1792136829346.png`, `onboarding_step4_review_1792136894474.png`, `saga_execution_view_1792136949539.png`.
+  8. **Live Staging Provisioning Execution (`GO PROVISION-TENANT`)**:
+     - **Status**: **VERIFIED PASS (Executed & Validated Live on Staging `kpwdvvcschankgggitnj`)**
+     - **Authorization**: User provided explicit approval phrase `GO PROVISION-TENANT`.
+     - **Pre-execution Verification**:
+       - Database: `postgres`, user: `postgres`, version: PostgreSQL 17.11 on aarch64.
+       - 0 references to production `ekspahbsbwdpraaqfqui`.
+     - **Saga Execution**:
+       - Endpoint: `POST /api/platform/onboard-tenant` with header `x-provision-approval: GO PROVISION-TENANT`.
+       - Payload: Tenant `Apex Institute of Science & Technology` (`APEX_SCI`), College `School of Computing` (`SOC`), Admin `Prof. Robert Vance` (`robert.vance@apex.edu`).
+       - Result: HTTP 201 Created, `gated = false`, 5-milestone progression complete.
+     - **Catalog Verification on Staging**:
+       - `core.tenants`: Row created (`c33a407e-3bda-464e-9543-ca46a011aead`), code `'APEX_SCI'`, status `'ACTIVE'`.
+       - `core.colleges`: Row created (`c9bbb3a8-9304-459c-8fe5-a22f80c8cfc9`), code `'SOC'`, status `'ACTIVE'`, provisioning_status `'ACTIVE'`.
+       - `iam.roles`: Exactly 30 system roles seeded for the new tenant.
+       - `iam.role_permissions`: Exactly 2,138 role-permission mappings.
+       - `iam.user_profiles`: Row created (`878c0023-64ed-4017-b8a1-a1090f5e6bf3`), email `'robert.vance@apex.edu'`, status `'ACTIVE'`.
+       - `iam.role_assignments`: Role `'COLLEGE_ADMIN'` granted to `Prof. Robert Vance`.
+       - `audit.events`: Action `'TENANT_ONBOARDED'` recorded with principal `'PLATFORM_ADMIN'`, severity `'INFO'`, and complete metadata.
+     - **Idempotency & Conflict Interception**:
+       - Second execution with duplicate code `'APEX_SCI'` intercepted pre-flight: HTTP 409 Conflict, `failedStep: 1`.
+       - Duplicate query confirms exactly 1 tenant row exists in `core.tenants`.
+     - **UI Verification**:
+       - Platform Dashboard displays 4 onboarded tenancies, including `APEX_SCI` with 1 college and 1 user.
+       - Institute Registry displays `APEX_SCI` with `ACTIVE` badge, real-time search filters correctly.
+       - Browser session recorded: `phase4_live_provisioned_verified_1792137949832.webp`.
+       - Screenshot: `platform_dashboard_1792137977289.png`, `institutes_registry_filtered_1792138006281.png`.
+
+
+
+
+### Step 11: Phase 5 College Admin Setup Views, People, and Assignments Verification
+- **Status**: **VERIFIED COMPLETE (Implementation, Automated Suite & UI Walkthrough)**
+- **Date**: 2026-10-16
+- **Target Project Reference**: `kpwdvvcschankgggitnj` (Supabase Staging) & `http://localhost:3000` (Next.js 15 dev server)
+- **Implemented Scope & Evidence**:
+  1. **College Operations Dashboard (`/college`)**:
+     - Real-data aggregation from Supabase staging: Enrolled Students (`42`), Appointed Faculty (`5`), Attendance Sessions (`3`), Shortage Alerts (`0`).
+     - Route access control verified: College Admin access HTTP 200 OK; Faculty and Student restricted with redirect to access-denied.
+  2. **Academic Departments & Programs Setup (`/college/departments`)**:
+     - Real-time catalog of departments (`CSE`, `ECE`) and program curricula (`BTECH_CSE`, `BTECH_ECE`).
+  3. **Academic Batches & Curriculum Subjects (`/college/batches`)**:
+     - Active cohorts (`CSE_2024_A`, `CSE_2024_B`, `ECE_2024_A`, `PCS_2024`) and registered subject syllabi (`CS301`, `CS302`, `CS303`, `EC301`, `PH101`).
+  4. **Timetable Governance & Views (`/college/timetable`)**:
+     - Dual presentation modes: **Week Grid** (interactive day-by-day period blocks) and **List View** (tabular schedule with day, time window, subject, faculty, section, type, status).
+     - Class slot scheduling modal with section faculty trigger safety and conflict handling.
+  5. **Faculty Lifecycle & IAM Provisioning (`/college/faculty`)**:
+     - Teaching faculty roster with department filtering, search, and status badges.
+     - Enrollment drawer creates identity in `core.persons`, appointment in `hrm.employees` (`employment_type = 'PERMANENT'`, `staff_category = 'TEACHING'`), provisions IAM profile in `iam.user_profiles`, grants `FACULTY` role in `iam.role_assignments`, and logs `FACULTY_CREATED` in `audit.events`.
+     - Conflict rejection: duplicate employee ID and duplicate email rejected with HTTP 409 Conflict.
+     - Audited soft deletion: deactivates employee with confirmation modal, marks `hrm.employees` as `EXITED` (satisfying `ck_employees_status`), deactivates user profile, and records `FACULTY_DELETED` in `audit.events`.
+  6. **Student Body Roster & Batch Allocation (`/college/students`)**:
+     - Enrolled student roster with degree program filtering, search, and batch filtering dropdown (`All Academic Batches`).
+     - Enrollment drawer creates identity in `core.persons`, enrollment in `stu.students`, optional initial batch assignment in `acd.batch_students`, and logs `STUDENT_ENROLLED` in `audit.events`.
+     - Conflict rejection: duplicate enrollment number and duplicate email rejected with HTTP 409 Conflict.
+     - Batch Reassignment: `POST /api/college/students/assign-batch` updates cohort assignment with optional roll number and records `STUDENT_BATCH_ASSIGNED` in `audit.events`.
+     - Audited soft deletion: deactivates student with confirmation modal, marks `stu.students` as `WITHDRAWN` (satisfying `ck_students_status`), marks `acd.batch_students` as `DROPPED` (satisfying `ck_batch_students_status`), marks `core.persons` as `INACTIVE`, and records `STUDENT_DELETED` in `audit.events`.
+  7. **Strict Tenant Scoping & Isolation**:
+     - Zero client-supplied tenant ID; strictly extracted from authenticated session.
+     - College A vs College B cross-tenant verification: 0 shared records, College B views only College B enrollment sequences.
+  8. **Automated Verification Suite (`scripts/verify_phase5_college_setup.mjs`)**:
+     - **31/31 PASSED (0 FAILED)** across route guarding, API listings, faculty provisioning, student enrollment, batch reassignment, audited soft deletion, and cross-tenant isolation.
+  9. **Autonomous Browser Walkthrough**:
+     - Recorded walkthrough: `phase5_college_setup_1792139744282.webp`.
+     - Screenshots captured: `college_dashboard_1792139775255.png`, `departments_programs_1792139784354.png`, `batches_subjects_1792139793925.png`, `timetable_week_grid_1792139808850.png`, `timetable_list_view_1792139822838.png`, `faculty_roster_1792139841293.png`, `faculty_enroll_modal_1792139857709.png`, `student_roster_1792139883171.png`, `student_enroll_modal_1792139912852.png`, `attendance_sessions_1792139981377.png`, `audit_trail_1792140025177.png`.
+     - Status: **PASS (100% COMPLETE)**.

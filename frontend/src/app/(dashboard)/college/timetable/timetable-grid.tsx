@@ -11,10 +11,13 @@ import {
   AlertCircle,
   CheckCircle2,
   Layers,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 
 interface TimetableEntry {
@@ -75,6 +78,7 @@ export function TimetableGrid({
   const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | 'ALL'>('ALL');
+  const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
 
   // Form states
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || '');
@@ -132,6 +136,19 @@ export function TimetableGrid({
 
   const filteredDays = selectedDay === 'ALL' ? DAYS : DAYS.filter((d) => d.num === selectedDay);
 
+  const filteredEntries = entries.filter((e) =>
+    selectedDay === 'ALL' ? true : e.day_of_week === selectedDay
+  ).sort((a, b) => {
+    if (a.day_of_week !== b.day_of_week) {
+      return a.day_of_week - b.day_of_week;
+    }
+    return a.start_time.localeCompare(b.start_time);
+  });
+
+  const getDayName = (dayNum: number) => {
+    return DAYS.find((d) => d.num === dayNum)?.label || `Day ${dayNum}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Controls Bar */}
@@ -162,15 +179,45 @@ export function TimetableGrid({
           ))}
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={!timetableVersionId || subjects.length === 0 || faculty.length === 0}
-          onClick={() => setShowAddModal(!showAddModal)}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          {showAddModal ? 'Close Form' : 'Schedule Class Slot'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded-[8px] border border-[#E3E8EF] bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('GRID')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-[6px] transition-all ${
+                viewMode === 'GRID'
+                  ? 'bg-[#1F6FEB] text-white shadow-xs'
+                  : 'text-[#6B7688] hover:text-[#0B1F3A]'
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Week Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('LIST')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-[6px] transition-all ${
+                viewMode === 'LIST'
+                  ? 'bg-[#1F6FEB] text-white shadow-xs'
+                  : 'text-[#6B7688] hover:text-[#0B1F3A]'
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              <span>List View</span>
+            </button>
+          </div>
+
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!timetableVersionId || subjects.length === 0 || faculty.length === 0}
+            onClick={() => setShowAddModal(!showAddModal)}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            {showAddModal ? 'Close Form' : 'Schedule Class Slot'}
+          </Button>
+        </div>
       </div>
 
       {/* Alert */}
@@ -317,7 +364,7 @@ export function TimetableGrid({
         </Card>
       )}
 
-      {/* Weekly Grid */}
+      {/* Content Rendering: Empty State vs Grid vs List */}
       {entries.length === 0 ? (
         <EmptyState
           icon={CalendarIcon}
@@ -332,7 +379,77 @@ export function TimetableGrid({
               : undefined
           }
         />
+      ) : viewMode === 'LIST' ? (
+        /* List View */
+        <Card>
+          <CardHeader>
+            <CardTitle>Timetable Master Roster ({filteredEntries.length})</CardTitle>
+            <CardDescription>
+              Tabular schedule view of approved academic time periods and faculty appointments
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-[#E3E8EF] text-[#6B7688]">
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Day of Week</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Time Window</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Subject</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Assigned Faculty</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Cohort Section</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Type</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E3E8EF]">
+                  {filteredEntries.map((slot) => (
+                    <tr key={slot.id} className="hover:bg-[#F6F8FB]">
+                      <td className="py-3 font-semibold text-[#0B1F3A]">
+                        {getDayName(slot.day_of_week)}
+                      </td>
+                      <td className="py-3 font-mono text-[#1B2433]">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-[#6B7688]" />
+                          <span>
+                            {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-[#0B1F3A]">
+                        <div>
+                          <span className="font-semibold">{slot.subject_name || slot.subject_code}</span>
+                          {slot.subject_code && (
+                            <span className="ml-1.5 font-mono text-[11px] text-[#6B7688]">({slot.subject_code})</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 text-[#1B2433]">
+                        <div className="flex items-center gap-1.5">
+                          <User className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                          <span>{slot.faculty_name || 'Assigned Instructor'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 font-medium text-[#1B2433]">
+                        {slot.section_code || 'Section A'}
+                      </td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#E8F0FE] text-[#1F6FEB]">
+                          {slot.entry_type}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <Badge status="ACTIVE" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
+        /* Weekly Grid View */
         <div className="space-y-4">
           {filteredDays.map((day) => {
             const dayEntries = entries
@@ -406,3 +523,4 @@ export function TimetableGrid({
     </div>
   );
 }
+

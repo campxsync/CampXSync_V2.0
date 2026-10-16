@@ -9,6 +9,9 @@ import {
   BookOpen,
   CheckCircle2,
   AlertCircle,
+  Layers,
+  Trash2,
+  UserPlus,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,12 +25,23 @@ interface Program {
   code: string;
 }
 
+interface Batch {
+  id: string;
+  name: string;
+  code: string;
+  program_id?: string;
+}
+
 interface Student {
   id: string;
   enrollment_no: string;
   status: string;
   program_id: string;
   program_name?: string;
+  batch_id?: string;
+  batch_name?: string;
+  batch_code?: string;
+  roll_no?: string;
   display_name: string;
   primary_email: string;
   created_at: string;
@@ -36,20 +50,31 @@ interface Student {
 interface Props {
   initialStudents: Student[];
   programs: Program[];
+  batches?: Batch[];
 }
 
-export function StudentRoster({ initialStudents, programs }: Props) {
+export function StudentRoster({ initialStudents, programs, batches = [] }: Props) {
   const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProg, setFilterProg] = useState('');
+  const [filterBatch, setFilterBatch] = useState('');
 
-  // Form states
+  // Form states for enroll
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [enrollmentNo, setEnrollmentNo] = useState('');
   const [programId, setProgramId] = useState(programs[0]?.id || '');
+  const [batchId, setBatchId] = useState('');
+
+  // Assign batch modal states
+  const [assignStudent, setAssignStudent] = useState<Student | null>(null);
+  const [assignBatchId, setAssignBatchId] = useState('');
+  const [assignRollNo, setAssignRollNo] = useState('');
+
+  // Delete modal state
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
@@ -69,6 +94,7 @@ export function StudentRoster({ initialStudents, programs }: Props) {
           email,
           enrollmentNo,
           programId,
+          batchId: batchId || undefined,
         }),
       });
 
@@ -82,7 +108,73 @@ export function StudentRoster({ initialStudents, programs }: Props) {
         setLastName('');
         setEmail('');
         setEnrollmentNo('');
+        setBatchId('');
         setShowAddModal(false);
+        router.refresh();
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Network error occurred.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAssignBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignStudent || !assignBatchId) return;
+
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch('/api/college/students/assign-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: assignStudent.id,
+          batchId: assignBatchId,
+          rollNo: assignRollNo || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setStatusMessage({ type: 'error', text: data.detail || 'Failed to assign batch.' });
+      } else {
+        setStatusMessage({ type: 'success', text: data.message });
+        setAssignStudent(null);
+        setAssignBatchId('');
+        setAssignRollNo('');
+        router.refresh();
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Network error occurred.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteStudentSubmit = async () => {
+    if (!studentToDelete) return;
+
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch('/api/college/students', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: studentToDelete.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setStatusMessage({ type: 'error', text: data.detail || 'Failed to deactivate student.' });
+      } else {
+        setStatusMessage({ type: 'success', text: data.message });
+        setStudentToDelete(null);
         router.refresh();
       }
     } catch (err: any) {
@@ -98,14 +190,15 @@ export function StudentRoster({ initialStudents, programs }: Props) {
       s.enrollment_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.primary_email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesProg = !filterProg || s.program_id === filterProg;
-    return matchesSearch && matchesProg;
+    const matchesBatch = !filterBatch || s.batch_id === filterBatch;
+    return matchesSearch && matchesProg && matchesBatch;
   });
 
   return (
     <div className="space-y-6">
       {/* Header Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-1 items-center gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
           <Input
             placeholder="Search students by name, enrollment number, or email..."
             value={searchTerm}
@@ -122,6 +215,19 @@ export function StudentRoster({ initialStudents, programs }: Props) {
             {programs.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.code})
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 px-3 text-xs rounded-[8px] border border-[#E3E8EF] bg-white text-[#1B2433] focus:border-[#1F6FEB] focus:outline-none"
+            value={filterBatch}
+            onChange={(e) => setFilterBatch(e.target.value)}
+          >
+            <option value="">All Academic Batches</option>
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} ({b.code})
               </option>
             ))}
           </select>
@@ -162,7 +268,7 @@ export function StudentRoster({ initialStudents, programs }: Props) {
           <CardHeader>
             <CardTitle>Enroll New Student</CardTitle>
             <CardDescription>
-              Registers human identity in core.persons and student academic membership in stu.students.
+              Registers human identity in core.persons, student academic membership in stu.students, and optional batch allocation.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -192,7 +298,7 @@ export function StudentRoster({ initialStudents, programs }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
                     Official / Student Email <span className="text-[#D64545]">*</span>
@@ -234,6 +340,23 @@ export function StudentRoster({ initialStudents, programs }: Props) {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                    Initial Academic Batch
+                  </label>
+                  <select
+                    className="w-full h-10 px-3 text-xs rounded-[8px] border border-[#E3E8EF] bg-white text-[#1B2433] focus:border-[#1F6FEB] focus:outline-none"
+                    value={batchId}
+                    onChange={(e) => setBatchId(e.target.value)}
+                  >
+                    <option value="">Select Batch (Optional)</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -247,6 +370,117 @@ export function StudentRoster({ initialStudents, programs }: Props) {
             </form>
           </CardContent>
         </Card>
+      )}
+
+      {/* Assign Batch Modal */}
+      {assignStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <Card className="w-full max-w-md shadow-xl border-[#1F6FEB]/30 bg-white">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Layers className="h-5 w-5 text-[#1F6FEB]" />
+                Assign Student to Batch
+              </CardTitle>
+              <CardDescription>
+                Assign <strong>{assignStudent.display_name}</strong> ({assignStudent.enrollment_no}) to an academic cohort in acd.batch_students.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAssignBatchSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                    Select Target Batch <span className="text-[#D64545]">*</span>
+                  </label>
+                  <select
+                    className="w-full h-10 px-3 text-xs rounded-[8px] border border-[#E3E8EF] bg-white text-[#1B2433] focus:border-[#1F6FEB] focus:outline-none"
+                    value={assignBatchId}
+                    onChange={(e) => setAssignBatchId(e.target.value)}
+                    required
+                  >
+                    <option value="">Choose Batch...</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                    Cohort Roll No. (Optional)
+                  </label>
+                  <Input
+                    placeholder={assignStudent.enrollment_no}
+                    value={assignRollNo}
+                    onChange={(e) => setAssignRollNo(e.target.value.toUpperCase())}
+                    className="font-mono uppercase"
+                  />
+                  <p className="text-[11px] text-[#6B7688] mt-1">
+                    Defaults to student enrollment number if left blank.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setAssignStudent(null);
+                      setAssignBatchId('');
+                      setAssignRollNo('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" isLoading={isLoading} disabled={!assignBatchId}>
+                    Assign to Batch
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete/Deactivate Confirmation Modal */}
+      {studentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <Card className="w-full max-w-md shadow-xl border-[#D64545]/30 bg-white">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2 text-[#D64545]">
+                <Trash2 className="h-5 w-5 text-[#D64545]" />
+                Confirm Student Deactivation
+              </CardTitle>
+              <CardDescription>
+                Are you sure you want to deactivate <strong>{studentToDelete.display_name}</strong> ({studentToDelete.enrollment_no})?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-[#6B7688]">
+                This will soft-delete their academic student record, mark all active batch memberships as inactive, and log an immutable audit event in <code className="font-mono text-[#0B1F3A]">audit.events</code>.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setStudentToDelete(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[#D64545] hover:bg-[#B93838] text-white"
+                  isLoading={isLoading}
+                  onClick={handleDeleteStudentSubmit}
+                >
+                  Deactivate Student
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Roster Table */}
@@ -280,8 +514,10 @@ export function StudentRoster({ initialStudents, programs }: Props) {
                     <th className="pb-3 font-semibold uppercase tracking-wider">Student Name</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Enrollment No.</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Degree Program</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Assigned Batch</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Student Email</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Status</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E3E8EF]">
@@ -299,6 +535,26 @@ export function StudentRoster({ initialStudents, programs }: Props) {
                       <td className="py-3.5 text-[#1B2433]">
                         {stu.program_name || 'Program'}
                       </td>
+                      <td className="py-3.5">
+                        {stu.batch_code ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E8F0FE] text-[#1F6FEB]">
+                            <Layers className="h-3 w-3" />
+                            {stu.batch_code}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssignStudent(stu);
+                              setAssignBatchId(batches[0]?.id || '');
+                            }}
+                            className="text-[11px] text-[#6B7688] hover:text-[#1F6FEB] underline decoration-dashed flex items-center gap-1"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            Assign Batch
+                          </button>
+                        )}
+                      </td>
                       <td className="py-3.5 text-[#6B7688]">
                         <div className="flex items-center gap-1.5">
                           <Mail className="h-3.5 w-3.5 text-[#6B7688]" />
@@ -307,6 +563,33 @@ export function StudentRoster({ initialStudents, programs }: Props) {
                       </td>
                       <td className="py-3.5">
                         <Badge status={stu.status || 'ACTIVE'} />
+                      </td>
+                      <td className="py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[11px]"
+                            title="Assign or Change Batch"
+                            onClick={() => {
+                              setAssignStudent(stu);
+                              setAssignBatchId(stu.batch_id || batches[0]?.id || '');
+                              setAssignRollNo(stu.roll_no || '');
+                            }}
+                          >
+                            <Layers className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                            <span className="sr-only sm:not-sr-only sm:ml-1 text-[#1F6FEB]">Batch</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] hover:text-[#D64545]"
+                            title="Deactivate Student"
+                            onClick={() => setStudentToDelete(stu)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-[#D64545]" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -319,3 +602,4 @@ export function StudentRoster({ initialStudents, programs }: Props) {
     </div>
   );
 }
+

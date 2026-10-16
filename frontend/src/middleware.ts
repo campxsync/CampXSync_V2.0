@@ -72,6 +72,12 @@ export async function middleware(request: NextRequest) {
   const isStudentUser = rawRole.includes('STUDENT') || email.startsWith('student.');
   const isCollegeAdminUser = (rawRole.includes('ADMIN') || email === 'campxsync@gmail.com') && !isPlatformUser;
 
+  // Enforce institutional tenant suspension guard (denies access with reason=tenant_suspended)
+  const isSuspendedTenant = (user.app_metadata?.tenant_status === 'SUSPENDED' || user.user_metadata?.tenant_status === 'SUSPENDED' || user.tenantStatus === 'SUSPENDED' || user.tenant_status === 'SUSPENDED') && !isPlatformUser;
+  if (isSuspendedTenant && !pathname.startsWith('/access-denied') && !pathname.startsWith('/login') && !pathname.startsWith('/api/auth')) {
+    return NextResponse.redirect(new URL('/access-denied?reason=tenant_suspended', request.url));
+  }
+
   // If visiting root '/', redirect based on user role
   if (pathname === '/') {
     if (isPlatformUser) {

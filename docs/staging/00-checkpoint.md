@@ -90,24 +90,102 @@
     - Cross-tenant isolation verified: College A (40 students, 3 faculty) and College B (10 students, 1 faculty) remain strictly partitioned.
     - Status: **PASS (100% COMPLETE)**.
 
+- **VERIFIED PHASE 4 PLATFORM & COLLEGE ONBOARDING (ADM SAGA)**:
+  - **Platform Dashboard (`/platform`)**:
+    - Real-data aggregation: Grouped institutes by status (`ACTIVE: 2`, `ONBOARDING: 0`, `SUSPENDED: 0`, `OFFBOARDED: 0`).
+    - Total platform user count KPI (`totalUserCount` from `iam.user_profiles` = 5).
+    - Cross-tenant aggregate distribution table displaying colleges and aggregated users per tenancy (`CAMPX_STAGING`: 3 users, `TEST_COLL_B`: 2 users).
+    - Strict cross-tenant isolation: Zero student/faculty enrollment rows (`2024-CSE-001`, `2024-PCS-001`) exposed to Platform Admin.
+    - Recent platform onboarding activity and platform security audit events feed with direct link to `/platform/audit`.
+  - **Institute Registry (`/platform/institutes`)**:
+    - Status badges supported: `ACTIVE`, `ONBOARDING`, `SUSPENDED`, `OFFBOARDED` (`frontend/src/components/ui/badge.tsx`).
+    - Interactive client filtering by lifecycle status tabs (`All`, `Active`, `Onboarding`, `Suspended`, `Offboarded`) and real-time search by name/code/UUID.
+  - **Onboarding Institute Wizard (`/platform/institutes/new`)**:
+    - 4-step wizard: Institute Identity (`tenantName`, `tenantCode`, `subdomain`, `plan`), Primary College (`collegeName`, `collegeCode`), Administrator Details (`adminName`, `adminEmail`, `adminPhone`), Review & Confirmation step.
+    - Comprehensive input validation: readable errors, regex validation (`^[A-Z0-9_-]{2,30}$` for tenant code), minimum length constraints.
+    - Pre-flight conflict detection: duplicate tenant code pinpoints Step 1 failure (HTTP 409), duplicate admin email pinpoints Step 3 failure (HTTP 409).
+  - **ADM 5-Step Saga Progression & Idempotent Safety**:
+    - Milestone 1: Create Institute in `onboarding` status.
+    - Milestone 2: Seed Tenant Configuration & 30 System Roles.
+    - Milestone 3: Provision First College Administrator Profile.
+    - Milestone 4: Grant `COLLEGE_ADMIN` Role Assignment via IAM.
+    - Milestone 5: Activate Tenancy Node (`ACTIVE`).
+    - Safe idempotent retry path: on failure, failure step is identified, record preserved, and retry available.
+    - Idempotency guarantees: `ON CONFLICT DO NOTHING` on `core.tenants`, `core.colleges`, `iam.user_profiles`, and `iam.role_assignments`.
+  - **Suspension & Tenant Isolation**:
+    - Edge Middleware (`frontend/src/middleware.ts`) inspects tenant status and redirects suspended tenant users to `/access-denied?reason=tenant_suspended`.
+    - Verified via test suite: `GET /college` with suspended user session returns HTTP 307 -> `/access-denied?reason=tenant_suspended`.
+  - **Automated Verification Suite (`scripts/verify_phase4_onboarding.mjs`)**:
+    - 19/19 tests passed across Platform Admin access, suspension denial, API auth gate, input validation, conflict detection, saga progression, and aggregate data isolation.
+  - **Autonomous Browser Walkthrough**:
+    - Recorded walkthrough: `phase4_onboarding_walkthrough_1792136712022.webp`.
+    - Screenshots captured: `platform_dashboard_1792136724408.png`, `institute_registry_1792136733840.png`, `onboarding_step1_1792136744709.png`, `onboarding_step2_1792136788691.png`, `onboarding_step3_1792136829346.png`, `onboarding_step4_review_1792136894474.png`, `saga_execution_view_1792136949539.png`.
+  - **Staging Live Provisioning Status**:
+    - User provided explicit approval phrase `GO PROVISION-TENANT`.
+    - Live staging tenant provisioning executed and verified on `kpwdvvcschankgggitnj`:
+      - Tenant: `Apex Institute of Science & Technology` (`APEX_SCI`, ID: `c33a407e-3bda-464e-9543-ca46a011aead`) in `ACTIVE` status.
+      - Primary College: `School of Computing` (`SOC`, ID: `c9bbb3a8-9304-459c-8fe5-a22f80c8cfc9`) in `ACTIVE` status.
+      - 30 system roles seeded in `iam.roles` with 2,138 role-permission mappings.
+      - First College Admin: `Prof. Robert Vance` (`robert.vance@apex.edu`, ID: `878c0023-64ed-4017-b8a1-a1090f5e6bf3`) in `ACTIVE` status.
+      - Role Assignment: `COLLEGE_ADMIN` granted in `iam.role_assignments`.
+      - Audit Event: Immutable `TENANT_ONBOARDED` record stored in `audit.events`.
+      - Idempotency & Conflict Interception: Re-running provisioning safely intercepted by pre-flight checks returning HTTP 409 Conflict with `failedStep: 1`; exactly 1 tenant row exists for `APEX_SCI` in staging catalog.
+      - Status: **PASS (100% COMPLETE)**.
+
+- **VERIFIED PHASE 5 COLLEGE ADMIN SETUP VIEWS, PEOPLE, AND ASSIGNMENTS**:
+  - **College Dashboard (`/college`)**:
+    - Real-data aggregation from Supabase staging PostgreSQL: Enrolled Students (`42`), Appointed Faculty (`5`), Attendance Sessions (`3`), Shortage Alerts (`0`).
+    - Direct access governance: College Admin authorized with HTTP 200 OK; Faculty and Student restricted with redirect to access-denied.
+  - **Academic Departments & Programs Setup (`/college/departments`)**:
+    - Real-time catalog of departments (`CSE`, `ECE`) and program curricula (`BTECH_CSE`, `BTECH_ECE`).
+  - **Academic Batches & Curriculum Subjects (`/college/batches`)**:
+    - Active cohorts (`CSE_2024_A`, `CSE_2024_B`, `ECE_2024_A`, `PCS_2024`) and registered subject syllabi (`CS301`, `CS302`, `CS303`, `EC301`, `PH101`).
+  - **Timetable Governance & Views (`/college/timetable`)**:
+    - Dual presentation modes: **Week Grid** (interactive day-by-day period blocks) and **List View** (tabular schedule with day, time window, subject, faculty, section, type, status).
+    - Class slot scheduling modal with section faculty trigger safety and conflict handling.
+  - **Faculty Lifecycle & IAM Provisioning (`/college/faculty`)**:
+    - Teaching faculty roster with department filtering, search, and status badges.
+    - Enrollment drawer creates identity in `core.persons`, appointment in `hrm.employees` (`employment_type = 'PERMANENT'`, `staff_category = 'TEACHING'`), provisions IAM profile in `iam.user_profiles`, grants `FACULTY` role in `iam.role_assignments`, and logs `FACULTY_CREATED` in `audit.events`.
+    - Conflict rejection: duplicate employee ID and duplicate email rejected with HTTP 409 Conflict.
+    - Audited soft deletion: deactivates employee with confirmation modal, marks `hrm.employees` as `EXITED` (satisfying `ck_employees_status`), deactivates user profile, and records `FACULTY_DELETED` in `audit.events`.
+  - **Student Body Roster & Batch Allocation (`/college/students`)**:
+    - Enrolled student roster with degree program filtering, search, and batch filtering dropdown (`All Academic Batches`).
+    - Enrollment drawer creates identity in `core.persons`, enrollment in `stu.students`, optional initial batch assignment in `acd.batch_students`, and logs `STUDENT_ENROLLED` in `audit.events`.
+    - Conflict rejection: duplicate enrollment number and duplicate email rejected with HTTP 409 Conflict.
+    - Batch Reassignment: `POST /api/college/students/assign-batch` updates cohort assignment with optional roll number and records `STUDENT_BATCH_ASSIGNED` in `audit.events`.
+    - Audited soft deletion: deactivates student with confirmation modal, marks `stu.students` as `WITHDRAWN` (satisfying `ck_students_status`), marks `acd.batch_students` as `DROPPED` (satisfying `ck_batch_students_status`), marks `core.persons` as `INACTIVE`, and records `STUDENT_DELETED` in `audit.events`.
+  - **Strict Tenant Scoping & Isolation**:
+    - Zero client-supplied tenant ID; strictly extracted from authenticated session.
+    - College A vs College B cross-tenant verification: 0 shared records, College B views only College B enrollment sequences.
+  - **Automated Verification Suite (`scripts/verify_phase5_college_setup.mjs`)**:
+    - **31/31 PASSED (0 FAILED)** across route guarding, API listings, faculty provisioning, student enrollment, batch reassignment, audited soft deletion, and cross-tenant isolation.
+  - **Autonomous Browser Walkthrough**:
+    - Recorded walkthrough: `phase5_college_setup_1792139744282.webp`.
+    - Screenshots captured: `college_dashboard_1792139775255.png`, `departments_programs_1792139784354.png`, `batches_subjects_1792139793925.png`, `timetable_week_grid_1792139808850.png`, `timetable_list_view_1792139822838.png`, `faculty_roster_1792139841293.png`, `faculty_enroll_modal_1792139857709.png`, `student_roster_1792139883171.png`, `student_enroll_modal_1792139912852.png`, `attendance_sessions_1792139981377.png`, `audit_trail_1792140025177.png`.
+    - Status: **PASS (100% COMPLETE)**.
+
 ### 2. Next Unfinished Step
-- **Phase 3 Staging Completion & Gate Verification**: **100% COMPLETE**. Both Gate A (Seed Idempotency) and Gate B (Deferred Role Routing) are verified PASS.
-- Ready to proceed to next authorized lifecycle task.
+- **Phase 5 College Admin Setup Views, People, and Assignments**: **100% COMPLETE**.
+- **Next Phase**: Phase 6/7 — Close any remaining Phase 6/7 acceptance criteria per `CampXSync_MVP_Master_Prompt_v4.md` (or proceed to Phase 8 UI polish & pre-deployment readiness).
 
 ### 3. Exact Blocker & Classification
-- **Blockers**: **NONE**. All Phase 3 gates and staging prerequisites are fully resolved and verified live.
+- **Blockers**: **NONE**. All Phase 5 requirements, setup views, people workflows, batch assignments, soft deletes, and cross-tenant tests are fully verified.
 - **Classification**: **ZERO ACTIVE BLOCKERS**.
 
 ### 4. Minimum Action to Resolve
-- None required. Phase 3 is closed.
+- None required. Phase 5 is closed.
 
 ### 5. Which Completed Steps Must NOT Be Repeated
-- **DO NOT re-run `GO PARTITION-RLS-FIX`**: All 24 monthly partition child tables are already verified with `relrowsecurity = true` and zero direct grants.
-- **DO NOT re-run `GO PROVISION-TEST-TENANT`**: Staging tenant `CAMPX_STAGING` (`11111111-1111-1111-1111-111111111111`) is already active with seeded roles.
-- **DO NOT re-run `80_seed.sql`**: Seed permissions (547) and role templates (30) are already present and verified.
-- **DO NOT re-run `30_foreign_keys.sql`**: 1,239 foreign keys are verified present.
-- **DO NOT re-run dual-tenant seed**: Seed idempotency verified; no further seed runs required.
+- **DO NOT re-run `GO PARTITION-RLS-FIX`**: Verified with `relrowsecurity = true` (24/24).
+- **DO NOT re-run `GO PROVISION-TEST-TENANT`**: Staging tenant `CAMPX_STAGING` active.
+- **DO NOT re-run Phase 3 seed idempotency**: Verified PASS with 0 duplicates.
+- **DO NOT re-run Phase 3 role routing matrix**: Verified PASS (20/20).
+- **DO NOT re-provision APEX_SCI**: Tenant `APEX_SCI` is already active in staging.
+- **DO NOT re-run Phase 4 onboarding checks**: 19/19 PASS.
+- **DO NOT re-run Phase 5 college setup checks**: 31/31 PASS.
 - **DO NOT modify production**: `ekspahbsbwdpraaqfqui` remains strictly forbidden.
 - **DO NOT commit or push**: No git commits or pushes without explicit approval.
+
+
 
 
