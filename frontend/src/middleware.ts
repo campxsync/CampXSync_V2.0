@@ -83,9 +83,54 @@ export async function middleware(request: NextRequest) {
   const isStudentUser = rawRole.includes('STUDENT') || email.startsWith('student.');
   const isCollegeAdminUser = (rawRole.includes('ADMIN') || email === 'campxsync@gmail.com') && !isPlatformUser;
 
+  // Enforce inactive membership guard
+  const isInactive = user.membership_status === 'INACTIVE' || user.status === 'INACTIVE' || user.app_metadata?.membership_status === 'INACTIVE';
+  if (isInactive && !pathname.startsWith('/access-denied') && !pathname.startsWith('/login') && !pathname.startsWith('/api/auth')) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Account Membership Inactive',
+          status: 403,
+          detail: 'Your institutional membership has expired or has been deactivated.',
+        },
+        { status: 403 }
+      );
+    }
+    return NextResponse.redirect(new URL('/access-denied?reason=inactive_membership', request.url));
+  }
+
+  // Enforce no-profile guard
+  const isNoProfile = user.no_profile === true || user.app_metadata?.no_profile === true;
+  if (isNoProfile && !pathname.startsWith('/access-denied') && !pathname.startsWith('/login') && !pathname.startsWith('/api/auth')) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Institutional Profile Not Found',
+          status: 403,
+          detail: 'No active organizational profile is attached to this account.',
+        },
+        { status: 403 }
+      );
+    }
+    return NextResponse.redirect(new URL('/access-denied?reason=no_profile', request.url));
+  }
+
   // Enforce institutional tenant suspension guard (denies access with reason=tenant_suspended)
   const isSuspendedTenant = (user.app_metadata?.tenant_status === 'SUSPENDED' || user.user_metadata?.tenant_status === 'SUSPENDED' || user.tenantStatus === 'SUSPENDED' || user.tenant_status === 'SUSPENDED') && !isPlatformUser;
   if (isSuspendedTenant && !pathname.startsWith('/access-denied') && !pathname.startsWith('/login') && !pathname.startsWith('/api/auth')) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Institution Workspace Suspended',
+          status: 403,
+          detail: 'Access for this educational institution is currently suspended.',
+        },
+        { status: 403 }
+      );
+    }
     return NextResponse.redirect(new URL('/access-denied?reason=tenant_suspended', request.url));
   }
 

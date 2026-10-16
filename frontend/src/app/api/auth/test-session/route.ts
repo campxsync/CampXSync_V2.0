@@ -66,6 +66,47 @@ export async function POST(req: NextRequest) {
         },
       };
       redirectTo = '/platform';
+    } else if (role === 'no_profile_user') {
+      userSession = {
+        id: 'e0000000-0000-0000-0000-000000000001',
+        email: 'noprofile@demo.campxsync.test',
+        no_profile: true,
+        user_metadata: {
+          full_name: 'Unassigned User',
+        },
+      };
+      redirectTo = '/access-denied?reason=no_profile';
+    } else if (role === 'inactive_membership_user') {
+      userSession = {
+        id: 'e0000000-0000-0000-0000-000000000002',
+        email: 'inactive@demo.campxsync.test',
+        status: 'INACTIVE',
+        membership_status: 'INACTIVE',
+        app_metadata: {
+          tenant_id: '11111111-1111-1111-1111-111111111111',
+          membership_status: 'INACTIVE',
+          role: 'COLLEGE_ADMIN',
+        },
+        user_metadata: {
+          full_name: 'Inactive Staff Member',
+        },
+      };
+      redirectTo = '/access-denied?reason=inactive_membership';
+    } else if (role === 'suspended_tenant_user') {
+      userSession = {
+        id: 'e0000000-0000-0000-0000-000000000003',
+        email: 'suspended@demo.campxsync.test',
+        tenantStatus: 'SUSPENDED',
+        app_metadata: {
+          tenant_id: '33333333-3333-3333-3333-333333333333',
+          tenant_status: 'SUSPENDED',
+          role: 'COLLEGE_ADMIN',
+        },
+        user_metadata: {
+          full_name: 'Suspended Tenant Admin',
+        },
+      };
+      redirectTo = '/access-denied?reason=tenant_suspended';
     } else {
       return NextResponse.json({ error: 'Invalid role requested' }, { status: 400 });
     }

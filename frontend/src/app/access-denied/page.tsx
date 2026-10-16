@@ -15,6 +15,9 @@ function AccessDeniedContent() {
   const supabase = createClient();
 
   const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/test-session', { method: 'DELETE' });
+    } catch {}
     await supabase.auth.signOut();
     window.location.href = '/login';
   };

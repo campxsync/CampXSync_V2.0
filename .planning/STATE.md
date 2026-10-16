@@ -2,8 +2,8 @@
 
 **Last Updated**: 2026-10-16  
 **Active Workstreams**: `track-a`, `track-b`  
-**Current Phase**: Phase 7 Complete — Role Dashboards, Preferences & Reports (ACD-10)  
-**Next Phase**: Phase 8 — Professional UI Polish and Visual QA (Section 5 Standard)  
+**Current Phase**: Phase 9 Complete — Security and Real-Browser Acceptance  
+**Next Phase**: Phase 10 — Deploy to Vercel and Deployed Acceptance  
 
 ---
 
@@ -40,6 +40,7 @@
   | MVP-FE-02 | Frontend | Removal of silent mock fallbacks & RFC 7807 errors | DONE-LOCAL | VERIFIED |
   | MVP-E2E-01 | Cross-Cutting | Staging cluster boot & Gateway routing | DONE-STAGING | STAGING-VERIFIED (Port 8080) |
   | MVP-E2E-02 | Cross-Cutting | Real Browser Attendance Capture & Administrative Corrections Walkthrough | DONE-STAGING | BROWSER E2E VERIFIED |
+  | MVP-SEC-01 | Security | RFC 7807 Problem Details, Inactive/No-Profile fast-fail, IDOR prevention | DONE-STAGING | STAGING-VERIFIED (36/36 PASS) |
 
 ---
 
@@ -55,9 +56,9 @@
 | **Phase 5** | **College Admin Setup Views, People & Assignments** | `/college`, `/college/departments`, `/college/batches`, `/college/timetable` (grid + list view), `/college/faculty` (IAM provisioning, EXITED soft-delete), `/college/students` (batch assignments, WITHDRAWN soft-delete). Automated suite: 31/31 PASS. Browser walkthrough: PASS. | **COMPLETE** | 2026-10-16 |
 | **Phase 6** | **Faculty Attendance (ACD-06) & Corrections** | `/faculty` (today's slots, slot states, Start Attendance action, upcoming slots, missed sessions), `/faculty/attendance` (slot roster, running counts, unsaved guard, submit confirmation modal, read-only lock), `/faculty/sessions` (My Sessions archive), `/api/college/attendance/sessions` (slot validation, duplicate prevention), `/api/college/attendance/records` (roster validation, partial index conflict target, idempotent upsert, audit event), `/api/college/attendance/corrections` (optimistic concurrency lock, mandatory reason, `acd.attendance_corrections`, `audit.change_log`, `audit.events`, `sys.outbox_events`). Automated suite: 37/37 PASS (`scripts/verify_phase6_attendance.mjs`). Browser walkthrough: PASS. | **COMPLETE** | 2026-10-16 |
 | **Phase 7** | **Role Dashboards, Preferences & Reports (ACD-10)** | Dedicated Platform, College Admin, and Faculty dashboards. Recharts 14-day attendance trend & batch distribution. Shortage list (<75%) and unsubmitted missed sessions. Typed preferences foundation (schema v1, allowlist, role isolation) with authoritative PostgreSQL persistence in `iam.user_profiles.preferences` and local fallback. Enhanced ACD-10 cumulative report with parameterized filters & formula-safe CSV export. Automated suite: 26/26 PASS (`scripts/verify_phase7_dashboards_preferences.mjs`). Browser walkthrough: PASS (`phase7_dashboards_walkthrough`). | **COMPLETE** | 2026-10-16 |
-| **Phase 8** | **Professional UI Polish and Visual QA** | Apply Section 5 tokens, responsive 1440/1024/390 captures, `@axe-core/playwright` accessibility audit | **NEXT** | - |
-| **Phase 9** | **Pre-Deployment Security Suite** | IDOR testing, forged tenant rejection, cross-tenant RLS proof | **PENDING** | - |
-| **Phase 10**| **Vercel Staging Deployment** | Live deployment to Vercel targeting Supabase Staging | **PENDING** | - |
+| **Phase 8** | **Professional UI Polish and Visual QA** | Complete Section 5 standard implementation: WCAG AA contrast compliance across all dashboards, shell, and modals; mobile drawer navigation & hamburger overlay; 48px touch rows, keyboard navigation (Arrow keys + P/A/L/Space), student search, filter pills, and sticky summary bar on attendance sheet; responsive preferences dialog (`max-h-[90vh]`); Axe scan 0 serious/critical violations; responsive layout verified across 1440px desktop, 1024px tablet, and 390px mobile viewports (zero horizontal overflow); 14 captured screenshots in `docs/trial/screenshots/`. Automated QA suite: 46/46 PASS (`scripts/phase8_visual_qa.mjs`). | **COMPLETE** | 2026-10-16 |
+| **Phase 9** | **Security and Real-Browser Acceptance** | Comprehensive security acceptance and real-browser E2E suite: genuine Supabase Auth password login (`campxsync@gmail.com`) with session persistence & topbar logout; fast-fail guards for inactive membership, no-profile, and suspended tenants (RFC 7807 problem details); PostgreSQL fallback for `iam.role_assignments`; forged tenant parameter rejection; IDOR rejection for cross-tenant attendance sessions, student batch assignments, and corrections (HTTP 404); Platform Admin aggregate-only isolation (403 on tenant rows); privilege escalation prevention (HTTP 403); College Admin real-browser faculty and student enrollments; duplicate session prevention (`isExisting=true`); non-roster rejection (HTTP 400); real-browser attendance submission & read-only lock reload persistence; optimistic concurrency rejection (HTTP 409); audited corrections with `row_version` increment and audit events; statutory 75% shortage calculation; formula-injection safe CSV export; typed user preferences sync & validation (HTTP 422 on tampered payloads); gated staging write simulation; zero hardcoded dashboard figures. Automated suite: 36/36 PASS (`scripts/verify_phase9_security_browser.mjs`). | **COMPLETE** | 2026-10-16 |
+| **Phase 10**| **Deploy to Vercel and Deployed Acceptance** | Live deployment to Vercel targeting Supabase Staging (`kpwdvvcschankgggitnj`) with deployed acceptance smoke testing | **NEXT** | - |
 
 ---
 

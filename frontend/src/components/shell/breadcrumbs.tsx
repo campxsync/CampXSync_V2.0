@@ -12,8 +12,8 @@ export function Breadcrumbs() {
   if (segments.length === 0) return null;
 
   return (
-    <nav className="flex items-center space-x-1.5 text-xs text-[#6B7688] mb-4">
-      <Link href="/" className="hover:text-[#1F6FEB] flex items-center gap-1">
+    <nav className="flex items-center space-x-1.5 text-xs text-[#475569] mb-4" aria-label="Breadcrumb navigation">
+      <Link href="/" className="hover:text-[#1F6FEB] flex items-center gap-1" aria-label="Home Workspace">
         <Home className="h-3.5 w-3.5" />
       </Link>
 

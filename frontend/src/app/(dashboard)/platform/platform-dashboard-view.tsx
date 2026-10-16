@@ -130,7 +130,7 @@ export function PlatformDashboardView({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 rounded-[8px] border border-[#B2E6CE] bg-[#EAF8F1]/40 flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-semibold text-[#1E9E6A] uppercase tracking-wider block">
+                    <span className="text-[11px] font-semibold text-[#15803D] uppercase tracking-wider block">
                       Active
                     </span>
                     <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
@@ -142,7 +142,7 @@ export function PlatformDashboardView({
 
                 <div className="p-3 rounded-[8px] border border-[#FCE2B3] bg-[#FEF7EA]/40 flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-semibold text-[#E39B16] uppercase tracking-wider block">
+                    <span className="text-[11px] font-semibold text-[#B45309] uppercase tracking-wider block">
                       Onboarding
                     </span>
                     <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
@@ -154,7 +154,7 @@ export function PlatformDashboardView({
 
                 <div className="p-3 rounded-[8px] border border-[#F8BDBD] bg-[#FDECEC]/40 flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-semibold text-[#D64545] uppercase tracking-wider block">
+                    <span className="text-[11px] font-semibold text-[#B91C1C] uppercase tracking-wider block">
                       Suspended
                     </span>
                     <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
@@ -166,7 +166,7 @@ export function PlatformDashboardView({
 
                 <div className="p-3 rounded-[8px] border border-[#E3E8EF] bg-[#F0F2F5]/40 flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-semibold text-[#6B7688] uppercase tracking-wider block">
+                    <span className="text-[11px] font-semibold text-[#374151] uppercase tracking-wider block">
                       Offboarded
                     </span>
                     <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
@@ -196,13 +196,13 @@ export function PlatformDashboardView({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {institutes.length === 0 ? (
-                    <p className="text-xs text-[#6B7688]">No institutes onboarded yet.</p>
+                    {institutes.length === 0 ? (
+                    <p className="text-xs text-[#475569]">No institutes onboarded yet.</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
                         <thead>
-                          <tr className="border-b border-[#E3E8EF] text-[#6B7688]">
+                          <tr className="border-b border-[#E3E8EF] text-[#475569]">
                             <th className="pb-3 font-semibold uppercase tracking-wider">Institute Name</th>
                             <th className="pb-3 font-semibold uppercase tracking-wider">Tenant Code</th>
                             <th className="pb-3 font-semibold uppercase tracking-wider">Status</th>
@@ -227,7 +227,7 @@ export function PlatformDashboardView({
                                 {inst.college_count || 1}
                               </td>
                               <td className="py-3 text-right font-semibold text-[#0B1F3A]">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#E8F0FE] text-[#1F6FEB]">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#E8F0FE] text-[#1D4ED8]">
                                   {inst.user_count} users
                                 </span>
                               </td>
@@ -260,7 +260,7 @@ export function PlatformDashboardView({
                       <div key={inst.id} className="py-2.5 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-semibold text-[#0B1F3A]">{inst.name}</p>
-                          <p className="text-[11px] text-[#6B7688] font-mono mt-0.5">
+                          <p className="text-[11px] text-[#475569] font-mono mt-0.5">
                             Code: {inst.code} · {formatDate(inst.created_at)}
                           </p>
                         </div>
@@ -291,7 +291,7 @@ export function PlatformDashboardView({
                 </CardHeader>
                 <CardContent className="pt-3">
                   {recentAuditEvents.length === 0 ? (
-                    <p className="text-xs text-[#6B7688] py-2">No recent audit logs found.</p>
+                    <p className="text-xs text-[#475569] py-2">No recent audit logs found.</p>
                   ) : (
                     <div className="space-y-2.5">
                       {recentAuditEvents.map((evt) => (
@@ -306,14 +306,14 @@ export function PlatformDashboardView({
                             <span
                               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                                 evt.status === 'SUCCESS'
-                                  ? 'bg-[#EAF8F1] text-[#1E9E6A]'
-                                  : 'bg-[#FDECEC] text-[#D64545]'
+                                  ? 'bg-[#EAF8F1] text-[#15803D]'
+                                  : 'bg-[#FDECEC] text-[#B91C1C]'
                               }`}
                             >
                               {evt.status}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-[#6B7688] mt-1 font-mono">
+                          <div className="flex items-center justify-between text-[10px] text-[#475569] mt-1 font-mono">
                             <span>Tenant: {evt.tenant_code || 'GLOBAL'}</span>
                             <span>{formatDate(evt.event_time)}</span>
                           </div>
@@ -343,7 +343,7 @@ export function PlatformDashboardView({
           <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             Platform Operator Dashboard
           </h1>
-          <p className="text-xs text-[#6B7688] mt-1">
+          <p className="text-xs text-[#475569] mt-1">
             Global institute registry, multi-tenant lifecycle states, and platform audit trail.
           </p>
         </div>
@@ -355,7 +355,7 @@ export function PlatformDashboardView({
             onClick={() => setIsCustomizeOpen(true)}
             className="text-xs"
           >
-            <Sliders className="mr-1.5 h-3.5 w-3.5 text-[#6B7688]" />
+            <Sliders className="mr-1.5 h-3.5 w-3.5 text-[#475569]" />
             Customize Dashboard
           </Button>
 

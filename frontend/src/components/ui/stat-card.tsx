@@ -31,7 +31,7 @@ export function StatCard({
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#6B7688]">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
           {title}
         </span>
         {Icon && (
@@ -50,7 +50,7 @@ export function StatCard({
           <span
             className={cn(
               'inline-flex items-center text-xs font-semibold',
-              delta.isPositive ? 'text-[#1E9E6A]' : 'text-[#D64545]'
+              delta.isPositive ? 'text-[#15803D]' : 'text-[#B91C1C]'
             )}
           >
             {delta.isPositive ? (
@@ -64,7 +64,7 @@ export function StatCard({
       </div>
 
       {(description || delta?.label) && (
-        <p className="mt-1 text-xs text-[#6B7688]">
+        <p className="mt-1 text-xs text-[#475569]">
           {delta?.label || description}
         </p>
       )}

@@ -318,14 +318,14 @@ export function CollegeDashboardView({
             <CardHeader className="py-3.5 border-b border-[#F8BDBD] bg-[#FDECEC]/40">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-[#D64545]" />
-                  <CardTitle className="text-sm font-semibold text-[#D64545]">
+                  <AlertTriangle className="h-4 w-4 text-[#B91C1C]" />
+                  <CardTitle className="text-sm font-semibold text-[#B91C1C]">
                     Statutory Attendance Shortage Alerts (&lt; 75%)
                   </CardTitle>
                 </div>
                 <Link
                   href="/college/attendance?tab=report&shortage=true"
-                  className="text-xs text-[#D64545] font-semibold hover:underline flex items-center gap-1"
+                  className="text-xs text-[#B91C1C] font-semibold hover:underline flex items-center gap-1"
                 >
                   Full Report ({shortageStudents.length}) <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -341,7 +341,7 @@ export function CollegeDashboardView({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-[#E3E8EF] text-[#6B7688] bg-[#F6F8FB]/30">
+                      <tr className="border-b border-[#E3E8EF] text-[#475569] bg-[#F6F8FB]/30">
                         <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Enrollment No</th>
                         <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Student Name</th>
                         <th className="py-2.5 px-4 font-semibold uppercase tracking-wider text-right">Attended / Total</th>
@@ -356,11 +356,11 @@ export function CollegeDashboardView({
                             {st.enrollmentNo}
                           </td>
                           <td className="py-2.5 px-4 text-[#1B2433] font-medium">{st.displayName}</td>
-                          <td className="py-2.5 px-4 text-right font-mono text-[#6B7688]">
+                          <td className="py-2.5 px-4 text-right font-mono text-[#475569]">
                             {st.attended} / {st.totalSessions} sessions
                           </td>
                           <td className="py-2.5 px-4 text-right font-mono">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-[#FDECEC] text-[#D64545] border border-[#F8BDBD]">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-[#FDECEC] text-[#B91C1C] border border-[#F8BDBD]">
                               {st.percentage}%
                             </span>
                           </td>
@@ -406,7 +406,7 @@ export function CollegeDashboardView({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-[#E3E8EF] text-[#6B7688] bg-[#F6F8FB]/30">
+                      <tr className="border-b border-[#E3E8EF] text-[#475569] bg-[#F6F8FB]/30">
                         <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Date & Time</th>
                         <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Course Subject</th>
                         <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Section</th>
@@ -422,7 +422,7 @@ export function CollegeDashboardView({
                           </td>
                           <td className="py-2.5 px-4">
                             <span className="font-medium text-[#0B1F3A]">{ms.subjectName}</span>
-                            <span className="text-[10px] font-mono text-[#6B7688] ml-1.5">
+                            <span className="text-[10px] font-mono text-[#475569] ml-1.5">
                               ({ms.subjectCode})
                             </span>
                           </td>
@@ -469,14 +469,14 @@ export function CollegeDashboardView({
             </CardHeader>
             <CardContent className="p-0">
               {recentSessions.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#6B7688]">
+                <div className="p-8 text-center text-xs text-[#475569]">
                   No attendance sessions created yet.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-[#E3E8EF] text-[#6B7688] bg-[#F6F8FB]/30">
+                      <tr className="border-b border-[#E3E8EF] text-[#475569] bg-[#F6F8FB]/30">
                         <th className="py-3 px-4 font-semibold uppercase tracking-wider">Date & Time</th>
                         <th className="py-3 px-4 font-semibold uppercase tracking-wider">Subject</th>
                         <th className="py-3 px-4 font-semibold uppercase tracking-wider">Section</th>
@@ -491,13 +491,13 @@ export function CollegeDashboardView({
                         <tr key={s.id} className="hover:bg-[#F6F8FB]">
                           <td className="py-3 px-4 font-mono text-[#0B1F3A]">
                             {s.sessionDate}{' '}
-                            <span className="text-[#6B7688] text-[11px]">
+                            <span className="text-[#475569] text-[11px]">
                               ({s.startTime.slice(0, 5)})
                             </span>
                           </td>
                           <td className="py-3 px-4 font-medium text-[#0B1F3A]">
                             {s.subjectName}
-                            <span className="text-[10px] font-mono text-[#6B7688] ml-1">
+                            <span className="text-[10px] font-mono text-[#475569] ml-1">
                               ({s.subjectCode})
                             </span>
                           </td>
@@ -547,7 +547,7 @@ export function CollegeDashboardView({
           <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             College Operations Dashboard
           </h1>
-          <p className="text-xs text-[#6B7688] mt-1">
+          <p className="text-xs text-[#475569] mt-1">
             Real-time attendance metrics, roster governance, and timetable compliance for{' '}
             <span className="font-semibold text-[#0B1F3A]">{tenantName}</span>.
           </p>
@@ -560,7 +560,7 @@ export function CollegeDashboardView({
             onClick={() => setIsCustomizeOpen(true)}
             className="text-xs"
           >
-            <Sliders className="mr-1.5 h-3.5 w-3.5 text-[#6B7688]" />
+            <Sliders className="mr-1.5 h-3.5 w-3.5 text-[#475569]" />
             Customize Dashboard
           </Button>
 
@@ -586,7 +586,7 @@ export function CollegeDashboardView({
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-[#0B1F3A]">Cumulative Attendance Report</h4>
-                <p className="text-[11px] text-[#6B7688]">Filter by batch, date range, and export CSV</p>
+                <p className="text-[11px] text-[#475569]">Filter by batch, date range, and export CSV</p>
               </div>
             </div>
           </Card>
@@ -600,7 +600,7 @@ export function CollegeDashboardView({
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-[#0B1F3A]">Institutional Timetable</h4>
-                <p className="text-[11px] text-[#6B7688]">Inspect published slots and teaching assignments</p>
+                <p className="text-[11px] text-[#475569]">Inspect published slots and teaching assignments</p>
               </div>
             </div>
           </Card>
@@ -614,7 +614,7 @@ export function CollegeDashboardView({
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-[#0B1F3A]">Governance Audit Log</h4>
-                <p className="text-[11px] text-[#6B7688]">Tamper-evident log of administrative mutations</p>
+                <p className="text-[11px] text-[#475569]">Tamper-evident log of administrative mutations</p>
               </div>
             </div>
           </Card>

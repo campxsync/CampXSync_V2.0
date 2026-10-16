@@ -118,7 +118,7 @@ export default async function FacultyAttendancePage(props: PageProps) {
         <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
           Faculty Attendance Capture
         </h1>
-        <p className="text-xs text-[#6B7688] mt-1">
+        <p className="text-xs text-[#475569] mt-1">
           Select your class period, take student attendance, and submit finalized sessions to the institutional audit trail.
         </p>
       </div>

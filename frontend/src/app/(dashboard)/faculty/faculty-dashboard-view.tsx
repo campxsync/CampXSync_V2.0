@@ -90,7 +90,7 @@ export function FacultyDashboardView({
                   <Calendar className="h-4.5 w-4.5 text-[#1F6FEB]" />
                   Today&apos;s Timetable Slots ({todaySlots.length})
                 </h2>
-                <p className="text-xs text-[#6B7688]">
+                <p className="text-xs text-[#475569]">
                   Select any scheduled session to begin roster attendance capture or review submitted status.
                 </p>
               </div>
@@ -123,7 +123,7 @@ export function FacultyDashboardView({
                     >
                       <CardHeader className="py-3 px-4 border-b border-[#E3E8EF] bg-[#F6F8FB]/50">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono font-bold text-[#1F6FEB]">
+                          <span className="text-xs font-mono font-bold text-[#1D4ED8]">
                             {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
                           </span>
                           <Badge
@@ -141,19 +141,19 @@ export function FacultyDashboardView({
                       <CardContent className="p-4 space-y-3">
                         <div>
                           <h3 className="text-sm font-bold text-[#0B1F3A]">{slot.subject_name}</h3>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-[#6B7688] font-mono">
+                          <div className="flex items-center gap-2 mt-1 text-xs text-[#475569] font-mono">
                             <span className="px-1.5 py-0.5 rounded bg-[#F0F2F5] text-[#1B2433]">
                               {slot.subject_code}
                             </span>
                             <span>•</span>
-                            <span className="text-[#1F6FEB] font-semibold">
+                            <span className="text-[#1D4ED8] font-semibold">
                               {slot.section_name || 'All Sections'}
                             </span>
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-[#E3E8EF] flex items-center justify-between">
-                          <span className="text-[11px] text-[#6B7688]">ACD-06 Compliance</span>
+                          <span className="text-[11px] text-[#475569]">ACD-06 Compliance</span>
                           <Link href={`/faculty/attendance?slotId=${slot.id}`}>
                             <Button
                               variant={isSubmitted ? 'outline' : 'primary'}
@@ -202,7 +202,7 @@ export function FacultyDashboardView({
                 </div>
                 <Badge status="ONBOARDING" label="Pending Resolution" />
               </div>
-              <CardDescription className="text-xs text-[#6B7688] mt-0.5">
+              <CardDescription className="text-xs text-[#475569] mt-0.5">
                 The following sessions were opened but have not been formally submitted. Please finalize attendance records to ensure institutional reporting integrity.
               </CardDescription>
             </CardHeader>
@@ -214,7 +214,7 @@ export function FacultyDashboardView({
                       <p className="text-xs font-semibold text-[#0B1F3A]">
                         {ms.subject_name} ({ms.subject_code}) — Section {ms.section_name}
                       </p>
-                      <p className="text-[11px] text-[#6B7688] font-mono mt-0.5">
+                      <p className="text-[11px] text-[#475569] font-mono mt-0.5">
                         Session Date: {formatDate(ms.session_date)} ({ms.start_time.slice(0, 5)} - {ms.end_time.slice(0, 5)})
                       </p>
                     </div>
@@ -289,7 +289,7 @@ export function FacultyDashboardView({
           <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             Faculty Teaching Workspace
           </h1>
-          <p className="text-xs text-[#6B7688] mt-1">
+          <p className="text-xs text-[#475569] mt-1">
             Welcome, {displayName}. Manage your timetable slots, record student attendance, and monitor class compliance.
           </p>
         </div>
@@ -301,7 +301,7 @@ export function FacultyDashboardView({
             onClick={() => setIsCustomizeOpen(true)}
             className="text-xs"
           >
-            <Sliders className="mr-1.5 h-3.5 w-3.5 text-[#6B7688]" />
+            <Sliders className="mr-1.5 h-3.5 w-3.5 text-[#475569]" />
             Customize Dashboard
           </Button>
 

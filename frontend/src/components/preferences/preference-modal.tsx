@@ -173,34 +173,35 @@ export function PreferenceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xl rounded-[12px] bg-white p-6 shadow-xl text-[#1B2433]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+      <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-[12px] bg-white p-6 shadow-xl text-[#1B2433] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#E3E8EF] pb-4">
+        <div className="flex items-center justify-between border-b border-[#E3E8EF] pb-4 shrink-0">
           <div>
             <h3 className="text-base font-bold text-[#0B1F3A]">Workspace Preferences</h3>
-            <p className="text-xs text-[#6B7688]">
+            <p className="text-xs text-[#475569]">
               Personalized display, accessibility, and dashboard layout for{' '}
               <span className="font-semibold text-[#1F6FEB]">{role.replace('_', ' ')}</span>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-[6px] p-1 text-[#6B7688] hover:bg-[#F6F8FB] hover:text-[#1B2433]"
+            aria-label="Close preferences modal"
+            className="rounded-[6px] p-1.5 text-[#475569] hover:bg-[#F6F8FB] hover:text-[#1B2433] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-[#E3E8EF] mt-3">
+        <div className="flex border-b border-[#E3E8EF] mt-3 shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('display')}
             className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
               activeTab === 'display'
                 ? 'border-[#1F6FEB] text-[#1F6FEB]'
-                : 'border-transparent text-[#6B7688] hover:text-[#0B1F3A]'
+                : 'border-transparent text-[#475569] hover:text-[#0B1F3A]'
             }`}
           >
             Display & Accessibility
@@ -211,7 +212,7 @@ export function PreferenceModal({
             className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
               activeTab === 'widgets'
                 ? 'border-[#1F6FEB] text-[#1F6FEB]'
-                : 'border-transparent text-[#6B7688] hover:text-[#0B1F3A]'
+                : 'border-transparent text-[#475569] hover:text-[#0B1F3A]'
             }`}
           >
             Dashboard Widgets ({currentRoleWidgets.order.length})
@@ -219,7 +220,7 @@ export function PreferenceModal({
         </div>
 
         {/* Tab Content */}
-        <div className="mt-4 space-y-5 max-h-[58vh] overflow-y-auto px-1">
+        <div className="mt-4 space-y-5 flex-1 overflow-y-auto px-1 pr-2">
           {activeTab === 'display' ? (
             <>
               {/* Color Theme */}
@@ -235,8 +236,8 @@ export function PreferenceModal({
                       onClick={() => setPreferences({ ...preferences, theme: t })}
                       className={`flex items-center justify-center gap-2 rounded-[8px] border p-2.5 text-xs font-medium capitalize transition-colors ${
                         preferences.theme === t
-                          ? 'border-[#1F6FEB] bg-[#E8F0FE] text-[#1F6FEB] font-semibold'
-                          : 'border-[#E3E8EF] bg-white text-[#6B7688] hover:bg-[#F6F8FB]'
+                          ? 'border-[#1D4ED8] bg-[#E8F0FE] text-[#1D4ED8] font-semibold'
+                          : 'border-[#E3E8EF] bg-white text-[#475569] hover:bg-[#F6F8FB]'
                       }`}
                     >
                       {t === 'light' && <Sun className="h-3.5 w-3.5" />}
@@ -261,8 +262,8 @@ export function PreferenceModal({
                       onClick={() => setPreferences({ ...preferences, tableDensity: d })}
                       className={`flex items-center justify-center rounded-[8px] border p-2.5 text-xs font-medium capitalize transition-colors ${
                         preferences.tableDensity === d
-                          ? 'border-[#1F6FEB] bg-[#E8F0FE] text-[#1F6FEB] font-semibold'
-                          : 'border-[#E3E8EF] bg-white text-[#6B7688] hover:bg-[#F6F8FB]'
+                          ? 'border-[#1D4ED8] bg-[#E8F0FE] text-[#1D4ED8] font-semibold'
+                          : 'border-[#E3E8EF] bg-white text-[#475569] hover:bg-[#F6F8FB]'
                       }`}
                     >
                       {d}
@@ -284,8 +285,8 @@ export function PreferenceModal({
                       onClick={() => setPreferences({ ...preferences, defaultDateRangeDays: days })}
                       className={`flex items-center justify-center rounded-[8px] border p-2.5 text-xs font-medium transition-colors ${
                         preferences.defaultDateRangeDays === days
-                          ? 'border-[#1F6FEB] bg-[#E8F0FE] text-[#1F6FEB] font-semibold'
-                          : 'border-[#E3E8EF] bg-white text-[#6B7688] hover:bg-[#F6F8FB]'
+                          ? 'border-[#1D4ED8] bg-[#E8F0FE] text-[#1D4ED8] font-semibold'
+                          : 'border-[#E3E8EF] bg-white text-[#475569] hover:bg-[#F6F8FB]'
                       }`}
                     >
                       {days} Days
@@ -303,7 +304,7 @@ export function PreferenceModal({
                   <label className="flex items-center justify-between rounded-[8px] border border-[#E3E8EF] p-2.5 text-xs text-[#1B2433] hover:bg-[#F6F8FB] cursor-pointer">
                     <div>
                       <span className="font-semibold block text-[#0B1F3A]">High Contrast Mode</span>
-                      <span className="text-[11px] text-[#6B7688]">
+                      <span className="text-[11px] text-[#475569]">
                         Enhanced contrast borders meeting WCAG AAA standard
                       </span>
                     </div>
@@ -326,7 +327,7 @@ export function PreferenceModal({
                   <label className="flex items-center justify-between rounded-[8px] border border-[#E3E8EF] p-2.5 text-xs text-[#1B2433] hover:bg-[#F6F8FB] cursor-pointer">
                     <div>
                       <span className="font-semibold block text-[#0B1F3A]">Reduce Motion</span>
-                      <span className="text-[11px] text-[#6B7688]">
+                      <span className="text-[11px] text-[#475569]">
                         Disable decorative transitions and animations
                       </span>
                     </div>
@@ -351,7 +352,7 @@ export function PreferenceModal({
           ) : (
             /* Widgets Tab */
             <div className="space-y-3">
-              <p className="text-xs text-[#6B7688]">
+              <p className="text-xs text-[#475569]">
                 Customize which widgets appear on your dashboard and their display order. Mandatory
                 security alerts and essential actions cannot be bypassed.
               </p>
@@ -371,10 +372,10 @@ export function PreferenceModal({
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-[#6B7688] w-4">{index + 1}.</span>
+                        <span className="text-xs font-mono text-[#475569] w-4">{index + 1}.</span>
                         <div>
                           <span className="text-xs font-medium text-[#0B1F3A] block">{label}</span>
-                          <span className="text-[10px] font-mono text-[#6B7688]">{widgetId}</span>
+                          <span className="text-[10px] font-mono text-[#475569]">{widgetId}</span>
                         </div>
                       </div>
 
@@ -407,7 +408,7 @@ export function PreferenceModal({
                           title={isHidden ? 'Show Widget' : 'Hide Widget'}
                         >
                           {isHidden ? (
-                            <EyeOff className="h-3.5 w-3.5 text-[#6B7688]" />
+                            <EyeOff className="h-3.5 w-3.5 text-[#475569]" />
                           ) : (
                             <Eye className="h-3.5 w-3.5 text-[#1F6FEB]" />
                           )}
@@ -449,8 +450,8 @@ export function PreferenceModal({
         </div>
 
         {/* Footer */}
-        <div className="mt-6 flex items-center justify-between border-t border-[#E3E8EF] pt-4">
-          <Button variant="ghost" size="sm" onClick={handleReset} className="text-[#6B7688]">
+        <div className="mt-4 flex items-center justify-between border-t border-[#E3E8EF] pt-4 shrink-0">
+          <Button variant="ghost" size="sm" onClick={handleReset} className="text-[#475569]">
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset Defaults
           </Button>

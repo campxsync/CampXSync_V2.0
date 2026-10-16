@@ -15,13 +15,17 @@ import {
   AlertTriangle,
   RotateCcw,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Search,
+  Keyboard,
+  Edit3,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface TimetableSlot {
   id: string;
@@ -86,6 +90,11 @@ export function FacultyAttendanceView({
 
   // Submission confirmation modal state
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+
+  // Search, filter, and keyboard navigation states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNMARKED' | 'PRESENT' | 'ABSENT' | 'LEAVE'>('ALL');
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
 
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
@@ -290,6 +299,69 @@ export function FacultyAttendanceView({
   const totalRoster = rosterStudents.length;
   const attendedCount = presentCount + lateCount + onDutyCount;
   const runningPercentage = totalRoster > 0 ? Math.round((attendedCount / totalRoster) * 100) : 0;
+  const unmarkedCount = rosterStudents.filter((s) => !attendanceMarks[s.id]).length;
+
+  // Filtered students based on search and status filter
+  const filteredStudents = rosterStudents.filter((student) => {
+    const matchesSearch =
+      student.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.enrollment_no.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    const mark = attendanceMarks[student.id];
+    if (statusFilter === 'ALL') return true;
+    if (statusFilter === 'UNMARKED') return !mark;
+    return mark === statusFilter;
+  });
+
+  // Keyboard navigation support: ArrowUp, ArrowDown, P, A, L, Space
+  useEffect(() => {
+    if (filteredStudents.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement as HTMLElement)?.tagName;
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(activeTag)) return;
+
+      if (e.key === 'ArrowDown' || e.key === 'j') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, Math.max(0, filteredStudents.length - 1)));
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (!isSessionLocked && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        const currentStudent = filteredStudents[focusedIndex];
+        if (currentStudent) {
+          handleMark(currentStudent.id, 'PRESENT');
+          setFocusedIndex((prev) => Math.min(prev + 1, Math.max(0, filteredStudents.length - 1)));
+        }
+      } else if (!isSessionLocked && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        const currentStudent = filteredStudents[focusedIndex];
+        if (currentStudent) {
+          handleMark(currentStudent.id, 'ABSENT');
+          setFocusedIndex((prev) => Math.min(prev + 1, Math.max(0, filteredStudents.length - 1)));
+        }
+      } else if (!isSessionLocked && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        const currentStudent = filteredStudents[focusedIndex];
+        if (currentStudent) {
+          handleMark(currentStudent.id, 'LEAVE');
+          setFocusedIndex((prev) => Math.min(prev + 1, Math.max(0, filteredStudents.length - 1)));
+        }
+      } else if (!isSessionLocked && e.key === ' ') {
+        e.preventDefault();
+        const currentStudent = filteredStudents[focusedIndex];
+        if (currentStudent) {
+          const current = attendanceMarks[currentStudent.id] || 'PRESENT';
+          handleMark(currentStudent.id, current === 'PRESENT' ? 'ABSENT' : 'PRESENT');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSessionLocked, filteredStudents, focusedIndex, attendanceMarks]);
 
   return (
     <div className="space-y-6">
@@ -314,11 +386,13 @@ export function FacultyAttendanceView({
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+              <label htmlFor="class-slot-select" className="block text-xs font-semibold text-[#0B1F3A] mb-1">
                 Class Slot <span className="text-[#D64545]">*</span>
               </label>
               <select
-                className="w-full h-10 px-3 text-xs rounded-[8px] border border-[#E3E8EF] bg-white text-[#1B2433] focus:border-[#1F6FEB] focus:outline-none"
+                id="class-slot-select"
+                aria-label="Class Slot"
+                className="w-full h-10 px-3 text-xs rounded-[8px] border border-[#E3E8EF] bg-white text-[#1B2433] focus:border-[#1F6FEB] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB]"
                 value={selectedSlotId}
                 onChange={(e) => {
                   if (hasUnsavedChanges && !isSessionLocked) {
@@ -342,8 +416,9 @@ export function FacultyAttendanceView({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#0B1F3A] mb-1">Session Date</label>
               <Input
+                id="session-date-input"
+                label="Session Date"
                 type="date"
                 value={sessionDate}
                 onChange={(e) => {
@@ -402,10 +477,10 @@ export function FacultyAttendanceView({
         <div
           className={`p-3 rounded-[8px] border text-xs flex items-center gap-2 ${
             statusMessage.type === 'error'
-              ? 'border-[#D64545] bg-[#FDF3F3] text-[#D64545]'
+              ? 'border-[#B91C1C] bg-[#FDF3F3] text-[#B91C1C]'
               : statusMessage.type === 'info'
-              ? 'border-[#1F6FEB] bg-[#E8F0FE] text-[#1F6FEB]'
-              : 'border-[#107C41] bg-[#DFF6DD] text-[#107C41]'
+              ? 'border-[#0A4ABF] bg-[#E8F0FE] text-[#0A4ABF]'
+              : 'border-[#0D6535] bg-[#DFF6DD] text-[#0D6535]'
           }`}
         >
           {statusMessage.type === 'error' ? (
@@ -429,23 +504,23 @@ export function FacultyAttendanceView({
                   Class Roster ({rosterStudents.length} Students)
                 </CardTitle>
                 {isSessionLocked ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#107C41] bg-[#DFF6DD] px-2.5 py-0.5 rounded-full border border-[#107C41]/30">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#0D6535] bg-[#DFF6DD] px-2.5 py-0.5 rounded-full border border-[#107C41]/30">
                     <Lock className="h-3 w-3" /> Submitted & Read-Only
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#1F6FEB] bg-[#E8F0FE] px-2.5 py-0.5 rounded-full border border-[#1F6FEB]/30">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#0A4ABF] bg-[#E8F0FE] px-2.5 py-0.5 rounded-full border border-[#1F6FEB]/30">
                     <Clock className="h-3 w-3" /> In Progress (Open)
                   </span>
                 )}
               </div>
 
               {/* Running Counts Breakdown */}
-              <div className="flex flex-wrap items-center gap-2 text-xs mt-2 text-[#6B7688]">
+              <div className="flex flex-wrap items-center gap-2 text-xs mt-2 text-[#475569]">
                 <span className="font-semibold text-[#0B1F3A]">Running Breakdown:</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#EAF8F1] text-[#1E9E6A] font-semibold">
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#EAF8F1] text-[#0D6535] font-semibold">
                   {presentCount} Present
                 </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FDF3F3] text-[#D64545] font-semibold">
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FDF3F3] text-[#B91C1C] font-semibold">
                   {absentCount} Absent
                 </span>
                 {leaveCount > 0 && (
@@ -501,7 +576,7 @@ export function FacultyAttendanceView({
           </CardHeader>
 
           {isSessionLocked && (
-            <div className="mx-6 mb-4 p-3 rounded-[6px] bg-[#F6F8FB] border border-[#E3E8EF] text-xs text-[#6B7688] flex items-center justify-between gap-3">
+            <div className="mx-6 mb-4 p-3 rounded-[6px] bg-[#F6F8FB] border border-[#E3E8EF] text-xs text-[#475569] flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-[#107C41] shrink-0" />
                 <span>
@@ -511,49 +586,182 @@ export function FacultyAttendanceView({
             </div>
           )}
 
-          <CardContent>
+          <CardContent className="p-0">
+            {/* Search, Filter Pills & Keyboard Navigation Toolbar */}
+            <div className="p-4 border-b border-[#E3E8EF] bg-[#F6F8FB]/60 space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#475569]" />
+                  <Input
+                    placeholder="Search student name or roll number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 text-xs"
+                    aria-label="Filter students by name or roll number"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-xs text-[#475569] hover:text-[#0B1F3A]"
+                      aria-label="Clear student search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[#475569]">
+                  <Keyboard className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                  <span>Shortcuts:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white border border-[#E3E8EF] font-mono text-[10px] text-[#0B1F3A]">↑/↓</kbd>
+                  <span>move</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white border border-[#E3E8EF] font-mono text-[10px] text-[#0B1F3A]">P</kbd>
+                  <span className="text-[#0D6535] font-semibold">Present</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white border border-[#E3E8EF] font-mono text-[10px] text-[#0B1F3A]">A</kbd>
+                  <span className="text-[#B91C1C] font-semibold">Absent</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white border border-[#E3E8EF] font-mono text-[10px] text-[#0B1F3A]">L</kbd>
+                  <span className="text-[#9A3412] font-semibold">Leave</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white border border-[#E3E8EF] font-mono text-[10px] text-[#0B1F3A]">Space</kbd>
+                  <span>toggle</span>
+                </div>
+              </div>
+
+              {/* Status Filter Chips */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-[6px] text-xs font-medium border transition-colors',
+                    statusFilter === 'ALL'
+                      ? 'bg-[#0B1F3A] text-white border-transparent'
+                      : 'bg-white text-[#475569] border-[#E3E8EF] hover:border-[#B8D3FC]'
+                  )}
+                >
+                  All ({rosterStudents.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('UNMARKED')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-[6px] text-xs font-medium border transition-colors',
+                    statusFilter === 'UNMARKED'
+                      ? 'bg-[#1F6FEB] text-white border-transparent'
+                      : 'bg-white text-[#475569] border-[#E3E8EF] hover:border-[#B8D3FC]'
+                  )}
+                >
+                  Unmarked ({unmarkedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('PRESENT')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-[6px] text-xs font-medium border transition-colors',
+                    statusFilter === 'PRESENT'
+                      ? 'bg-[#107C41] text-white border-transparent'
+                      : 'bg-white text-[#107C41] border-[#E3E8EF] hover:border-[#B2E6CE]'
+                  )}
+                >
+                  Present ({presentCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ABSENT')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-[6px] text-xs font-medium border transition-colors',
+                    statusFilter === 'ABSENT'
+                      ? 'bg-[#B91C1C] text-white border-transparent'
+                      : 'bg-white text-[#B91C1C] border-[#E3E8EF] hover:border-[#FCA5A5]'
+                  )}
+                >
+                  Absent ({absentCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('LEAVE')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-[6px] text-xs font-medium border transition-colors',
+                    statusFilter === 'LEAVE'
+                      ? 'bg-[#9A3412] text-white border-transparent'
+                      : 'bg-white text-[#9A3412] border-[#E3E8EF] hover:border-[#FDBA74]'
+                  )}
+                >
+                  Leave ({leaveCount})
+                </button>
+              </div>
+            </div>
+
             {rosterStudents.length === 0 ? (
-              <p className="text-xs text-[#6B7688] text-center py-6">
+              <p className="text-xs text-[#475569] text-center py-8">
                 No students enrolled in this section roster. Enroll students from the College Admin Student Roster.
               </p>
+            ) : filteredStudents.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#475569]">
+                <p>No students match the current search or filter criteria.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('ALL');
+                  }}
+                  className="mt-2 font-semibold text-[#1F6FEB] hover:underline"
+                >
+                  Clear search & filter
+                </button>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-[#E3E8EF] text-[#6B7688]">
-                      <th className="pb-3 font-semibold uppercase tracking-wider w-28">Roll No.</th>
-                      <th className="pb-3 font-semibold uppercase tracking-wider">Student Name</th>
-                      <th className="pb-3 font-semibold uppercase tracking-wider hidden sm:table-cell">Email</th>
-                      <th className="pb-3 font-semibold uppercase tracking-wider text-right">
+                    <tr className="border-b border-[#E3E8EF] text-[#475569] bg-[#F6F8FB]/40">
+                      <th className="py-3 px-4 font-semibold uppercase tracking-wider w-28">Roll No.</th>
+                      <th className="py-3 px-4 font-semibold uppercase tracking-wider">Student Name</th>
+                      <th className="py-3 px-4 font-semibold uppercase tracking-wider hidden sm:table-cell">Email</th>
+                      <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">
                         {isSessionLocked ? 'Finalized Status' : 'Mark Attendance'}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E3E8EF]">
-                    {rosterStudents.map((student) => {
+                    {filteredStudents.map((student, idx) => {
                       const currentStatus = attendanceMarks[student.id] || 'PRESENT';
+                      const isFocused = idx === focusedIndex;
 
                       return (
-                        <tr key={student.id} className="hover:bg-[#F6F8FB]">
-                          <td className="py-3 font-mono font-medium text-[#1B2433]">
+                        <tr
+                          key={student.id}
+                          className={cn(
+                            'min-h-[48px] transition-colors',
+                            isFocused
+                              ? 'bg-[#E8F0FE]/50 ring-1 ring-[#1F6FEB] ring-inset'
+                              : 'hover:bg-[#F6F8FB]'
+                          )}
+                          onClick={() => setFocusedIndex(idx)}
+                        >
+                          <td className="py-3.5 px-4 font-mono font-medium text-[#1B2433]">
                             {student.enrollment_no}
                           </td>
-                          <td className="py-3 font-medium text-[#0B1F3A]">
-                            {student.display_name}
+                          <td className="py-3.5 px-4 font-medium text-[#0B1F3A]">
+                            <span>{student.display_name}</span>
+                            {isFocused && (
+                              <span className="ml-2 text-[10px] text-[#0A4ABF] font-semibold">
+                                (Active)
+                              </span>
+                            )}
                           </td>
-                          <td className="py-3 text-[#6B7688] hidden sm:table-cell">
+                          <td className="py-3.5 px-4 text-[#475569] hidden sm:table-cell">
                             {student.primary_email}
                           </td>
-                          <td className="py-3 text-right">
+                          <td className="py-3.5 px-4 text-right">
                             {isSessionLocked ? (
                               <span
                                 className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${
                                   currentStatus === 'PRESENT'
-                                    ? 'bg-[#107C41]/10 text-[#107C41]'
+                                    ? 'bg-[#107C41]/10 text-[#0D6535]'
                                     : currentStatus === 'ABSENT'
-                                    ? 'bg-[#D64545]/10 text-[#D64545]'
+                                    ? 'bg-[#D64545]/10 text-[#B91C1C]'
                                     : currentStatus === 'LEAVE'
-                                    ? 'bg-[#F2994A]/10 text-[#C2410C]'
+                                    ? 'bg-[#F2994A]/10 text-[#9A3412]'
                                     : currentStatus === 'LATE'
                                     ? 'bg-[#FEF3C7] text-[#92400E]'
                                     : 'bg-[#EFF6FF] text-[#1D4ED8]'
@@ -566,10 +774,11 @@ export function FacultyAttendanceView({
                                 <button
                                   type="button"
                                   onClick={() => handleMark(student.id, 'PRESENT')}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-[4px] transition-all ${
+                                  aria-label={`Mark ${student.display_name} Present`}
+                                  className={`px-3 py-1.5 min-h-[38px] text-xs font-bold rounded-[4px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] ${
                                     currentStatus === 'PRESENT'
                                       ? 'bg-[#107C41] text-white shadow-xs'
-                                      : 'text-[#6B7688] hover:text-[#0B1F3A]'
+                                      : 'text-[#475569] hover:text-[#0B1F3A]'
                                   }`}
                                 >
                                   Present
@@ -577,10 +786,11 @@ export function FacultyAttendanceView({
                                 <button
                                   type="button"
                                   onClick={() => handleMark(student.id, 'ABSENT')}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-[4px] transition-all ${
+                                  aria-label={`Mark ${student.display_name} Absent`}
+                                  className={`px-3 py-1.5 min-h-[38px] text-xs font-bold rounded-[4px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] ${
                                     currentStatus === 'ABSENT'
                                       ? 'bg-[#D64545] text-white shadow-xs'
-                                      : 'text-[#6B7688] hover:text-[#0B1F3A]'
+                                      : 'text-[#475569] hover:text-[#0B1F3A]'
                                   }`}
                                 >
                                   Absent
@@ -588,10 +798,11 @@ export function FacultyAttendanceView({
                                 <button
                                   type="button"
                                   onClick={() => handleMark(student.id, 'LEAVE')}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-[4px] transition-all ${
+                                  aria-label={`Mark ${student.display_name} Leave`}
+                                  className={`px-3 py-1.5 min-h-[38px] text-xs font-bold rounded-[4px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] ${
                                     currentStatus === 'LEAVE'
                                       ? 'bg-[#F2994A] text-white shadow-xs'
-                                      : 'text-[#6B7688] hover:text-[#0B1F3A]'
+                                      : 'text-[#475569] hover:text-[#0B1F3A]'
                                   }`}
                                 >
                                   Leave
@@ -599,10 +810,11 @@ export function FacultyAttendanceView({
                                 <button
                                   type="button"
                                   onClick={() => handleMark(student.id, 'LATE')}
-                                  className={`px-2 py-1 text-xs font-bold rounded-[4px] transition-all hidden sm:inline-block ${
+                                  aria-label={`Mark ${student.display_name} Late`}
+                                  className={`px-2.5 py-1.5 min-h-[38px] text-xs font-bold rounded-[4px] transition-all hidden sm:inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] ${
                                     currentStatus === 'LATE'
                                       ? 'bg-[#D97706] text-white shadow-xs'
-                                      : 'text-[#6B7688] hover:text-[#0B1F3A]'
+                                      : 'text-[#475569] hover:text-[#0B1F3A]'
                                   }`}
                                 >
                                   Late
@@ -610,10 +822,11 @@ export function FacultyAttendanceView({
                                 <button
                                   type="button"
                                   onClick={() => handleMark(student.id, 'ON_DUTY')}
-                                  className={`px-2 py-1 text-xs font-bold rounded-[4px] transition-all hidden sm:inline-block ${
+                                  aria-label={`Mark ${student.display_name} On Duty`}
+                                  className={`px-2.5 py-1.5 min-h-[38px] text-xs font-bold rounded-[4px] transition-all hidden sm:inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] ${
                                     currentStatus === 'ON_DUTY'
                                       ? 'bg-[#1D4ED8] text-white shadow-xs'
-                                      : 'text-[#6B7688] hover:text-[#0B1F3A]'
+                                      : 'text-[#475569] hover:text-[#0B1F3A]'
                                   }`}
                                 >
                                   OD
@@ -628,6 +841,53 @@ export function FacultyAttendanceView({
                 </table>
               </div>
             )}
+
+            {/* Sticky Running Counts & Action Bar */}
+            <div className="sticky bottom-0 z-20 flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white/95 backdrop-blur-xs border-t border-[#E3E8EF] shadow-lg rounded-b-[12px]">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-[#0B1F3A]">
+                <span className="font-bold">Live Ledger:</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#EAF8F1] text-[#0D6535] font-bold">
+                  {presentCount} Present
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FDECEC] text-[#B91C1C] font-bold">
+                  {absentCount} Absent
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#FEF7EA] text-[#9A3412] font-bold">
+                  {leaveCount} Leave
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#F0F2F5] text-[#475569] font-bold">
+                  {unmarkedCount} Unmarked
+                </span>
+                <span className="font-semibold text-[#0B1F3A] ml-1">
+                  · {runningPercentage}% Attended
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {!isSessionLocked ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowSubmitModal(true)}
+                    isLoading={isLoading}
+                    className="min-h-[40px] px-5 shadow-sm"
+                  >
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                    Submit Attendance
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#475569] hidden sm:inline">Locked record</span>
+                    <Link href={`/college/attendance?sessionId=${activeSessionId}`}>
+                      <Button variant="outline" size="sm" className="min-h-[38px]">
+                        <Edit3 className="mr-1.5 h-4 w-4 text-[#1F6FEB]" />
+                        Request / Review Correction
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -644,7 +904,7 @@ export function FacultyAttendanceView({
                 <h3 className="text-base font-bold text-[#0B1F3A]">
                   Confirm Final Attendance Submission
                 </h3>
-                <p className="text-xs text-[#6B7688]">
+                <p className="text-xs text-[#475569]">
                   {activeSlot?.subject_code} — {activeSlot?.subject_name} · {sessionDate}
                 </p>
               </div>
@@ -656,16 +916,16 @@ export function FacultyAttendanceView({
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex justify-between p-2 rounded bg-white border border-[#E3E8EF]">
-                  <span className="text-[#107C41] font-medium">Present:</span>
+                  <span className="text-[#0D6535] font-medium">Present:</span>
                   <span className="font-bold text-[#0B1F3A]">{presentCount}</span>
                 </div>
                 <div className="flex justify-between p-2 rounded bg-white border border-[#E3E8EF]">
-                  <span className="text-[#D64545] font-medium">Absent:</span>
+                  <span className="text-[#B91C1C] font-medium">Absent:</span>
                   <span className="font-bold text-[#0B1F3A]">{absentCount}</span>
                 </div>
                 {leaveCount > 0 && (
                   <div className="flex justify-between p-2 rounded bg-white border border-[#E3E8EF]">
-                    <span className="text-[#C2410C] font-medium">Leave:</span>
+                    <span className="text-[#9A3412] font-medium">Leave:</span>
                     <span className="font-bold text-[#0B1F3A]">{leaveCount}</span>
                   </div>
                 )}
@@ -682,7 +942,7 @@ export function FacultyAttendanceView({
                   </div>
                 )}
                 <div className="flex justify-between p-2 rounded bg-white border border-[#E3E8EF]">
-                  <span className="text-[#6B7688] font-medium">Total Roster:</span>
+                  <span className="text-[#475569] font-medium">Total Roster:</span>
                   <span className="font-bold text-[#0B1F3A]">{totalRoster}</span>
                 </div>
                 <div className="flex justify-between p-2 rounded bg-white border border-[#E3E8EF] col-span-2">

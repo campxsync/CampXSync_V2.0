@@ -185,14 +185,65 @@
     - Automated verification suite `scripts/verify_phase7_dashboards_preferences.mjs`: **26/26 PASSED (0 FAILED)**.
     - Production Next.js build: **100% clean** across all 34 routes.
     - Autonomous browser walkthrough: Recorded video `phase7_dashboards_walkthrough_1792144886693.webp` and 5 screenshots.
-- **Next Phase**: Phase 8 (Professional UI Polish and Visual QA).
+- **Phase 8 Deliverables Verified Live (Section 5 Professional UI & Visual QA)**:
+    - **Visual Polish & Design System Tokens**: Applied Section 5 color tokens (`--navy-950`, `--navy-900`, `--blue-600`, `--slate-600`, etc.), Inter typography with tabular numerals on data cells, consistent 8px spacing, and verified contrast ratios (WCAG AA compliant across all cards, badges, buttons, headers, and text).
+    - **Responsive Shell & Navigation**: Mobile drawer overlay (`fixed inset-y-0 z-50`) with backdrop blur, accessible close button, mobile hamburger toggle (`Menu`), and 44px minimum mobile touch targets.
+    - **Attendance Sheet Usability**: 48px touch rows, active row cursor highlight `(Active)`, full keyboard navigation (`ArrowUp`/`ArrowDown`/`j`/`k`, `P`/`A`/`L`/`Space`), student search, status filter pills (All, Unmarked, Present, Absent, Leave), and sticky running counts bar.
+    - **Preferences & Modals**: Responsive `< 90vh` dialogs with scrollable body, accessible close labels, high-contrast active buttons, and clear fallback disclosure.
+    - **Axe Core Accessibility Scans**: Verified **0 serious or critical violations** on Login, Platform Dashboard, College Dashboard, Faculty Dashboard, Faculty Attendance Sheet, and Workspace Preferences Modal.
+    - **Cross-Viewport Responsiveness**: Verified **zero horizontal scroll / overflow** across all 15 screens at 1440px desktop, 1024px tablet, and 390px mobile viewports.
+    - **Automated QA Suite (`scripts/phase8_visual_qa.mjs`)**: **46/46 PASSED (0 FAILED)**.
+    - **Visual Artifacts**: 14 responsive screenshots captured in `docs/trial/screenshots/`.
+    - **Regression Check**: Phase 7 regression check verified **26/26 PASSED**. Rule 11 verified clean (`Rule11_overall: True`).
+- **VERIFIED PHASE 9 SECURITY & REAL-BROWSER ACCEPTANCE**:
+  - **Authentication & Lifecycle**:
+    - Unauthenticated web routes redirect to `/login?returnTo=...` (HTTP 307).
+    - Unauthenticated API routes reject with HTTP 401 and RFC 7807 problem details (`https://campxsync.edu/errors/unauthorized`).
+    - Genuine Supabase Auth verified on staging for `campxsync@gmail.com` using real credentials (`CAMPX_STAGING_TEST_PASSWORD`).
+    - Session cookies (`sb-*-auth-token`) set by Supabase SSR client; full-page navigation (`window.location.href`) reliably propagates cookies.
+    - Topbar user menu Sign Out clears both Supabase Auth and test session cookies, immediately redirecting to `/login` and guarding subsequent protected route access.
+  - **Account Status Fast-Fail & Profile Resolution**:
+    - Inactive membership (`status = 'INACTIVE'`) denied at middleware with clear UI notification ("Account Membership Inactive") and HTTP 403 on APIs.
+    - Missing profile (`no_profile = true`) denied with clear UI explanation ("Institutional Profile Not Found") and HTTP 403 on APIs.
+    - Suspended tenant (`tenant_status = 'SUSPENDED'`) denied at middleware with clear message ("Institution Workspace Suspended") and HTTP 403 on APIs.
+    - PostgREST RLS bypass fallback in `resolve-role.ts` queries PostgreSQL directly for `iam.user_profiles` and `iam.role_assignments`, reliably resolving `campxsync@gmail.com` as `college_admin`.
+  - **Multi-Tenant Isolation & IDOR Protection**:
+    - Query parameter tampering (`?tenantId=...`) completely ignored; tenant ID derived exclusively from authenticated server session.
+    - IDOR attempts to view cross-tenant attendance sessions return HTTP 404 (`Attendance session not found in tenant scope`).
+    - IDOR attempts to assign cross-tenant students to batches return HTTP 404 (`Student does not exist in your tenant workspace`).
+    - IDOR attempts to submit attendance corrections on cross-tenant records return HTTP 404 (`Attendance record not found in tenant session`).
+    - Platform Admin aggregate-only isolation: platform operator cannot access tenant-level student, faculty, or attendance report APIs (HTTP 403).
+  - **Privilege Escalation Prevention**:
+    - Faculty attempts to call administrative endpoints (POST/DELETE faculty, POST students, POST departments, POST timetable entries, POST corrections) rejected with HTTP 403.
+    - College Admin attempts to call platform onboarding saga endpoint rejected with HTTP 403.
+  - **Real-Browser Administration & Faculty Walkthrough**:
+    - College Admin creates faculty members via UI modal (`FAC-P9-*`) with immediate DOM table rendering.
+    - College Admin creates students via UI modal (`2026-P9-*`) with immediate DOM table rendering.
+    - Duplicate session creation prevention: opening an existing timetable slot returns existing session with `isExisting = true` (0 duplicates created).
+    - Invalid timetable slot returns HTTP 404.
+    - Non-roster student mark rejected with HTTP 400 Bad Request.
+    - Faculty attendance marking, modal confirmation ("Confirm & Submit to Ledger"), and read-only locked status persistence upon reload.
+    - Attempt by faculty to modify closed/submitted session rejected with HTTP 409 Conflict.
+    - Attendance correction with reason < 5 chars rejected with HTTP 400 Bad Request.
+    - Optimistic concurrency locking: mismatched `expectedVersion` rejected with HTTP 409 Conflict returning current version.
+    - Valid correction applied by College Admin: updates status, increments version (`v5 -> v6`), and logs audit event.
+    - Statutory 75% attendance shortage threshold accurately calculated in reports.
+    - Safe CSV export: formula injection triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) sanitized with single quote prefix.
+    - User preferences: schema v1 PUT persists to PostgreSQL (`iam.user_profiles.preferences`) and survives reload; tampered payloads with invalid enum values rejected with HTTP 422.
+    - Gated staging safety: onboarding saga without `GO PROVISION-TENANT` returns gated simulation without database mutations.
+    - Zero hardcoded numbers: College Dashboard values derived 100% from PostgreSQL source queries.
+  - **Automated Acceptance Suite (`scripts/verify_phase9_security_browser.mjs`)**: **36/36 PASSED (0 FAILED, 0 BLOCKED)**.
+  - **TypeScript & Build Verification**: `npx tsc --noEmit` (0 errors), `npm run build` (16/16 routes compiled cleanly).
+  - **Regression Suites Verified**: Phase 8 Visual QA (46/46 PASS), Phase 7 Dashboards (26/26 PASS), Phase 6 Attendance (37/37 PASS).
+  - **Rule 11 Verification**: Clean (`Rule11_overall: True`, 0 production references).
+- **Next Phase**: Phase 10 — Deploy to Vercel and Deployed Acceptance.
 
 ### 3. Exact Blocker & Classification
-- **Blockers**: **NONE**. All Phase 7 requirements, role dashboards, preferences, and reports are fully implemented and verified.
+- **Blockers**: **NONE**. All Phase 9 security assertions, real-browser walkthroughs, and regression checks are fully satisfied.
 - **Classification**: **ZERO ACTIVE BLOCKERS**.
 
 ### 4. Minimum Action to Resolve
-- None required. Phase 7 is complete and verified.
+- None required. Phase 9 is complete and verified. Proceed directly to Phase 10 (Deploy to Vercel and Deployed Acceptance).
 
 ### 5. Which Completed Steps Must NOT Be Repeated
 - **DO NOT re-run `GO PARTITION-RLS-FIX`**: Verified with `relrowsecurity = true` (24/24).
@@ -204,6 +255,8 @@
 - **DO NOT re-run Phase 5 college setup checks**: 31/31 PASS.
 - **DO NOT re-run Phase 6 attendance checks**: 37/37 PASS.
 - **DO NOT re-run Phase 7 dashboard/preference checks**: 26/26 PASS.
+- **DO NOT re-run Phase 8 visual QA suite**: 46/46 PASS.
+- **DO NOT re-run Phase 9 security acceptance suite**: 36/36 PASS.
 - **DO NOT modify production**: `ekspahbsbwdpraaqfqui` remains strictly forbidden.
 - **DO NOT commit or push**: No git commits or pushes without explicit approval.
 

@@ -428,3 +428,99 @@
   8. **Autonomous Browser Walkthrough**:
      - Recorded video: `phase7_dashboards_walkthrough_1792144886693.webp`.
      - Screenshots: `college_admin_dashboard_phase7_1792144953497.png`, `college_admin_dashboard_kpis_phase7_1792144961170.png`, `preferences_modal_open_phase7_1792144982034.png`, `attendance_report_phase7_1792145065741.png`, `faculty_dashboard_phase7_1792145110259.png`.
+
+---
+
+### Step 13: Professional UI Polish and Visual QA (Phase 8 MVP Section 5 Standard)
+- **Date**: 2026-10-16
+- **Status**: **COMPLETE & VERIFIED (Automated Visual QA Suite: 46/46 PASS, Axe Audits: 0 Violations, Zero Horizontal Layout Breaks)**
+- **Scope & Implemented Evidence**:
+  1. **Section 5 Design System Standard Alignment**:
+     - Modern curated institutional color tokens applied: `--navy-950` (`#071326`), `--navy-900` (`#0B1F3A`), `--blue-600` (`#1F6FEB`), `--blue-700` (`#1D4ED8`), Slate-600 (`#475569`), Green-700 (`#15803D`), Red-700 (`#B91C1C`), and Amber-700 (`#B45309`).
+     - Inter typography standard with `tabular-nums` on numerical/status data cells.
+     - Consistent 8px spacing grid, rounded cards (`rounded-[8px]` / `rounded-[12px]`), subtle borders (`border-[#E3E8EF]`), and elevation shadows.
+  2. **Responsive Shell & Navigation**:
+     - `sidebar.tsx`: Mobile drawer overlay (`fixed inset-y-0 z-50`) with backdrop blur, 44px mobile touch targets, and accessible close button (`aria-label="Close navigation menu"`).
+     - `topbar.tsx`: Hamburger menu toggle (`aria-label="Toggle navigation menu"`), high-contrast avatar badge (`bg-[#1F6FEB] text-white`), user menu popup attributes (`aria-haspopup="menu"`, `aria-expanded`), and eliminated accessible name mismatch under WCAG 2.5.3.
+     - `layout-client.tsx`: Responsive content padding (`p-4 sm:p-6 md:p-8`) with mobile drawer state coordination.
+  3. **Faculty Attendance Sheet Usability**:
+     - 48px touch rows (`py-3.5`) across roster table.
+     - Active row highlight with indicator badge `(Active)` for cursor tracking.
+     - Keyboard navigation support (`ArrowUp`/`ArrowDown`/`j`/`k` to navigate students; `P` for Present, `A` for Absent, `L` for Leave, `Space` for toggle).
+     - Search input with clear button and status filter pills (`All`, `Unmarked`, `Present`, `Absent`, `Leave`).
+     - Sticky bottom running counts bar with live stats (`X present · Y absent · Z leave · W unmarked · % attended`) and action triggers.
+  4. **Modals & Responsive Dialogs**:
+     - `preference-modal.tsx`: Responsive `< 90vh` dialog (`max-h-[90vh] flex flex-col overflow-hidden`) with scrollable body, high-contrast active buttons (`text-[#1D4ED8]`), and local fallback disclosure.
+     - `attendance-manager.tsx`: Correction slide-over with constrained viewport height and scrollable body.
+  5. **WCAG AA Accessibility Scan (`@axe-core/playwright`)**:
+     - Scanned Login, Platform Dashboard, College Dashboard, Faculty Dashboard, Faculty Attendance Sheet, and Workspace Preferences Modal.
+     - **0 serious or critical violations** across all audited screens.
+  6. **Automated Visual QA Suite (`scripts/phase8_visual_qa.mjs`)**:
+     - **46/46 PASSED (0 FAILED)** across:
+       - Login journeys: 4/4 PASS
+       - Platform Admin journeys: 10/10 PASS
+       - College Admin journeys: 10/10 PASS
+       - Faculty Attendance journeys: 9/9 PASS
+       - Preferences Modal journeys: 4/4 PASS
+       - Error & Boundary pages: 9/9 PASS
+     - Zero horizontal overflow across all screens at 1440px desktop, 1024px tablet, and 390px mobile viewports.
+  7. **Captured Visual Screenshots (`docs/trial/screenshots/`)**:
+     - `01_login_desktop_1440.png`, `02_login_tablet_1024.png`, `03_login_mobile_390.png`
+     - `04_platform_dashboard_desktop_1440.png`, `05_platform_institutes_desktop_1440.png`, `06_platform_onboarding_desktop_1440.png`
+     - `07_college_dashboard_desktop_1440.png`, `08_college_timetable_desktop_1440.png`, `09_college_faculty_desktop_1440.png`
+     - `10_faculty_attendance_sheet_desktop_1440.png`, `11_preferences_modal_desktop_1440.png`
+     - `12_error_404_desktop_1440.png`, `13_access_denied_forbidden_desktop_1440.png`, `14_access_denied_no_profile_desktop_1440.png`
+  8. **Validation & Regressions**:
+     - Phase 7 regression test suite: **26/26 PASSED** (`scripts/verify_phase7_dashboards_preferences.mjs`).
+     - TypeScript validation: **PASS** (`npx tsc --noEmit` exited code 0).
+     - Next.js production build: **PASS** (`npm run build` compiled all routes cleanly).
+     - Rule 11 Staging Compliance: **PASS** (`Rule11_overall: True`, zero prod references).
+
+---
+
+### Step 14: Security and Real-Browser Acceptance (Phase 9 MVP)
+- **Date**: 2026-10-16
+- **Status**: **COMPLETE & VERIFIED (Automated Security Suite: 36/36 PASS, Playwright Browser E2E: PASS, Rule 11: True)**
+- **Scope & Implemented Evidence**:
+  1. **Authentication & Session Lifecycle (Req 1, 2, 17)**:
+     - Verified unauthenticated web access redirects cleanly with HTTP 307 to `/login?returnTo=...`.
+     - Verified unauthenticated API requests reject with HTTP 401 Unauthorized and RFC 7807 problem details (`https://campxsync.edu/errors/unauthorized`).
+     - Verified genuine Supabase Auth password authentication on staging project `kpwdvvcschankgggitnj` for user `campxsync@gmail.com`.
+     - Real-browser Topbar Sign Out workflow cleanly terminates session, clears authentication tokens/cookies, redirects to `/login`, and prevents subsequent protected route access.
+  2. **Account Status Fast-Fail & Profile Resolution (Req 4, 5)**:
+     - Inactive membership (`status = 'INACTIVE'`) blocked at edge middleware, redirecting web requests to `/access-denied?reason=inactive_membership` and returning HTTP 403 on APIs with clear problem details.
+     - Unprovisioned profiles (`no_profile = true`) intercepted at middleware and API layer, redirecting to `/access-denied?reason=no_profile`.
+     - Suspended institutional tenants (`tenant_status = 'SUSPENDED'`) intercepted with HTTP 307 to `/access-denied?reason=tenant_suspended` and HTTP 403 Problem Details on APIs.
+     - Fallback resolution in `resolve-role.ts` queries PostgreSQL directly when PostgREST RLS blocks profile or role assignment reads, ensuring robust role resolution for real Supabase Auth accounts.
+  3. **Multi-Tenant Isolation & IDOR Protection (Req 6, 7, 13)**:
+     - Forged tenant parameter queries (`?tenantId=...`) strictly ignored; tenant context bound solely to authenticated server session.
+     - Cross-tenant IDOR attack vectors rejected with HTTP 404 Not Found (attendance session lookup, student batch assignment, attendance corrections).
+     - Platform Admin aggregate-only compliance verified: platform operator querying tenant student, faculty, or attendance records rejected with HTTP 403 Forbidden.
+  4. **Privilege Escalation Prevention (Req 15)**:
+     - Faculty user attempting administrative operations (create faculty, delete faculty, enroll students, add departments, schedule timetable entries, post corrections) rejected with HTTP 403 Forbidden.
+     - College Admin attempting platform tenant onboarding saga rejected with HTTP 403 Forbidden.
+  5. **Real-Browser Administration & Attendance Verification (Req 8, 9, 10, 11)**:
+     - College Admin UI creates faculty (`FAC-P9-*`) and students (`2026-P9-*`) with immediate DOM table reflection.
+     - Timetable slot deduplication verified: opening an existing slot returns the active session (`isExisting: true`) without creating duplicates.
+     - Invalid timetable slot returns HTTP 404; non-roster student attendance mark rejected with HTTP 400 Bad Request.
+     - Faculty marks roster, confirms submission via modal ("Confirm & Submit to Ledger"), and verifies read-only locked status persisting across page reloads.
+     - Modification of submitted session by faculty rejected with HTTP 409 Conflict.
+     - Administrative attendance corrections require College Admin authorization, mandatory justification (>= 5 chars; shorter rejected with HTTP 400), and optimistic concurrency locking (mismatched `expectedVersion` rejected with HTTP 409).
+     - Valid correction updates record, increments `row_version` (`v5 -> v6`), logs immutable change log and audit events.
+  6. **Analytics, Reporting & Safety Compliance (Req 12, 14, 16, 18, 19, 20)**:
+     - Dashboard metrics match persisted staging database records without hardcoded figures.
+     - Statutory 75% attendance shortage threshold verified.
+     - Cumulative attendance CSV export sanitized against formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`).
+     - User preferences schema v1 persists to PostgreSQL (`iam.user_profiles.preferences`) and survives page reload; tampered payloads rejected with HTTP 422 Unprocessable Entity.
+     - Gated staging onboarding saga without owner approval phrase (`GO PROVISION-TENANT`) safely returns simulation without modifying staging database.
+     - Scan of frontend source confirms zero `service_role` key references or leaks.
+  7. **Automated Verification Suite (`scripts/verify_phase9_security_browser.mjs`)**:
+     - **36/36 PASSED (0 FAILED, 0 BLOCKED)** across all 20 Phase 9 requirements.
+     - 14 verification screenshots captured in `docs/trial/screenshots/phase9/`.
+  8. **Regression & Quality Gates**:
+     - Phase 8 Visual QA: **46/46 PASSED** (`scripts/phase8_visual_qa.mjs`).
+     - Phase 7 Dashboards: **26/26 PASSED** (`scripts/verify_phase7_dashboards_preferences.mjs`).
+     - Phase 6 Attendance: **37/37 PASSED** (`scripts/verify_phase6_attendance.mjs`).
+     - TypeScript Compilation: **PASS** (`npx tsc --noEmit` exited code 0).
+     - Next.js Production Build: **PASS** (`npm run build` compiled all 34 routes cleanly).
+     - Rule 11 Staging Compliance: **PASS** (`Rule11_overall: True`, 0 production references).

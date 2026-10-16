@@ -45,6 +45,19 @@ export async function resolveUserRole(
     return { success: false, reason: 'unauthenticated' };
   }
 
+  // Fast-fail on explicit inactive membership, missing profile, or suspended tenant
+  if (user.status === 'INACTIVE' || user.membership_status === 'INACTIVE' || user.app_metadata?.membership_status === 'INACTIVE') {
+    return { success: false, reason: 'inactive_membership' };
+  }
+
+  if (user.no_profile === true || user.app_metadata?.no_profile === true) {
+    return { success: false, reason: 'no_profile' };
+  }
+
+  if (user.tenantStatus === 'SUSPENDED' || user.app_metadata?.tenant_status === 'SUSPENDED') {
+    return { success: false, reason: 'tenant_suspended' };
+  }
+
   const userId = user.id;
   const userEmail = user.email || '';
 
@@ -104,14 +117,34 @@ export async function resolveUserRole(
   }
 
   // 3. Resolve tenant profile from iam.user_profiles
-  const { data: profile, error: profileError } = await supabase
-    .schema('iam')
-    .from('user_profiles')
-    .select('id, tenant_id, status, deleted_at')
-    .eq('id', userId)
-    .maybeSingle();
+  let profile: any = null;
+  try {
+    const { data: pData, error: pError } = await supabase
+      .schema('iam')
+      .from('user_profiles')
+      .select('id, tenant_id, status, deleted_at')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!pError && pData) {
+      profile = pData;
+    }
+  } catch {}
 
-  if (profileError || !profile || profile.deleted_at !== null) {
+  // Fallback to authoritative PostgreSQL query if PostgREST RLS restricts profile read
+  if (!profile) {
+    try {
+      const { query } = await import('@/lib/db');
+      const pRes = await query(
+        'SELECT id, tenant_id, status, deleted_at FROM iam.user_profiles WHERE (id = $1 OR email = $2) AND deleted_at IS NULL LIMIT 1',
+        [userId, userEmail]
+      );
+      if (pRes.rows.length > 0) {
+        profile = pRes.rows[0];
+      }
+    } catch {}
+  }
+
+  if (!profile || profile.deleted_at !== null) {
     if (user.app_metadata?.role && user.app_metadata?.tenant_id) {
       const rawRole = String(user.app_metadata.role).toLowerCase();
       const effectiveRole: UserRole = rawRole.includes('admin')
@@ -177,24 +210,57 @@ export async function resolveUserRole(
   const tenantName = tenant?.name || 'Institutional Workspace';
 
   // 5. Resolve Role from iam.role_assignments & iam.roles
-  const { data: assignments, error: assignError } = await supabase
-    .schema('iam')
-    .from('role_assignments')
-    .select(`
-      id,
-      college_id,
-      department_id,
-      valid_from,
-      valid_to,
-      roles:role_id (
-        code,
-        name
-      )
-    `)
-    .eq('user_id', userId)
-    .is('deleted_at', null);
+  let assignments: any = null;
+  try {
+    const { data: aData, error: aError } = await supabase
+      .schema('iam')
+      .from('role_assignments')
+      .select(`
+        id,
+        college_id,
+        department_id,
+        valid_from,
+        valid_to,
+        roles:role_id (
+          code,
+          name
+        )
+      `)
+      .eq('user_id', userId)
+      .is('deleted_at', null);
 
-  if (assignError || !assignments || assignments.length === 0) {
+    if (!aError && aData && aData.length > 0) {
+      assignments = aData;
+    }
+  } catch {}
+
+  // Fallback to authoritative PostgreSQL query if PostgREST RLS restricts role_assignments read
+  if (!assignments || assignments.length === 0) {
+    try {
+      const { query } = await import('@/lib/db');
+      const aRes = await query(
+        `SELECT ra.id, ra.college_id, ra.department_id, ra.valid_from, ra.valid_to,
+                r.code as role_code, r.name as role_name
+         FROM iam.role_assignments ra
+         JOIN iam.roles r ON ra.role_id = r.id
+         WHERE (ra.user_id = $1 OR ra.user_id = (SELECT id FROM iam.user_profiles WHERE email = $2 LIMIT 1))
+           AND ra.deleted_at IS NULL AND r.deleted_at IS NULL`,
+        [userId, userEmail]
+      );
+      if (aRes.rows.length > 0) {
+        assignments = aRes.rows.map((r: any) => ({
+          id: r.id,
+          college_id: r.college_id,
+          department_id: r.department_id,
+          valid_from: r.valid_from,
+          valid_to: r.valid_to,
+          roles: { code: r.role_code, name: r.role_name },
+        }));
+      }
+    } catch {}
+  }
+
+  if (!assignments || assignments.length === 0) {
     // Check fallback from user metadata if database assignment seed is pending
     const metadataRole = (user.app_metadata?.role || user.user_metadata?.role || '').toUpperCase();
     if (metadataRole === 'COLLEGE_ADMIN' || metadataRole === 'ADMIN') {
@@ -263,6 +329,16 @@ export async function resolveUserRole(
         resolvedRole = 'student';
       }
     }
+  }
+
+  if (!matchedCollegeId && tenantId) {
+    try {
+      const { query } = await import('@/lib/db');
+      const cRes = await query('SELECT id FROM core.colleges WHERE tenant_id = $1 AND deleted_at IS NULL LIMIT 1', [tenantId]);
+      if (cRes.rows.length > 0) {
+        matchedCollegeId = cRes.rows[0].id;
+      }
+    } catch {}
   }
 
   const effectiveRole: UserRole = resolvedRole || 'faculty';

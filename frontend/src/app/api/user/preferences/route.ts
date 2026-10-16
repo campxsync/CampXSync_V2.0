@@ -148,7 +148,11 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const effectiveRole = parsed.data.role || role;
+    // Non-platform users may only configure preferences for their own authenticated role
+    const effectiveRole =
+      resolution.session.role === 'platform_admin' && parsed.data.role
+        ? parsed.data.role
+        : resolution.session.role;
     const sanitized = sanitizePreferences(parsed.data.preferences, effectiveRole, PRODUCT_DEFAULTS);
 
     // Fetch existing preferences to perform deep merge of role settings

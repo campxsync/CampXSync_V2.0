@@ -56,7 +56,7 @@ export function CardDescription({
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
-      className={cn('text-xs text-[#6B7688]', className)}
+      className={cn('text-xs text-[#475569]', className)}
       {...props}
     >
       {children}

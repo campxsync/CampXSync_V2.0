@@ -56,13 +56,9 @@ function LoginForm() {
       }
 
       if (data.user) {
-        // Successful login, refresh router and redirect
-        router.refresh();
-        if (returnTo) {
-          router.push(returnTo);
-        } else {
-          router.push('/');
-        }
+        // Successful login, hard navigate to destination to propagate cookies immediately
+        const destination = returnTo || '/';
+        window.location.href = destination;
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred during sign in.');
@@ -138,8 +134,8 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-8 text-[#6B7688] hover:text-[#1B2433] focus:outline-none"
-            tabIndex={-1}
+            className="absolute right-3 top-8 text-[#6B7688] hover:text-[#1B2433] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] rounded p-1"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -184,7 +180,7 @@ function LoginForm() {
             type="button"
             onClick={() => handleQuickDemo('platform_admin')}
             disabled={isLoading}
-            className="flex flex-col items-center justify-center p-2 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-[11px] text-[#0B1F3A] transition-colors"
+            className="flex flex-col items-center justify-center p-2.5 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-xs font-semibold text-[#0B1F3A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px]"
           >
             <Building className="h-4 w-4 mb-1 text-[#0B1F3A]" />
             Platform
@@ -193,7 +189,7 @@ function LoginForm() {
             type="button"
             onClick={() => handleQuickDemo('college_admin')}
             disabled={isLoading}
-            className="flex flex-col items-center justify-center p-2 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-[11px] text-[#1F6FEB] transition-colors"
+            className="flex flex-col items-center justify-center p-2.5 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-xs font-semibold text-[#0B1F3A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px]"
           >
             <ShieldCheck className="h-4 w-4 mb-1 text-[#1F6FEB]" />
             College Admin
@@ -202,7 +198,7 @@ function LoginForm() {
             type="button"
             onClick={() => handleQuickDemo('faculty')}
             disabled={isLoading}
-            className="flex flex-col items-center justify-center p-2 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#0D9488] text-[11px] text-[#0D9488] transition-colors"
+            className="flex flex-col items-center justify-center p-2.5 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#0D9488] text-xs font-semibold text-[#0B1F3A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px]"
           >
             <CalendarCheck2 className="h-4 w-4 mb-1 text-[#0D9488]" />
             Faculty
@@ -236,9 +232,9 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-[#F6F8FB]">
+    <main className="flex min-h-screen w-full flex-col lg:flex-row bg-[#F6F8FB]">
       {/* Left: Navy Brand Panel */}
-      <div className="flex flex-col justify-between bg-[#0B1F3A] p-8 lg:p-14 text-white lg:w-1/2">
+      <section className="flex flex-col justify-between bg-[#0B1F3A] p-8 lg:p-14 text-white lg:w-1/2" aria-label="Platform Overview">
         <div>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#1F6FEB] text-white shadow-md">
@@ -261,7 +257,7 @@ export default function LoginPage() {
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-white">Timetable-Validated Attendance</h4>
+                  <h2 className="text-sm font-semibold text-white">Timetable-Validated Attendance</h2>
                   <p className="text-xs text-[#E3E8EF]/70">
                     Sessions strictly bind to roster membership and scheduled slots with duplicate rejection.
                   </p>
@@ -273,7 +269,7 @@ export default function LoginPage() {
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-white">Role-Isolated Workspaces</h4>
+                  <h2 className="text-sm font-semibold text-white">Role-Isolated Workspaces</h2>
                   <p className="text-xs text-[#E3E8EF]/70">
                     Platform Operator, College Administrator, and Faculty dashboards with zero cross-tenant leakage.
                   </p>
@@ -285,7 +281,7 @@ export default function LoginPage() {
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-white">Immutable Correction Trail</h4>
+                  <h2 className="text-sm font-semibold text-white">Immutable Correction Trail</h2>
                   <p className="text-xs text-[#E3E8EF]/70">
                     Audited attendance overrides with mandatory reason capture and optimistic concurrency.
                   </p>
@@ -299,14 +295,14 @@ export default function LoginPage() {
           <span>Staging Ref: kpwdvvcschankgggitnj</span>
           <span>v2.0 Trial Baseline</span>
         </div>
-      </div>
+      </section>
 
       {/* Right: Clean Login Card wrapped in Suspense */}
-      <div className="flex flex-1 items-center justify-center p-6 lg:p-12">
+      <section className="flex flex-1 items-center justify-center p-6 lg:p-12" aria-label="Sign In Area">
         <Suspense fallback={<div className="text-xs text-[#6B7688]">Loading sign in...</div>}>
           <LoginForm />
         </Suspense>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

@@ -37,31 +37,31 @@ export function Badge({
 }: BadgeProps) {
   const normStatus = (status || '').toUpperCase() as LifecycleState;
 
-  // Lifecycle state colors matching Section 5
+  // Lifecycle state colors matching Section 5 with WCAG AA compliant contrast (>= 4.5:1)
   const statusStyles: Record<string, string> = {
-    DRAFT: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
-    OPEN: 'bg-[#E8F0FE] text-[#1F6FEB] border-[#B8D3FC]',
-    SUBMITTED: 'bg-[#EAF8F1] text-[#1E9E6A] border-[#B2E6CE]',
-    CLOSED: 'bg-[#EAF8F1] text-[#1E9E6A] border-[#B2E6CE]',
-    CORRECTED: 'bg-[#FEF7EA] text-[#E39B16] border-[#FCE2B3]',
+    DRAFT: 'bg-[#F0F2F5] text-[#374151] border-[#E3E8EF]',
+    OPEN: 'bg-[#E8F0FE] text-[#1D4ED8] border-[#B8D3FC]',
+    SUBMITTED: 'bg-[#EAF8F1] text-[#15803D] border-[#B2E6CE]',
+    CLOSED: 'bg-[#EAF8F1] text-[#15803D] border-[#B2E6CE]',
+    CORRECTED: 'bg-[#FEF7EA] text-[#B45309] border-[#FCE2B3]',
     LOCKED: 'bg-[#E7ECF3] text-[#0B1F3A] border-[#BDCDE0]',
-    CANCELLED: 'bg-[#FDECEC] text-[#D64545] border-[#F8BDBD]',
-    ONBOARDING: 'bg-[#FEF7EA] text-[#E39B16] border-[#FCE2B3]',
-    ACTIVE: 'bg-[#EAF8F1] text-[#1E9E6A] border-[#B2E6CE]',
-    SUSPENDED: 'bg-[#FDECEC] text-[#D64545] border-[#F8BDBD]',
-    OFFBOARDED: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
-    INACTIVE: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
-    ARCHIVED: 'bg-[#F0F2F5] text-[#6B7688] border-[#E3E8EF]',
-    PENDING: 'bg-[#FEF7EA] text-[#E39B16] border-[#FCE2B3]',
-    APPROVED: 'bg-[#EAF8F1] text-[#1E9E6A] border-[#B2E6CE]',
-    REJECTED: 'bg-[#FDECEC] text-[#D64545] border-[#F8BDBD]',
+    CANCELLED: 'bg-[#FDECEC] text-[#B91C1C] border-[#F8BDBD]',
+    ONBOARDING: 'bg-[#FEF7EA] text-[#B45309] border-[#FCE2B3]',
+    ACTIVE: 'bg-[#EAF8F1] text-[#15803D] border-[#B2E6CE]',
+    SUSPENDED: 'bg-[#FDECEC] text-[#B91C1C] border-[#F8BDBD]',
+    OFFBOARDED: 'bg-[#F0F2F5] text-[#374151] border-[#E3E8EF]',
+    INACTIVE: 'bg-[#F0F2F5] text-[#374151] border-[#E3E8EF]',
+    ARCHIVED: 'bg-[#F0F2F5] text-[#374151] border-[#E3E8EF]',
+    PENDING: 'bg-[#FEF7EA] text-[#B45309] border-[#FCE2B3]',
+    APPROVED: 'bg-[#EAF8F1] text-[#15803D] border-[#B2E6CE]',
+    REJECTED: 'bg-[#FDECEC] text-[#B91C1C] border-[#F8BDBD]',
   };
 
   const roleStyles = {
     platform: 'bg-[#0B1F3A] text-white border-transparent',
-    college: 'bg-[#1F6FEB] text-white border-transparent',
-    faculty: 'bg-[#0D9488] text-white border-transparent',
-    student: 'bg-[#64748B] text-white border-transparent',
+    college: 'bg-[#1D4ED8] text-white border-transparent',
+    faculty: 'bg-[#0F766E] text-white border-transparent',
+    student: 'bg-[#475569] text-white border-transparent',
   };
 
   const computedStyle =

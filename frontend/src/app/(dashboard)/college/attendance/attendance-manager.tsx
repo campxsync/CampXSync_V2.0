@@ -694,16 +694,17 @@ export function AttendanceManager({ sessions: initialSessions }: Props) {
 
           {/* CORRECTION DRAWER / MODAL DIALOG */}
           {correctionRecord && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
-              <div className="bg-white rounded-[12px] border border-[#E3E8EF] shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-                <div className="px-5 py-4 border-b border-[#E3E8EF] flex items-center justify-between bg-[#F6F8FB]">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in">
+              <div className="bg-white rounded-[12px] border border-[#E3E8EF] shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+                <div className="px-5 py-4 border-b border-[#E3E8EF] flex items-center justify-between bg-[#F6F8FB] sticky top-0 z-10">
                   <div className="flex items-center gap-2">
                     <Edit3 className="h-4 w-4 text-[#1F6FEB]" />
                     <h3 className="text-sm font-bold text-[#0B1F3A]">Administrative Attendance Correction</h3>
                   </div>
                   <button
                     onClick={() => setCorrectionRecord(null)}
-                    className="text-[#6B7688] hover:text-[#0B1F3A] p-1"
+                    aria-label="Close correction modal"
+                    className="text-[#6B7688] hover:text-[#0B1F3A] p-1.5 rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB]"
                   >
                     <X className="h-4 w-4" />
                   </button>
