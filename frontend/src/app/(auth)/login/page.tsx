@@ -56,6 +56,11 @@ function LoginForm() {
         params.has('error') ||
         params.has('error_code');
 
+      if (hasCode) {
+        window.location.replace(`/auth/callback?next=/reset-password&${params.toString()}${hash}`);
+        return true;
+      }
+
       if (isRecovery) {
         window.location.replace(`/reset-password${search}${hash}`);
         return true;
@@ -287,7 +292,7 @@ function LoginForm() {
                 }
                 setIsResetting(true);
                 try {
-                  const redirectTo = `${window.location.origin}/reset-password`;
+                  const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
                   const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
                     redirectTo,
                   });
@@ -355,7 +360,7 @@ export default function LoginPage() {
       {/* Early client-side recovery routing before React hydration */}
       <script
         dangerouslySetInnerHTML={{
-          __html: `(function(){try{var h=window.location.hash||'';var s=window.location.search||'';var p=new URLSearchParams(s);var isRecovery=p.has('code')||p.get('type')==='recovery'||p.has('error')||p.has('error_code')||h.indexOf('access_token')!==-1||h.indexOf('type=recovery')!==-1||h.indexOf('error=')!==-1;if(isRecovery){window.location.replace('/reset-password'+s+h);}}catch(e){}})();`,
+          __html: `(function(){try{var h=window.location.hash||'';var s=window.location.search||'';var p=new URLSearchParams(s);if(p.has('code')){window.location.replace('/auth/callback?next=/reset-password&'+p.toString()+h);return;}var isRecovery=p.get('type')==='recovery'||p.has('error')||p.has('error_code')||h.indexOf('access_token')!==-1||h.indexOf('type=recovery')!==-1||h.indexOf('error=')!==-1;if(isRecovery){window.location.replace('/reset-password'+s+h);}}catch(e){}})();`,
         }}
       />
       {/* Left: Navy Brand Panel */}

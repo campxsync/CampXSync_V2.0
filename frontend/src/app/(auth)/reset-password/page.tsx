@@ -110,71 +110,40 @@ function ResetPasswordForm() {
         }
       }
 
-      // 3. Check for PKCE authorization code
-      const code = searchParams?.get('code');
-      if (code) {
-        try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            if (!isMounted) return;
-            setStatus('error');
-            setErrorMessage(error.message || 'The authorization code is invalid or has expired.');
-            return;
-          }
-          if (data?.user) {
-            if (!isMounted) return;
-            setUserEmail(data.user.email || null);
-            setStatus('form');
-            if (typeof window !== 'undefined') {
-              window.history.replaceState(null, '', window.location.pathname);
-            }
-            return;
-          }
-        } catch (err: any) {
-          if (!isMounted) return;
-          setStatus('error');
-          setErrorMessage(err.message || 'Failed to exchange authorization code.');
-          return;
-        }
-      }
-
-      // 4. Verify existing session (e.g., from callback cookie or previous setup)
+      // 3. Verify existing session (from server callback cookies or previous setup)
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          if (!isMounted) return;
-          setStatus('error');
-          setErrorMessage(error.message || 'Failed to verify session.');
-          return;
-        }
-
         if (session?.user) {
           if (!isMounted) return;
           setUserEmail(session.user.email || null);
           setStatus('form');
-          if (typeof window !== 'undefined' && window.location.hash) {
+          if (typeof window !== 'undefined' && (window.location.hash || window.location.search)) {
             window.history.replaceState(null, '', window.location.pathname);
           }
           return;
         }
+      } catch {}
 
-        // Grace period for background hydration from cookies or storage
-        setTimeout(async () => {
-          if (!isMounted) return;
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (retrySession?.user) {
-            setUserEmail(retrySession.user.email || null);
-            setStatus('form');
-          } else {
-            setStatus('error');
-            setErrorMessage('No active password recovery session found. Please use the password reset link sent to your email.');
-          }
-        }, 500);
-      } catch (err: any) {
-        if (!isMounted) return;
-        setStatus('error');
-        setErrorMessage(err.message || 'An error occurred while establishing recovery session.');
+      // 4. If PKCE code is present, route to server auth callback to exchange using verifier cookie
+      const code = searchParams?.get('code');
+      if (code) {
+        const callbackUrl = `/auth/callback?next=/reset-password&${searchParams.toString()}`;
+        window.location.replace(callbackUrl);
+        return;
       }
+
+      // 5. Grace period for background hydration from cookies or storage
+      setTimeout(async () => {
+        if (!isMounted) return;
+        const { data: { session: retrySession } } = await supabase.auth.getSession();
+        if (retrySession?.user) {
+          setUserEmail(retrySession.user.email || null);
+          setStatus('form');
+        } else {
+          setStatus('error');
+          setErrorMessage('No active password recovery session found. Please use the password reset link sent to your email.');
+        }
+      }, 500);
     }
 
     // Subscribe to auth state changes for PASSWORD_RECOVERY

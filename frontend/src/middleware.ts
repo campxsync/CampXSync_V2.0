@@ -78,7 +78,18 @@ export async function middleware(request: NextRequest) {
     const isRecoveryType = request.nextUrl.searchParams.get('type') === 'recovery';
     const hasAuthError = request.nextUrl.searchParams.has('error') || request.nextUrl.searchParams.has('error_code');
 
-    if (hasCode || isRecoveryType || hasAuthError) {
+    if (hasCode) {
+      const callbackUrl = new URL('/auth/callback', request.url);
+      callbackUrl.searchParams.set('next', '/reset-password');
+      request.nextUrl.searchParams.forEach((val, key) => {
+        if (key !== 'next') {
+          callbackUrl.searchParams.set(key, val);
+        }
+      });
+      return NextResponse.redirect(callbackUrl);
+    }
+
+    if (isRecoveryType || hasAuthError) {
       const resetUrl = new URL('/reset-password', request.url);
       request.nextUrl.searchParams.forEach((val, key) => {
         resetUrl.searchParams.set(key, val);

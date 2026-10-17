@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_anon_key';
 
     const targetUrl = new URL(next, request.url);
-    let response = NextResponse.redirect(targetUrl);
+    const response = NextResponse.redirect(targetUrl);
 
     const supabase = createServerClient(url, anonKey, {
       cookies: {
@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
         },
         setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.redirect(targetUrl);
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );

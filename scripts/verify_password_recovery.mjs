@@ -33,8 +33,8 @@ assert(
 assert(
   middlewareContent.includes("hasCode = request.nextUrl.searchParams.has('code')") &&
   middlewareContent.includes("isRecoveryType = request.nextUrl.searchParams.get('type') === 'recovery'") &&
-  middlewareContent.includes("resetUrl = new URL('/reset-password', request.url)"),
-  'Middleware forwards unauthenticated root requests with code/recovery params to /reset-password'
+  middlewareContent.includes("callbackUrl = new URL('/auth/callback', request.url)"),
+  'Middleware forwards unauthenticated root requests with code to /auth/callback and errors to /reset-password'
 );
 
 // 2. Verify Auth Callback Route
@@ -145,8 +145,14 @@ assert(
 );
 
 assert(
-  loginPageContent.includes('resetPasswordForEmail'),
-  'Login page forgot-password dialog allows requesting recovery email'
+  loginPageContent.includes('resetPasswordForEmail') &&
+  loginPageContent.includes("redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`"),
+  'Login page forgot-password dialog routes recovery through /auth/callback?next=/reset-password'
+);
+
+assert(
+  resetPageContent.includes("callbackUrl = `/auth/callback?next=/reset-password&${searchParams.toString()}`"),
+  'Reset password page routes incoming authorization code to /auth/callback for verifier exchange'
 );
 
 // 5. Functional Validation Simulation
@@ -204,6 +210,9 @@ function simulateLoginRecoveryRedirect(search = '', hash = '') {
     params.has('error') ||
     params.has('error_code');
 
+  if (hasCode) {
+    return `/auth/callback?next=/reset-password&${params.toString()}${hash}`;
+  }
   if (isRecovery) {
     return `/reset-password${search}${hash}`;
   }
@@ -217,11 +226,11 @@ assert(
   'Dummy recovery hash token #access_token=dummy&type=recovery routes to /reset-password with intact hash'
 );
 
-// Test B: PKCE code query parameter routes to /reset-password
+// Test B: PKCE code query parameter routes to /auth/callback
 const pkceRedirect = simulateLoginRecoveryRedirect('?code=sample-test-code', '');
 assert(
-  pkceRedirect === '/reset-password?code=sample-test-code',
-  'PKCE code query parameter ?code=sample-test-code routes to /reset-password preserving query'
+  pkceRedirect === '/auth/callback?next=/reset-password&code=sample-test-code',
+  'PKCE code query parameter ?code=sample-test-code routes to /auth/callback preserving query'
 );
 
 // Test C: Combined query and hash parameters are fully preserved
@@ -355,6 +364,108 @@ assert(
   getSafeNextPath('javascript:alert(1)', testBaseUrl) === '/reset-password' &&
   getSafeNextPath('data:text/html,evil', testBaseUrl) === '/reset-password',
   'Backslash, scheme-spoofing, and URL-parsing evasion attempts are safely rejected'
+);
+
+// 9. Synthetic Auth Callback Route Handler Simulation Suite
+async function simulateAuthCallbackHandler(requestUrlString, cookies = {}, exchangeMock = null) {
+  const requestUrl = new URL(requestUrlString);
+  const code = requestUrl.searchParams.get('code');
+  const error = requestUrl.searchParams.get('error');
+  const errorDescription = requestUrl.searchParams.get('error_description');
+  const next = getSafeNextPath(requestUrl.searchParams.get('next'), requestUrlString);
+
+  if (error) {
+    const redirectUrl = new URL('/reset-password', requestUrl);
+    redirectUrl.searchParams.set('error', error);
+    if (errorDescription) {
+      redirectUrl.searchParams.set('error_description', errorDescription);
+    }
+    return {
+      status: 302,
+      location: redirectUrl.pathname + redirectUrl.search,
+      cookies: {},
+    };
+  }
+
+  if (code) {
+    const targetUrl = new URL(next, requestUrl);
+    const responseCookies = {};
+
+    const exchangeResult = exchangeMock
+      ? await exchangeMock(code, cookies)
+      : (code === 'valid_recovery_code' && cookies['sb-project-auth-token-code-verifier']
+          ? { error: null, session: { access_token: 'valid_jwt' } }
+          : { error: new Error('PKCE code verifier not found in storage') });
+
+    if (!exchangeResult.error) {
+      responseCookies['sb-project-auth-token'] = 'session_jwt';
+      return {
+        status: 302,
+        location: targetUrl.pathname + targetUrl.search,
+        cookies: responseCookies,
+      };
+    }
+
+    const failureUrl = new URL('/reset-password', requestUrl);
+    failureUrl.searchParams.set('error', 'auth_exchange_failed');
+    failureUrl.searchParams.set('error_description', exchangeResult.error.message);
+    return {
+      status: 302,
+      location: failureUrl.pathname + failureUrl.search,
+      cookies: {},
+    };
+  }
+
+  return {
+    status: 302,
+    location: '/login',
+    cookies: {},
+  };
+}
+
+// Synthetic Test 1: Empty request without params routes safely to /login
+const synthEmpty = await simulateAuthCallbackHandler('https://campxsync.edu/auth/callback');
+assert(
+  synthEmpty.location === '/login',
+  'Synthetic callback request without code or error redirects to /login'
+);
+
+// Synthetic Test 2: Error query param routes to /reset-password with error
+const synthError = await simulateAuthCallbackHandler('https://campxsync.edu/auth/callback?error=access_denied&error_description=otp_expired');
+assert(
+  synthError.location.startsWith('/reset-password?error=access_denied'),
+  'Synthetic callback request with error params safely routes to /reset-password'
+);
+
+// Synthetic Test 3: Valid code with matching verifier cookie establishes session and routes to /reset-password
+const synthSuccess = await simulateAuthCallbackHandler(
+  'https://campxsync.edu/auth/callback?code=valid_recovery_code&next=/reset-password',
+  { 'sb-project-auth-token-code-verifier': 'verifier_123' }
+);
+assert(
+  synthSuccess.location === '/reset-password' && synthSuccess.cookies['sb-project-auth-token'],
+  'Synthetic callback request with matching PKCE cookie establishes session and redirects to /reset-password'
+);
+
+// Synthetic Test 4: Missing verifier cookie routes to /reset-password with auth_exchange_failed
+const synthMissingVerifier = await simulateAuthCallbackHandler(
+  'https://campxsync.edu/auth/callback?code=unverified_code&next=/reset-password',
+  {}
+);
+assert(
+  synthMissingVerifier.location.includes('error=auth_exchange_failed') &&
+  synthMissingVerifier.location.includes('PKCE+code+verifier+not+found'),
+  'Synthetic callback request without verifier cookie redirects to /reset-password with auth_exchange_failed'
+);
+
+// Synthetic Test 5: Open-redirect attempt through callback next parameter is sanitized
+const synthOpenRedirect = await simulateAuthCallbackHandler(
+  'https://campxsync.edu/auth/callback?code=valid_recovery_code&next=https://evil.com/phish',
+  { 'sb-project-auth-token-code-verifier': 'verifier_123' }
+);
+assert(
+  synthOpenRedirect.location === '/reset-password',
+  'Synthetic callback request with external next parameter sanitizes destination to /reset-password'
 );
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
