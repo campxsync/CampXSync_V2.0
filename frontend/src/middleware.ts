@@ -14,6 +14,8 @@ export async function middleware(request: NextRequest) {
   // 1. Allow public routes
   if (
     pathname === '/login' ||
+    pathname === '/reset-password' ||
+    pathname.startsWith('/auth/callback') ||
     pathname.startsWith('/access-denied') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
@@ -70,6 +72,20 @@ export async function middleware(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Preserve recovery parameters (code, error, error_code, type) if GoTrue redirected to Site URL
+    const hasCode = request.nextUrl.searchParams.has('code');
+    const isRecoveryType = request.nextUrl.searchParams.get('type') === 'recovery';
+    const hasAuthError = request.nextUrl.searchParams.has('error') || request.nextUrl.searchParams.has('error_code');
+
+    if (hasCode || isRecoveryType || hasAuthError) {
+      const resetUrl = new URL('/reset-password', request.url);
+      request.nextUrl.searchParams.forEach((val, key) => {
+        resetUrl.searchParams.set(key, val);
+      });
+      return NextResponse.redirect(resetUrl);
+    }
+
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('returnTo', pathname);
     return NextResponse.redirect(loginUrl);

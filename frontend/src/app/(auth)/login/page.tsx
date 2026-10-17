@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
@@ -10,7 +10,9 @@ import {
   Building,
   GraduationCap,
   CalendarCheck2,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Send
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -29,8 +31,53 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    function checkAndRedirectRecovery() {
+      if (typeof window === 'undefined') return false;
+      const hash = window.location.hash;
+      const search = window.location.search;
+      const params = new URLSearchParams(search);
+      const hasCode = params.has('code');
+      const hasHashTokens = hash.includes('access_token');
+      const isRecovery =
+        hasCode ||
+        hasHashTokens ||
+        hash.includes('type=recovery') ||
+        params.get('type') === 'recovery' ||
+        params.get('next')?.includes('reset-password') ||
+        hash.includes('error=') ||
+        params.has('error') ||
+        params.has('error_code');
+
+      if (isRecovery) {
+        window.location.replace(`/reset-password${search}${hash}`);
+        return true;
+      }
+      return false;
+    }
+
+    if (checkAndRedirectRecovery()) return;
+
+    window.addEventListener('hashchange', checkAndRedirectRecovery);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.replace('/reset-password');
+      }
+    });
+
+    return () => {
+      window.removeEventListener('hashchange', checkAndRedirectRecovery);
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,18 +258,90 @@ function LoginForm() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-[12px] bg-white p-6 shadow-xl">
             <h3 className="text-base font-semibold text-[#0B1F3A]">Password Reset</h3>
-            <p className="mt-2 text-xs text-[#6B7688] leading-relaxed">
-              Institutional accounts are managed directly by your organization. Please contact your college administrator or platform IT coordinator to reset your credentials.
+            <p className="mt-1 text-xs text-[#6B7688] leading-relaxed">
+              Enter your registered institutional email to receive a secure recovery link.
             </p>
-            <div className="mt-5 flex justify-end">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowForgotModal(false)}
-              >
-                Close
-              </Button>
-            </div>
+
+            {resetMessage && (
+              <div className="mt-3 flex items-start gap-2 rounded-[6px] border border-[#B8E2C8] bg-[#F0FAF4] p-2.5 text-xs text-[#15803D]">
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>{resetMessage}</p>
+              </div>
+            )}
+
+            {resetError && (
+              <div className="mt-3 flex items-start gap-2 rounded-[6px] border border-[#F8BDBD] bg-[#FDECEC] p-2.5 text-xs text-[#D64545]">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>{resetError}</p>
+              </div>
+            )}
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setResetError(null);
+                setResetMessage(null);
+                if (!resetEmail.trim()) {
+                  setResetError('Please enter your institutional email address.');
+                  return;
+                }
+                setIsResetting(true);
+                try {
+                  const redirectTo = `${window.location.origin}/reset-password`;
+                  const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+                    redirectTo,
+                  });
+                  if (error) {
+                    setResetError(error.message || 'Failed to send reset email.');
+                  } else {
+                    setResetMessage('Recovery link sent! Please check your email inbox.');
+                  }
+                } catch (err: any) {
+                  setResetError(err.message || 'An unexpected error occurred.');
+                } finally {
+                  setIsResetting(false);
+                }
+              }}
+              className="mt-4 space-y-3"
+            >
+              <Input
+                label="Registered Email"
+                type="email"
+                placeholder="you@institution.edu"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+                disabled={isResetting}
+              />
+
+              <p className="text-[11px] text-[#6B7688] leading-tight">
+                Institutional accounts may also be reset directly by your college administrator or platform IT coordinator.
+              </p>
+
+              <div className="mt-4 flex items-center justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setShowForgotModal(false);
+                    setResetMessage(null);
+                    setResetError(null);
+                  }}
+                  disabled={isResetting}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  isLoading={isResetting}
+                >
+                  Send Recovery Link
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -233,6 +352,12 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen w-full flex-col lg:flex-row bg-[#F6F8FB]">
+      {/* Early client-side recovery routing before React hydration */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{var h=window.location.hash||'';var s=window.location.search||'';var p=new URLSearchParams(s);var isRecovery=p.has('code')||p.get('type')==='recovery'||p.has('error')||p.has('error_code')||h.indexOf('access_token')!==-1||h.indexOf('type=recovery')!==-1||h.indexOf('error=')!==-1;if(isRecovery){window.location.replace('/reset-password'+s+h);}}catch(e){}})();`,
+        }}
+      />
       {/* Left: Navy Brand Panel */}
       <section className="flex flex-col justify-between bg-[#0B1F3A] p-8 lg:p-14 text-white lg:w-1/2" aria-label="Platform Overview">
         <div>
