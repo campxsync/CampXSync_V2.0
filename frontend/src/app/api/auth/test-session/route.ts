@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 
 export async function POST(req: NextRequest) {
   try {
-    // Security Gate: disable test session impersonation in production unless explicitly permitted
-    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_TEST_SESSION !== 'true') {
+    if (!isTestSessionAllowed()) {
       return NextResponse.json(
         { error: 'Trial test session endpoint is disabled in production.' },
         { status: 403 }

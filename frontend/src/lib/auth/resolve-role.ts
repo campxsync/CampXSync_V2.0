@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 
 export type UserRole = 'platform_admin' | 'college_admin' | 'faculty' | 'student';
 
@@ -28,8 +29,7 @@ export async function resolveUserRole(
   user = data?.user;
 
   if (!user) {
-    const allowTestSession = process.env.NODE_ENV !== 'production' || process.env.ENABLE_TEST_SESSION === 'true';
-    if (allowTestSession) {
+    if (isTestSessionAllowed()) {
       try {
         const { cookies } = await import('next/headers');
         const cookieStore = await cookies();

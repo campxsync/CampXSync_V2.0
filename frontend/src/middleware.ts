@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -47,9 +48,8 @@ export async function middleware(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   user = data?.user;
 
-  // Fallback to test session cookie for walkthrough only in development / non-production mode
-  const allowTestSession = process.env.NODE_ENV !== 'production' || process.env.ENABLE_TEST_SESSION === 'true';
-  if (!user && allowTestSession) {
+  // Fallback to test session cookie for local/dev and Vercel Preview only
+  if (!user && isTestSessionAllowed()) {
     const testCookie = request.cookies.get('campx_test_session')?.value;
     if (testCookie) {
       try {
