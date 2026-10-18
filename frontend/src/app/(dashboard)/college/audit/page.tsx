@@ -19,6 +19,9 @@ export default async function CollegeAuditLogPage() {
   }
 
   const { tenantId, tenantName } = resolution.session;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
 
   let auditEvents: any[] = [];
   try {
@@ -37,7 +40,7 @@ export default async function CollegeAuditLogPage() {
       WHERE tenant_id = $1
       ORDER BY event_time DESC
       LIMIT 100
-    `, [tenantId || '11111111-1111-1111-1111-111111111111']);
+    `, [tenantId]);
 
     auditEvents = res.rows;
   } catch (err) {

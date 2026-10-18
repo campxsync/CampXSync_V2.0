@@ -118,26 +118,14 @@ function LoginForm() {
     }
   };
 
-  const handleQuickDemo = async (role: string) => {
-    setIsLoading(true);
+  const handleSelectDemoAccount = (role: string) => {
     setErrorMessage(null);
-    try {
-      const res = await fetch('/api/auth/test-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        router.refresh();
-        router.push(data.redirectTo || '/');
-      } else {
-        setErrorMessage(data.error || 'Failed to start demo session');
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Demo session failed');
-    } finally {
-      setIsLoading(false);
+    if (role === 'platform_admin') {
+      setEmail('platformadmin.campx@gmail.com');
+    } else if (role === 'college_admin') {
+      setEmail('campxsync@gmail.com');
+    } else if (role === 'faculty') {
+      setEmail('prof.p5.616747@institution.edu');
     }
   };
 
@@ -222,37 +210,52 @@ function LoginForm() {
         </Button>
       </form>
 
-      {/* Quick Demo Credentials Assistant */}
+      {/* Staging Accounts Selection Assistant */}
       <div className="mt-8 border-t border-[#E3E8EF] pt-4">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7688]">
-          Trial Demo Accounts
-        </span>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7688]">
+            Staging Accounts
+          </span>
+          <span className="text-[10px] text-[#6B7688]">Click to select account</span>
+        </div>
         <div className="mt-2.5 grid grid-cols-3 gap-2">
           <button
             type="button"
-            onClick={() => handleQuickDemo('platform_admin')}
+            onClick={() => handleSelectDemoAccount('platform_admin')}
             disabled={isLoading}
-            className="flex flex-col items-center justify-center p-2.5 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-xs font-semibold text-[#0B1F3A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px]"
+            className={`flex flex-col items-center justify-center p-2.5 rounded-[6px] border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px] ${
+              email === 'platformadmin.campx@gmail.com'
+                ? 'border-[#1F6FEB] bg-[#EBF3FF] text-[#1F6FEB]'
+                : 'border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-[#0B1F3A]'
+            }`}
           >
-            <Building className="h-4 w-4 mb-1 text-[#0B1F3A]" />
+            <Building className="h-4 w-4 mb-1 text-current" />
             Platform
           </button>
           <button
             type="button"
-            onClick={() => handleQuickDemo('college_admin')}
+            onClick={() => handleSelectDemoAccount('college_admin')}
             disabled={isLoading}
-            className="flex flex-col items-center justify-center p-2.5 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-xs font-semibold text-[#0B1F3A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px]"
+            className={`flex flex-col items-center justify-center p-2.5 rounded-[6px] border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px] ${
+              email === 'campxsync@gmail.com'
+                ? 'border-[#1F6FEB] bg-[#EBF3FF] text-[#1F6FEB]'
+                : 'border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#1F6FEB] text-[#0B1F3A]'
+            }`}
           >
-            <ShieldCheck className="h-4 w-4 mb-1 text-[#1F6FEB]" />
+            <ShieldCheck className="h-4 w-4 mb-1 text-current" />
             College Admin
           </button>
           <button
             type="button"
-            onClick={() => handleQuickDemo('faculty')}
+            onClick={() => handleSelectDemoAccount('faculty')}
             disabled={isLoading}
-            className="flex flex-col items-center justify-center p-2.5 rounded-[6px] border border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#0D9488] text-xs font-semibold text-[#0B1F3A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px]"
+            className={`flex flex-col items-center justify-center p-2.5 rounded-[6px] border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px] ${
+              email === 'prof.p5.616747@institution.edu'
+                ? 'border-[#0D9488] bg-[#F0FAF9] text-[#0D9488]'
+                : 'border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#0D9488] text-[#0B1F3A]'
+            }`}
           >
-            <CalendarCheck2 className="h-4 w-4 mb-1 text-[#0D9488]" />
+            <CalendarCheck2 className="h-4 w-4 mb-1 text-current" />
             Faculty
           </button>
         </div>

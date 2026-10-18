@@ -45,6 +45,13 @@ function AccessDeniedContent() {
             'Access for this educational institution is currently suspended. Platform administrators may resolve status transitions.',
           icon: Building2,
         };
+      case 'no_role_assigned':
+        return {
+          title: 'No Authoritative Role Assigned',
+          description:
+            'Your account is authenticated, but no active role assignments were found in your institution. Please contact your college administrator.',
+          icon: UserX,
+        };
       case 'forbidden':
       default:
         return {

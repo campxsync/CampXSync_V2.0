@@ -21,6 +21,9 @@ export default async function FacultySessionsPage() {
   }
 
   const { tenantId, displayName } = resolution.session;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
 
   let sessions: any[] = [];
   try {
@@ -48,7 +51,7 @@ export default async function FacultySessionsPage() {
       WHERE sess.tenant_id = $1 AND sess.deleted_at IS NULL
       GROUP BY sess.id, sess.session_date, sess.start_time, sess.end_time, sess.status, sess.created_at, sess.locked_at, te.id, sub.code, sub.name, sec.section_code
       ORDER BY sess.session_date DESC, sess.start_time DESC
-    `, [tenantId || '11111111-1111-1111-1111-111111111111']);
+    `, [tenantId]);
 
     sessions = res.rows;
   } catch (err) {

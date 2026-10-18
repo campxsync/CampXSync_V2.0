@@ -27,6 +27,6 @@ export default async function HomePage() {
     case 'student':
       redirect('/student');
     default:
-      redirect('/college');
+      redirect('/access-denied?reason=no_role_assigned');
   }
 }

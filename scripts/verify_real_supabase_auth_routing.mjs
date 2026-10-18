@@ -1,10 +1,27 @@
 // scripts/verify_real_supabase_auth_routing.mjs
 // Native fetch script - zero dependencies
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 const SUPABASE_URL = 'https://kpwdvvcschankgggitnj.supabase.co';
 const ANON_KEY = 'sb_publishable_1B6QXXcsRiUaxj-Bk1pPuw_JMqgh4-J';
 const EMAIL = 'campxsync@gmail.com';
-const PASSWORD = process.env.CAMPX_STAGING_TEST_PASSWORD || 'qwBRCtBuUkixwZ5DPdyRk9EGCwpPX8rFqKdlCet40k8';
+
+let password = process.env.CAMPX_STAGING_TEST_PASSWORD;
+if (!password) {
+  try {
+    const envPath = path.resolve('frontend/.env.local');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const match = content.match(/CAMPX_STAGING_TEST_PASSWORD=(.+)/);
+      if (match) {
+        password = match[1].trim().replace(/^['"]|['"]$/g, '');
+      }
+    }
+  } catch {}
+}
+const PASSWORD = password || 'qwBRCtBuUkixwZ5DPdyRk9EGCwpPX8rFqKdlCet40k8';
 
 async function testRealAuth() {
   console.log('=== REAL SUPABASE AUTH ROUTING VERIFICATION ===');

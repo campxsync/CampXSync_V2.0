@@ -25,6 +25,7 @@ export async function resolveUserRole(
 ): Promise<RoleResolutionResult> {
   // 1. Get authenticated user from session or test session cookie
   let user: any = null;
+  let isTestUser = false;
   const { data, error: userError } = await supabase.auth.getUser();
   user = data?.user;
 
@@ -36,6 +37,7 @@ export async function resolveUserRole(
         const testCookie = cookieStore.get('campx_test_session')?.value;
         if (testCookie) {
           user = JSON.parse(testCookie);
+          isTestUser = true;
         }
       } catch {}
     }
@@ -61,10 +63,11 @@ export async function resolveUserRole(
   const userId = user.id;
   const userEmail = user.email || '';
 
-  // 2. Check if user is Platform Admin (plat.platform_admins)
-  // Or check user email convention or app_metadata if table query is unpermitted
+  // 2. Check if user is Platform Admin (authoritative check against plat.platform_admins)
+  let platAdmin: any = null;
   try {
-    const { data: platAdmin } = await supabase
+    const { data: pData, error: pError } = await supabase
+      .schema('plat')
       .from('platform_admins')
       .select('id, status, role_code')
       .eq('user_id', userId)
@@ -72,33 +75,47 @@ export async function resolveUserRole(
       .is('deleted_at', null)
       .maybeSingle();
 
-    if (platAdmin) {
-      return {
-        success: true,
-        session: {
-          userId,
-          email: userEmail,
-          role: 'platform_admin',
-          tenantId: null,
-          tenantName: 'CampSync Platform',
-          tenantStatus: 'ACTIVE',
-          collegeId: null,
-          departmentId: null,
-          displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
-          isPlatformAdmin: true,
-        },
-      };
+    if (!pError && pData) {
+      platAdmin = pData;
     }
   } catch {
-    // If plat.platform_admins is protected by RLS, proceed to profile check
+    // If plat.platform_admins PostgREST access is restricted, proceed to database query fallback
   }
 
-  // Also check if app_metadata specifies platform_admin or user email is platform.admin
-  if (
-    user.app_metadata?.role === 'SUPER_ADMIN' ||
-    user.app_metadata?.role === 'platform_admin' ||
-    userEmail.startsWith('platform.admin@')
-  ) {
+  // Fallback to authoritative PostgreSQL query if PostgREST RLS restricts platform_admins read
+  if (!platAdmin) {
+    try {
+      const { query } = await import('@/lib/db');
+      const paRes = await query(
+        'SELECT id, status, role_code FROM plat.platform_admins WHERE (user_id = $1 OR user_id = (SELECT id FROM iam.user_profiles WHERE email = $2 LIMIT 1)) AND status = $3 AND deleted_at IS NULL LIMIT 1',
+        [userId, userEmail, 'ACTIVE']
+      );
+      if (paRes.rows.length > 0) {
+        platAdmin = paRes.rows[0];
+      }
+    } catch {}
+  }
+
+  if (platAdmin) {
+    return {
+      success: true,
+      session: {
+        userId,
+        email: userEmail,
+        role: 'platform_admin',
+        tenantId: null,
+        tenantName: 'CampSync Platform',
+        tenantStatus: 'ACTIVE',
+        collegeId: null,
+        departmentId: null,
+        displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
+        isPlatformAdmin: true,
+      },
+    };
+  }
+
+  // Allow mock platform admin only when explicitly in allowed test session mode
+  if (isTestUser && isTestSessionAllowed() && user.app_metadata?.role === 'SUPER_ADMIN') {
     return {
       success: true,
       session: {
@@ -145,7 +162,8 @@ export async function resolveUserRole(
   }
 
   if (!profile || profile.deleted_at !== null) {
-    if (user.app_metadata?.role && user.app_metadata?.tenant_id) {
+    // Only in gated test session mode: allow mock session with test cookie
+    if (isTestUser && isTestSessionAllowed() && user.app_metadata?.role && user.app_metadata?.tenant_id) {
       const rawRole = String(user.app_metadata.role).toLowerCase();
       const effectiveRole: UserRole = rawRole.includes('admin')
         ? 'college_admin'
@@ -183,6 +201,7 @@ export async function resolveUserRole(
         },
       };
     }
+    // Fail closed: real authenticated users without an authoritative iam.user_profiles record are denied
     return { success: false, reason: 'no_profile' };
   }
 
@@ -260,26 +279,9 @@ export async function resolveUserRole(
     } catch {}
   }
 
+  // Fail closed if no authoritative role assignments found.
+  // User-editable metadata (user_metadata.role) or unverified app_metadata must NEVER grant roles here.
   if (!assignments || assignments.length === 0) {
-    // Check fallback from user metadata if database assignment seed is pending
-    const metadataRole = (user.app_metadata?.role || user.user_metadata?.role || '').toUpperCase();
-    if (metadataRole === 'COLLEGE_ADMIN' || metadataRole === 'ADMIN') {
-      return {
-        success: true,
-        session: {
-          userId,
-          email: userEmail,
-          role: 'college_admin',
-          tenantId,
-          tenantName,
-          tenantStatus: tenant?.status || 'ACTIVE',
-          collegeId: null,
-          departmentId: null,
-          displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
-          isPlatformAdmin: false,
-        },
-      };
-    }
     return { success: false, reason: 'no_role_assigned' };
   }
 
@@ -341,14 +343,17 @@ export async function resolveUserRole(
     } catch {}
   }
 
-  const effectiveRole: UserRole = resolvedRole || 'faculty';
+  // Fail closed if active assignments do not match any recognized system role
+  if (!resolvedRole) {
+    return { success: false, reason: 'no_role_assigned' };
+  }
 
   return {
     success: true,
     session: {
       userId,
       email: userEmail,
-      role: effectiveRole,
+      role: resolvedRole,
       tenantId,
       tenantName,
       tenantStatus: tenant?.status || 'ACTIVE',

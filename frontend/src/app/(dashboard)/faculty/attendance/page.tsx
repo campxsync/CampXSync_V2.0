@@ -24,7 +24,10 @@ export default async function FacultyAttendancePage(props: PageProps) {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const tenantId = resolution.session.tenantId || '11111111-1111-1111-1111-111111111111';
+  const tenantId = resolution.session.tenantId;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
   const userId = resolution.session.userId;
   const searchParams = props.searchParams ? await props.searchParams : {};
   const initialSlotId = searchParams.slotId;

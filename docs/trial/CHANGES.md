@@ -405,3 +405,30 @@
   - All Phase 11 deliverables created in `docs/trial/` and verified against Master Execution Prompt V4 criteria.
   - Zero code modifications to completed phases 1–10.
   - Status: **PASS (100% COMPLETE)**.
+
+---
+
+## Phase 12 — Login & Authorization Hardening (Execution Scope)
+
+- **Execution Scope**: `docs/Login_Hardning_Scope.md`
+- **Target Staging Ref**: `kpwdvvcschankgggitnj`
+- **Files Modified**:
+  - `frontend/src/lib/auth/resolve-role.ts`: Authoritative Platform Admin check against `plat.platform_admins` schema with PostgreSQL direct pool fallback. Eliminated unsafe `platform.admin@` email prefix inference and user-editable metadata fallback. Fail-closed behavior on missing/invalid role assignments (`no_role_assigned`).
+  - `frontend/src/middleware.ts`: Removed email prefix role escalations. Enforced strict positive allowlist route guards for `/platform`, `/college`, `/faculty`, and `/student`. Unassigned authenticated users redirect safely to `/access-denied?reason=no_role_assigned`.
+  - `frontend/src/app/page.tsx`: Root page fail-closed redirect on missing or unmapped role.
+  - `frontend/src/app/access-denied/page.tsx`: Added dedicated user feedback card for `no_role_assigned`.
+  - `frontend/src/app/(auth)/login/page.tsx`: Replaced `/api/auth/test-session` bypass invocation with credential selection assistant that pre-populates verified staging account emails and routes through real Supabase Auth `signInWithPassword`.
+  - 12 Dashboard Pages (`college/page.tsx`, `college/departments/page.tsx`, `college/batches/page.tsx`, `college/faculty/page.tsx`, `college/students/page.tsx`, `college/timetable/page.tsx`, `college/attendance/page.tsx`, `college/audit/page.tsx`, `faculty/page.tsx`, `faculty/attendance/page.tsx`, `faculty/sessions/page.tsx`, `faculty/timetable/page.tsx`): Removed hardcoded default-tenant fallback `11111111-1111-1111-1111-111111111111`; enforced fail-closed `if (!tenantId) redirect('/access-denied?reason=forbidden')`.
+  - `frontend/src/app/(dashboard)/student/page.tsx`: Enforced `role === 'student'`. Removed insecure fallback query that silently selected the first student; strictly bound query to authenticated user identity.
+  - `scripts/verify_real_supabase_auth_routing.mjs`: Updated test password loading to read from `frontend/.env.local`.
+- **Files Added**:
+  - `scripts/verify_login_hardening.mjs`: Focused 43-assertion regression test suite.
+  - `scripts/apply_platform_admin_provisioning.mjs`: Single-purpose script applying approved Stage 4 Platform Admin mapping.
+- **Database Operations (Approved Stage 4)**:
+  - Staging `plat.platform_admins`: Inserted authoritative `SUPER_ADMIN` membership for Auth User `54e8308c-ada3-4065-a9fe-51814af6b971` (`platformadmin.campx@gmail.com`).
+  - Zero modifications to production Supabase project (`ekspahbsbwdpraaqfqui`).
+- **Verification Results**:
+  - `npx tsc --noEmit`: 0 errors.
+  - `node scripts/verify_login_hardening.mjs`: 43/43 PASSED.
+  - `npm run build`: Exit 0 (all 18 routes compiled cleanly).
+

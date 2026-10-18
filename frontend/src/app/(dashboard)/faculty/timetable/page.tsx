@@ -20,6 +20,9 @@ export default async function FacultyTimetablePage() {
   }
 
   const { tenantId, displayName } = resolution.session;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
 
   let entries: any[] = [];
   try {
@@ -37,7 +40,7 @@ export default async function FacultyTimetablePage() {
       LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
       WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
       ORDER BY tte.day_of_week ASC, tte.start_time ASC
-    `, [tenantId || '11111111-1111-1111-1111-111111111111']);
+    `, [tenantId]);
 
     entries = res.rows;
   } catch (err) {

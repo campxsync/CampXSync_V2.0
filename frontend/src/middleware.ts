@@ -103,12 +103,12 @@ export async function middleware(request: NextRequest) {
   }
 
   const email = (user.email || '').toLowerCase();
-  const rawRole = (user.app_metadata?.role || user.user_metadata?.role || '').toUpperCase();
+  const rawRole = (user.app_metadata?.role || '').toUpperCase();
 
-  const isPlatformUser = email.startsWith('platform.admin@') || rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
-  const isFacultyUser = rawRole.includes('FACULTY') || email.startsWith('faculty.');
-  const isStudentUser = rawRole.includes('STUDENT') || email.startsWith('student.');
-  const isCollegeAdminUser = (rawRole.includes('ADMIN') || email === 'campxsync@gmail.com') && !isPlatformUser;
+  const isPlatformUser = rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
+  const isCollegeAdminUser = (rawRole === 'COLLEGE_ADMIN' || rawRole === 'INSTITUTION_ADMIN' || rawRole === 'TENANT_ADMIN' || rawRole === 'ADMIN') && !isPlatformUser;
+  const isFacultyUser = (rawRole === 'FACULTY' || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') && !isPlatformUser;
+  const isStudentUser = rawRole === 'STUDENT' && !isPlatformUser;
 
   // Enforce inactive membership guard
   const isInactive = user.membership_status === 'INACTIVE' || user.status === 'INACTIVE' || user.app_metadata?.membership_status === 'INACTIVE';
@@ -145,7 +145,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Enforce institutional tenant suspension guard (denies access with reason=tenant_suspended)
-  const isSuspendedTenant = (user.app_metadata?.tenant_status === 'SUSPENDED' || user.user_metadata?.tenant_status === 'SUSPENDED' || user.tenantStatus === 'SUSPENDED' || user.tenant_status === 'SUSPENDED') && !isPlatformUser;
+  const isSuspendedTenant = (user.app_metadata?.tenant_status === 'SUSPENDED' || user.tenantStatus === 'SUSPENDED' || user.tenant_status === 'SUSPENDED') && !isPlatformUser;
   if (isSuspendedTenant && !pathname.startsWith('/access-denied') && !pathname.startsWith('/login') && !pathname.startsWith('/api/auth')) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -161,10 +161,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/access-denied?reason=tenant_suspended', request.url));
   }
 
-  // If visiting root '/', redirect based on user role
+  // If visiting root '/', redirect based on user role (fail closed if unassigned)
   if (pathname === '/') {
     if (isPlatformUser) {
       return NextResponse.redirect(new URL('/platform', request.url));
+    }
+    if (isCollegeAdminUser) {
+      return NextResponse.redirect(new URL('/college', request.url));
     }
     if (isFacultyUser) {
       return NextResponse.redirect(new URL('/faculty', request.url));
@@ -172,10 +175,10 @@ export async function middleware(request: NextRequest) {
     if (isStudentUser) {
       return NextResponse.redirect(new URL('/student', request.url));
     }
-    return NextResponse.redirect(new URL('/college', request.url));
+    return NextResponse.redirect(new URL('/access-denied?reason=no_role_assigned', request.url));
   }
 
-  // 4. Server-side Route Guards for role prefixes
+  // 4. Server-side Route Guards for role prefixes (Fail Closed)
   if (pathname.startsWith('/platform')) {
     if (!isPlatformUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
@@ -183,19 +186,19 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/college')) {
-    if (isStudentUser || isFacultyUser || isPlatformUser) {
+    if (!isCollegeAdminUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
     }
   }
 
   if (pathname.startsWith('/faculty')) {
-    if (isStudentUser || isPlatformUser) {
+    if (!isFacultyUser && !isCollegeAdminUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
     }
   }
 
   if (pathname.startsWith('/student')) {
-    if (isFacultyUser || isPlatformUser || isCollegeAdminUser) {
+    if (!isStudentUser) {
       return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
     }
   }

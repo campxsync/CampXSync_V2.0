@@ -15,7 +15,10 @@ export default async function CollegeStudentsPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const tenantId = resolution.session.tenantId || '11111111-1111-1111-1111-111111111111';
+  const tenantId = resolution.session.tenantId;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
   let studentsList: any[] = [];
   let programs: any[] = [];
   let batches: any[] = [];

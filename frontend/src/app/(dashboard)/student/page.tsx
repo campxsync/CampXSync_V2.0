@@ -14,17 +14,17 @@ export default async function StudentDashboardPage() {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
 
-  if (!resolution.success) {
+  if (!resolution.success || resolution.session.role !== 'student') {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, displayName, userId } = resolution.session;
+  const { tenantId, displayName, userId, email } = resolution.session;
 
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
 
-  // 1. Fetch current student record in this tenant
+  // 1. Fetch current student record in this tenant matching the authenticated user
   let student: any = null;
   let subjectAttendance: any[] = [];
   let recentSessions: any[] = [];
@@ -48,10 +48,12 @@ export default async function StudentDashboardPage() {
       LEFT JOIN acd.programs prog ON prog.id = s.program_id
       LEFT JOIN acd.batch_students bs ON bs.student_id = s.id
       LEFT JOIN acd.batches b ON b.id = bs.batch_id
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      ORDER BY (CASE WHEN p.id = $2 THEN 0 ELSE 1 END), s.enrollment_no ASC
+      WHERE s.tenant_id = $1 
+        AND s.deleted_at IS NULL 
+        AND (p.id = $2 OR p.primary_email = $3)
+      ORDER BY s.enrollment_no ASC
       LIMIT 1
-    `, [tenantId, userId]);
+    `, [tenantId, userId, email]);
 
     if (studentRes.rows.length > 0) {
       student = studentRes.rows[0];

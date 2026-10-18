@@ -19,7 +19,9 @@ export default async function FacultyDashboardPage() {
   }
 
   const { tenantId, displayName, userId } = resolution.session;
-  const effectiveTenantId = tenantId || '11111111-1111-1111-1111-111111111111';
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
 
   // Compute current date and day of week
   const today = new Date();
@@ -60,7 +62,7 @@ export default async function FacultyDashboardPage() {
       WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
       ORDER BY tte.day_of_week ASC, tte.start_time ASC
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     allAssignedSlots = slotsRes.rows.map((slot) => {
@@ -101,7 +103,7 @@ export default async function FacultyDashboardPage() {
       FROM acd.attendance_sessions
       WHERE tenant_id = $1 AND deleted_at IS NULL
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     if (sessionStatsRes.rows.length > 0) {
@@ -133,7 +135,7 @@ export default async function FacultyDashboardPage() {
       ORDER BY sess.session_date DESC
       LIMIT 5
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     missedSessions = missedRes.rows;
@@ -154,7 +156,7 @@ export default async function FacultyDashboardPage() {
     <FacultyDashboardView
       displayName={displayName || 'Faculty Member'}
       userId={userId}
-      tenantId={effectiveTenantId}
+      tenantId={tenantId}
       todayDateStr={todayDateStr}
       dayName={dayNames[currentIsoDay] || 'Today'}
       todaySlots={todaySlots}

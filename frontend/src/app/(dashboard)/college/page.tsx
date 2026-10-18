@@ -16,7 +16,9 @@ export default async function CollegeAdminDashboardPage() {
   }
 
   const { tenantId, tenantName, userId } = resolution.session;
-  const effectiveTenantId = tenantId || '11111111-1111-1111-1111-111111111111';
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
 
   // Real database counts from Supabase PostgreSQL staging
   let studentCount = 0;
@@ -45,7 +47,7 @@ export default async function CollegeAdminDashboardPage() {
         (SELECT count(*)::int FROM acd.attendance_records WHERE tenant_id = $1 AND deleted_at IS NULL) as total_records,
         (SELECT count(*)::int FROM acd.attendance_records WHERE tenant_id = $1 AND status = 'PRESENT' AND deleted_at IS NULL) as present_records
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     if (statsRes.rows.length > 0) {
@@ -77,7 +79,7 @@ export default async function CollegeAdminDashboardPage() {
       HAVING (count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::numeric / NULLIF(count(r.id), 0)) < 0.75
       ORDER BY percentage ASC;
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     shortageStudents = shortageRes.rows.map((r: any) => ({
@@ -106,7 +108,7 @@ export default async function CollegeAdminDashboardPage() {
       ORDER BY s.session_date ASC
       LIMIT 14;
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     trend = trendRes.rows.map((r: any) => ({
@@ -137,7 +139,7 @@ export default async function CollegeAdminDashboardPage() {
       GROUP BY sec.section_code, sub.code, sub.name
       ORDER BY sec.section_code, sub.code;
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     batchBreakdown = batchRes.rows.map((r: any) => ({
@@ -172,7 +174,7 @@ export default async function CollegeAdminDashboardPage() {
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL AND s.status = 'OPEN'
       ORDER BY s.session_date ASC;
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     missedSessions = missedRes.rows.map((r: any) => ({
@@ -212,7 +214,7 @@ export default async function CollegeAdminDashboardPage() {
       ORDER BY s.session_date DESC
       LIMIT 6;
       `,
-      [effectiveTenantId]
+      [tenantId]
     );
 
     recentSessions = recentRes.rows.map((r: any) => ({
@@ -259,7 +261,7 @@ export default async function CollegeAdminDashboardPage() {
       recentSessions={recentSessions}
       tenantName={tenantName || 'Institutional Workspace'}
       userId={userId}
-      tenantId={effectiveTenantId}
+      tenantId={tenantId}
       initialPreferences={userPreferences}
     />
   );

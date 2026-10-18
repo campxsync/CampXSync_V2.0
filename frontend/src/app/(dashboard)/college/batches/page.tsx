@@ -18,6 +18,9 @@ export default async function CollegeBatchesPage() {
   }
 
   const { tenantId, tenantName } = resolution.session;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
 
   let batches: any[] = [];
   let subjects: any[] = [];
@@ -35,7 +38,7 @@ export default async function CollegeBatchesPage() {
       LEFT JOIN acd.programs p ON p.id = b.program_id
       WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
       ORDER BY b.code ASC
-    `, [tenantId || '11111111-1111-1111-1111-111111111111']);
+    `, [tenantId]);
 
     batches = batchesRes.rows;
 
@@ -53,7 +56,7 @@ export default async function CollegeBatchesPage() {
       LEFT JOIN core.departments d ON d.id = sub.department_id
       WHERE sub.tenant_id = $1 AND sub.deleted_at IS NULL
       ORDER BY sub.code ASC
-    `, [tenantId || '11111111-1111-1111-1111-111111111111']);
+    `, [tenantId]);
 
     subjects = subjectsRes.rows;
   } catch (err) {

@@ -14,7 +14,10 @@ export default async function CollegeTimetablePage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const tenantId = resolution.session.tenantId || '11111111-1111-1111-1111-111111111111';
+  const tenantId = resolution.session.tenantId;
+  if (!tenantId) {
+    redirect('/access-denied?reason=forbidden');
+  }
   let entries: any[] = [];
   let subjects: any[] = [];
   let faculty: any[] = [];
