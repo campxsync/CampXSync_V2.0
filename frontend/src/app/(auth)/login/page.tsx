@@ -126,7 +126,7 @@ function LoginForm() {
     } else if (role === 'college_admin') {
       setEmail('campxsync@gmail.com');
     } else if (role === 'faculty') {
-      setEmail('prof.p5.616747@institution.edu');
+      setEmail('faculty.campx@gmail.com');
     }
   };
 

@@ -432,3 +432,16 @@
   - `node scripts/verify_login_hardening.mjs`: 43/43 PASSED.
   - `npm run build`: Exit 0 (all 18 routes compiled cleanly).
 
+---
+
+## Phase 13 — Faculty Login Implementation & Independent Test Credential Isolation
+
+- **Files Modified**:
+  - `frontend/src/app/(auth)/login/page.tsx`: Updated Faculty demo account selector email from `prof.p5.616747@institution.edu` to confirmed staging Auth email `faculty.campx@gmail.com`. Retained explicit `setPassword('')` call on account switch to eliminate lingering credentials.
+  - `scripts/verify_login_hardening.mjs`: Updated Faculty selector email assertion to `faculty.campx@gmail.com`. Added simulation assertions for Faculty server-side role resolution to `/faculty` and strict cross-role denial tests (Faculty denied from `/platform` and `/college`).
+  - `scripts/verify_independent_accounts.mjs`: Implemented strict three-way test credential separation (`CAMPX_STAGING_TEST_PASSWORD`, `CAMPX_STAGING_PLATFORM_ADMIN_TEST_PASSWORD`, `CAMPX_STAGING_FACULTY_TEST_PASSWORD`). Enforced zero cross-role fallback, explicit failure on missing variables, and cross-credential isolation tests.
+- **Verification Results**:
+  - `node scripts/verify_independent_accounts.mjs`: All 7 test groups passed cleanly with 0 credential leaks and verified cross-account rejection.
+  - `node --experimental-strip-types scripts/verify_login_hardening.mjs`: 58/58 regression assertions passed (0 failures).
+  - `npm run build`: Exit 0 (Next.js 15.5.28 compiled all 18 routes cleanly).
+

@@ -392,8 +392,8 @@ runTest('login/page.tsx: Demo account selectors populate email only with zero pa
     'College Admin selector must populate campxsync@gmail.com'
   );
   assert(
-    loginPageContent.includes("setEmail('prof.p5.616747@institution.edu')"),
-    'Faculty selector must populate prof.p5.616747@institution.edu'
+    loginPageContent.includes("setEmail('faculty.campx@gmail.com')"),
+    'Faculty selector must populate faculty.campx@gmail.com'
   );
 });
 
@@ -463,6 +463,11 @@ function simulateServerResolution(authUuid) {
   if (authUuid === COLLEGE_ADMIN_UUID) {
     return { success: true, role: 'college_admin', destination: '/college' };
   }
+  // Faculty UUID maps to /faculty once linked in iam.user_profiles and iam.role_assignments
+  const FACULTY_UUID = '619b460b-d7f9-46b6-b11a-56045a130a52';
+  if (authUuid === FACULTY_UUID) {
+    return { success: true, role: 'faculty', destination: '/faculty' };
+  }
   return { success: false, reason: 'no_role_assigned', destination: '/access-denied?reason=no_role_assigned' };
 }
 
@@ -480,6 +485,13 @@ runTest('Authoritative server resolution maps College Admin UUID independently t
   assert.strictEqual(res.destination, '/college');
 });
 
+runTest('Authoritative server resolution maps Faculty UUID to /faculty when role assigned', () => {
+  const res = simulateServerResolution('619b460b-d7f9-46b6-b11a-56045a130a52');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(res.role, 'faculty');
+  assert.strictEqual(res.destination, '/faculty');
+});
+
 runTest('Authoritative server resolution denies unassigned authenticated UUID', () => {
   const res = simulateServerResolution('00000000-0000-0000-0000-000000000000');
   assert.strictEqual(res.success, false);
@@ -489,16 +501,26 @@ runTest('Authoritative server resolution denies unassigned authenticated UUID', 
 
 runTest('Cross-role access enforcement: Platform Admin denied from College Dashboard', () => {
   const platAdminSession = simulateServerResolution('54e8308c-ada3-4065-a9fe-51814af6b971');
-  // College dashboard page rule: if (!resolution.success || resolution.session.role !== 'college_admin')
   const isAllowedOnCollege = platAdminSession.success && platAdminSession.role === 'college_admin';
   assert.strictEqual(isAllowedOnCollege, false, 'Platform Admin must not access College Admin dashboard');
 });
 
 runTest('Cross-role access enforcement: College Admin denied from Platform Dashboard', () => {
   const collegeAdminSession = simulateServerResolution('70a8ffae-b5ad-4c61-a401-16f220893df4');
-  // Platform dashboard page rule: if (!resolution.success || resolution.session.role !== 'platform_admin')
   const isAllowedOnPlatform = collegeAdminSession.success && collegeAdminSession.role === 'platform_admin';
   assert.strictEqual(isAllowedOnPlatform, false, 'College Admin must not access Platform Admin dashboard');
+});
+
+runTest('Cross-role access enforcement: Faculty denied from Platform Dashboard', () => {
+  const facultySession = simulateServerResolution('619b460b-d7f9-46b6-b11a-56045a130a52');
+  const isAllowedOnPlatform = facultySession.success && facultySession.role === 'platform_admin';
+  assert.strictEqual(isAllowedOnPlatform, false, 'Faculty must not access Platform Admin dashboard');
+});
+
+runTest('Cross-role access enforcement: Faculty denied from College Admin Dashboard', () => {
+  const facultySession = simulateServerResolution('619b460b-d7f9-46b6-b11a-56045a130a52');
+  const isAllowedOnCollege = facultySession.success && facultySession.role === 'college_admin';
+  assert.strictEqual(isAllowedOnCollege, false, 'Faculty must not access College Admin dashboard');
 });
 
 // ----------------------------------------------------------------------------
