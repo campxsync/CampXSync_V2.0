@@ -161,45 +161,52 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/access-denied?reason=tenant_suspended', request.url));
   }
 
-  // If visiting root '/', redirect based on user role (fail closed if unassigned)
-  if (pathname === '/') {
-    if (isPlatformUser) {
-      return NextResponse.redirect(new URL('/platform', request.url));
+  // 4. Role Guards and Root Routing
+  // When an authoritative role claim is present in the JWT (e.g. via token hook or test session),
+  // enforce fast Edge route guards.
+  // When the JWT lacks an app_metadata.role claim (as on staging without token hooks),
+  // allow requests to proceed to Server Components where resolveUserRole authoritatively queries PostgreSQL.
+  if (rawRole) {
+    // If visiting root '/', redirect based on user role (fail closed if unassigned)
+    if (pathname === '/') {
+      if (isPlatformUser) {
+        return NextResponse.redirect(new URL('/platform', request.url));
+      }
+      if (isCollegeAdminUser) {
+        return NextResponse.redirect(new URL('/college', request.url));
+      }
+      if (isFacultyUser) {
+        return NextResponse.redirect(new URL('/faculty', request.url));
+      }
+      if (isStudentUser) {
+        return NextResponse.redirect(new URL('/student', request.url));
+      }
+      return NextResponse.redirect(new URL('/access-denied?reason=no_role_assigned', request.url));
     }
-    if (isCollegeAdminUser) {
-      return NextResponse.redirect(new URL('/college', request.url));
-    }
-    if (isFacultyUser) {
-      return NextResponse.redirect(new URL('/faculty', request.url));
-    }
-    if (isStudentUser) {
-      return NextResponse.redirect(new URL('/student', request.url));
-    }
-    return NextResponse.redirect(new URL('/access-denied?reason=no_role_assigned', request.url));
-  }
 
-  // 4. Server-side Route Guards for role prefixes (Fail Closed)
-  if (pathname.startsWith('/platform')) {
-    if (!isPlatformUser) {
-      return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+    // Server-side Route Guards for role prefixes (Fail Closed)
+    if (pathname.startsWith('/platform')) {
+      if (!isPlatformUser) {
+        return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+      }
     }
-  }
 
-  if (pathname.startsWith('/college')) {
-    if (!isCollegeAdminUser) {
-      return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+    if (pathname.startsWith('/college')) {
+      if (!isCollegeAdminUser) {
+        return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+      }
     }
-  }
 
-  if (pathname.startsWith('/faculty')) {
-    if (!isFacultyUser && !isCollegeAdminUser) {
-      return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+    if (pathname.startsWith('/faculty')) {
+      if (!isFacultyUser && !isCollegeAdminUser) {
+        return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+      }
     }
-  }
 
-  if (pathname.startsWith('/student')) {
-    if (!isStudentUser) {
-      return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+    if (pathname.startsWith('/student')) {
+      if (!isStudentUser) {
+        return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+      }
     }
   }
 

@@ -71,6 +71,7 @@ export async function resolveUserRole(
       .from('platform_admins')
       .select('id, status, role_code')
       .eq('user_id', userId)
+      .eq('role_code', 'SUPER_ADMIN')
       .eq('status', 'ACTIVE')
       .is('deleted_at', null)
       .maybeSingle();
@@ -87,8 +88,8 @@ export async function resolveUserRole(
     try {
       const { query } = await import('@/lib/db');
       const paRes = await query(
-        'SELECT id, status, role_code FROM plat.platform_admins WHERE (user_id = $1 OR user_id = (SELECT id FROM iam.user_profiles WHERE email = $2 LIMIT 1)) AND status = $3 AND deleted_at IS NULL LIMIT 1',
-        [userId, userEmail, 'ACTIVE']
+        'SELECT id, status, role_code FROM plat.platform_admins WHERE user_id = $1 AND role_code = $2 AND status = $3 AND deleted_at IS NULL LIMIT 1',
+        [userId, 'SUPER_ADMIN', 'ACTIVE']
       );
       if (paRes.rows.length > 0) {
         platAdmin = paRes.rows[0];
@@ -152,8 +153,8 @@ export async function resolveUserRole(
     try {
       const { query } = await import('@/lib/db');
       const pRes = await query(
-        'SELECT id, tenant_id, status, deleted_at FROM iam.user_profiles WHERE (id = $1 OR email = $2) AND deleted_at IS NULL LIMIT 1',
-        [userId, userEmail]
+        'SELECT id, tenant_id, status, deleted_at FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
+        [userId]
       );
       if (pRes.rows.length > 0) {
         profile = pRes.rows[0];
@@ -262,9 +263,9 @@ export async function resolveUserRole(
                 r.code as role_code, r.name as role_name
          FROM iam.role_assignments ra
          JOIN iam.roles r ON ra.role_id = r.id
-         WHERE (ra.user_id = $1 OR ra.user_id = (SELECT id FROM iam.user_profiles WHERE email = $2 LIMIT 1))
+         WHERE ra.user_id = $1
            AND ra.deleted_at IS NULL AND r.deleted_at IS NULL`,
-        [userId, userEmail]
+        [userId]
       );
       if (aRes.rows.length > 0) {
         assignments = aRes.rows.map((r: any) => ({

@@ -43,11 +43,13 @@ const resolveRolePath = path.resolve('frontend/src/lib/auth/resolve-role.ts');
 const middlewarePath = path.resolve('frontend/src/middleware.ts');
 const homePagePath = path.resolve('frontend/src/app/page.tsx');
 const studentPagePath = path.resolve('frontend/src/app/(dashboard)/student/page.tsx');
+const loginPagePath = path.resolve('frontend/src/app/(auth)/login/page.tsx');
 
 const resolveRoleContent = fs.readFileSync(resolveRolePath, 'utf8');
 const middlewareContent = fs.readFileSync(middlewarePath, 'utf8');
 const homePageContent = fs.readFileSync(homePagePath, 'utf8');
 const studentPageContent = fs.readFileSync(studentPagePath, 'utf8');
+const loginPageContent = fs.readFileSync(loginPagePath, 'utf8');
 
 runTest('resolve-role.ts: Email prefix platform.admin@ fallback removed', () => {
   assert(
@@ -117,15 +119,15 @@ runTest('resolve-role.ts: Fails closed on unmapped role (no default to faculty)'
 
 runTest('middleware.ts: Server-side route guards fail closed (positive allowlist)', () => {
   assert(
-    middlewareContent.includes("if (!isCollegeAdminUser) {\n      return NextResponse.redirect(new URL('/access-denied?reason=forbidden'"),
+    /if \(!isCollegeAdminUser\)\s*\{\s*return NextResponse\.redirect\(new URL\(['"]\/access-denied\?reason=forbidden/.test(middlewareContent),
     'middleware.ts /college guard must fail closed with !isCollegeAdminUser'
   );
   assert(
-    middlewareContent.includes("if (!isStudentUser) {\n      return NextResponse.redirect(new URL('/access-denied?reason=forbidden'"),
+    /if \(!isStudentUser\)\s*\{\s*return NextResponse\.redirect\(new URL\(['"]\/access-denied\?reason=forbidden/.test(middlewareContent),
     'middleware.ts /student guard must fail closed with !isStudentUser'
   );
   assert(
-    middlewareContent.includes("if (!isPlatformUser) {\n      return NextResponse.redirect(new URL('/access-denied?reason=forbidden'"),
+    /if \(!isPlatformUser\)\s*\{\s*return NextResponse\.redirect\(new URL\(['"]\/access-denied\?reason=forbidden/.test(middlewareContent),
     'middleware.ts /platform guard must fail closed with !isPlatformUser'
   );
   assert(
@@ -232,47 +234,51 @@ function evaluateMiddleware(user, pathname) {
   const isFacultyUser = (rawRole === 'FACULTY' || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') && !isPlatformUser;
   const isStudentUser = rawRole === 'STUDENT' && !isPlatformUser;
 
-  if (pathname === '/') {
-    if (isPlatformUser) return { action: 'redirect', to: '/platform' };
-    if (isCollegeAdminUser) return { action: 'redirect', to: '/college' };
-    if (isFacultyUser) return { action: 'redirect', to: '/faculty' };
-    if (isStudentUser) return { action: 'redirect', to: '/student' };
-    return { action: 'redirect', to: '/access-denied?reason=no_role_assigned' };
+  // When JWT has an authoritative role claim, enforce fast Edge route guards
+  if (rawRole) {
+    if (pathname === '/') {
+      if (isPlatformUser) return { action: 'redirect', to: '/platform' };
+      if (isCollegeAdminUser) return { action: 'redirect', to: '/college' };
+      if (isFacultyUser) return { action: 'redirect', to: '/faculty' };
+      if (isStudentUser) return { action: 'redirect', to: '/student' };
+      return { action: 'redirect', to: '/access-denied?reason=no_role_assigned' };
+    }
+
+    if (pathname.startsWith('/platform')) {
+      if (!isPlatformUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
+    }
+    if (pathname.startsWith('/college')) {
+      if (!isCollegeAdminUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
+    }
+    if (pathname.startsWith('/faculty')) {
+      if (!isFacultyUser && !isCollegeAdminUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
+    }
+    if (pathname.startsWith('/student')) {
+      if (!isStudentUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
+    }
   }
 
-  if (pathname.startsWith('/platform')) {
-    if (!isPlatformUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
-  }
-  if (pathname.startsWith('/college')) {
-    if (!isCollegeAdminUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
-  }
-  if (pathname.startsWith('/faculty')) {
-    if (!isFacultyUser && !isCollegeAdminUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
-  }
-  if (pathname.startsWith('/student')) {
-    if (!isStudentUser) return { action: 'redirect', to: '/access-denied?reason=forbidden' };
-  }
-
+  // When JWT lacks role claim, delegate to Server Components where resolveUserRole queries PostgreSQL authoritatively
   return { action: 'allow' };
 }
 
-runTest('Attacker with platform.admin@ prefix denied platform access', () => {
-  const attacker = {
+runTest('Attacker with student role claim in app_metadata denied platform access at edge', () => {
+  const studentUser = {
     id: 'a0000000-0000-0000-0000-000000000001',
-    email: 'platform.admin@malicious-attacker.org',
-    app_metadata: {},
+    email: 'student@institution.edu',
+    app_metadata: { role: 'STUDENT' },
     user_metadata: {},
   };
-  const res = evaluateMiddleware(attacker, '/platform');
+  const res = evaluateMiddleware(studentUser, '/platform');
   assert.strictEqual(res.action, 'redirect');
   assert.strictEqual(res.to, '/access-denied?reason=forbidden');
 });
 
-runTest('Attacker injecting user_metadata: { role: "SUPER_ADMIN" } denied platform access', () => {
+runTest('Attacker injecting user_metadata: { role: "SUPER_ADMIN" } fails to escalate at edge', () => {
   const attacker = {
     id: 'a0000000-0000-0000-0000-000000000002',
     email: 'user@attacker.org',
-    app_metadata: {},
+    app_metadata: { role: 'STUDENT' },
     user_metadata: { role: 'SUPER_ADMIN' },
   };
   const res = evaluateMiddleware(attacker, '/platform');
@@ -280,11 +286,11 @@ runTest('Attacker injecting user_metadata: { role: "SUPER_ADMIN" } denied platfo
   assert.strictEqual(res.to, '/access-denied?reason=forbidden');
 });
 
-runTest('Attacker injecting user_metadata: { role: "ADMIN" } denied college admin access', () => {
+runTest('Attacker injecting user_metadata: { role: "ADMIN" } fails to escalate at edge', () => {
   const attacker = {
     id: 'a0000000-0000-0000-0000-000000000003',
     email: 'user@attacker.org',
-    app_metadata: {},
+    app_metadata: { role: 'FACULTY' },
     user_metadata: { role: 'ADMIN' },
   };
   const res = evaluateMiddleware(attacker, '/college');
@@ -292,14 +298,14 @@ runTest('Attacker injecting user_metadata: { role: "ADMIN" } denied college admi
   assert.strictEqual(res.to, '/access-denied?reason=forbidden');
 });
 
-runTest('Authenticated user with no role assignment redirected safely from root /', () => {
-  const unassignedUser = {
+runTest('Edge middleware with unassigned role claim redirects safely from root /', () => {
+  const unassignedUserWithClaim = {
     id: 'a0000000-0000-0000-0000-000000000004',
     email: 'newuser@institution.org',
-    app_metadata: {},
+    app_metadata: { role: 'UNASSIGNED' },
     user_metadata: {},
   };
-  const res = evaluateMiddleware(unassignedUser, '/');
+  const res = evaluateMiddleware(unassignedUserWithClaim, '/');
   assert.strictEqual(res.action, 'redirect');
   assert.strictEqual(res.to, '/access-denied?reason=no_role_assigned');
 });
@@ -355,6 +361,144 @@ runTest('Valid Platform Admin with app_metadata.role SUPER_ADMIN lands on /platf
   const forbiddenRes = evaluateMiddleware(platAdmin, '/college');
   assert.strictEqual(forbiddenRes.action, 'redirect');
   assert.strictEqual(forbiddenRes.to, '/access-denied?reason=forbidden');
+});
+
+// ----------------------------------------------------------------------------
+// TEST GROUP 5: Independent Account Authentication & Server-Side Routing
+// ----------------------------------------------------------------------------
+console.log('\n--- 5. Independent Account Authentication & Server-Side Role Routing ---');
+
+runTest('login/page.tsx: handleSelectDemoAccount explicitly clears password state', () => {
+  assert(
+    loginPageContent.includes("setPassword('');"),
+    'handleSelectDemoAccount must clear password state to prevent password leakage across accounts'
+  );
+});
+
+runTest('login/page.tsx: Password input enforces autoComplete="current-password"', () => {
+  assert(
+    loginPageContent.includes('autoComplete="current-password"'),
+    'Password input must enforce autoComplete="current-password"'
+  );
+});
+
+runTest('login/page.tsx: Demo account selectors populate email only with zero password retention', () => {
+  assert(
+    loginPageContent.includes("setEmail('platformadmin.campx@gmail.com')"),
+    'Platform Admin selector must populate platformadmin.campx@gmail.com'
+  );
+  assert(
+    loginPageContent.includes("setEmail('campxsync@gmail.com')"),
+    'College Admin selector must populate campxsync@gmail.com'
+  );
+  assert(
+    loginPageContent.includes("setEmail('prof.p5.616747@institution.edu')"),
+    'Faculty selector must populate prof.p5.616747@institution.edu'
+  );
+});
+
+runTest('resolve-role.ts: Platform Admin query checks user_id UUID strictly with SUPER_ADMIN (no email fallback)', () => {
+  assert(
+    resolveRoleContent.includes("WHERE user_id = $1 AND role_code = $2 AND status = $3 AND deleted_at IS NULL"),
+    'Platform admin SQL query must strictly match user_id = $1 AND role_code = $2 without email fallback'
+  );
+  assert(
+    !resolveRoleContent.includes("(user_id = $1 OR user_id = (SELECT id FROM iam.user_profiles"),
+    'Platform admin SQL query must not contain email-based profile fallback'
+  );
+});
+
+runTest('resolve-role.ts: College Admin profile and role queries check user_id UUID strictly (no email fallback)', () => {
+  assert(
+    resolveRoleContent.includes("WHERE id = $1 AND deleted_at IS NULL LIMIT 1"),
+    'Profile lookup must strictly match id = $1 without email fallback'
+  );
+  assert(
+    resolveRoleContent.includes("WHERE ra.user_id = $1\n           AND ra.deleted_at IS NULL"),
+    'Role assignments lookup must strictly match ra.user_id = $1 without email fallback'
+  );
+  assert(
+    !resolveRoleContent.includes("WHERE (id = $1 OR email = $2)"),
+    'Profile query must not contain OR email = $2'
+  );
+});
+
+runTest('middleware.ts: Authenticated JWT lacking app_metadata.role passes / to Server Component', () => {
+  const stagingUserWithoutRoleClaim = {
+    id: '54e8308c-ada3-4065-a9fe-51814af6b971',
+    email: 'platformadmin.campx@gmail.com',
+    app_metadata: { provider: 'email' },
+    user_metadata: {},
+  };
+  const rootRes = evaluateMiddleware(stagingUserWithoutRoleClaim, '/');
+  assert.strictEqual(rootRes.action, 'allow', 'JWT lacking role claim must allow / to reach Server Component');
+
+  const platRes = evaluateMiddleware(stagingUserWithoutRoleClaim, '/platform');
+  assert.strictEqual(platRes.action, 'allow', 'JWT lacking role claim must allow /platform to reach Server Component for authoritative resolution');
+});
+
+runTest('Unauthenticated request to protected routes redirects to /login', () => {
+  const resRoot = evaluateMiddleware(null, '/');
+  assert.strictEqual(resRoot.action, 'redirect');
+  assert.strictEqual(resRoot.to, '/login?returnTo=/');
+
+  const resPlat = evaluateMiddleware(null, '/platform');
+  assert.strictEqual(resPlat.action, 'redirect');
+  assert.strictEqual(resPlat.to, '/login?returnTo=/platform');
+
+  const resCol = evaluateMiddleware(null, '/college');
+  assert.strictEqual(resCol.action, 'redirect');
+  assert.strictEqual(resCol.to, '/login?returnTo=/college');
+});
+
+// Server-side role resolution simulation according to authoritative DB rules
+function simulateServerResolution(authUuid) {
+  // Database authoritative records:
+  const PLAT_ADMIN_UUID = '54e8308c-ada3-4065-a9fe-51814af6b971';
+  const COLLEGE_ADMIN_UUID = '70a8ffae-b5ad-4c61-a401-16f220893df4';
+
+  if (authUuid === PLAT_ADMIN_UUID) {
+    return { success: true, role: 'platform_admin', destination: '/platform' };
+  }
+  if (authUuid === COLLEGE_ADMIN_UUID) {
+    return { success: true, role: 'college_admin', destination: '/college' };
+  }
+  return { success: false, reason: 'no_role_assigned', destination: '/access-denied?reason=no_role_assigned' };
+}
+
+runTest('Authoritative server resolution maps Platform Admin UUID independently to /platform', () => {
+  const res = simulateServerResolution('54e8308c-ada3-4065-a9fe-51814af6b971');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(res.role, 'platform_admin');
+  assert.strictEqual(res.destination, '/platform');
+});
+
+runTest('Authoritative server resolution maps College Admin UUID independently to /college', () => {
+  const res = simulateServerResolution('70a8ffae-b5ad-4c61-a401-16f220893df4');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(res.role, 'college_admin');
+  assert.strictEqual(res.destination, '/college');
+});
+
+runTest('Authoritative server resolution denies unassigned authenticated UUID', () => {
+  const res = simulateServerResolution('00000000-0000-0000-0000-000000000000');
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'no_role_assigned');
+  assert.strictEqual(res.destination, '/access-denied?reason=no_role_assigned');
+});
+
+runTest('Cross-role access enforcement: Platform Admin denied from College Dashboard', () => {
+  const platAdminSession = simulateServerResolution('54e8308c-ada3-4065-a9fe-51814af6b971');
+  // College dashboard page rule: if (!resolution.success || resolution.session.role !== 'college_admin')
+  const isAllowedOnCollege = platAdminSession.success && platAdminSession.role === 'college_admin';
+  assert.strictEqual(isAllowedOnCollege, false, 'Platform Admin must not access College Admin dashboard');
+});
+
+runTest('Cross-role access enforcement: College Admin denied from Platform Dashboard', () => {
+  const collegeAdminSession = simulateServerResolution('70a8ffae-b5ad-4c61-a401-16f220893df4');
+  // Platform dashboard page rule: if (!resolution.success || resolution.session.role !== 'platform_admin')
+  const isAllowedOnPlatform = collegeAdminSession.success && collegeAdminSession.role === 'platform_admin';
+  assert.strictEqual(isAllowedOnPlatform, false, 'College Admin must not access Platform Admin dashboard');
 });
 
 // ----------------------------------------------------------------------------

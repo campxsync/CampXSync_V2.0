@@ -120,6 +120,7 @@ function LoginForm() {
 
   const handleSelectDemoAccount = (role: string) => {
     setErrorMessage(null);
+    setPassword(''); // Explicitly wipe password when switching accounts to prevent lingering credentials
     if (role === 'platform_admin') {
       setEmail('platformadmin.campx@gmail.com');
     } else if (role === 'college_admin') {
@@ -156,6 +157,7 @@ function LoginForm() {
             placeholder="you@institution.edu"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
             required
             disabled={isLoading}
           />
@@ -168,6 +170,7 @@ function LoginForm() {
             placeholder="••••••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
             required
             disabled={isLoading}
           />
