@@ -16,6 +16,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
+import { register } from 'node:module';
+
+register('./resolve_role_loader.mjs', import.meta.url);
+const { setMockQueryHandler } = await import('./mock_db.mjs');
+const { resolveUserRole } = await import('../frontend/src/lib/auth/resolve-role.ts');
 
 console.log('=== CAMPXSYNC LOGIN & AUTHORIZATION HARDENING REGRESSION SUITE ===\n');
 
@@ -26,6 +31,18 @@ function runTest(name, fn) {
   totalTests++;
   try {
     fn();
+    console.log(`[PASS] ${name}`);
+    passedTests++;
+  } catch (err) {
+    console.error(`[FAIL] ${name}`);
+    console.error(`       Error: ${err.message}\n`);
+  }
+}
+
+async function runTestAsync(name, fn) {
+  totalTests++;
+  try {
+    await fn();
     console.log(`[PASS] ${name}`);
     passedTests++;
   } catch (err) {
@@ -521,6 +538,148 @@ runTest('Cross-role access enforcement: Faculty denied from College Admin Dashbo
   const facultySession = simulateServerResolution('619b460b-d7f9-46b6-b11a-56045a130a52');
   const isAllowedOnCollege = facultySession.success && facultySession.role === 'college_admin';
   assert.strictEqual(isAllowedOnCollege, false, 'Faculty must not access College Admin dashboard');
+});
+
+// ----------------------------------------------------------------------------
+// TEST GROUP 6: Direct SQL Path Hardening, Parameterization & Fail-Closed Invariants
+// ----------------------------------------------------------------------------
+console.log('--- 6. Direct SQL Path Hardening, Parameterization & Fail-Closed Invariants ---');
+
+runTest('resolve-role.ts: Private PostgREST schema calls completely removed', () => {
+  assert(!resolveRoleContent.includes(".schema('plat')"), 'Found .schema("plat") in resolve-role.ts');
+  assert(!resolveRoleContent.includes(".schema('iam')"), 'Found .schema("iam") in resolve-role.ts');
+  assert(!resolveRoleContent.includes(".schema('core')"), 'Found .schema("core") in resolve-role.ts');
+});
+
+runTest('resolve-role.ts: All direct PostgreSQL queries are parameterized with parameter arrays', () => {
+  const queryMatches = resolveRoleContent.match(/query\s*\(\s*['`][^'`]+['`]\s*,\s*\[[^\]]+\]\s*\)/g);
+  assert(queryMatches && queryMatches.length >= 4, 'Direct queries must be parameterized with parameters array');
+});
+
+function createMockSupabase(userId = 'u123', email = 'test@example.com') {
+  return {
+    auth: {
+      getUser: async () => ({
+        data: {
+          user: {
+            id: userId,
+            email,
+            app_metadata: {},
+            user_metadata: {},
+          },
+        },
+        error: null,
+      }),
+    },
+  };
+}
+
+// 1. Deleted tenant
+await runTestAsync('Real resolveUserRole Regression: Deleted tenant fails closed with reason=tenant_suspended', async () => {
+  setMockQueryHandler((sql, params) => {
+    if (sql.includes('plat.platform_admins')) return { rows: [] };
+    if (sql.includes('iam.user_profiles')) return { rows: [{ id: 'u123', tenant_id: 't123', status: 'ACTIVE', deleted_at: null }] };
+    if (sql.includes('iam.role_assignments')) return { rows: [{ id: 'ra1', college_id: 'c1', department_id: null, valid_from: null, valid_to: null, role_code: 'COLLEGE_ADMIN', role_name: 'College Admin' }] };
+    if (sql.includes('core.tenants')) {
+      return { rows: [{ id: 't123', name: 'Deleted College', code: 'DEL', status: 'ACTIVE', deleted_at: '2026-10-18T00:00:00Z' }] };
+    }
+    return { rows: [] };
+  });
+
+  const res = await resolveUserRole(createMockSupabase());
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'tenant_suspended');
+});
+
+// 2. Missing tenant row
+await runTestAsync('Real resolveUserRole Regression: Missing tenant row fails closed with reason=tenant_suspended', async () => {
+  setMockQueryHandler((sql, params) => {
+    if (sql.includes('plat.platform_admins')) return { rows: [] };
+    if (sql.includes('iam.user_profiles')) return { rows: [{ id: 'u123', tenant_id: 't123', status: 'ACTIVE', deleted_at: null }] };
+    if (sql.includes('iam.role_assignments')) return { rows: [{ id: 'ra1', college_id: 'c1', department_id: null, valid_from: null, valid_to: null, role_code: 'COLLEGE_ADMIN', role_name: 'College Admin' }] };
+    if (sql.includes('core.tenants')) {
+      return { rows: [] };
+    }
+    return { rows: [] };
+  });
+
+  const res = await resolveUserRole(createMockSupabase());
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'tenant_suspended');
+});
+
+// 3. Tenant-query error
+await runTestAsync('Real resolveUserRole Regression: Tenant-query error fails closed with reason=tenant_suspended', async () => {
+  setMockQueryHandler((sql, params) => {
+    if (sql.includes('plat.platform_admins')) return { rows: [] };
+    if (sql.includes('iam.user_profiles')) return { rows: [{ id: 'u123', tenant_id: 't123', status: 'ACTIVE', deleted_at: null }] };
+    if (sql.includes('iam.role_assignments')) return { rows: [{ id: 'ra1', college_id: 'c1', department_id: null, valid_from: null, valid_to: null, role_code: 'COLLEGE_ADMIN', role_name: 'College Admin' }] };
+    if (sql.includes('core.tenants')) {
+      throw new Error('Database connection failed');
+    }
+    return { rows: [] };
+  });
+
+  const res = await resolveUserRole(createMockSupabase());
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'tenant_suspended');
+});
+
+// 4. Suspended tenant
+await runTestAsync('Real resolveUserRole Regression: Suspended tenant fails closed with reason=tenant_suspended', async () => {
+  setMockQueryHandler((sql, params) => {
+    if (sql.includes('plat.platform_admins')) return { rows: [] };
+    if (sql.includes('iam.user_profiles')) return { rows: [{ id: 'u123', tenant_id: 't123', status: 'ACTIVE', deleted_at: null }] };
+    if (sql.includes('iam.role_assignments')) return { rows: [{ id: 'ra1', college_id: 'c1', department_id: null, valid_from: null, valid_to: null, role_code: 'COLLEGE_ADMIN', role_name: 'College Admin' }] };
+    if (sql.includes('core.tenants')) {
+      return { rows: [{ id: 't123', name: 'Suspended College', code: 'SUSP', status: 'SUSPENDED', deleted_at: null }] };
+    }
+    return { rows: [] };
+  });
+
+  const res = await resolveUserRole(createMockSupabase());
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'tenant_suspended');
+});
+
+// 5. Inactive profile
+await runTestAsync('Real resolveUserRole Regression: Inactive user profile fails closed with reason=inactive_membership', async () => {
+  setMockQueryHandler((sql, params) => {
+    if (sql.includes('plat.platform_admins')) return { rows: [] };
+    if (sql.includes('iam.user_profiles')) {
+      return { rows: [{ id: 'u123', tenant_id: 't123', status: 'INACTIVE', deleted_at: null }] };
+    }
+    if (sql.includes('iam.role_assignments')) return { rows: [{ id: 'ra1', college_id: 'c1', department_id: null, valid_from: null, valid_to: null, role_code: 'COLLEGE_ADMIN', role_name: 'College Admin' }] };
+    if (sql.includes('core.tenants')) {
+      return { rows: [{ id: 't123', name: 'Active College', code: 'ACT', status: 'ACTIVE', deleted_at: null }] };
+    }
+    return { rows: [] };
+  });
+
+  const res = await resolveUserRole(createMockSupabase());
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'inactive_membership');
+});
+
+// 6. No role
+await runTestAsync('Real resolveUserRole Regression: No role assigned fails closed with reason=no_role_assigned', async () => {
+  setMockQueryHandler((sql, params) => {
+    if (sql.includes('plat.platform_admins')) return { rows: [] };
+    if (sql.includes('iam.user_profiles')) {
+      return { rows: [{ id: 'u123', tenant_id: 't123', status: 'ACTIVE', deleted_at: null }] };
+    }
+    if (sql.includes('iam.role_assignments')) {
+      return { rows: [] };
+    }
+    if (sql.includes('core.tenants')) {
+      return { rows: [{ id: 't123', name: 'Active College', code: 'ACT', status: 'ACTIVE', deleted_at: null }] };
+    }
+    return { rows: [] };
+  });
+
+  const res = await resolveUserRole(createMockSupabase());
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(res.reason, 'no_role_assigned');
 });
 
 // ----------------------------------------------------------------------------
