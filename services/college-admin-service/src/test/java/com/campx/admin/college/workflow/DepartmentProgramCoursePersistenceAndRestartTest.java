@@ -45,24 +45,12 @@ public class DepartmentProgramCoursePersistenceAndRestartTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require SUPABASE_JDBC_URL or CAMPX_JDBC_URL", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        tenantId = com.campx.admin.college.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
         departmentRepository = new PostgresDepartmentRepository(connectionManager);
         programRepository = new PostgresProgramRepository(connectionManager);
 
         try (Connection conn = connectionManager.getConnection()) {
-            // Find active tenant
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tenantId = (UUID) rs.getObject("id");
-                    }
-                }
-            }
-            assumeNotNull("Requires an active tenant in core.tenants", tenantId);
 
             // Find active college under tenant
             try (PreparedStatement ps = conn.prepareStatement(
@@ -76,19 +64,8 @@ public class DepartmentProgramCoursePersistenceAndRestartTest {
             }
             assumeNotNull("Requires an active college in core.colleges", collegeId);
 
-            // Find tenant admin user
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT user_id FROM iam.role_assignments WHERE tenant_id = ? AND deleted_at IS NULL LIMIT 1")) {
-                ps.setObject(1, tenantId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        adminUserId = (UUID) rs.getObject("user_id");
-                    }
-                }
-            }
-            if (adminUserId == null) {
-                adminUserId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
-            }
+            // Resolve safe test user without silent fallback
+            adminUserId = com.campx.admin.college.config.TestEnvironmentGuard.resolveSafeTestUserId(conn, tenantId);
         }
 
         tenantContext = new UserSecurityContext(adminUserId, tenantId);
@@ -97,7 +74,7 @@ public class DepartmentProgramCoursePersistenceAndRestartTest {
 
     @After
     public void tearDown() throws Exception {
-        if (connectionManager == null) return;
+        if (connectionManager == null || (testCourseId == null && testProgramId == null && testDepartmentId == null)) return;
 
         // Clean up in reverse dependency order: Course Map -> Course -> Program -> Department
         try (Connection conn = connectionManager.getConnection()) {

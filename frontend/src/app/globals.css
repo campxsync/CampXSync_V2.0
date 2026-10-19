@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand Navy & Blue */
+  --navy-950: #081629;
+  --navy-900: #0B1F3A;
+  --navy-700: #12315C;
+  --blue-600: #1F6FEB;
+  --blue-500: #3B82F6;
+  --blue-100: #E8F0FE;
+
+  /* Neutrals */
+  --ink: #1B2433;
+  --muted: #6B7688;
+  --line: #E3E8EF;
+  --surface: #FFFFFF;
+  --bg: #F6F8FB;
+
+  /* Semantic */
+  --success: #1E9E6A;
+  --warn: #E39B16;
+  --danger: #D64545;
+  --info: #1F6FEB;
+
+  /* Semantic Tinted Backgrounds */
+  --success-bg: #EAF8F1;
+  --warn-bg: #FEF7EA;
+  --danger-bg: #FDECEC;
+  --info-bg: #E8F0FE;
+
+  /* Role Cues */
+  --role-platform: #0B1F3A;
+  --role-college: #1F6FEB;
+  --role-faculty: #0D9488;
+  --role-student: #64748B;
+
+  /* Radii */
+  --radius-input: 8px;
+  --radius-card: 12px;
+}
+
+.dark {
+  --navy-950: #030811;
+  --navy-900: #071324;
+  --navy-700: #0D2240;
+  --blue-600: #388BFD;
+  --blue-500: #58A6FF;
+  --blue-100: #162B4D;
+
+  --ink: #F0F6FC;
+  --muted: #8B949E;
+  --line: #30363D;
+  --surface: #0D1117;
+  --bg: #010409;
+
+  --success: #238636;
+  --warn: #D29922;
+  --danger: #DA3633;
+  --info: #58A6FF;
+
+  --success-bg: #0D2818;
+  --warn-bg: #2B2106;
+  --danger-bg: #2B0E10;
+  --info-bg: #0C213D;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body {
+  color: var(--ink);
+  background: var(--bg);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Tabular numerals for figures, stats, timetables, and calculations */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
