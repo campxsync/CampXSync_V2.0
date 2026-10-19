@@ -10,7 +10,7 @@
  * 6. Valid role assignments and tenant associations continue to work.
  * 7. The working College Admin authentication flow is not inadvertently broken.
  *
- * Run: node --experimental-strip-types scripts/verify_login_hardening.mjs
+ * Run: node --experimental-strip-types --loader ./scripts/resolve_role_loader.mjs scripts/verify_login_hardening.mjs
  */
 
 import fs from 'node:fs';
