@@ -4,17 +4,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import pg from '../frontend/node_modules/pg/lib/index.js';
+import ssr from '../frontend/node_modules/@supabase/ssr/dist/main/index.js';
 
 const { Pool } = pg;
+const { createChunks } = ssr;
 
 const SUPABASE_URL = 'https://kpwdvvcschankgggitnj.supabase.co';
 const ANON_KEY = 'sb_publishable_1B6QXXcsRiUaxj-Bk1pPuw_JMqgh4-J';
 const FACULTY_EMAIL = 'faculty.campx@gmail.com';
-const EXPECTED_FACULTY_UUID = '619b460b-d7f9-46b6-b11a-56045a130a52';
-const EXPECTED_TENANT_ID = '11111111-1111-1111-1111-111111111111';
-const DEPLOYED_URL = 'https://frontend-ejcjxgxip-camp-xs-ync.vercel.app';
-const VERCEL_SHARE = '3cavswuZlqgKBzr1xxNG3Bs6bwlCX8EH';
-
 function getEnvVar(varName) {
   let val = process.env[varName];
   if (!val) {
@@ -31,6 +28,11 @@ function getEnvVar(varName) {
   }
   return val;
 }
+
+const EXPECTED_FACULTY_UUID = '619b460b-d7f9-46b6-b11a-56045a130a52';
+const EXPECTED_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+const DEPLOYED_URL = process.env.DEPLOYED_URL || 'https://frontend-g1m0kswon-camp-xs-ync.vercel.app';
+const VERCEL_BYPASS_TOKEN = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '';
 
 const facultyPassword = getEnvVar('CAMPX_STAGING_FACULTY_TEST_PASSWORD');
 
@@ -72,7 +74,7 @@ async function main() {
   }
   console.log('    PASS: User UUID matches expected staging Faculty UUID.');
 
-  // 2. Authoritative Database-Level Role Resolution Verification
+  // 2. Authoritative Database Profile & Role Resolution Verification
   console.log('\n[2] Authoritative Database Profile & Role Resolution Verification...');
   const jdbcUrl = process.env.SUPABASE_JDBC_URL || '';
   const username = process.env.SUPABASE_USER;
@@ -134,75 +136,58 @@ async function main() {
     await pool.end();
   }
 
-  // 3. Cookie construction for SSR authentication against deployed Preview
-  console.log('\n[3] Testing HTTP Route Guards on Deployed Environment...');
+  // 3. SSR authentication and route testing against deployed Preview
+  console.log(`\n[3] Testing HTTP Route Guards on Deployed Environment (${DEPLOYED_URL})...`);
   
-  // A. Initialize Vercel deployment protection cookie session
-  const cookieJar = new Map();
-  function captureCookies(res) {
-    const raw = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get('set-cookie')];
-    raw.filter(Boolean).forEach((c) => {
-      const part = c.split(';')[0];
-      const eqIdx = part.indexOf('=');
-      if (eqIdx !== -1) {
-        const k = part.substring(0, eqIdx).trim();
-        const v = part.substring(eqIdx + 1).trim();
-        cookieJar.set(k, v);
-      }
-    });
-  }
-
-  function getCookieHeader(extraCookies = {}) {
-    const all = new Map(cookieJar);
-    for (const [k, v] of Object.entries(extraCookies)) {
-      all.set(k, v);
+  // Obtain Vercel bypass JWT cookie
+  console.log('    Acquiring Vercel deployment protection JWT cookie...');
+  const bypassRes = await fetch(`${DEPLOYED_URL}/login`, {
+    headers: {
+      'x-vercel-protection-bypass': VERCEL_BYPASS_TOKEN,
+      'x-vercel-set-bypass-cookie': 'true',
+    },
+    redirect: 'manual',
+  });
+  
+  const rawCookies = bypassRes.headers.getSetCookie ? bypassRes.headers.getSetCookie() : [bypassRes.headers.get('set-cookie')];
+  let vercelJwtCookie = '';
+  rawCookies.filter(Boolean).forEach((c) => {
+    if (c.includes('_vercel_jwt=')) {
+      vercelJwtCookie = c.split(';')[0];
     }
-    return Array.from(all.entries())
-      .map(([k, v]) => `${k}=${v}`)
-      .join('; ');
-  }
+  });
 
-  // Obtain Vercel SSO bypass cookie
-  console.log('    Acquiring Vercel Preview deployment protection token...');
-  let ssoUrl = `${DEPLOYED_URL}/login?_vercel_share=${VERCEL_SHARE}`;
-  for (let hop = 0; hop < 6; hop++) {
-    const ssoRes = await fetch(ssoUrl, {
-      method: 'GET',
-      headers: { Cookie: getCookieHeader() },
-      redirect: 'manual',
-    });
-    captureCookies(ssoRes);
-    const loc = ssoRes.headers.get('location');
-    if (ssoRes.status >= 300 && ssoRes.status < 400 && loc) {
-      ssoUrl = loc.startsWith('http') ? loc : new URL(loc, ssoUrl).toString();
-    } else {
-      break;
-    }
+  if (!vercelJwtCookie) {
+    console.error('FAIL: Could not acquire _vercel_jwt cookie');
+    process.exit(1);
   }
-  console.log(`    Protection token acquired. Stored cookies: [${Array.from(cookieJar.keys()).join(', ')}]`);
+  console.log('    PASS: Deployment protection bypass cookie successfully established.');
 
-  // Build Supabase session cookie chunk format
+  // Build Supabase session cookie chunk format using @supabase/ssr createChunks
   const sessionPayload = {
     access_token: authData.access_token,
     refresh_token: authData.refresh_token,
     user: authData.user,
+    token_type: 'bearer',
+    expires_in: authData.expires_in,
+    expires_at: authData.expires_at,
   };
-  const sessionBase64 = 'base64-' + Buffer.from(JSON.stringify(sessionPayload)).toString('base64url');
   const cookieName = 'sb-kpwdvvcschankgggitnj-auth-token';
-  const facultyAuthCookies = {};
-  if (sessionBase64.length > 3000) {
-    facultyAuthCookies[`${cookieName}.0`] = sessionBase64.slice(0, 3000);
-    facultyAuthCookies[`${cookieName}.1`] = sessionBase64.slice(3000);
-  } else {
-    facultyAuthCookies[cookieName] = sessionBase64;
-  }
+  const chunks = await createChunks(cookieName, JSON.stringify(sessionPayload));
+  const authCookieHeader = chunks.map((c) => `${c.name}=${encodeURIComponent(c.value)}`).join('; ');
 
-  async function checkRoute(route, authCookies, expectedBehavior) {
-    const url = `${DEPLOYED_URL}${route}?_vercel_share=${VERCEL_SHARE}`;
-    const cookieHeaderStr = getCookieHeader(authCookies || {});
+  async function checkRoute(route, useAuth, expectedBehavior) {
+    const url = `${DEPLOYED_URL}${route}`;
+    const cookieHeaderStr = useAuth
+      ? `${vercelJwtCookie}; ${authCookieHeader}`
+      : vercelJwtCookie;
+
     const res = await fetch(url, {
       method: 'GET',
-      headers: { Cookie: cookieHeaderStr },
+      headers: {
+        Cookie: cookieHeaderStr,
+        'x-vercel-protection-bypass': VERCEL_BYPASS_TOKEN,
+      },
       redirect: 'manual',
     });
 
@@ -218,23 +203,38 @@ async function main() {
       pass = (status === 307 || status === 302) && (location.includes('/access-denied?reason=forbidden') || location.includes('/access-denied'));
     }
 
-    console.log(`    GET ${route.padEnd(10)} [${authCookies ? 'Faculty Auth' : 'Unauthenticated'}] => Status: ${status}, Location: ${location || 'none'} | Result: ${pass ? 'PASS' : 'FAIL'}`);
+    console.log(`    GET ${route.padEnd(10)} [${useAuth ? 'Faculty Auth' : 'Unauthenticated'}] => Status: ${status}, Location: ${location || 'none'} | Result: ${pass ? 'PASS' : 'FAIL'}`);
     return pass;
   }
 
   // A. Unauthenticated access guards
   console.log('\n  A. Unauthenticated Route Protection:');
-  const u1 = await checkRoute('/faculty', null, 'REDIRECT_LOGIN');
-  const u2 = await checkRoute('/platform', null, 'REDIRECT_LOGIN');
-  const u3 = await checkRoute('/college', null, 'REDIRECT_LOGIN');
+  const u1 = await checkRoute('/faculty', false, 'REDIRECT_LOGIN');
+  const u2 = await checkRoute('/platform', false, 'REDIRECT_LOGIN');
+  const u3 = await checkRoute('/college', false, 'REDIRECT_LOGIN');
 
   // B. Authenticated Faculty access
   console.log('\n  B. Authenticated Faculty Route Permissions & Boundaries:');
-  const f1 = await checkRoute('/faculty', facultyAuthCookies, 'ALLOW_200');
-  const f2 = await checkRoute('/platform', facultyAuthCookies, 'REDIRECT_FORBIDDEN');
-  const f3 = await checkRoute('/college', facultyAuthCookies, 'REDIRECT_FORBIDDEN');
+  const f1 = await checkRoute('/faculty', true, 'ALLOW_200');
+  const f2 = await checkRoute('/platform', true, 'REDIRECT_FORBIDDEN');
+  const f3 = await checkRoute('/college', true, 'REDIRECT_FORBIDDEN');
 
-  const allPassed = u1 && u2 && u3 && f1 && f2 && f3;
+  // C. Root / Route post-login redirection
+  console.log('\n  C. Post-Login Root Route Redirection:');
+  const rootRes = await fetch(`${DEPLOYED_URL}/`, {
+    method: 'GET',
+    headers: {
+      Cookie: `${vercelJwtCookie}; ${authCookieHeader}`,
+      'x-vercel-protection-bypass': VERCEL_BYPASS_TOKEN,
+    },
+    redirect: 'manual',
+  });
+  const rootStatus = rootRes.status;
+  const rootLocation = rootRes.headers.get('location') || '';
+  const rootPass = (rootStatus === 307 || rootStatus === 302) && rootLocation.endsWith('/faculty');
+  console.log(`    GET /          [Faculty Auth] => Status: ${rootStatus}, Location: ${rootLocation} | Result: ${rootPass ? 'PASS' : 'FAIL'}`);
+
+  const allPassed = u1 && u2 && u3 && f1 && f2 && f3 && rootPass;
 
   if (allPassed) {
     console.log('\n=== ALL FACULTY AUTHENTICATION & ROUTE GUARD CHECKS PASSED ===\n');
