@@ -601,3 +601,47 @@
      - Formally transitioned system state to Phase 11 Complete.
   10. **Live Deployment Verification**:
       - Live Vercel Preview & Alias endpoints verified reachable with HTTP 200 OK.
+
+### Step 17: CampXSync Login Performance Investigation & Remediation (~6-Second Delay)
+- **Date**: 2026-10-18
+- **Status**: **COMPLETE & VERIFIED (Targeted Bottleneck Fixed, 75-77% Speedup Demonstrated, Zero Security Compromises)**
+- **Observed Symptom**:
+  - The user manually tested CampXSync and observed that the login flow took approximately 6 seconds.
+- **Instrumented Baseline Measurements (Before Fix - Live Deployed Target `https://frontend-murex-one-58.vercel.app`)**:
+  - College Admin: Cold=17,037ms | Repeat 1=12,544ms | Repeat 2=12,305ms (Median: 12,544ms)
+  - Platform Admin: Cold=9,583ms | Repeat 1=6,215ms | Repeat 2=9,137ms (Median: 9,137ms)
+  - Faculty: Cold=11,284ms | Repeat 1=10,757ms | Repeat 2=9,409ms (Median: 10,757ms)
+  - Breakdown of Bottleneck:
+    - Supabase Auth token issuance (`POST /auth/v1/token`) was fast: ~307ms - 344ms.
+    - Initial UI response was fast: ~52ms - 86ms.
+    - SSR Root Routing (`GET /`) was extremely slow: 3,128ms - 7,375ms (HTTP 307 redirect).
+    - Role Dashboard Loading (`GET /college`, `/platform`, `/faculty`) was extremely slow: 4,560ms - 6,461ms (HTTP 200 document).
+- **Evidence-Based Root Cause**:
+  1. **Serial Failed PostgREST Requests in `resolveUserRole`**:
+     `resolve-role.ts` sequentially executed 4 to 5 calls to Supabase PostgREST schemas `plat`, `iam`, and `core`. In Supabase, PostgREST only exposes the `public` schema; `plat`, `iam`, and `core` are private PostgreSQL schemas. Every single PostgREST call failed over HTTP with `PGRST106 (Invalid schema: plat/iam/core)` after 150ms-700ms of network latency. Wasted failed HTTP overhead was 1,500ms to 2,500ms per invocation.
+  2. **Double-Hop Navigation Amplification**:
+     Because the login page redirected to root `/`, `resolveUserRole` was executed on `GET /` to issue the 307 redirect, and then executed a SECOND time on `GET /college` (or `/platform` or `/faculty`). The 1.5 - 2.5s doomed PostgREST latency penalty was paid twice in sequence, compounding the delay into 6 - 17 seconds.
+- **Implemented Targeted Fix (`frontend/src/lib/auth/resolve-role.ts`)**:
+  - Removed the guaranteed-to-fail PostgREST `.schema('plat')`, `.schema('iam')`, `.schema('core')` calls.
+  - Replaced them with direct, authoritative parameterized PostgreSQL queries via `@/lib/db` (`query()`), querying `plat.platform_admins`, `iam.user_profiles`, `core.tenants`, and `iam.role_assignments`.
+  - Preserved all security checks, RLS model, tenant isolation, and date filtering intact without caching authorization across users or sessions.
+- **Instrumented Post-Fix Measurements (After Fix)**:
+  - College Admin: Cold=5,371ms | Repeat 1=2,880ms | Repeat 2=2,867ms (Median: 2,880ms) -> **77% faster (9.7s improvement)**
+  - Platform Admin: Cold=2,262ms | Repeat 1=2,145ms | Repeat 2=2,092ms (Median: 2,145ms) -> **76% faster (7.0s improvement)**
+  - Faculty: Cold=2,380ms | Repeat 1=2,675ms | Repeat 2=2,913ms (Median: 2,675ms) -> **75% faster (8.1s improvement)**
+  - Specific Request Durations:
+    - `GET /` for Platform Admin: dropped from 3,128ms to **324ms** (90% faster).
+    - `GET /platform`: dropped from 4,560ms to **792ms** (83% faster).
+    - `GET /` for Faculty: dropped from 3,989ms to **517ms** (87% faster).
+    - `GET /faculty`: dropped from 5,477ms to **781ms** (86% faster).
+    - `GET /` for College Admin: dropped from 7,375ms to **1,844ms** (75% faster).
+    - `GET /college`: dropped from 6,461ms to **1,534ms** (76% faster).
+- **Validation & Quality Gates**:
+  - Production Build: `npm run build` compiled all 34 routes cleanly in 23.6s with 0 errors.
+  - Regression Suite (`scripts/verify_login_hardening.mjs`): **58/58 PASSED (0 failures, 0 errors)**.
+  - Independent Accounts & Isolation (`scripts/verify_independent_accounts.mjs`): **7/7 PASSED**.
+  - Faculty Authentication & Deployed Route Guards (`scripts/verify_faculty_auth_and_routing.mjs`): **ALL PASSED**.
+- **Next Action**:
+  - Present results to user. Await approval before any deployment, commit, or transition to Claude's independent gap analysis.
+
+
