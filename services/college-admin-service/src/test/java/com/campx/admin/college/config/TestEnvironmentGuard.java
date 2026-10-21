@@ -25,8 +25,10 @@ import static org.junit.Assert.fail;
  */
 public final class TestEnvironmentGuard {
 
-    public static final String STAGING_PROJECT_REF = "kpwdvvcschankgggitnj";
+    public static final String APPROVED_DEV_PROJECT_REF = "azulbaxszsqxymqmlwfe";
+    public static final String STAGING_PROJECT_REF = APPROVED_DEV_PROJECT_REF;
     public static final String PRODUCTION_PROJECT_REF = "ekspahbsbwdpraaqfqui";
+    public static final String PROHIBITED_LEGACY_STAGING_REF = "kpwdvvcschankgggitnj";
 
     private TestEnvironmentGuard() {}
 
@@ -51,6 +53,11 @@ public final class TestEnvironmentGuard {
         // 1. Strict zero-tolerance production project reference rejection
         if (trimmedUrl.contains(PRODUCTION_PROJECT_REF) || trimmedUser.contains(PRODUCTION_PROJECT_REF)) {
             throw new IllegalStateException("Security violation: Live integration tests cannot connect to production project ref '" + PRODUCTION_PROJECT_REF + "'");
+        }
+
+        // 1b. Strict zero-tolerance legacy staging project reference rejection
+        if (trimmedUrl.contains(PROHIBITED_LEGACY_STAGING_REF) || trimmedUser.contains(PROHIBITED_LEGACY_STAGING_REF)) {
+            throw new IllegalStateException("Security violation: Live integration tests cannot connect to prohibited legacy staging ref '" + PROHIBITED_LEGACY_STAGING_REF + "'");
         }
 
         // 2. Validate PostgreSQL JDBC protocol prefix
@@ -93,11 +100,14 @@ public final class TestEnvironmentGuard {
             if (PRODUCTION_PROJECT_REF.equalsIgnoreCase(prefix)) {
                 throw new IllegalStateException("Security violation: Live integration tests cannot connect to production project ref '" + PRODUCTION_PROJECT_REF + "'");
             }
-            if (!STAGING_PROJECT_REF.equalsIgnoreCase(prefix)) {
-                throw new IllegalStateException("Safe staging validation failed: Unknown or unauthorized project ref in host: '" + prefix + "'. Only designated staging project '" + STAGING_PROJECT_REF + "' is permitted.");
+            if (PROHIBITED_LEGACY_STAGING_REF.equalsIgnoreCase(prefix)) {
+                throw new IllegalStateException("Security violation: Live integration tests cannot connect to prohibited legacy staging ref '" + PROHIBITED_LEGACY_STAGING_REF + "'");
             }
-            if (trimmedUser.contains(".") && !trimmedUser.endsWith("." + STAGING_PROJECT_REF)) {
-                throw new IllegalStateException("Safe staging validation failed: Database username appears to target a different project than staging ref '" + STAGING_PROJECT_REF + "'");
+            if (!APPROVED_DEV_PROJECT_REF.equalsIgnoreCase(prefix)) {
+                throw new IllegalStateException("Safe staging validation failed: Unknown or unauthorized project ref in host: '" + prefix + "'. Only designated development project '" + APPROVED_DEV_PROJECT_REF + "' is permitted.");
+            }
+            if (trimmedUser.contains(".") && !trimmedUser.endsWith("." + APPROVED_DEV_PROJECT_REF)) {
+                throw new IllegalStateException("Safe staging validation failed: Database username appears to target a different project than staging ref '" + APPROVED_DEV_PROJECT_REF + "'");
             }
             return;
         }
@@ -113,8 +123,11 @@ public final class TestEnvironmentGuard {
             if (PRODUCTION_PROJECT_REF.equalsIgnoreCase(userProjectRef)) {
                 throw new IllegalStateException("Security violation: Live integration tests cannot connect to production project ref '" + PRODUCTION_PROJECT_REF + "'");
             }
-            if (!STAGING_PROJECT_REF.equalsIgnoreCase(userProjectRef)) {
-                throw new IllegalStateException("Safe staging validation failed: Unknown or unauthorized project ref in pooler username: '" + userProjectRef + "'. Only designated staging project '" + STAGING_PROJECT_REF + "' is permitted.");
+            if (PROHIBITED_LEGACY_STAGING_REF.equalsIgnoreCase(userProjectRef)) {
+                throw new IllegalStateException("Security violation: Live integration tests cannot connect to prohibited legacy staging ref '" + PROHIBITED_LEGACY_STAGING_REF + "'");
+            }
+            if (!APPROVED_DEV_PROJECT_REF.equalsIgnoreCase(userProjectRef)) {
+                throw new IllegalStateException("Safe staging validation failed: Unknown or unauthorized project ref in pooler username: '" + userProjectRef + "'. Only designated development project '" + APPROVED_DEV_PROJECT_REF + "' is permitted.");
             }
             return;
         }

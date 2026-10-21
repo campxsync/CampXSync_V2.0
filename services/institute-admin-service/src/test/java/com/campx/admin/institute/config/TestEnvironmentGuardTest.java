@@ -61,29 +61,43 @@ public class TestEnvironmentGuardTest {
     @Test
     public void testValidDirectStagingConnectionAccepted() {
         TestEnvironmentGuard.validateStagingConfiguration(
-                "jdbc:postgresql://db.kpwdvvcschankgggitnj.supabase.co:5432/postgres",
+                "jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres",
                 "postgres");
     }
 
     @Test
     public void testValidDirectStagingConnectionWithoutDbPrefixAccepted() {
         TestEnvironmentGuard.validateStagingConfiguration(
-                "jdbc:postgresql://kpwdvvcschankgggitnj.supabase.co:5432/postgres?sslmode=require",
+                "jdbc:postgresql://azulbaxszsqxymqmlwfe.supabase.co:5432/postgres?sslmode=require",
                 "postgres");
     }
 
     @Test
     public void testValidPoolerStagingConnectionAccepted() {
         TestEnvironmentGuard.validateStagingConfiguration(
-                "jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:6543/postgres",
-                "postgres.kpwdvvcschankgggitnj");
+                "jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
+                "postgres.azulbaxszsqxymqmlwfe");
     }
 
     @Test
     public void testValidPoolerStagingWithCustomRoleAccepted() {
         TestEnvironmentGuard.validateStagingConfiguration(
-                "jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require",
-                "service_role.kpwdvvcschankgggitnj");
+                "jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require",
+                "campx_app_server.azulbaxszsqxymqmlwfe");
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testLegacyStagingProjectRefRejected() {
+        TestEnvironmentGuard.validateStagingConfiguration(
+                "jdbc:postgresql://db.kpwdvvcschankgggitnj.supabase.co:5432/postgres",
+                "postgres");
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testLegacyStagingPoolerUsernameRejected() {
+        TestEnvironmentGuard.validateStagingConfiguration(
+                "jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+                "postgres.kpwdvvcschankgggitnj");
     }
 
     @Test(expected = IllegalStateException.class)
@@ -173,21 +187,21 @@ public class TestEnvironmentGuardTest {
     @Test(expected = IllegalStateException.class)
     public void testMissingUsernameRejected() {
         TestEnvironmentGuard.validateStagingConfiguration(
-                "jdbc:postgresql://db.kpwdvvcschankgggitnj.supabase.co:5432/postgres",
+                "jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres",
                 null);
     }
 
     @Test(expected = IllegalStateException.class)
     public void testPoolerMissingProjectSuffixInUsernameRejected() {
         TestEnvironmentGuard.validateStagingConfiguration(
-                "jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+                "jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:6543/postgres",
                 "postgres");
     }
 
     @Test(expected = AssertionError.class)
     public void testProductionEnvironmentStringRejected() {
         DatabaseConfig config = new DatabaseConfig();
-        config.setJdbcUrl("jdbc:postgresql://db.kpwdvvcschankgggitnj.supabase.co:5432/postgres");
+        config.setJdbcUrl("jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres");
         config.setUsername("postgres");
 
         TestEnvironmentGuard.verifySafeStagingEnvironment("production", config);
@@ -196,7 +210,7 @@ public class TestEnvironmentGuardTest {
     @Test(expected = AssumptionViolatedException.class)
     public void testUnconfiguredEnvironmentSkipsSafely() {
         DatabaseConfig config = new DatabaseConfig();
-        config.setJdbcUrl("jdbc:postgresql://db.kpwdvvcschankgggitnj.supabase.co:5432/postgres");
+        config.setJdbcUrl("jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres");
         config.setUsername("postgres");
 
         TestEnvironmentGuard.verifySafeStagingEnvironment((String) null, config);

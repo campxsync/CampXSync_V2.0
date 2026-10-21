@@ -22,18 +22,34 @@
 **Reported status:** Complete with live integration unverified. Reported: shared services 11 tests, controller 14, gateway 7, CollegeAdminService 39, tenant isolation regression 15, downstream security 7, API gateway 155; `mvn test-compile` reported successful across 15 modules. No production or legacy staging DB connection/writes were reported. Consult the Wave 3 completion report for details.
 
 ## Gates
-- **G1 least-privilege DB role:** NOT VERIFIED in this checkpoint. Before shared-DB persistence or DB writes, verify a dedicated app login role without `BYPASSRLS`, transaction-scoped tenant/user context and correct non-production target. If open, continue safe code/design/unit tests only. Do not claim tenant isolation verified.
+- **G1 least-privilege DB role:** PASSED. Implemented and supported by live non-production test evidence on development ref `azulbaxszsqxymqmlwfe`:
+  1. Dedicated unprivileged application role `campx_app_server` active (`LOGIN`, `NOSUPERUSER`, `NOBYPASSRLS`, `CONNECTION LIMIT 25`, membership in `authenticated`).
+  2. `FORCE ROW LEVEL SECURITY` verified live on all Tier 1 Core tables (`stu.students`, `core.persons`, `stu.guardianships`, `acd.batch_students`).
+  3. Least-privilege grant matrix applied: schema `USAGE` to `campx_app_server`, table DML to `authenticated`, `SELECT, INSERT` on `audit.events` to `authenticated`.
+  4. Append-only ledger enforced: `UPDATE` and `DELETE` on `audit.events` denied (`SQLSTATE 42501`).
+  5. RLS policy `events_insert` on `audit.events` active and verified.
+  6. Live multi-tenant cross-boundary isolation verified: positive path succeeds, cross-tenant audit & student inserts denied, missing context fails closed.
+  Student-domain persistence writes are now unblocked.
 - **G2 isolated PostgreSQL CI suite:** OPEN / to be assessed by end of Wave 5. No claim that CI is already configured.
 - **G3 JDK/framework assessment:** Not started; due before Wave 11 exit. Java 8 unchanged unless separately approved.
 
+## Wave 4 — Student Domain Foundation & Roster
+**Current status:** Stage A Complete (Gate G1 PASSED). Ready for Phase 2: Student Domain Model & Architecture Proposal.
+- Audit report: `docs/reports/wave-4/STUDENT_DATABASE_RLS_AUDIT.md` (Phase 1).
+- Remediation proposal: `docs/reports/wave-4/G1_SECURITY_REMEDIATION_PROPOSAL.md` (Stage A).
+- Remediations executed and verified live:
+  * `02_application_role_proposal.sql` (`DEC-G1-01` under `APPROVE-G1-ROLE-CREATION`).
+  * `04_rls_hardening_proposal.sql` Block 1 (`DEC-G1-02A` under `APPROVE-G1-FORCE-RLS-TIER1`).
+  * `03_minimum_grants_proposal.sql` (`DEC-G1-03` under `APPROVE-G1-GRANTS`).
+- All 4 live test suites passed (`LiveG1DatabasePreflightTest`, `LiveG1RoleCreationExecutionTest`, `LiveG1Tier1RlsExecutionTest`, `LiveG1GrantsExecutionTest`).
+- Zero Java backend persistence code implemented yet for Student module.
+- Next Phase: Wave 4 Phase 2 — Student Domain Model, Architecture, and Contract Proposal.
+
 ## Wave 4 next actions
-1. Inspect current Git status and the five control files; preserve all existing work.
-2. Read current `NEXT_ANTIGRAVITY_TASK.md` and relevant Wave 3 evidence; avoid broad repeated audits.
-3. Check G1 evidence and record actual status.
-4. Prepare student ownership/model proposal and obtain written approval before implementing that model.
-5. Reuse existing `stu.students`, `core.persons`, `stu.guardianships`, IAM and shared audit/outbox where current code/schema supports it. Avoid duplicate identity/credentials/guardian/document/workflow models.
-6. If G1 is open, continue safe design/code/unit tests; no DB writes or claims of live persistence/RLS proof.
-7. Implement only approved Wave 4 scope; test at strongest safe tier; update report/checkpoint from evidence; stop.
+1. Prepare Wave 4 Phase 2 Student Domain Model & Architecture Proposal for owner review.
+2. Define API contracts for Student Service (UI -> Gateway -> Java Student Service -> Supabase).
+3. Define versioned Intelligence Layer events/contracts for Student Module.
+4. Implement Java domain entities, repositories, and services with `UserSecurityContext` tenant-isolation.
 
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–3 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.
