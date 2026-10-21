@@ -65,6 +65,7 @@ public class GatewayServer {
         if (config.isInternalAuthEnabled()) {
             config.validateSecurityConfiguration();
         }
+        config.validatePersistenceConfiguration();
 
         server = HttpServer.create(new InetSocketAddress(config.getPort()), 0);
         config.setPort(server.getAddress().getPort());

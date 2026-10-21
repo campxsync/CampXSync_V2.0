@@ -5,6 +5,8 @@ import com.campx.gateway.filter.CorrelationFilter;
 import com.campx.gateway.model.ErrorResponse;
 import com.campx.gateway.security.SupabaseJwtValidator;
 import com.campx.gateway.security.JwtValidationException;
+import com.campx.gateway.identity.IdentityResolutionResult;
+import com.campx.gateway.identity.ResolvedIdentity;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -24,7 +26,9 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Reverse proxy handler that dynamically dispatches client requests to the
@@ -37,8 +41,9 @@ import java.util.Map;
  *       {@code X-Tenant-Id}, and security role headers.</li>
  *   <li><b>Dynamic Prefix Routing</b>: Resolves destination URLs using longest matching
  *       registered route prefix.</li>
- *   <li><b>Direct Endpoints</b>: Intercepts {@code /actuator/health} and
- *       {@code /api/v1/gateway/routes} directly at the edge.</li>
+ *   <li><b>Direct Endpoints</b>: Intercepts {@code /actuator/health} and {@code /api/v1/auth/me} directly at the edge.</li>
+ *   <li><b>Authoritative Identity Resolution</b>: Resolves business roles, tenant membership,
+ *       and account status from trusted database persistence records.</li>
  *   <li><b>Header & Stream Propagation</b>: Copies HTTP headers and request bodies,
  *       handles HTTP keep-alive, and returns downstream headers and payloads.</li>
  *   <li><b>Error Normalization</b>: Converts upstream timeouts, network partition errors,
@@ -122,25 +127,19 @@ public class ReverseProxyHandler implements HttpHandler {
                 }
             }
 
-            // 3. Health & Route Info endpoints handled directly
+            // 3. Health check endpoint handled directly
             if ("/actuator/health".equals(path)) {
                 sendJson(exchange, 200, "{\"status\":\"UP\",\"gateway\":\"CampXSync-API-Gateway\"}");
                 return;
             }
-            if ("/api/v1/gateway/routes".equals(path)) {
-                StringBuilder routesJson = new StringBuilder("{\"routes\":[");
-                int i = 0;
-                for (Map.Entry<String, String> entry : config.getRouteTable().entrySet()) {
-                    if (i > 0) routesJson.append(",");
-                    routesJson.append("{\"prefix\":\"").append(entry.getKey()).append("\",\"target\":\"").append(entry.getValue()).append("\"}");
-                    i++;
-                }
-                routesJson.append("]}");
-                sendJson(exchange, 200, routesJson.toString());
+
+            // 4. Authenticated current identity endpoint handled directly at Gateway edge
+            if ("/api/v1/auth/me".equals(path)) {
+                handleAuthMe(exchange, method, path);
                 return;
             }
 
-            // 3. Resolve target downstream destination URL
+            // 5. Resolve target downstream destination URL
             String query = exchange.getRequestURI().getQuery();
             String destinationUrlStr = resolveDestinationUrl(path, query);
             if (destinationUrlStr == null) {
@@ -150,7 +149,7 @@ public class ReverseProxyHandler implements HttpHandler {
                 return;
             }
 
-            // 4. Validate incoming Supabase JWT at Gateway boundary when security is enabled
+            // 6. Validate incoming Supabase JWT at Gateway boundary when security is enabled
             SupabaseJwtValidator.VerifiedClaims verifiedClaims = null;
             String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
             if (config.isInternalAuthEnabled()) {
@@ -173,6 +172,37 @@ public class ReverseProxyHandler implements HttpHandler {
                 } catch (Exception e) {
                     logger.debug("Non-enforcing mode: provided Bearer token was not verified as Supabase JWT: {}", e.getMessage());
                 }
+            }
+
+            // 7. Authoritative Identity Resolution from trusted database records
+            if (verifiedClaims != null && config.isIdentityResolutionEnabled()) {
+                UUID userUuid;
+                try {
+                    userUuid = UUID.fromString(verifiedClaims.getUserId());
+                } catch (IllegalArgumentException e) {
+                    sendError(exchange, 401, "Unauthorized", "GATEWAY_MALFORMED_JWT",
+                            "Invalid UUID format in sub claim", path);
+                    return;
+                }
+
+                IdentityResolutionResult resolution = config.getIdentityResolver().resolveIdentity(userUuid);
+                if (!resolution.isSuccess()) {
+                    logger.warn("Gateway rejected request to [{} {}]: identity resolution failed for {}: {}",
+                            method, path, verifiedClaims.getUserId(), resolution.getMessage());
+                    String failureReason = resolution.getFailureReason();
+                    String errorCode = "GATEWAY_" + failureReason.toUpperCase(Locale.ROOT);
+                    int statusCode = "database_error".equalsIgnoreCase(failureReason) ? 500 : 403;
+                    String errorTitle = "database_error".equalsIgnoreCase(failureReason) ? "Internal Server Error" : "Forbidden";
+                    sendError(exchange, statusCode, errorTitle, errorCode, resolution.getMessage(), path);
+                    return;
+                }
+
+                ResolvedIdentity identity = resolution.getIdentity();
+                verifiedClaims = new SupabaseJwtValidator.VerifiedClaims(
+                        identity.getUserId(),
+                        identity.getTenantId() != null ? identity.getTenantId() : "",
+                        identity.getBusinessRole()
+                );
             }
 
             logger.debug("Proxying [{}] {} -> {}", method, path, destinationUrlStr);
@@ -416,6 +446,78 @@ public class ReverseProxyHandler implements HttpHandler {
     }
 
     /**
+     * Handles GET /api/v1/auth/me directly at the API Gateway edge.
+     * <p>
+     * Cryptographically validates caller JWT, extracts authenticated subject UUID key,
+     * resolves authoritative user profile, tenant membership, business roles, and account
+     * status from trusted database records, and returns a stable JSON contract.
+     * </p>
+     */
+    private void handleAuthMe(HttpExchange exchange, String method, String path) throws IOException {
+        exchange.getResponseHeaders().set("Cache-Control", "no-store, no-cache, must-revalidate");
+        exchange.getResponseHeaders().set("Pragma", "no-cache");
+
+        if (!"GET".equalsIgnoreCase(method)) {
+            logger.warn("Invalid method [{}] for /api/v1/auth/me", method);
+            exchange.getResponseHeaders().set("Allow", "GET");
+            sendError(exchange, 405, "Method Not Allowed", "GATEWAY_METHOD_NOT_ALLOWED",
+                    "HTTP method " + method + " is not allowed for " + path, path);
+            return;
+        }
+
+        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+        if (authHeader == null || authHeader.trim().isEmpty()) {
+            logger.warn("Missing Authorization header for /api/v1/auth/me");
+            sendError(exchange, 401, "Unauthorized", "GATEWAY_MISSING_AUTH",
+                    "Missing Authorization header", path);
+            return;
+        }
+
+        if (!authHeader.trim().regionMatches(true, 0, "Bearer ", 0, 7)) {
+            logger.warn("Authorization header does not use Bearer scheme for /api/v1/auth/me");
+            sendError(exchange, 401, "Unauthorized", "GATEWAY_MISSING_AUTH",
+                    "Authorization header must use Bearer scheme", path);
+            return;
+        }
+
+        SupabaseJwtValidator.VerifiedClaims claims;
+        try {
+            claims = SupabaseJwtValidator.validate(authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
+        } catch (JwtValidationException e) {
+            logger.warn("Cryptographic JWT validation failed for /api/v1/auth/me: {}", e.getMessage());
+            sendError(exchange, e.getStatusCode(), e.getError(), e.getErrorCode(), e.getMessage(), path);
+            return;
+        }
+
+        UUID userUuid;
+        try {
+            userUuid = UUID.fromString(claims.getUserId());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid UUID in JWT sub claim: {}", claims.getUserId());
+            sendError(exchange, 401, "Unauthorized", "GATEWAY_MALFORMED_JWT",
+                    "Invalid UUID format in sub claim", path);
+            return;
+        }
+
+        IdentityResolutionResult resolution = config.getIdentityResolver().resolveIdentity(userUuid);
+        if (!resolution.isSuccess()) {
+            logger.warn("Authoritative identity resolution failed for user {}: {} ({})",
+                    userUuid, resolution.getMessage(), resolution.getFailureReason());
+            String failureReason = resolution.getFailureReason();
+            String errorCode = "GATEWAY_" + failureReason.toUpperCase(Locale.ROOT);
+            int statusCode = "database_error".equalsIgnoreCase(failureReason) ? 500 : 403;
+            String errorTitle = "database_error".equalsIgnoreCase(failureReason) ? "Internal Server Error" : "Forbidden";
+            sendError(exchange, statusCode, errorTitle, errorCode, resolution.getMessage(), path);
+            return;
+        }
+
+        ResolvedIdentity identity = resolution.getIdentity();
+        logger.info("Successfully resolved authoritative identity for user {} (role: {}, tenant: {})",
+                identity.getUserId(), identity.getBusinessRole(), identity.getTenantId());
+        sendJson(exchange, 200, identity.toJson());
+    }
+
+    /**
      * Sends a standardized RFC 7807 JSON error response to the client.
      *
      * @param exchange  The active HTTP exchange.
@@ -434,6 +536,10 @@ public class ReverseProxyHandler implements HttpHandler {
             ErrorResponse errorResponse = new ErrorResponse(status, error, errorCode, message, path, traceId);
             byte[] bytes = errorResponse.toBytes();
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            if (path != null && path.contains("/auth/me")) {
+                exchange.getResponseHeaders().set("Cache-Control", "no-store, no-cache, must-revalidate");
+                exchange.getResponseHeaders().set("Pragma", "no-cache");
+            }
             applyCorsHeaders(exchange);
             if (traceId != null && !traceId.isEmpty()) {
                 exchange.getResponseHeaders().set("X-Trace-Id", traceId);

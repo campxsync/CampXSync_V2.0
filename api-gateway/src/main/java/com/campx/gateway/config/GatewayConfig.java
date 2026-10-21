@@ -376,4 +376,118 @@ public class GatewayConfig {
     public void setAllowedOrigins(java.util.List<String> allowedOrigins) {
         this.allowedOrigins = allowedOrigins;
     }
+
+    // =========================================================================
+    // Authoritative Identity Resolution Configuration
+    // =========================================================================
+
+    private com.campx.gateway.identity.IdentityResolver identityResolver;
+    private Boolean identityResolutionEnabled;
+
+    /**
+     * Checks if the runtime is explicitly configured in test persistence mode.
+     * In-memory identity resolution is permitted ONLY when this method returns {@code true}.
+     */
+    public static boolean isTestPersistenceMode() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if ("test".equalsIgnoreCase(mode) || "in_memory".equalsIgnoreCase(mode)) return true;
+
+        String envMode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        if ("test".equalsIgnoreCase(envMode) || "in_memory".equalsIgnoreCase(envMode)) return true;
+
+        String env = System.getProperty("campx.env");
+        if ("test".equalsIgnoreCase(env)) return true;
+
+        return false;
+    }
+
+    /**
+     * Validates that persistence configuration satisfies platform security rules.
+     * In production-like execution, an authoritative PostgreSQL database configuration is required;
+     * in-memory identity resolution without explicit test mode is strictly rejected.
+     *
+     * @throws IllegalStateException if running in production mode without required PostgreSQL configuration
+     */
+    public void validatePersistenceConfiguration() {
+        if (isTestPersistenceMode()) {
+            return;
+        }
+
+        if (identityResolver instanceof com.campx.gateway.identity.InMemoryIdentityResolver) {
+            throw new IllegalStateException("InMemoryIdentityResolver is strictly restricted to explicit test mode. "
+                    + "Set campx.persistence.mode=test or configure PostgreSQL database credentials.");
+        }
+
+        if (!isDatabaseConfigured() || com.campx.gateway.identity.GatewayDatabaseManager.resolveJdbcUrl() == null
+                || com.campx.gateway.identity.GatewayDatabaseManager.resolveJdbcUrl().trim().isEmpty()) {
+            throw new IllegalStateException("Authoritative PostgreSQL database configuration is required in production-like mode. "
+                    + "Set environment variable CAMPX_JDBC_URL or JVM system property campx.jdbc.url, "
+                    + "or explicitly configure test mode (campx.persistence.mode=test).");
+        }
+    }
+
+    public com.campx.gateway.identity.IdentityResolver getIdentityResolver() {
+        if (identityResolver == null) {
+            synchronized (this) {
+                if (identityResolver == null) {
+                    if (isDatabaseConfigured()) {
+                        identityResolver = new com.campx.gateway.identity.JdbcIdentityResolver();
+                    } else if (isTestPersistenceMode()) {
+                        identityResolver = new com.campx.gateway.identity.InMemoryIdentityResolver();
+                    } else {
+                        throw new IllegalStateException("Authoritative database configuration missing. "
+                                + "In-memory identity resolution is strictly restricted to explicit test mode. "
+                                + "Configure PostgreSQL database credentials (e.g., CAMPX_JDBC_URL) or set campx.persistence.mode=test for testing.");
+                    }
+                }
+            }
+        }
+        return identityResolver;
+    }
+
+    public void setIdentityResolver(com.campx.gateway.identity.IdentityResolver identityResolver) {
+        if (identityResolver instanceof com.campx.gateway.identity.InMemoryIdentityResolver && !isTestPersistenceMode()) {
+            throw new IllegalStateException("InMemoryIdentityResolver is strictly restricted to explicit test mode. "
+                    + "Set campx.persistence.mode=test before assigning in-memory resolver.");
+        }
+        this.identityResolver = identityResolver;
+        if (identityResolver != null && this.identityResolutionEnabled == null) {
+            this.identityResolutionEnabled = true;
+        }
+    }
+
+    public boolean isIdentityResolutionEnabled() {
+        if (identityResolutionEnabled != null) {
+            return identityResolutionEnabled;
+        }
+        String configured = System.getProperty("campx.identity.resolution.enabled");
+        if (configured == null || configured.trim().isEmpty()) {
+            configured = System.getenv("CAMPX_IDENTITY_RESOLUTION_ENABLED");
+        }
+        if (configured != null && !configured.trim().isEmpty()) {
+            return Boolean.parseBoolean(configured.trim());
+        }
+        if (identityResolver != null) {
+            return true;
+        }
+        return isDatabaseConfigured();
+    }
+
+    public void setIdentityResolutionEnabled(boolean identityResolutionEnabled) {
+        this.identityResolutionEnabled = identityResolutionEnabled;
+    }
+
+    public static boolean isDatabaseConfigured() {
+        if (isTestPersistenceMode()) {
+            return false;
+        }
+
+        String dbEnabled = System.getProperty("campx.db.enabled");
+        if ("false".equalsIgnoreCase(dbEnabled)) {
+            return false;
+        }
+
+        String url = com.campx.gateway.identity.GatewayDatabaseManager.resolveJdbcUrl();
+        return url != null && !url.trim().isEmpty();
+    }
 }

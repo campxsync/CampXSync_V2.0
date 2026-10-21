@@ -14,12 +14,13 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Test suite verifying API Gateway edge routing behaviors, health checks,
- * route listing, and RFC 7807 error status mappings (404 and 503).
+ * route concealment, and RFC 7807 error status mappings (404 and 503).
  *
  * @author CampX Platform Engineering Team
  * @version 2.0.0
@@ -79,7 +80,8 @@ public class ApiGatewayRoutingTest {
     }
 
     /**
-     * Verifies that {@code /api/v1/gateway/routes} lists registered prefixes.
+     * Regression test verifying that {@code /api/v1/gateway/routes} does not disclose
+     * internal routing targets or ports, returning standard HTTP 404 Not Found instead.
      *
      * @throws Exception If HTTP exchange fails.
      */
@@ -91,27 +93,37 @@ public class ApiGatewayRoutingTest {
         conn.setConnectTimeout(3000);
 
         int code = conn.getResponseCode();
-        assertEquals(200, code);
+        assertEquals(404, code);
+
+        String traceId = conn.getHeaderField("X-Trace-Id");
+        assertNotNull("Gateway must inject X-Trace-Id header on unmapped route", traceId);
 
         String resp = readResponse(conn);
-        assertTrue(resp.contains("/api/v1/admin"));
-        assertTrue(resp.contains("/api/v1/college-admin"));
-        assertTrue(resp.contains("/api/v1/courses"));
-        assertTrue(resp.contains("/api/v1/curricula"));
-        assertTrue(resp.contains("/api/v1/subjects"));
-        assertTrue(resp.contains("/v1/subject-catalog"));
-        assertTrue(resp.contains("/api/v1/batches"));
-        assertTrue(resp.contains("/v1/batch-catalog"));
-        assertTrue(resp.contains("/api/v1/timetables"));
-        assertTrue(resp.contains("/v1/timetable-catalog"));
-        assertTrue(resp.contains("/api/v1/attendance"));
-        assertTrue(resp.contains("/v1/attendance"));
-        assertTrue(resp.contains("/api/v1/calendars"));
-        assertTrue(resp.contains("/v1/calendars"));
-        assertTrue(resp.contains("/api/v1/academics/analytics"));
-        assertTrue(resp.contains("/api/v1/dashboards"));
-        assertTrue(resp.contains("/api/v1/reports"));
-        assertTrue(resp.contains("/v1/analytics"));
+        assertTrue(resp.contains("\"status\":404"));
+        assertTrue(resp.contains("\"errorCode\":\"GATEWAY_ROUTE_NOT_FOUND\""));
+        assertTrue(resp.contains("\"error\":\"Not Found\""));
+
+        // Regression assertion: response must not expose internal route targets or service ports
+        assertFalse("Response must not disclose route table array", resp.contains("\"routes\""));
+        assertFalse("Response must not disclose target URL field", resp.contains("\"target\""));
+        assertFalse("Response must not disclose prefix field", resp.contains("\"prefix\""));
+        assertFalse("Response must not disclose downstream HTTP schemes", resp.contains("http://"));
+        assertFalse("Response must not disclose downstream port 8081", resp.contains("8081"));
+        assertFalse("Response must not disclose downstream port 8082", resp.contains("8082"));
+        assertFalse("Response must not disclose downstream port 8083", resp.contains("8083"));
+        assertFalse("Response must not disclose downstream port 8084", resp.contains("8084"));
+        assertFalse("Response must not disclose downstream port 8085", resp.contains("8085"));
+        assertFalse("Response must not disclose downstream port 8086", resp.contains("8086"));
+        assertFalse("Response must not disclose downstream port 8087", resp.contains("8087"));
+        assertFalse("Response must not disclose downstream port 8088", resp.contains("8088"));
+        assertFalse("Response must not disclose downstream port 8089", resp.contains("8089"));
+        assertFalse("Response must not disclose downstream port 8091", resp.contains("8091"));
+        assertFalse("Response must not disclose downstream port 8092", resp.contains("8092"));
+        assertFalse("Response must not disclose downstream port 59999", resp.contains("59999"));
+        assertFalse("Response must not disclose downstream path /api/v1/college-admin", resp.contains("/api/v1/college-admin"));
+        assertFalse("Response must not disclose downstream path /api/v1/courses", resp.contains("/api/v1/courses"));
+        assertFalse("Response must not disclose downstream path /api/v1/curricula", resp.contains("/api/v1/curricula"));
+        assertFalse("Response must not disclose downstream path /api/v1/subjects", resp.contains("/api/v1/subjects"));
     }
 
     /**

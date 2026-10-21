@@ -31,6 +31,20 @@
             <version>2.15.4</version>
         </dependency>
 
+        <!-- PostgreSQL JDBC Driver for Authoritative Identity Resolution -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
+
+        <!-- HikariCP Connection Pool -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>4.0.3</version>
+        </dependency>
+
         <!-- Downstream Services (Test Scope for End-to-End Gateway Integration Testing) -->
         <dependency>
             <groupId>com.campx</groupId>
@@ -122,6 +136,8 @@
                 <configuration>
                     <systemPropertyVariables>
                         <campx.internal.auth.enabled>false</campx.internal.auth.enabled>
+                        <campx.persistence.mode>test</campx.persistence.mode>
+                        <campx.db.enabled>false</campx.db.enabled>
                         <sun.net.http.allowRestrictedHeaders>true</sun.net.http.allowRestrictedHeaders>
                     </systemPropertyVariables>
                 </configuration>
