@@ -25,6 +25,8 @@ public class InstituteAdminServer {
     private final String host;
     private final int port;
     private final InstituteAdminDomainService domainService;
+    private final com.campx.admin.institute.repository.UserPreferenceRepository userPreferenceRepository;
+    private final com.campx.admin.institute.controller.UserPreferenceController userPreferenceController;
     private HttpServer server;
     private boolean running = false;
 
@@ -32,7 +34,7 @@ public class InstituteAdminServer {
      * Initializes the server with resolved bind host, default port 8081, and a new domain service instance.
      */
     public InstituteAdminServer() {
-        this(resolveBindHost(), 8081, new InstituteAdminDomainService());
+        this(resolveBindHost(), 8081, new InstituteAdminDomainService(), new com.campx.admin.institute.repository.UserPreferenceRepository());
     }
 
     /**
@@ -42,7 +44,7 @@ public class InstituteAdminServer {
      * @param domainService business domain service instance
      */
     public InstituteAdminServer(int port, InstituteAdminDomainService domainService) {
-        this(resolveBindHost(), port, domainService);
+        this(resolveBindHost(), port, domainService, new com.campx.admin.institute.repository.UserPreferenceRepository());
     }
 
     /**
@@ -53,9 +55,36 @@ public class InstituteAdminServer {
      * @param domainService business domain service instance
      */
     public InstituteAdminServer(String host, int port, InstituteAdminDomainService domainService) {
+        this(host, port, domainService, new com.campx.admin.institute.repository.UserPreferenceRepository());
+    }
+
+    /**
+     * Initializes the server with custom bind host, custom port, domain service, and user preference repository.
+     *
+     * @param host                   bind address
+     * @param port                   TCP port to listen on
+     * @param domainService          business domain service instance
+     * @param userPreferenceRepository user preference repository instance
+     */
+    public InstituteAdminServer(String host, int port, InstituteAdminDomainService domainService,
+                                com.campx.admin.institute.repository.UserPreferenceRepository userPreferenceRepository) {
         this.host = (host != null && !host.trim().isEmpty()) ? host.trim() : resolveBindHost();
         this.port = port;
         this.domainService = domainService;
+        this.userPreferenceRepository = userPreferenceRepository != null ? userPreferenceRepository : new com.campx.admin.institute.repository.UserPreferenceRepository();
+        this.userPreferenceController = new com.campx.admin.institute.controller.UserPreferenceController(this.userPreferenceRepository);
+    }
+
+    /**
+     * Initializes the server with custom bind host, port, domain service, and preference controller.
+     */
+    public InstituteAdminServer(String host, int port, InstituteAdminDomainService domainService,
+                                com.campx.admin.institute.controller.UserPreferenceController userPreferenceController) {
+        this.host = (host != null && !host.trim().isEmpty()) ? host.trim() : resolveBindHost();
+        this.port = port;
+        this.domainService = domainService;
+        this.userPreferenceController = userPreferenceController != null ? userPreferenceController : new com.campx.admin.institute.controller.UserPreferenceController();
+        this.userPreferenceRepository = this.userPreferenceController.getRepository();
     }
 
     private static String resolveBindHost() {
@@ -77,6 +106,10 @@ public class InstituteAdminServer {
 
         InstituteAdminController controller = new InstituteAdminController(domainService);
         server.createContext("/api/v1/admin", controller);
+
+        // Mount User Preferences endpoints (Wave 2)
+        server.createContext("/api/v1/user/preferences", userPreferenceController);
+        server.createContext("/api/v1/user", userPreferenceController);
 
         server.start();
         running = true;
@@ -129,5 +162,13 @@ public class InstituteAdminServer {
      */
     public InstituteAdminDomainService getDomainService() {
         return domainService;
+    }
+
+    public com.campx.admin.institute.repository.UserPreferenceRepository getUserPreferenceRepository() {
+        return userPreferenceRepository;
+    }
+
+    public com.campx.admin.institute.controller.UserPreferenceController getUserPreferenceController() {
+        return userPreferenceController;
     }
 }

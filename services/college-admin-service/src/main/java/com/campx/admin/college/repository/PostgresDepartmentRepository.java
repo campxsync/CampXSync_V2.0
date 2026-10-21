@@ -10,6 +10,13 @@ import com.campx.admin.college.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 
+import com.campx.platform.audit.AuditLogRepository;
+import com.campx.platform.audit.AuditRecord;
+import com.campx.platform.audit.PostgresAuditRepository;
+import com.campx.platform.intelligence.ControlledIntelligenceAdapter;
+import com.campx.platform.intelligence.IntelligenceContextEvent;
+import com.campx.platform.outbox.TransactionalOutboxWriter;
+
 import java.sql.*;
 import java.util.*;
 
@@ -22,13 +29,44 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(PostgresDepartmentRepository.class);
 
     private final DatabaseConnectionManager connectionManager;
+    private final AuditLogRepository auditRepository;
+    private final TransactionalOutboxWriter outboxWriter;
+    private final ControlledIntelligenceAdapter intelligenceAdapter;
 
     public PostgresDepartmentRepository() {
-        this(DatabaseConnectionManager.getInstance());
+        this(DatabaseConnectionManager.getInstance(),
+                new PostgresAuditRepository(),
+                new TransactionalOutboxWriter(),
+                new ControlledIntelligenceAdapter());
     }
 
     public PostgresDepartmentRepository(DatabaseConnectionManager connectionManager) {
+        this(connectionManager,
+                new PostgresAuditRepository(),
+                new TransactionalOutboxWriter(),
+                new ControlledIntelligenceAdapter());
+    }
+
+    public PostgresDepartmentRepository(DatabaseConnectionManager connectionManager,
+                                      AuditLogRepository auditRepository,
+                                      TransactionalOutboxWriter outboxWriter,
+                                      ControlledIntelligenceAdapter intelligenceAdapter) {
         this.connectionManager = connectionManager;
+        this.auditRepository = auditRepository;
+        this.outboxWriter = outboxWriter;
+        this.intelligenceAdapter = intelligenceAdapter != null ? intelligenceAdapter : new ControlledIntelligenceAdapter();
+    }
+
+    public AuditLogRepository getAuditRepository() {
+        return auditRepository;
+    }
+
+    public TransactionalOutboxWriter getOutboxWriter() {
+        return outboxWriter;
+    }
+
+    public ControlledIntelligenceAdapter getIntelligenceAdapter() {
+        return intelligenceAdapter;
     }
 
     @Override
@@ -152,6 +190,68 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
                         Timestamp uat = rs.getTimestamp("updated_at");
                         dep.setUpdatedAt(uat != null ? uat.getTime() : System.currentTimeMillis());
                         logger.info("Persisted department [{}] id={} in core.departments", code, dep.getId());
+
+                        String payloadJson = "{\"id\":\"" + dep.getId() + "\",\"code\":\"" + code
+                                + "\",\"name\":\"" + escapeJson(name)
+                                + "\",\"collegeId\":\"" + collegeUuid
+                                + "\",\"headUserId\":\"" + (headEmpUuid != null ? headEmpUuid.toString() : "")
+                                + "\",\"status\":\"" + status + "\"}";
+
+                        // Shared Services Audit Log (audit.events)
+                        if (auditRepository != null) {
+                            AuditRecord auditRecord = AuditRecord.builder()
+                                    .action("DEPARTMENT_CREATED")
+                                    .tenantId(tenantUuid)
+                                    .principalId(context.getUserId())
+                                    .principalType("USER")
+                                    .resourceType("DEPARTMENT")
+                                    .resourceId(finalDepId)
+                                    .status("SUCCESS")
+                                    .severity("INFO")
+                                    .detailJson(payloadJson)
+                                    .build();
+                            try {
+                                auditRepository.appendAuditEvent(conn, auditRecord);
+                            } catch (Exception e) {
+                                logger.warn("Failed to append audit event for department creation: {}", e.getMessage());
+                            }
+                        }
+
+                        // Shared Services Transactional Outbox (sys.outbox_events)
+                        if (outboxWriter != null) {
+                            try {
+                                outboxWriter.writeEvent(
+                                        conn,
+                                        tenantUuid,
+                                        "college-admin-service",
+                                        "DEPARTMENT",
+                                        finalDepId,
+                                        "DepartmentCreated",
+                                        payloadJson
+                                );
+                            } catch (Exception e) {
+                                logger.warn("Failed to enqueue transactional outbox event for department creation: {}", e.getMessage());
+                            }
+                        }
+
+                        // Governed Intelligence Layer publication (v1.0.0)
+                        if (intelligenceAdapter != null) {
+                            try {
+                                IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                        .eventType("DepartmentCreated")
+                                        .aggregateType("DEPARTMENT")
+                                        .aggregateId(finalDepId)
+                                        .tenantId(tenantUuid)
+                                        .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                        .sourceService("college-admin-service")
+                                        .payloadJson(payloadJson)
+                                        .build();
+                                intelligenceAdapter.publish(intelEvent);
+                            } catch (Exception e) {
+                                logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                            }
+                        }
+
                         return dep;
                     }
                 }
@@ -294,7 +394,65 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapRow(rs);
+                        Department updated = mapRow(rs);
+
+                        String payloadJson = "{\"id\":\"" + updated.getId() + "\",\"code\":\"" + updated.getDepartmentCode()
+                                + "\",\"name\":\"" + escapeJson(updated.getName())
+                                + "\",\"status\":\"" + updated.getStatus() + "\"}";
+
+                        if (auditRepository != null) {
+                            AuditRecord auditRecord = AuditRecord.builder()
+                                    .action("DEPARTMENT_UPDATED")
+                                    .tenantId(context.getTenantId())
+                                    .principalId(context.getUserId())
+                                    .principalType("USER")
+                                    .resourceType("DEPARTMENT")
+                                    .resourceId(depUuid)
+                                    .status("SUCCESS")
+                                    .severity("INFO")
+                                    .detailJson(payloadJson)
+                                    .build();
+                            try {
+                                auditRepository.appendAuditEvent(conn, auditRecord);
+                            } catch (Exception e) {
+                                logger.warn("Failed to append audit event for department update: {}", e.getMessage());
+                            }
+                        }
+
+                        if (outboxWriter != null) {
+                            try {
+                                outboxWriter.writeEvent(
+                                        conn,
+                                        context.getTenantId(),
+                                        "college-admin-service",
+                                        "DEPARTMENT",
+                                        depUuid,
+                                        "DepartmentUpdated",
+                                        payloadJson
+                                );
+                            } catch (Exception e) {
+                                logger.warn("Failed to enqueue transactional outbox event for department update: {}", e.getMessage());
+                            }
+                        }
+
+                        if (intelligenceAdapter != null) {
+                            try {
+                                IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                        .eventType("DepartmentUpdated")
+                                        .aggregateType("DEPARTMENT")
+                                        .aggregateId(depUuid)
+                                        .tenantId(context.getTenantId())
+                                        .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                        .sourceService("college-admin-service")
+                                        .payloadJson(payloadJson)
+                                        .build();
+                                intelligenceAdapter.publish(intelEvent);
+                            } catch (Exception e) {
+                                logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                            }
+                        }
+
+                        return updated;
                     }
                 }
             }
@@ -325,6 +483,60 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
                 if (rows == 0) {
                     throw new CollegeResourceNotFoundException("Department", id);
                 }
+
+                String payloadJson = "{\"id\":\"" + depUuid + "\",\"status\":\"RETIRED\"}";
+
+                if (auditRepository != null) {
+                    AuditRecord auditRecord = AuditRecord.builder()
+                            .action("DEPARTMENT_RETIRED")
+                            .tenantId(context.getTenantId())
+                            .principalId(context.getUserId())
+                            .principalType("USER")
+                            .resourceType("DEPARTMENT")
+                            .resourceId(depUuid)
+                            .status("SUCCESS")
+                            .severity("INFO")
+                            .detailJson(payloadJson)
+                            .build();
+                    try {
+                        auditRepository.appendAuditEvent(conn, auditRecord);
+                    } catch (Exception e) {
+                        logger.warn("Failed to append audit event for department retire: {}", e.getMessage());
+                    }
+                }
+
+                if (outboxWriter != null) {
+                    try {
+                        outboxWriter.writeEvent(
+                                conn,
+                                context.getTenantId(),
+                                "college-admin-service",
+                                "DEPARTMENT",
+                                depUuid,
+                                "DepartmentRetired",
+                                payloadJson
+                        );
+                    } catch (Exception e) {
+                        logger.warn("Failed to enqueue transactional outbox event for department retire: {}", e.getMessage());
+                    }
+                }
+
+                if (intelligenceAdapter != null) {
+                    try {
+                        IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                .eventType("DepartmentRetired")
+                                .aggregateType("DEPARTMENT")
+                                .aggregateId(depUuid)
+                                .tenantId(context.getTenantId())
+                                .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                .sourceService("college-admin-service")
+                                .payloadJson(payloadJson)
+                                .build();
+                        intelligenceAdapter.publish(intelEvent);
+                    } catch (Exception e) {
+                        logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                    }
+                }
             }
             return null;
         });
@@ -348,10 +560,70 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setObject(1, depUuid);
                 ps.setObject(2, context.getTenantId());
-                ps.executeUpdate();
+                int rows = ps.executeUpdate();
+                if (rows > 0) {
+                    String payloadJson = "{\"id\":\"" + depUuid + "\",\"action\":\"DELETED\"}";
+
+                    if (auditRepository != null) {
+                        AuditRecord auditRecord = AuditRecord.builder()
+                                .action("DEPARTMENT_DELETED")
+                                .tenantId(context.getTenantId())
+                                .principalId(context.getUserId())
+                                .principalType("USER")
+                                .resourceType("DEPARTMENT")
+                                .resourceId(depUuid)
+                                .status("SUCCESS")
+                                .severity("INFO")
+                                .detailJson(payloadJson)
+                                .build();
+                        try {
+                            auditRepository.appendAuditEvent(conn, auditRecord);
+                        } catch (Exception e) {
+                            logger.warn("Failed to append audit event for department deletion: {}", e.getMessage());
+                        }
+                    }
+
+                    if (outboxWriter != null) {
+                        try {
+                            outboxWriter.writeEvent(
+                                    conn,
+                                    context.getTenantId(),
+                                    "college-admin-service",
+                                    "DEPARTMENT",
+                                    depUuid,
+                                    "DepartmentDeleted",
+                                    payloadJson
+                            );
+                        } catch (Exception e) {
+                            logger.warn("Failed to enqueue transactional outbox event for department deletion: {}", e.getMessage());
+                        }
+                    }
+
+                    if (intelligenceAdapter != null) {
+                        try {
+                            IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                    .eventType("DepartmentDeleted")
+                                    .aggregateType("DEPARTMENT")
+                                    .aggregateId(depUuid)
+                                    .tenantId(context.getTenantId())
+                                    .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                    .sourceService("college-admin-service")
+                                    .payloadJson(payloadJson)
+                                    .build();
+                            intelligenceAdapter.publish(intelEvent);
+                        } catch (Exception e) {
+                            logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                        }
+                    }
+                }
             }
             return null;
         });
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 
     private Department mapRow(ResultSet rs) throws SQLException {

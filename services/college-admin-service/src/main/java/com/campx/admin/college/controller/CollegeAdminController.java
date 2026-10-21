@@ -170,6 +170,21 @@ public class CollegeAdminController implements HttpHandler {
                     handleListPrograms(exchange);
                     return;
                 }
+            } else if (path.startsWith("/api/v1/college-admin/programs/")) {
+                String progId = path.substring("/api/v1/college-admin/programs/".length());
+                if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleGetProgram");
+                    handleGetProgram(exchange, progId);
+                    return;
+                } else if ("PUT".equalsIgnoreCase(method)) {
+                    flow.step("handleUpdateProgram");
+                    handleUpdateProgram(exchange, progId);
+                    return;
+                } else if ("DELETE".equalsIgnoreCase(method)) {
+                    flow.step("handleDeleteProgram");
+                    handleDeleteProgram(exchange, progId);
+                    return;
+                }
             }
 
             // 4. Data Imports Endpoint
@@ -744,6 +759,7 @@ public class CollegeAdminController implements HttpHandler {
     }
 
     private void handleCreateProgram(HttpExchange exchange) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
         String body = readBody(exchange);
         Program p = new Program();
         String code = extract(body, "programCode", null);
@@ -755,6 +771,9 @@ public class CollegeAdminController implements HttpHandler {
         p.setDepartmentId(extract(body, "departmentId", null));
         p.setCollegeId(extract(body, "collegeId", null));
         p.setLevel(extract(body, "level", "UG"));
+        if (context.getTenantId() != null) {
+            p.setTenantId(context.getTenantId().toString());
+        }
         String dur = extract(body, "durationYears", "4");
         try {
             p.setDurationYears(Integer.parseInt(dur));
@@ -762,19 +781,73 @@ public class CollegeAdminController implements HttpHandler {
             throw new CollegeMalformedPayloadException("Field 'durationYears' must be a valid integer");
         }
 
-        Program created = domainService.createProgram(p);
+        Program created = domainService.createProgram(context, p);
         sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"code\":\"" + created.getProgramCode()
                 + "\",\"programCode\":\"" + created.getProgramCode()
                 + "\",\"name\":\"" + escape(created.getName())
                 + "\",\"departmentId\":\"" + escape(created.getDepartmentId())
-                + "\",\"collegeId\":\"" + escape(created.getCollegeId())
+                + "\",\"collegeId\":\"" + escape(created.getCollegeId() != null ? created.getCollegeId() : "")
                 + "\",\"durationYears\":" + created.getDurationYears()
                 + ",\"published\":" + created.isPublished()
                 + ",\"status\":\"" + escape(created.getStatus()) + "\"}");
     }
 
+    private void handleGetProgram(HttpExchange exchange, String progId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        Program p = domainService.getProgram(context, progId);
+        if (p == null) {
+            sendError(exchange, 404, "Not Found", "PROGRAM_NOT_FOUND", "Program not found: " + progId, exchange.getRequestURI().getPath());
+            return;
+        }
+        sendJson(exchange, 200, "{\"id\":\"" + p.getId() + "\",\"code\":\"" + p.getProgramCode()
+                + "\",\"programCode\":\"" + p.getProgramCode()
+                + "\",\"name\":\"" + escape(p.getName())
+                + "\",\"departmentId\":\"" + escape(p.getDepartmentId())
+                + "\",\"collegeId\":\"" + escape(p.getCollegeId() != null ? p.getCollegeId() : "")
+                + "\",\"durationYears\":" + p.getDurationYears()
+                + ",\"level\":\"" + escape(p.getLevel())
+                + "\",\"status\":\"" + escape(p.getStatus())
+                + "\",\"published\":" + p.isPublished() + "}");
+    }
+
+    private void handleUpdateProgram(HttpExchange exchange, String progId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        String body = readBody(exchange);
+        Program p = new Program();
+        p.setId(progId);
+        p.setName(extract(body, "name", null));
+        String dur = extract(body, "durationYears", null);
+        if (dur != null) {
+            try {
+                p.setDurationYears(Integer.parseInt(dur));
+            } catch (NumberFormatException e) {
+                throw new CollegeMalformedPayloadException("Field 'durationYears' must be an integer");
+            }
+        }
+        String pub = extract(body, "published", null);
+        if (pub != null) {
+            p.setPublished(Boolean.parseBoolean(pub));
+        }
+        Program updated = domainService.updateProgram(context, p);
+        sendJson(exchange, 200, "{\"id\":\"" + updated.getId() + "\",\"code\":\"" + updated.getProgramCode()
+                + "\",\"programCode\":\"" + updated.getProgramCode()
+                + "\",\"name\":\"" + escape(updated.getName())
+                + "\",\"departmentId\":\"" + escape(updated.getDepartmentId())
+                + "\",\"collegeId\":\"" + escape(updated.getCollegeId() != null ? updated.getCollegeId() : "")
+                + "\",\"durationYears\":" + updated.getDurationYears()
+                + ",\"published\":" + updated.isPublished()
+                + ",\"status\":\"" + escape(updated.getStatus()) + "\"}");
+    }
+
+    private void handleDeleteProgram(HttpExchange exchange, String progId) throws IOException {
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        domainService.deleteProgram(context, progId);
+        sendJson(exchange, 200, "{\"status\":\"DISCONTINUED\",\"id\":\"" + progId + "\"}");
+    }
+
     private void handleListPrograms(HttpExchange exchange) throws IOException {
-        List<Program> list = domainService.listPrograms();
+        com.campx.admin.college.security.UserSecurityContext context = getSecurityContext(exchange);
+        List<Program> list = domainService.listPrograms(context);
         StringBuilder sb = new StringBuilder("{\"programs\":[");
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
@@ -784,7 +857,7 @@ public class CollegeAdminController implements HttpHandler {
               .append("\",\"programCode\":\"").append(p.getProgramCode())
               .append("\",\"name\":\"").append(escape(p.getName()))
               .append("\",\"departmentId\":\"").append(escape(p.getDepartmentId()))
-              .append("\",\"collegeId\":\"").append(escape(p.getCollegeId()))
+              .append("\",\"collegeId\":\"").append(escape(p.getCollegeId() != null ? p.getCollegeId() : ""))
               .append("\",\"durationYears\":").append(p.getDurationYears())
               .append(",\"level\":\"").append(escape(p.getLevel()))
               .append("\",\"status\":\"").append(escape(p.getStatus()))

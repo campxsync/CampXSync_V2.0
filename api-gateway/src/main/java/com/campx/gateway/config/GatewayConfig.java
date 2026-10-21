@@ -47,6 +47,8 @@ public class GatewayConfig {
     public GatewayConfig() {
         // Core V2.0 / V3.0 User Story Ingress Routes
         routeTable.put("/api/v1/admin", "http://localhost:8081/api/v1/admin");
+        routeTable.put("/api/v1/user/preferences", "http://localhost:8081/api/v1/user/preferences");
+        routeTable.put("/api/v1/user", "http://localhost:8081/api/v1/user");
         routeTable.put("/api/v1/college-admin", "http://localhost:8082/api/v1/college-admin");
         // Academic Tier -> Course Management Service (Port 8083)
         routeTable.put("/api/v1/courses", "http://localhost:8083/api/v1/courses");

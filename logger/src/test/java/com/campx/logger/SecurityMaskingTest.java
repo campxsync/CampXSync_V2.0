@@ -59,4 +59,50 @@ public class SecurityMaskingTest {
         assertFalse(masked.contains("1234 5678"));
         assertTrue(masked.contains("XXXX-XXXX-9012"));
     }
+
+    @Test
+    public void testLeastPrivilegeEnforcement() {
+        // Unmasked password must be detected
+        assertTrue(SecurityMasker.containsSensitiveData("{\"password\": \"PlainPassword123\"}"));
+
+        // Already masked credentials must NOT be falsely flagged
+        assertFalse(SecurityMasker.containsSensitiveData("{\"password\": \"******\"}"));
+        assertFalse(SecurityMasker.containsSensitiveData("{\"apiKey\": \"******\"}"));
+        assertFalse(SecurityMasker.containsSensitiveData("{\"secret\": \"[REDACTED]\"}"));
+        assertFalse(SecurityMasker.containsSensitiveData("Authorization: Bearer ******"));
+
+        // assertLeastPrivilege succeeds on sanitized payload
+        SecurityMasker.assertLeastPrivilege("{\"password\": \"******\", \"username\": \"admin\"}");
+        SecurityMasker.assertLeastPrivilege("{\"secret\": \"[REDACTED]\"}");
+    }
+
+    @Test(expected = SecurityException.class)
+    public void testAssertLeastPrivilegeRejectsUnmaskedPassword() {
+        SecurityMasker.assertLeastPrivilege("{\"password\": \"mySecretPassword\"}");
+    }
+
+    @Test(expected = SecurityException.class)
+    public void testAssertLeastPrivilegeRejectsUnmaskedApiKey() {
+        SecurityMasker.assertLeastPrivilege("{\"apiKey\": \"ak_live_9988776655443322\"}");
+    }
+
+    @Test
+    public void testMaskingIdempotency() {
+        String original = "User login attempt with password=SecretPassword123 and username=admin";
+        String maskedOnce = SecurityMasker.mask(original);
+        String maskedTwice = SecurityMasker.mask(maskedOnce);
+        org.junit.Assert.assertEquals(maskedOnce, maskedTwice);
+    }
+
+    @Test
+    public void testUuidAndEpochTimestampPreservation() {
+        String uuid = "11111111-1111-1111-1111-111111111111";
+        String epochMs = "1719876543210";
+        String payload = "{\"tenantId\":\"" + uuid + "\",\"timestamp\":" + epochMs + "}";
+
+        String masked = SecurityMasker.mask(payload);
+        assertTrue(masked.contains(uuid));
+        assertTrue(masked.contains(epochMs));
+        assertFalse(SecurityMasker.containsSensitiveData(payload));
+    }
 }

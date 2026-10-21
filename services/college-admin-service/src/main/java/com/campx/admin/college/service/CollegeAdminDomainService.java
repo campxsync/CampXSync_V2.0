@@ -809,12 +809,21 @@ public class CollegeAdminDomainService {
      * @throws CollegeLifecycleException        if parent department does not exist or is not ACTIVE
      */
     public Program createProgram(Program prog) {
+        return createProgram(null, prog);
+    }
+
+    public Program createProgram(com.campx.admin.college.security.UserSecurityContext context, Program prog) {
+        if (prog == null) {
+            throw new CollegeMalformedPayloadException("Program payload cannot be null");
+        }
         if (prog.getProgramCode() == null || prog.getProgramCode().trim().isEmpty()) {
             throw new CollegeMalformedPayloadException("Mandatory field 'programCode' is required");
         }
+        if (prog.getDurationYears() <= 0) {
+            throw new CollegeMalformedPayloadException("Field 'durationYears' must be positive");
+        }
 
-        com.campx.admin.college.security.UserSecurityContext context = null;
-        if (LogContext.getTenantId() != null) {
+        if (context == null && LogContext.getTenantId() != null) {
             context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
                     LogContext.getUserId(), LogContext.getTenantId());
         }
@@ -827,10 +836,6 @@ public class CollegeAdminDomainService {
         }
         if (parent == null || !"ACTIVE".equalsIgnoreCase(parent.getStatus())) {
             throw new CollegeLifecycleException("Program must reference an existing ACTIVE department");
-        }
-
-        if (prog.getDurationYears() <= 0) {
-            throw new CollegeMalformedPayloadException("Field 'durationYears' must be positive");
         }
 
         if (context != null && context.getTenantId() != null) {
@@ -861,6 +866,17 @@ public class CollegeAdminDomainService {
         prog.setPublished(true);
         programs.put(prog.getId(), prog);
 
+        AuditEvent audit = AuditEvent.builder()
+                .action("PROGRAM_CREATED")
+                .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                .resourceType("PROGRAM")
+                .resourceId(prog.getId())
+                .status("SUCCESS")
+                .description("Created program [" + prog.getProgramCode() + "] " + prog.getName() + " under department: " + parent.getName())
+                .build();
+        recordAudit(audit);
+
         emitOutboxEvent("ProgramCreated", prog.getId(), "COLLEGE",
                 "{\"programId\":\"" + prog.getId() + "\",\"programCode\":\"" + prog.getProgramCode()
                         + "\",\"name\":\"" + (prog.getName() != null ? prog.getName() : "")
@@ -871,22 +887,157 @@ public class CollegeAdminDomainService {
         return prog;
     }
 
+    public Program getProgram(String programId) {
+        return getProgram(null, programId);
+    }
+
+    public Program getProgram(com.campx.admin.college.security.UserSecurityContext context, String programId) {
+        if (programId == null || programId.trim().isEmpty()) {
+            return null;
+        }
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                Program repoProg = programRepository.getProgramById(context, programId);
+                if (repoProg != null) {
+                    return repoProg;
+                }
+            } catch (Exception e) {
+                logger.warn("Error fetching program from repository: {}", e.getMessage());
+            }
+        }
+        Program cached = programs.get(programId);
+        if (cached != null && context != null && context.getTenantId() != null && cached.getTenantId() != null) {
+            if (!context.getTenantId().toString().equals(cached.getTenantId())) {
+                return null;
+            }
+        }
+        return cached;
+    }
+
     /**
      * Returns a list of all academic programs.
      *
      * @return list of program models
      */
     public List<Program> listPrograms() {
-        if (LogContext.getTenantId() != null) {
-            com.campx.admin.college.security.UserSecurityContext context =
-                    com.campx.admin.college.security.UserSecurityContext.fromHeaders(
-                            LogContext.getUserId(), LogContext.getTenantId());
-            List<Program> repoList = programRepository.listPrograms(context, null, null);
+        return listPrograms(null, null, null);
+    }
+
+    public List<Program> listPrograms(com.campx.admin.college.security.UserSecurityContext context) {
+        return listPrograms(context, null, null);
+    }
+
+    public List<Program> listPrograms(com.campx.admin.college.security.UserSecurityContext context, String collegeId, String departmentId) {
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            List<Program> repoList = programRepository.listPrograms(context, collegeId, departmentId);
             if (!repoList.isEmpty()) {
                 return repoList;
             }
         }
-        return new ArrayList<>(programs.values());
+        List<Program> filtered = new ArrayList<>();
+        for (Program p : programs.values()) {
+            if ("DISCONTINUED".equalsIgnoreCase(p.getStatus())) continue;
+            if (context != null && context.getTenantId() != null && p.getTenantId() != null
+                    && !context.getTenantId().toString().equals(p.getTenantId())) {
+                continue;
+            }
+            if (collegeId != null && p.getCollegeId() != null && !collegeId.equals(p.getCollegeId())) continue;
+            if (departmentId != null && p.getDepartmentId() != null && !departmentId.equals(p.getDepartmentId())) continue;
+            filtered.add(p);
+        }
+        return filtered;
+    }
+
+    public Program updateProgram(com.campx.admin.college.security.UserSecurityContext context, Program prog) {
+        if (prog == null || prog.getId() == null) {
+            throw new CollegeMalformedPayloadException("Program and program ID are required for update");
+        }
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        Program updated = null;
+        if (context != null && context.getTenantId() != null) {
+            try {
+                updated = programRepository.updateProgram(context, prog);
+            } catch (Exception e) {
+                logger.warn("Error updating program in repository: {}", e.getMessage());
+            }
+        }
+        if (updated == null) {
+            Program existing = programs.get(prog.getId());
+            if (existing == null) {
+                throw new CollegeResourceNotFoundException("Program", prog.getId());
+            }
+            if (prog.getName() != null) existing.setName(prog.getName());
+            if (prog.getDurationYears() > 0) existing.setDurationYears(prog.getDurationYears());
+            existing.setPublished(prog.isPublished());
+            existing.setUpdatedAt(System.currentTimeMillis());
+            updated = existing;
+        } else {
+            programs.put(updated.getId(), updated);
+        }
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("PROGRAM_UPDATED")
+                .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                .resourceType("PROGRAM")
+                .resourceId(updated.getId())
+                .status("SUCCESS")
+                .description("Updated program [" + updated.getProgramCode() + "] " + updated.getName())
+                .build();
+        recordAudit(audit);
+
+        emitOutboxEvent("ProgramUpdated", updated.getId(), "COLLEGE",
+                "{\"programId\":\"" + updated.getId() + "\",\"programCode\":\"" + updated.getProgramCode()
+                        + "\",\"name\":\"" + (updated.getName() != null ? updated.getName() : "")
+                        + "\",\"durationYears\":" + updated.getDurationYears() + "}");
+
+        return updated;
+    }
+
+    public void deleteProgram(com.campx.admin.college.security.UserSecurityContext context, String programId) {
+        if (programId == null || programId.trim().isEmpty()) {
+            return;
+        }
+        if (context == null && LogContext.getTenantId() != null) {
+            context = com.campx.admin.college.security.UserSecurityContext.fromHeaders(
+                    LogContext.getUserId(), LogContext.getTenantId());
+        }
+        if (context != null && context.getTenantId() != null) {
+            try {
+                programRepository.deleteProgram(context, programId);
+            } catch (Exception e) {
+                logger.warn("Error soft-deleting program in repository: {}", e.getMessage());
+            }
+        }
+        Program existing = programs.get(programId);
+        if (existing != null) {
+            existing.setStatus("DISCONTINUED");
+        }
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("PROGRAM_DISCONTINUED")
+                .principalId(LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_ADMIN")
+                .principalRole(LogContext.getUserRole() != null ? LogContext.getUserRole() : "COLLEGE_ADMIN")
+                .resourceType("PROGRAM")
+                .resourceId(programId)
+                .status("SUCCESS")
+                .description("Discontinued program id=" + programId)
+                .build();
+        recordAudit(audit);
+
+        emitOutboxEvent("ProgramDiscontinued", programId, "COLLEGE",
+                "{\"programId\":\"" + programId + "\",\"status\":\"DISCONTINUED\"}");
     }
 
     /**

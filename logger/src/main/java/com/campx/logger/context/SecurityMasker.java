@@ -24,37 +24,37 @@ public final class SecurityMasker {
     static {
         // 1. Bearer tokens: Bearer <token>
         RULES.add(new PatternRule(
-                Pattern.compile("(?i)(Bearer\\s+)[a-zA-Z0-9_\\-\\.]+"),
+                Pattern.compile("(?i)(Bearer\\s+)(?!\\*{3,})[a-zA-Z0-9_\\-\\.]+"),
                 "$1******"
         ));
 
-        // 2. Password fields: password=..., "password": "..."
+        // 2. Password fields: password=..., "password": "..." (ignores already-masked credentials)
         RULES.add(new PatternRule(
-                Pattern.compile("(?i)(\"?password\"?\\s*[:=]\\s*\"?)([^\"&,\\s]+)(\"?)"),
+                Pattern.compile("(?i)(\"?password\"?\\s*[:=]\\s*\"?)(?!(?:\\*{3,}|\\[REDACTED\\]|\\[MASKED\\]|\\[PROTECTED\\])(?:\"|&|,|\\s|$))([^\"&,\\s]+)(\"?)"),
                 "$1******$3"
         ));
 
-        // 3. Secret / ApiKey
+        // 3. Secret / ApiKey (ignores already-masked credentials)
         RULES.add(new PatternRule(
-                Pattern.compile("(?i)(\"?(?:secret|apiKey|api_key)\"?\\s*[:=]\\s*\"?)([^\"&,\\s]+)(\"?)"),
+                Pattern.compile("(?i)(\"?(?:secret|apiKey|api_key)\"?\\s*[:=]\\s*\"?)(?!(?:\\*{3,}|\\[REDACTED\\]|\\[MASKED\\]|\\[PROTECTED\\])(?:\"|&|,|\\s|$))([^\"&,\\s]+)(\"?)"),
                 "$1******$3"
         ));
 
-        // 4. Token / Authorization (non-Bearer)
+        // 4. Token / Authorization (non-Bearer, ignores already-masked credentials)
         RULES.add(new PatternRule(
-                Pattern.compile("(?i)(\"?(?:authorization|token)\"?\\s*[:=]\\s*\"?)(?!Bearer\\s+)([^\"&,\\s]+)(\"?)"),
+                Pattern.compile("(?i)(\"?(?:authorization|token)\"?\\s*[:=]\\s*\"?)(?!Bearer\\s+)(?!(?:\\*{3,}|\\[REDACTED\\]|\\[MASKED\\]|\\[PROTECTED\\])(?:\"|&|,|\\s|$))([^\"&,\\s]+)(\"?)"),
                 "$1******$3"
         ));
 
-        // 5. 16-digit credit/debit cards: 1234-5678-9012-3456 or 16 continuous digits (prevents masking 13-digit epoch timestamps)
+        // 5. 16-digit credit/debit cards: 1234-5678-9012-3456 or 16 continuous digits (prevents masking UUIDs and 13-digit epoch timestamps)
         RULES.add(new PatternRule(
-                Pattern.compile("\\b(?:\\d{4}[ -]\\d{4}[ -]\\d{4}[ -]\\d{4}|\\d{16})\\b"),
+                Pattern.compile("(?<![-a-fA-F0-9])(?:\\d{4}[ -]\\d{4}[ -]\\d{4}[ -]\\d{4}|\\d{16})(?![-a-fA-F0-9])"),
                 "****-****-****-****"
         ));
 
-        // 6. 12-digit Aadhaar / National ID: 1234 5678 9012 or 1234-5678-9012
+        // 6. 12-digit Aadhaar / National ID: 1234 5678 9012 or 1234-5678-9012 (prevents matching UUIDs)
         RULES.add(new PatternRule(
-                Pattern.compile("\\b(\\d{4})[ -](\\d{4})[ -](\\d{4})\\b"),
+                Pattern.compile("(?<![-a-fA-F0-9])(\\d{4})[ -](\\d{4})[ -](\\d{4})(?![-a-fA-F0-9])"),
                 "XXXX-XXXX-$3"
         ));
     }
@@ -80,6 +80,37 @@ public final class SecurityMasker {
             }
         }
         return result;
+    }
+
+    /**
+     * Checks whether the provided text contains unmasked sensitive credentials or secrets.
+     *
+     * @param input the string to inspect
+     * @return true if sensitive credentials or tokens are present in unmasked form
+     */
+    public static boolean containsSensitiveData(String input) {
+        if (input == null || input.isEmpty()) {
+            return false;
+        }
+        for (PatternRule rule : RULES) {
+            Matcher matcher = rule.pattern.matcher(input);
+            if (matcher.find()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Enforces least-privilege data minimization on event payloads by rejecting unmasked credentials.
+     *
+     * @param input the payload or event text to validate
+     * @throws SecurityException if unmasked passwords, secrets, or tokens are detected
+     */
+    public static void assertLeastPrivilege(String input) {
+        if (containsSensitiveData(input)) {
+            throw new SecurityException("Security violation: payload contains unmasked credentials, tokens, or secrets");
+        }
     }
 
     /**

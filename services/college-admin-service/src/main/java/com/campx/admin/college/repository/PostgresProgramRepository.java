@@ -10,6 +10,13 @@ import com.campx.admin.college.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 
+import com.campx.platform.audit.AuditLogRepository;
+import com.campx.platform.audit.AuditRecord;
+import com.campx.platform.audit.PostgresAuditRepository;
+import com.campx.platform.intelligence.ControlledIntelligenceAdapter;
+import com.campx.platform.intelligence.IntelligenceContextEvent;
+import com.campx.platform.outbox.TransactionalOutboxWriter;
+
 import java.math.BigDecimal;
 import java.sql.*;
 import java.util.*;
@@ -23,13 +30,44 @@ public class PostgresProgramRepository implements ProgramRepository {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(PostgresProgramRepository.class);
 
     private final DatabaseConnectionManager connectionManager;
+    private final AuditLogRepository auditRepository;
+    private final TransactionalOutboxWriter outboxWriter;
+    private final ControlledIntelligenceAdapter intelligenceAdapter;
 
     public PostgresProgramRepository() {
-        this(DatabaseConnectionManager.getInstance());
+        this(DatabaseConnectionManager.getInstance(),
+                new PostgresAuditRepository(),
+                new TransactionalOutboxWriter(),
+                new ControlledIntelligenceAdapter());
     }
 
     public PostgresProgramRepository(DatabaseConnectionManager connectionManager) {
+        this(connectionManager,
+                new PostgresAuditRepository(),
+                new TransactionalOutboxWriter(),
+                new ControlledIntelligenceAdapter());
+    }
+
+    public PostgresProgramRepository(DatabaseConnectionManager connectionManager,
+                                   AuditLogRepository auditRepository,
+                                   TransactionalOutboxWriter outboxWriter,
+                                   ControlledIntelligenceAdapter intelligenceAdapter) {
         this.connectionManager = connectionManager;
+        this.auditRepository = auditRepository;
+        this.outboxWriter = outboxWriter;
+        this.intelligenceAdapter = intelligenceAdapter != null ? intelligenceAdapter : new ControlledIntelligenceAdapter();
+    }
+
+    public AuditLogRepository getAuditRepository() {
+        return auditRepository;
+    }
+
+    public TransactionalOutboxWriter getOutboxWriter() {
+        return outboxWriter;
+    }
+
+    public ControlledIntelligenceAdapter getIntelligenceAdapter() {
+        return intelligenceAdapter;
     }
 
     @Override
@@ -145,7 +183,72 @@ public class PostgresProgramRepository implements ProgramRepository {
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapRowToProgram(rs);
+                        Program created = mapRowToProgram(rs);
+
+                        String payloadJson = "{\"id\":\"" + created.getId() + "\",\"programCode\":\"" + created.getProgramCode()
+                                + "\",\"name\":\"" + escapeJson(created.getName())
+                                + "\",\"departmentId\":\"" + created.getDepartmentId()
+                                + "\",\"collegeId\":\"" + (created.getCollegeId() != null ? created.getCollegeId() : "")
+                                + "\",\"durationYears\":" + created.getDurationYears()
+                                + ",\"level\":\"" + escapeJson(created.getLevel())
+                                + "\",\"status\":\"" + escapeJson(created.getStatus()) + "\"}";
+
+                        // Shared Services Audit Log (audit.events)
+                        if (auditRepository != null) {
+                            AuditRecord auditRecord = AuditRecord.builder()
+                                    .action("PROGRAM_CREATED")
+                                    .tenantId(tenantUuid)
+                                    .principalId(context.getUserId())
+                                    .principalType("USER")
+                                    .resourceType("PROGRAM")
+                                    .resourceId(finalProgId)
+                                    .status("SUCCESS")
+                                    .severity("INFO")
+                                    .detailJson(payloadJson)
+                                    .build();
+                            try {
+                                auditRepository.appendAuditEvent(conn, auditRecord);
+                            } catch (Exception e) {
+                                logger.warn("Failed to append audit event for program creation: {}", e.getMessage());
+                            }
+                        }
+
+                        // Shared Services Transactional Outbox (sys.outbox_events)
+                        if (outboxWriter != null) {
+                            try {
+                                outboxWriter.writeEvent(
+                                        conn,
+                                        tenantUuid,
+                                        "college-admin-service",
+                                        "PROGRAM",
+                                        finalProgId,
+                                        "ProgramCreated",
+                                        payloadJson
+                                );
+                            } catch (Exception e) {
+                                logger.warn("Failed to enqueue transactional outbox event for program creation: {}", e.getMessage());
+                            }
+                        }
+
+                        // Governed Intelligence Layer publication (v1.0.0)
+                        if (intelligenceAdapter != null) {
+                            try {
+                                IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                        .eventType("ProgramCreated")
+                                        .aggregateType("PROGRAM")
+                                        .aggregateId(finalProgId)
+                                        .tenantId(tenantUuid)
+                                        .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                        .sourceService("college-admin-service")
+                                        .payloadJson(payloadJson)
+                                        .build();
+                                intelligenceAdapter.publish(intelEvent);
+                            } catch (Exception e) {
+                                logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                            }
+                        }
+
+                        return created;
                     }
                 }
             }
@@ -272,7 +375,67 @@ public class PostgresProgramRepository implements ProgramRepository {
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapRowToProgram(rs);
+                        Program updated = mapRowToProgram(rs);
+
+                        String payloadJson = "{\"id\":\"" + updated.getId() + "\",\"programCode\":\"" + updated.getProgramCode()
+                                + "\",\"name\":\"" + escapeJson(updated.getName())
+                                + "\",\"durationYears\":" + updated.getDurationYears()
+                                + ",\"published\":" + updated.isPublished()
+                                + ",\"status\":\"" + escapeJson(updated.getStatus()) + "\"}";
+
+                        if (auditRepository != null) {
+                            AuditRecord auditRecord = AuditRecord.builder()
+                                    .action("PROGRAM_UPDATED")
+                                    .tenantId(tenantUuid)
+                                    .principalId(context.getUserId())
+                                    .principalType("USER")
+                                    .resourceType("PROGRAM")
+                                    .resourceId(progUuid)
+                                    .status("SUCCESS")
+                                    .severity("INFO")
+                                    .detailJson(payloadJson)
+                                    .build();
+                            try {
+                                auditRepository.appendAuditEvent(conn, auditRecord);
+                            } catch (Exception e) {
+                                logger.warn("Failed to append audit event for program update: {}", e.getMessage());
+                            }
+                        }
+
+                        if (outboxWriter != null) {
+                            try {
+                                outboxWriter.writeEvent(
+                                        conn,
+                                        tenantUuid,
+                                        "college-admin-service",
+                                        "PROGRAM",
+                                        progUuid,
+                                        "ProgramUpdated",
+                                        payloadJson
+                                );
+                            } catch (Exception e) {
+                                logger.warn("Failed to enqueue transactional outbox event for program update: {}", e.getMessage());
+                            }
+                        }
+
+                        if (intelligenceAdapter != null) {
+                            try {
+                                IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                        .eventType("ProgramUpdated")
+                                        .aggregateType("PROGRAM")
+                                        .aggregateId(progUuid)
+                                        .tenantId(tenantUuid)
+                                        .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                        .sourceService("college-admin-service")
+                                        .payloadJson(payloadJson)
+                                        .build();
+                                intelligenceAdapter.publish(intelEvent);
+                            } catch (Exception e) {
+                                logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                            }
+                        }
+
+                        return updated;
                     }
                 }
             }
@@ -302,10 +465,70 @@ public class PostgresProgramRepository implements ProgramRepository {
             try (PreparedStatement ps = conn.prepareStatement(deleteSql)) {
                 ps.setObject(1, tenantUuid);
                 ps.setObject(2, progUuid);
-                ps.executeUpdate();
+                int rows = ps.executeUpdate();
+                if (rows > 0) {
+                    String payloadJson = "{\"id\":\"" + progUuid + "\",\"status\":\"DISCONTINUED\"}";
+
+                    if (auditRepository != null) {
+                        AuditRecord auditRecord = AuditRecord.builder()
+                                .action("PROGRAM_DISCONTINUED")
+                                .tenantId(tenantUuid)
+                                .principalId(context.getUserId())
+                                .principalType("USER")
+                                .resourceType("PROGRAM")
+                                .resourceId(progUuid)
+                                .status("SUCCESS")
+                                .severity("INFO")
+                                .detailJson(payloadJson)
+                                .build();
+                        try {
+                            auditRepository.appendAuditEvent(conn, auditRecord);
+                        } catch (Exception e) {
+                            logger.warn("Failed to append audit event for program discontinue: {}", e.getMessage());
+                        }
+                    }
+
+                    if (outboxWriter != null) {
+                        try {
+                            outboxWriter.writeEvent(
+                                    conn,
+                                    tenantUuid,
+                                    "college-admin-service",
+                                    "PROGRAM",
+                                    progUuid,
+                                    "ProgramDiscontinued",
+                                    payloadJson
+                            );
+                        } catch (Exception e) {
+                            logger.warn("Failed to enqueue transactional outbox event for program discontinue: {}", e.getMessage());
+                        }
+                    }
+
+                    if (intelligenceAdapter != null) {
+                        try {
+                            IntelligenceContextEvent intelEvent = IntelligenceContextEvent.builder()
+                                    .eventType("ProgramDiscontinued")
+                                    .aggregateType("PROGRAM")
+                                    .aggregateId(progUuid)
+                                    .tenantId(tenantUuid)
+                                    .actorId(context.getUserId() != null ? context.getUserId().toString() : "COLLEGE_ADMIN")
+                                    .sourceService("college-admin-service")
+                                    .payloadJson(payloadJson)
+                                    .build();
+                            intelligenceAdapter.publish(intelEvent);
+                        } catch (Exception e) {
+                            logger.warn("Intelligence Layer contract emission encountered error: {}", e.getMessage());
+                        }
+                    }
+                }
             }
             return null;
         });
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 
     private Program mapRowToProgram(ResultSet rs) throws SQLException {

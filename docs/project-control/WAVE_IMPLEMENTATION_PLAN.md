@@ -1,113 +1,128 @@
-# CampXSync — Wave Implementation Plan
+# CampXSync — Java Backend Integration Wave Implementation Plan
 
-**Project:** CampXSync V2.0 — Java Backend Integration  
 **Target branch:** `feature/java-backend-integration`  
-**Last updated:** 2026-10-20  
-**Status:** Working plan reconstructed from the agreed wave sequence in current project context. Before changing order/scope, reconcile with the canonical Claude plan if it exists in the repository.
+**Revision:** 2026-10-21
 
-## Operating rules
-- Read this plan and `docs/project-control/PROGRESS.md` before each task.
-- Preserve branch, working tree, local edits, and untracked files. No reset, branch switch, commit, push, stash, or overwrite without explicit authorization.
-- Never read root `.env.local` or `frontend/.env.local`.
-- Never connect to or modify production Supabase ref `ekspahbsbwdpraaqfqui` or previous staging ref `kpwdvvcschankgggitnj`.
-- Agreed dev project: `CampXSync-Architecture-Dev`, ref `azulbaxszsqxymqmlwfe`; use only if necessary and authorized.
-- No DB writes, migrations, schema, role/grant, or RLS changes without explicit approval for that exact step.
-- Fail closed on authentication/authorization ambiguity. Caller headers and JWT root `role` are not trusted CampXSync business identity.
-- Do not upgrade frameworks or expand scope without approval.
-- Unit tests do not replace E2E verification.
-- Required eventual E2E: UI → shared/versioned API Gateway → Java domain services → Supabase/PostgreSQL, proving persisted data and tenant isolation. Test Java services' Shared Services contracts too.
-- At each wave end, produce a completion report, update progress, and derive the next Antigravity prompt from evidence. Stop after the current task.
+> **Merge note:** The original repository copy of this plan was not included with the uploaded proposal. This consolidated version uses the supplied Waves 4–11 proposal and recorded checkpoint. Before replacing the repository file, preserve any unique original Wave 0–3 wording, history, and operating rules that are absent here.
 
-## Mandatory cross-cutting architecture: end-to-end data flow and Intelligence Layer
+## 1. Governing principles
 
-This requirement applies to **every wave and every relevant feature**, not only the final integration wave.
+1. Execute one wave at a time and stop after the current task.
+2. Preserve branch, HEAD, modified files and untracked files. No reset, clean, stash, branch switch, commit or push without explicit user authorization.
+3. Production databases and project references are strictly off-limits.
+4. Every migration, grant, RLS change, seed, provisioning step or other DB write requires verification of the exact non-production target and explicit approval for that specific step.
+5. Compilation and unit tests are not proof of live DB, RLS or browser-to-database E2E behavior.
+6. Preserve Waves 0–3 work. Wave 1 was accepted with explicit limitations; Waves 2–3 were reported complete, with live integrations still unverified where noted in their reports.
+7. Reuse existing domain ownership and shared infrastructure; do not create duplicate sources of truth.
+8. Governing control files: this plan, `docs/project-control/PROGRESS.md`, `prompts/NEXT_ANTIGRAVITY_TASK.md`, `.agent/campxsync-wave-control.md`, and `docs/reports/WAVE_COMPLETION_REPORT_TEMPLATE.md`.
 
-### Required operational path
-`UI / Frontend → Shared, Versioned API Gateway → Java Domain Services → Supabase / PostgreSQL`
+## 2. Recorded checkpoint
 
-The flow must be implemented and verified as a real user-visible workflow. The Java domain services enforce business rules and use the approved persistence path; PostgreSQL remains the authoritative persisted source of truth. End-to-end tests must verify the request, authorization, service behavior, committed persistence, and read-back, including tenant isolation.
+- Branch: `feature/java-backend-integration`
+- Last recorded committed Wave 0 baseline: `105122b6b5b17d3eadc70e7e8094008facb4285a`
+- Waves 1–3 have uncommitted work; preserve it.
+- Wave 1: Shared Audit & Outbox Foundation; reported accepted with limitations around live PostgreSQL/RLS verification and deferred background relay.
+- Wave 2: Preferences; reported complete; live DB integration and real Intelligence Layer endpoint remain pending/unverified.
+- Wave 3: Academic Departments and Programs; reported complete; live integration remains unverified.
+- Next: Wave 4 — Student Domain Foundation & Roster.
+- These are reported results, not independent re-verification of the current repository.
 
-### Intelligence Layer integration
-Outputs produced by Java domain services must also be made available to the CampXSync Intelligence Layer through explicit, versioned, documented contracts. This is a required parallel integration path across the platform, not a future optional enhancement.
+## 3. Gates
 
-- Define per-service output/event contracts, ownership, schema/versioning, correlation IDs, tenant context, event time, and relevant entity identifiers.
-- Prefer the established Shared Services / audit-outbox mechanism for durable, retryable publication when asynchronous delivery is appropriate. Do not invent a second event mechanism if an existing contract fits.
-- Distinguish command/transaction success from downstream intelligence delivery. Avoid losing events when a database transaction commits; use transaction-aware outbox semantics where the existing design supports them.
-- Make delivery idempotent and observable; document retries, failures, schema evolution, and replay behavior.
-- Pass only authorized, purpose-appropriate data. Enforce tenant boundaries, least privilege, data minimization, and auditability. Do not expose credentials, tokens, secrets, or unnecessary personal data to the Intelligence Layer.
-- The Intelligence Layer must not bypass the gateway, Java domain authorization, tenant isolation, or PostgreSQL controls; it must not become an alternative source of truth for transactional domain state.
-- Tests must verify that relevant Java service outputs are published/available to the Intelligence Layer contract, with tenant context preserved and duplicate/failure behavior covered.
-- Where the Intelligence Layer is not yet implemented or reachable, define the contract and test publication using a controlled adapter/test double; record the integration as pending rather than claiming full end-to-end completion.
+### G1 — Least-privilege DB role (before Wave 4 persistence)
+Business DB access must use a dedicated application login role without `BYPASSRLS`, with transaction-scoped tenant/user context. A privileged role must not be used to claim tenant isolation.
+- If closed, record exact evidence and verify it applies to the current non-production target.
+- If open, persistence and DB writes are blocked; safe design, code without DB connections, unit tests and isolated tests may continue.
+- Role/grant/RLS scripts require review and explicit approval before execution.
+- Until verified, no wave may claim tenant isolation is verified.
 
-### Required evidence in every wave report
-For each workflow in scope, state:
-1. Whether UI → gateway → Java service → PostgreSQL is implemented and tested.
-2. Whether committed data was read back from PostgreSQL and tenant isolation was tested.
-3. What output the Java service produces and how it is shared with the Intelligence Layer.
-4. Whether the Intelligence Layer contract was tested with a real endpoint or a test double.
-5. Any delivery, privacy, authorization, or integration gap.
+### G2 — Isolated PostgreSQL tests in CI (by end of Wave 5)
+The integration suite bootstrapped from existing migrations should run automatically on every push to the feature branch. Do not push without user authorization. The development Supabase project is for separately approved verification only.
 
-## Wave 0 — Security foundation and gateway trust boundary
-**Goal:** Establish authentication and trusted identity context before business workflows.
-**Scope:** Keep/harden existing Java API Gateway; retain Supabase Auth and ES256/JWKS validation; pin issuer to approved dev project and audience `authenticated`; remove public route discovery; resolve verified JWT `sub` to trusted current profile, tenant membership, status, roles/scopes; add stable `GET /api/v1/auth/me` with `Cache-Control: no-store`; strip/replace caller-supplied identity headers; harden downstream HMAC context and replay/timestamp handling; ensure downstream verification/fail-closed behavior; review transaction-local RLS context and DB least privilege without changing DB grants/RLS absent approval; explicitly restrict in-memory resolver to tests; add bounded auth/JWKS and request-size protections.
-**Exit criteria:** No route inventory disclosure; JWT remains fail-closed; `/auth/me` binds to verified subject and trusted records; inactive/ambiguous identities denied; spoofed headers ineffective; no production fallback to in-memory; role/scopes follow verified model; gateway tests pass; DB-dependent unverified items are disclosed; report/checkpoint updated.
-**Current:** Task 1 reported complete. Task 2 implemented per report; bounded security verification/correction remains.
+### G3 — JDK/framework assessment (before Wave 11 exit)
+Assess supported JDK targets, effort, compatibility risks and recommendation. Java 8 remains in place; no upgrade without separate approval.
 
-## Wave 1 — Shared audit and outbox foundation
-**Goal:** Consistent, tenant-aware audit and reliable outbox contracts.
-**Scope:** Inspect existing common/security libraries, audit schema and `sys.outbox_events`; reuse contracts; define transaction-aware outbox writes, correlation/event metadata, idempotency, retries and failure behavior; prevent sensitive-data leakage; test tenant attribution and transaction semantics. No unapproved DB changes.
-**Exit criteria:** Contracts and ownership documented; transactional behavior, idempotency/failure behavior tested; no unnecessary duplicate implementations; report/checkpoint updated.
+## 4. Cross-cutting requirements, Waves 4–11
 
-## Wave 2 — Preferences
-**Goal:** Implement a bounded preferences slice through trusted gateway identity.
-**Scope:** Inspect existing schema/API/UI consumers; define preference contract and ownership; use trusted identity, not caller-supplied user/tenant; persist through approved Java path and RLS; test ownership, tenant isolation and persistence.
-**Exit criteria:** Contract documented, ownership and isolation verified, UI/API path tested, report/checkpoint updated.
+1. **Thin E2E every wave:** verify `UI/Frontend → shared versioned API Gateway → Java domain service → PostgreSQL` where the safe environment supports it. Include persisted read-back and cross-tenant denial. State test tier: mock, in-memory, isolated DB, approved staging DB or browser. If the full path is unavailable, test the strongest safe tier and mark missing evidence pending.
+2. **Frontend cutover per wave:** migrate consumers off direct DB access as each API arrives, or record exact remaining consumers and why. Wave 10 retires eligible remaining access; it does not begin all migrations.
+3. **Intelligence Layer:** reuse Wave 1 event/outbox envelope (correlation ID, tenant context, event time, entity IDs, schema version). Register event types, owner and privacy classification. Test tenant context, idempotency, failure and retry. A test double is not live integration; mark real integration pending.
+4. **Events do not replace transactions:** PostgreSQL domain state is authoritative. Events use the transaction-aware outbox; command success is distinct from downstream delivery.
+5. **No unapproved DB changes:** exact non-production target verification and explicit approval for every write step.
+6. Test tenant, role and department scope as applicable. If G1 is open, do not claim RLS verification.
+7. Do not expand scope silently. Preserve existing work and stop after the current wave.
 
-## Wave 3 — Academic departments and programs
-**Goal:** Establish structures required by student, timetable and attendance workflows.
-**Scope:** Implement/verify department and program workflows; enforce tenant and department scopes, referential integrity and persistence; avoid direct frontend DB access and duplicate implementations.
-**Exit criteria:** Agreed workflow verified end-to-end; scope boundaries tested; dependencies documented.
+## 5. Wave 4 — Student domain and roster
 
-## Wave 4 — Student domain and roster
-**Goal:** Make student identity/lifecycle a first-class domain.
-**Scope:** Define student/person linkage, identifiers, admission/lifecycle status, program/department/batch relationships and ownership; establish student-service persistence/contracts before dependent workflows; implement roster path; test duplicate IDs, lifecycle, references and tenant isolation.
-**Exit criteria:** Model/ownership documented; roster/lifecycle persisted and tested; stable references for downstream modules.
+**Goal:** First-class student domain with stable identity/lifecycle and references for downstream modules.
 
-## Wave 5 — Timetable
-**Goal:** Timetable workflow built on verified academic structures.
-**Scope:** Persist timetable and validate tenant, program, batch, faculty and subject references; enforce agreed conflict rules; test authorization and tenant separation.
-**Exit criteria:** Gateway-to-service-to-DB workflow and conflict rules verified; report/checkpoint updated.
+**Preconditions:** Record G1 evidence; if open, no persistence/DB writes. Obtain written approval of the student model before implementing that model. Verify Wave 3 structures from existing evidence.
 
-## Wave 6 — Dashboards
-**Goal:** Role-specific read models based on authoritative persisted data.
-**Scope:** Define role-specific aggregates; prevent cross-tenant/out-of-scope leakage; use APIs instead of ad hoc direct frontend queries; reconcile dashboard values to fixture records.
-**Exit criteria:** Counts reconcile to stored data; role/tenant boundaries tested; report/checkpoint updated.
+**Design checkpoint:** student/person linkage; institution-scoped admission/enrolment/roll identifiers; lifecycle states/transitions; relationships to program, department, batch, academic year/term; ownership boundaries across Student, IAM, Academics, Exams, Finance, LMS, Documents and Workflow.
 
-## Wave 7 — Attendance
-**Goal:** Secure attendance marking and oversight.
-**Scope:** Implement session/record persistence and faculty marking; enforce class/timetable/department scope; test invalid roster membership, duplicates, authorization, read-back and tenant isolation.
-**Exit criteria:** End-to-end marking/oversight verified; persisted read-back proven; unauthorized/cross-tenant attempts denied.
+**Scope:** student service sole writer of canonical student data; roster list/search with cursor pagination; enrol/transfer/withdraw only where approved and supported by existing schema; idempotent bulk import with row validation if within approved scope; role/department authorization; trusted identity; data minimization; versioned events through Wave 1 outbox.
 
-## Wave 8 — Attendance corrections
-**Goal:** Controlled amendments with traceability.
-**Scope:** Define request/approval/apply authority; preserve original/corrected values, actor, reason and time; add concurrency/idempotency controls where needed; test authorization and tenant isolation.
-**Exit criteria:** Correction flow and audit trail verified; unauthorized changes denied.
+Reuse `stu.students`, `core.persons`, `stu.guardianships`, IAM links/role assignments, shared audit/outbox, document and workflow capabilities where current code/schema supports them. Do not duplicate identity, credentials, guardians, document registry or workflow. Verify existing migrations before proposing new tables; do not assume admissions or term-registration tables exist.
 
-## Wave 9 — College onboarding
-**Goal:** Safe and repeatable tenant onboarding.
-**Scope:** Inspect existing provisioning contract; implement idempotent onboarding and initial admin assignment; prevent tenant/role escalation; test in approved non-production environment. Any DB write/provisioning needs explicit approval.
-**Exit criteria:** Repeatable/idempotent onboarding; initial role and isolation verified; report/checkpoint updated.
+**Tests:** duplicate identifiers within/across tenants; invalid lifecycle transitions; out-of-tenant/out-of-scope references; import idempotency if implemented; persisted read-back where approved DB is available; cross-tenant and role denial, with test tier stated.
 
-## Wave 10 — Frontend DB-access retirement and integrated E2E
-**Goal:** Migrate domain access to gateway/Java services and prove integrated workflows.
-**Scope:** Inventory `lib/db.ts` and other direct DB consumers; migrate only when equivalent APIs exist; retire direct access after all consumers and tests are verified; test UI → gateway → Java services → PostgreSQL, persisted read-back, tenant isolation, role authorization, signed downstream context, Shared Services contracts, and Java service output publication to the Intelligence Layer.
-**Exit criteria:** No unintended direct frontend domain-data access; E2E evidence includes request/response/read-back and cross-tenant denial; gaps and rollback considerations documented.
+**Exit:** approved model/ownership; roster/lifecycle implemented within approved scope; stable student/batch references documented; events registered/tested at available tier; report and checkpoint updated; unverified integration remains pending.
 
-## Definition of done for every wave
-Report exact files, behavior, commands/test counts, test type (mock/in-memory/DB/browser), skipped tests, tenant-isolation evidence, blockers, guardrail confirmation and next task. Compilation alone is not E2E proof.
+## 6. Wave 5 — Timetable
 
-## Control files
-- `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md` — this plan.
-- `docs/project-control/PROGRESS.md` — current checkpoint.
-- `docs/reports/wave-N/COMPLETION_REPORT.md` — each wave's report.
-- `prompts/NEXT_ANTIGRAVITY_TASK.md` — current bounded execution prompt.
+Document conflict rules before implementation: faculty, batch, and room double-booking if rooms are in scope. Persist entries with validated tenant/program/batch/faculty/course references; define effective dates/versioning and IST convention. Enforce conflicts atomically, using service-level locking or separately approved DB constraints. Represent faculty assignment/substitution; publish stable slot IDs and slot-changed event.
+
+**Tests:** every conflict rule including concurrency; invalid references; department scope; tenant separation; read-back at approved test tier.  
+**Exit:** gateway-to-DB path and conflict rules verified at available tier; slot contract documented; G2 closed; report/checkpoint updated.
+
+## 7. Wave 6 — Attendance
+
+Sessions derive from timetable slots. Define marking window, assigned faculty/substitute authority, attendance statuses, roster snapshot and behavior when student lifecycle changes mid-term. Implement idempotent single/bulk marking, reject duplicates/invalid roster; HoD/admin oversight with scope and cursor pagination. Register session-opened and attendance-marked events.
+
+**Tests:** non-roster students, duplicates, outside-window/assignment marking, department scope, read-back, cross-tenant/unauthorized denial.  
+**Exit:** marking/oversight verified at strongest available tier; evidence and pending gaps recorded.
+
+## 8. Wave 7 — Attendance corrections
+
+Implement request → approval → apply; requester cannot self-approve; agree correction time limit. Preserve append-only history (original/corrected values, actor, reason, timestamps); concurrency/idempotency; shared outbox correction event.
+
+**Tests:** authority matrix, self-approval denial, concurrent apply, replay, history integrity, tenant isolation, read-back of original and corrected values.  
+**Exit:** correction and audit trail verified at available tier; report/checkpoint updated.
+
+## 9. Wave 8 — Dashboards
+
+Document metric definitions first: present counts, denominators, corrections, withdrawn students and date ranges. Define aggregates per role (platform admin, college admin, HoD, faculty; student view only if approved). Serve via gateway APIs, not ad hoc frontend queries. Any materialized view/index/DB object requires separate approval. Agree latency budget and measure p50/p95. Dashboards are not a second source of truth.
+
+**Tests:** reconcile values to fixtures including corrections; role/tenant leakage tests; latency measurements; at least two tenants in a safe test environment.  
+**Exit:** reconciled counts, scope tests and latency evidence or recorded deviations.
+
+## 10. Wave 9 — College onboarding
+
+Inspect provisioning contract; implement idempotent onboarding and initial admin assignment; platform-admin-only authority; prevent tenant/role escalation. Supabase Auth privileged credentials must be narrowly scoped and server-side only. Define compensation/rollback; register tenant-provisioned event. Writes only in approved non-production environment with exact-step approval.
+
+**Tests:** repeated onboarding, partial-failure recovery, escalation attempts, third test tenant and isolation tests where safe.  
+**Exit:** repeatable provisioning, role/isolation evidence, report/checkpoint updated.
+
+## 11. Wave 10 — Frontend DB-access retirement and integrated E2E
+
+Inventory remaining `lib/db.ts` and other direct DB consumers; migrate only where equivalent APIs exist. Retire direct access after consumers/tests verified. Remove/hard-disable dev impersonation/test sessions from deployable builds; test gateway rejection in production configuration without connecting to production. Run browser regression by role across student, timetable, attendance, corrections, dashboards and onboarding, including request/response, read-back, cross-tenant denial, role authorization and signed context. Verify event contracts against real Intelligence Layer endpoint if reachable, otherwise test double and pending status.
+
+**Exit:** no unintended direct frontend domain-data access; E2E evidence and remaining gaps documented.
+
+## 12. Wave 11 — Production readiness gate
+
+Assessment/preparation only; production connection/cutover needs separate explicit authorization. Assess JDK/framework; CI test tiers; secrets/key rotation, rate limits/request bounds; structured logs/correlation IDs, metrics, health, outbox lag/failure alerts and replay; performance against Wave 8 budget; backup/rollback/cutover plans and runbooks. Document any migration path from separate MVP environment as a plan only. Produce go/no-go checklist with pending Intelligence Layer work.
+
+**Exit:** reviewed go/no-go report, explicit open risks/pending integrations and rollback plan. No cutover implied.
+
+## 13. Required evidence in every report
+
+For each workflow: E2E path and exact test tier; DB read-back if available; tenant isolation and G1 status; event types/owner/schema/privacy and delivery tier; Intelligence Layer duplicate/failure/retry tests and status; frontend consumers migrated/remaining; exact files, commands, test counts/skips/failures; G1–G3 status; latency where relevant; blockers and guardrail confirmation. State what was not tested.
+
+## 14. Definition of done
+
+Approved scope implemented; actual tests/results recorded; claims match evidence; tenant/authorization evidence without overclaiming RLS; `PROGRESS.md` updated; `docs/reports/wave-N/COMPLETION_REPORT.md` updated; `NEXT_ANTIGRAVITY_TASK.md` derived from evidence; no unauthorized DB action or commit/push; stop after current task.
+
+## 15. Immediate next task
+
+Wave 4. Check current state and G1 evidence without repeating broad audits. Continue safe design/code/unit tests if G1 is open, but no persistence requiring a DB connection or DB writes until target and approval requirements are satisfied. Obtain written student-model approval before implementing that model.

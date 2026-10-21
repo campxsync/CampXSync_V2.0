@@ -34,6 +34,21 @@ public class AuditEvent {
     /** Unique identity of the entity being acted upon. */
     private final String resourceId;
 
+    /** Multi-tenant identifier. */
+    private final String tenantId;
+
+    /** Multi-tenant college partition identifier if applicable. */
+    private final String collegeId;
+
+    /** Distributed tracing correlation ID. */
+    private final String correlationId;
+
+    /** Severity level of the audit event (e.g. "INFO", "WARN", "CRITICAL"). */
+    private final String severity;
+
+    /** Principal type (e.g. "USER", "SERVICE", "SYSTEM"). */
+    private final String principalType;
+
     /** Originating network IP address of the caller. */
     private final String clientIp;
 
@@ -55,11 +70,24 @@ public class AuditEvent {
         this.principalRole = builder.principalRole != null ? builder.principalRole : "GUEST";
         this.resourceType = builder.resourceType != null ? builder.resourceType : "SYSTEM";
         this.resourceId = builder.resourceId != null ? builder.resourceId : "N/A";
+        this.tenantId = builder.tenantId;
+        this.collegeId = builder.collegeId;
+        this.correlationId = builder.correlationId;
+        this.severity = builder.severity != null ? builder.severity : "INFO";
+        this.principalType = builder.principalType != null ? builder.principalType : "USER";
         this.clientIp = builder.clientIp != null ? builder.clientIp : "0.0.0.0";
         this.status = builder.status != null ? builder.status : "SUCCESS";
         this.description = builder.description != null ? builder.description : "";
         this.metadata = builder.metadata != null ? Collections.unmodifiableMap(new HashMap<>(builder.metadata)) : Collections.emptyMap();
         this.timestamp = builder.timestamp > 0 ? builder.timestamp : System.currentTimeMillis();
+    }
+
+    public AuditEvent(String action, String principalId, String resourceType, String resourceId, String description, Map<String, String> metadata) {
+        this(builder().action(action).principalId(principalId).resourceType(resourceType).resourceId(resourceId).description(description).metadata(metadata));
+    }
+
+    public AuditEvent(String tenantId, String collegeId, String action, String principalId, String principalType, String resourceType, String resourceId, String status, String severity, String correlationId, String description, Map<String, String> metadata) {
+        this(builder().tenantId(tenantId).collegeId(collegeId).action(action).principalId(principalId).principalType(principalType).resourceType(resourceType).resourceId(resourceId).status(status).severity(severity).correlationId(correlationId).description(description).metadata(metadata));
     }
 
     /** @return Action name. */
@@ -76,6 +104,21 @@ public class AuditEvent {
 
     /** @return ID of resource targeted. */
     public String getResourceId() { return resourceId; }
+
+    /** @return Multi-tenant ID. */
+    public String getTenantId() { return tenantId; }
+
+    /** @return College ID. */
+    public String getCollegeId() { return collegeId; }
+
+    /** @return Correlation ID for distributed tracing. */
+    public String getCorrelationId() { return correlationId; }
+
+    /** @return Severity level (INFO, WARN, CRITICAL). */
+    public String getSeverity() { return severity; }
+
+    /** @return Principal type (USER, SERVICE, SYSTEM). */
+    public String getPrincipalType() { return principalType; }
 
     /** @return Caller IP address. */
     public String getClientIp() { return clientIp; }
@@ -108,6 +151,11 @@ public class AuditEvent {
         ctx.put("audit.resourceId", resourceId);
         ctx.put("audit.clientIp", clientIp);
         ctx.put("audit.status", status);
+        if (tenantId != null) ctx.put("audit.tenantId", tenantId);
+        if (collegeId != null) ctx.put("audit.collegeId", collegeId);
+        if (correlationId != null) ctx.put("audit.correlationId", correlationId);
+        if (severity != null) ctx.put("audit.severity", severity);
+        if (principalType != null) ctx.put("audit.principalType", principalType);
 
         return LogEvent.builder()
                 .level(LogLevel.AUDIT)
@@ -130,6 +178,11 @@ public class AuditEvent {
         private String principalRole;
         private String resourceType;
         private String resourceId;
+        private String tenantId;
+        private String collegeId;
+        private String correlationId;
+        private String severity = "INFO";
+        private String principalType = "USER";
         private String clientIp;
         private String status = "SUCCESS";
         private String description;
@@ -141,6 +194,11 @@ public class AuditEvent {
         public Builder principalRole(String principalRole) { this.principalRole = principalRole; return this; }
         public Builder resourceType(String resourceType) { this.resourceType = resourceType; return this; }
         public Builder resourceId(String resourceId) { this.resourceId = resourceId; return this; }
+        public Builder tenantId(String tenantId) { this.tenantId = tenantId; return this; }
+        public Builder collegeId(String collegeId) { this.collegeId = collegeId; return this; }
+        public Builder correlationId(String correlationId) { this.correlationId = correlationId; return this; }
+        public Builder severity(String severity) { this.severity = severity; return this; }
+        public Builder principalType(String principalType) { this.principalType = principalType; return this; }
         public Builder clientIp(String clientIp) { this.clientIp = clientIp; return this; }
         public Builder status(String status) { this.status = status; return this; }
         public Builder description(String description) { this.description = description; return this; }
@@ -148,6 +206,12 @@ public class AuditEvent {
         public Builder addMetadata(String key, String value) {
             if (key != null && value != null) {
                 this.metadata.put(key, value);
+            }
+            return this;
+        }
+        public Builder metadata(Map<String, String> metadata) {
+            if (metadata != null) {
+                this.metadata.putAll(metadata);
             }
             return this;
         }
