@@ -1,15 +1,16 @@
 # CampXSync Java Backend Integration — Progress
 
-**Updated:** 2026-10-21  
+**Updated:** 2026-10-22  
 **Branch:** `feature/java-backend-integration`
 
 > Based on user-provided execution reports and recorded context; not an independent re-verification of current repository or live database.
 
 ## Current checkpoint
 - Last recorded committed Wave 0 baseline: `105122b6b5b17d3eadc70e7e8094008facb4285a`.
-- Waves 1–3 reported complete/accepted; their uncommitted changes must be preserved.
-- **Next: Wave 4 — Student Domain Foundation & Roster.**
-- Revised sequence: W4 Student → W5 Timetable → W6 Attendance → W7 Corrections → W8 Dashboards → W9 Onboarding → W10 Frontend DB retirement/E2E → W11 Production readiness.
+- Waves 1–4 complete/accepted; their uncommitted changes must be preserved.
+- **Wave 4 Status:** **COMPLETE (VERIFIED LIVE)** (Stage A, B, C, D complete and verified live on `azulbaxszsqxymqmlwfe`).
+- **Next: Wave 5 — Timetable Domain & Relational Persistence.**
+- Revised sequence: W4 Student (COMPLETE) → W5 Timetable → W6 Attendance → W7 Corrections → W8 Dashboards → W9 Onboarding → W10 Frontend DB retirement/E2E → W11 Production readiness.
 - No reset, clean, stash, branch switch, commit or push without explicit user authorization.
 
 ## Wave 1 — Shared Audit & Outbox Foundation
@@ -34,22 +35,26 @@
 - **G3 JDK/framework assessment:** Not started; due before Wave 11 exit. Java 8 unchanged unless separately approved.
 
 ## Wave 4 — Student Domain Foundation & Roster
-**Current status:** Stage A Complete (Gate G1 PASSED). Ready for Phase 2: Student Domain Model & Architecture Proposal.
+**Current status:** **COMPLETE (VERIFIED LIVE)** (Stage A: G1 Security Remediation PASSED; Stage B: Java Foundation & Gateway Routes Complete; Stage C: PostgreSQL Persistence, Mock JDBC Repository, and Frontend Roster Cutover Complete; Stage D: Live Application Role Authentication Verified; Live Student/Person Persistence Verified; Decision Gate DEC-W4-OUTBOX Applied; Outbox Live Persistence Verified Live on `azulbaxszsqxymqmlwfe`).
 - Audit report: `docs/reports/wave-4/STUDENT_DATABASE_RLS_AUDIT.md` (Phase 1).
-- Remediation proposal: `docs/reports/wave-4/G1_SECURITY_REMEDIATION_PROPOSAL.md` (Stage A).
-- Remediations executed and verified live:
-  * `02_application_role_proposal.sql` (`DEC-G1-01` under `APPROVE-G1-ROLE-CREATION`).
-  * `04_rls_hardening_proposal.sql` Block 1 (`DEC-G1-02A` under `APPROVE-G1-FORCE-RLS-TIER1`).
-  * `03_minimum_grants_proposal.sql` (`DEC-G1-03` under `APPROVE-G1-GRANTS`).
-- All 4 live test suites passed (`LiveG1DatabasePreflightTest`, `LiveG1RoleCreationExecutionTest`, `LiveG1Tier1RlsExecutionTest`, `LiveG1GrantsExecutionTest`).
-- Zero Java backend persistence code implemented yet for Student module.
-- Next Phase: Wave 4 Phase 2 — Student Domain Model, Architecture, and Contract Proposal.
+- Remediation proposal & verified executions: `docs/reports/wave-4/G1_SECURITY_REMEDIATION_PROPOSAL.md` (Stage A, G1 PASSED).
+- Student Model Proposal: `docs/reports/wave-4/STUDENT_MODEL_PROPOSAL.md` (Approved under `APPROVE-WAVE4-STUDENT-MODEL-ALL`).
+- Java Backend Module: `services/student-service` implemented with HikariCP `DatabaseConfig`, `DatabaseConnectionManager`, `UserSecurityContext.executeInTransaction`, `PostgresStudentRepository`, `PostgresPersonRepository`, `PostgresGuardianshipRepository`.
+- API Gateway: Route mappings for `/api/v1/students`, `/v1/students`, `/v1/student-roster` active in `GatewayConfig.java` (verified via `StudentGatewayRouteTest`: 1/1 PASS).
+- Unit & Mock Suite: **39/39 tests PASS** in `student-service` (`mvn test -pl services/student-service "-Dtest=!Live*"`).
+- Live Database Execution Status on dev ref `azulbaxszsqxymqmlwfe`:
+  - `LiveApplicationRoleAuthTest` (1/1 PASS, Verified Live): Application role `campx_app_server` authentication verified.
+  - `LiveStudentRuntimeSecurityTest` (3/3 PASS, Verified Live): Live catalog checks on `azulbaxszsqxymqmlwfe` verified (direct app role auth, runtime security path, outbox catalog privileges/policies).
+  - `LiveOutboxGrantsExecutionTest` (1/1 PASS, Verified Live): Owner-authorized DEC-W4-OUTBOX migration executed successfully, establishing schema `USAGE ON SCHEMA sys TO authenticated, campx_app_server`, table DML on `sys.outbox_events`, and 4 tenant-scoped RLS policies.
+  - `LivePostgresStudentPersistenceTest` (2/2 PASS, Verified Live): End-to-end photo document, person, student, and outbox persistence verified within single transaction; joined read-back verified; same-transaction outbox read-back with payload verification verified; cross-tenant read denial verified (0 rows); cross-tenant write denial verified (RLS violation); live failure rollback verified; unconditional rollback leaving 0 persistent rows verified.
+- Minimal Grant Migration Applied: `docs/reports/wave-4/g1-proposed-sql/04_outbox_least_privilege_grants.sql` via `LiveOutboxGrantsExecutionTest`.
+- Completion report: `docs/reports/wave-4/COMPLETION_REPORT.md` (Status: COMPLETE).
 
-## Wave 4 next actions
-1. Prepare Wave 4 Phase 2 Student Domain Model & Architecture Proposal for owner review.
-2. Define API contracts for Student Service (UI -> Gateway -> Java Student Service -> Supabase).
-3. Define versioned Intelligence Layer events/contracts for Student Module.
-4. Implement Java domain entities, repositories, and services with `UserSecurityContext` tenant-isolation.
+## Wave 4 closeout / Decision Gate Outcome
+1. **Decision Gate 1 (DEC-G1-04 - Credential Provisioning):** **PASSED**. Unprivileged role `campx_app_server` credential configured and verified live against `azulbaxszsqxymqmlwfe` via `LiveApplicationRoleAuthTest` (1/1 PASS).
+2. **Decision Gate 2 (DEC-W4-OUTBOX - Outbox Schema Grant & RLS Policies):** **PASSED & VERIFIED LIVE**. Owner authorized execution of `04_outbox_least_privilege_grants.sql` via `LiveOutboxGrantsExecutionTest` (1/1 PASS) granting `USAGE ON SCHEMA sys TO authenticated, campx_app_server`, table DML on `sys.outbox_events`, and establishing 4 tenant-scoped RLS policies.
+3. `LivePostgresStudentPersistenceTest` re-run: **2/2 PASS**. All Wave 4 acceptance criteria satisfied.
+4. **Advance to Wave 5: Timetable Domain & Relational Persistence.**
 
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–3 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

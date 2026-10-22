@@ -190,6 +190,11 @@ public class GatewayConfig {
         routeTable.put("/v1/dashboards", "http://localhost:8092/api/v1/academics/analytics/dashboard");
         routeTable.put("/v1/reports", "http://localhost:8092/api/v1/academics/analytics/export");
         routeTable.put("/v1/kpis", "http://localhost:8092/api/v1/academics/analytics/dashboard");
+
+        // Student Domain Tier -> Student Service (STU-01, Port 8093)
+        routeTable.put("/api/v1/students", "http://localhost:8093/api/v1/students");
+        routeTable.put("/v1/students", "http://localhost:8093/api/v1/students");
+        routeTable.put("/v1/student-roster", "http://localhost:8093/api/v1/students");
     }
 
     /**

@@ -1,44 +1,52 @@
-# Next Antigravity Task — Wave 4 Student Domain Foundation & Roster
+# Next Antigravity Task — Wave 5: Timetable Domain & Relational Persistence
 
-Execute the next implementation task directly; do not return only a plan, audit or another prompt. Follow `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md` and `.agent/campxsync-wave-control.md`.
+**Target Repository:** `D:\CampXSync\CampXSync_V2.0`  
+**Governing Documents:** `.agent/rules/campxsync-wave-control.md`, `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md`, `docs/project-control/PROGRESS.md`, `docs/reports/wave-4/COMPLETION_REPORT.md`  
+**Current Branch:** `feature/java-backend-integration`
 
-## 1. Preserve current work
-- Inspect `git status --short --branch` and HEAD.
-- Preserve all modified/untracked files from Waves 1–3. Do not reset, clean, stash, switch branches, overwrite unrelated files, commit or push.
-- Use the current Wave 3 report and control files as checkpoint; avoid repeating broad audits without a concrete blocker.
+---
 
-## 2. G1 gate
-Check evidence for a dedicated application DB login role without `BYPASSRLS`, transaction-scoped tenant/user context, and verified non-production DB target.
-- If closed, record exact evidence and source.
-- If open/unclear, no migrations, grants, RLS changes, seeds, provisioning, shared-DB persistence tests or DB writes.
-- Safe design, code not connecting to a DB, unit tests and isolated tests that cannot touch shared/production DB may continue.
-- Every DB write/role/grant change requires explicit approval for that exact step. Never connect to production.
+## 1. Wave 4 Completion Status
 
-## 3. Student model approval checkpoint
-Before implementing the canonical model, document a concise proposal for approval covering student/person linkage; institution-scoped admission/enrolment/roll identifiers; lifecycle states/transitions; college/program/academic-year/term/batch relationships; ownership across Student, IAM, Academics, Exams, Finance, LMS, Documents and Workflow; API endpoints and role/department authorization; and any schema changes separately from code-only work. Do not treat the proposal as approved without written user approval. Continue only safe work that does not pre-empt the decision.
+Wave 4 (Student Domain Foundation & Roster) has reached complete, verified closeout on development database `azulbaxszsqxymqmlwfe`:
+- **G1 Least-Privilege Role:** Verified live with `campx_app_server` (`rolsuper=false`, `rolbypassrls=false`, `rolcanlogin=true`).
+- **Student & Person Domain Persistence:** `core.persons`, `stu.students`, and `doc.documents` live persistence and joined read-back verified.
+- **Transactional Outbox Persistence:** Decision Gate DEC-W4-OUTBOX applied and verified live via `LivePostgresStudentPersistenceTest` (2/2 PASS).
+- **Tenant Isolation & Security:** Fail-closed tenant boundaries, cross-tenant read denial (0 rows), cross-tenant write denial (RLS violation), atomic rollback on outbox failure, and unconditional rollback leaving zero residual rows verified live.
+- **Suite Verification:** All 39 unit tests in `student-service`, gateway routes in `api-gateway`, 58 tests in `logger`, and full 16-module reactor test-compilation pass cleanly.
 
-## 4. Inspect and reuse existing ownership
-Verify current source and migrations:
-- `stu.students` is the existing student-record candidate.
-- `core.persons` owns canonical person/demographic identity.
-- `stu.guardianships` is the existing guardian relationship candidate.
-- Reuse IAM profiles/role assignments; do not create duplicate credentials.
-- ACD owns batch/section enrolments and attendance-related academic structures where existing schema says so.
-- EXM remains authoritative for official exam results.
-- Reuse shared audit/outbox, document and workflow capabilities.
-- Do not assume admission applications or term-registration tables exist.
-Do not make schema changes merely to fit an imagined architecture. Propose the minimal change and wait for explicit approval before executing it.
+---
 
-## 5. Implement only approved Wave 4 scope
-Student domain/roster, stable student/batch references, cursor-paginated list/search, lifecycle transitions and enrol/transfer/withdraw paths where approved and supported, optional idempotent bulk import with row-level validation, trusted gateway identity, tenant/role/department enforcement, data minimization and versioned events through Wave 1 outbox. Do not implement all ten logical student microservices in this wave.
+## 2. Next Task: Wave 5 — Timetable Domain & Relational Persistence
 
-## 6. Test and record evidence
-Run focused tests, then relevant module tests and broader compilation/tests if practical. Classify each test as mock, in-memory, isolated PostgreSQL, approved staging DB or browser. If safe and authorized, verify frontend → gateway → Java → PostgreSQL, persisted read-back and cross-tenant denial. Otherwise record the strongest tier actually tested and leave missing evidence pending. Do not claim tenant isolation verified while G1 is open.
+In accordance with Section 6 of `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md`, proceed to Wave 5:
 
-## 7. Completion and stop
-Update from actual evidence:
-- `docs/project-control/PROGRESS.md`
-- `docs/reports/wave-4/COMPLETION_REPORT.md`
-- `prompts/NEXT_ANTIGRAVITY_TASK.md`
+### Step 1: Preflight & Schema Audit
+- Inspect the existing timetable schema in PostgreSQL (`acd.timetables`, `acd.timetable_entries`, `acd.course_sections`, rooms, and periods) on development ref `azulbaxszsqxymqmlwfe`.
+- Inspect existing RLS policies and role grants on timetable tables for `authenticated` and `campx_app_server`.
 
-Record exact files, commands, test counts/skips, test tier, G1–G3, frontend consumers, event integration status, blockers and guardrail confirmation. Stop after Wave 4. No commit/push.
+### Step 2: Timetable Conflict Rules & Architecture Specification
+- Document conflict rules before implementation:
+  1. Faculty double-booking (same faculty cannot teach two sections simultaneously).
+  2. Batch / Section double-booking (same student cohort cannot have two classes at the same slot).
+  3. Room double-booking (if physical rooms are in scope).
+- Define effective dates, term versioning, and Indian Standard Time (IST) conventions.
+- Prepare conflict enforcement strategy (service-level locking vs. exclusion constraints).
+
+### Step 3: Implement Timetable Java Domain Service (`services/timetable-service` or ACD-05)
+- Model timetable slot entities with aggregate ownership and foreign keys to tenant, college, program, batch, faculty, and course.
+- Implement API Gateway routing for timetable endpoints (`/api/v1/timetables`).
+- Implement transactional outbox event emission for slot creations, mutations, and cancellations (`timetable.slot_changed.v1`).
+
+### Step 4: Verification & Test Suite
+- Comprehensive unit tests for conflict rules, concurrency, invalid references, and department scoping.
+- Live integration tests against `azulbaxszsqxymqmlwfe` validating RLS isolation, conflict rejection, and outbox persistence with rollback.
+
+---
+
+## 3. Mandatory Safeguards
+
+- Development Supabase ref `azulbaxszsqxymqmlwfe` exclusively.
+- Strictly prohibit production `ekspahbsbwdpraaqfqui` and legacy staging `kpwdvvcschankgggitnj`.
+- Preserve current branch `feature/java-backend-integration`, working tree, and untracked files.
+- Zero unapproved database changes, resets, stashes, or commits.
