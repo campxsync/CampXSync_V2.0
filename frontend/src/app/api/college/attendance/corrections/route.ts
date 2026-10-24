@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+
+/**
+ * Cutover ACD-06 Attendance Corrections Route.
+ * Routes directly to authoritative CampXSync API Gateway (/api/v1/academics/attendance/corrections)
+ * backed by Java Attendance Management Domain Service.
+ * Direct database access (lib/db.ts) has been removed in compliance with Wave 7 attendance corrections cutover.
+ */
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const CorrectAttendanceSchema = z.object({
   recordId: z.string().uuid('Valid attendance record ID required'),
@@ -12,6 +20,7 @@ const CorrectAttendanceSchema = z.object({
   }),
   reason: z.string().min(5, 'Mandatory correction reason must be at least 5 characters'),
   expectedVersion: z.number().int().min(1, 'Expected record version is required for optimistic locking'),
+  approverId: z.string().uuid().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -19,14 +28,16 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const resolution = await resolveUserRole(supabase);
 
-    // Only college_admin is authorized to perform administrative corrections per ACD-06
-    if (!resolution.success || resolution.session.role !== 'college_admin') {
+    if (
+      !resolution.success ||
+      (resolution.session.role !== 'college_admin' && resolution.session.role !== 'faculty')
+    ) {
       return NextResponse.json(
         {
           type: 'https://campxsync.edu/errors/forbidden',
           title: 'Forbidden',
           status: 403,
-          detail: 'Unauthorized: only college administrators can perform audited attendance corrections.',
+          detail: 'Unauthorized: insufficient role privileges to submit attendance corrections.',
         },
         { status: 403 }
       );
@@ -59,267 +70,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { recordId, sessionId, newStatus, reason, expectedVersion } = parseResult.data;
-
-    // 1. Fetch current record to check existence and optimistic lock version
-    const checkRes = await query(`
-      SELECT id, session_id, student_id, status, remarks, COALESCE(row_version, 1) as row_version
-      FROM acd.attendance_records
-      WHERE id = $1 AND session_id = $2 AND tenant_id = $3 AND deleted_at IS NULL
-      LIMIT 1
-    `, [recordId, sessionId, tenantId]);
-
-    const existingRecord = checkRes.rows[0];
-
-    if (!existingRecord) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/not-found',
-          title: 'Attendance Record Not Found',
-          status: 404,
-          detail: 'Attendance record not found in tenant session.',
-        },
-        { status: 404 }
-      );
-    }
-
-    // 2. Concurrency Check: Assert expected version matches current database version
-    if (existingRecord.row_version !== expectedVersion) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/conflict',
-          title: 'Optimistic Concurrency Conflict',
-          status: 409,
-          detail: `This record was updated by another administrator or session. Expected version was v${expectedVersion}, but current database version is v${existingRecord.row_version}. Please reload and review the latest data before retrying.`,
-          currentVersion: existingRecord.row_version,
-          currentStatus: existingRecord.status,
-        },
-        { status: 409 }
-      );
-    }
-
-    const oldStatus = existingRecord.status;
-    const oldVersion = existingRecord.row_version;
-    const newVersion = oldVersion + 1;
-    const userId = resolution.session.userId;
-
-    // Verify if userId exists in iam.user_profiles for this tenant to satisfy FK constraint
-    let validUserProfileId: string | null = null;
-    if (userId) {
-      const upCheck = await query(`
-        SELECT id FROM iam.user_profiles WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL LIMIT 1
-      `, [userId, tenantId]);
-      if (upCheck.rows.length > 0) {
-        validUserProfileId = userId;
-      }
-    }
-
-    // 3. Update acd.attendance_records atomically with version increment
-    const updateRes = await query(`
-      UPDATE acd.attendance_records
-      SET 
-        status = $1,
-        remarks = $2,
-        row_version = $3,
-        updated_at = now()
-      WHERE id = $4 AND tenant_id = $5 AND COALESCE(row_version, 1) = $6
-      RETURNING id, session_id, student_id, status, remarks, row_version, updated_at
-    `, [newStatus, reason, newVersion, recordId, tenantId, expectedVersion]);
-
-    if (updateRes.rowCount === 0) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/conflict',
-          title: 'Optimistic Concurrency Conflict',
-          status: 409,
-          detail: 'Concurrent mutation detected during record update. Please reload.',
-        },
-        { status: 409 }
-      );
-    }
-
-    const updatedRecord = updateRes.rows[0];
-
-    // 4. Insert into domain contract table: acd.attendance_corrections
-    try {
-      await query(`
-        INSERT INTO acd.attendance_corrections (
-          tenant_id,
-          record_id,
-          old_status,
-          new_status,
-          reason,
-          requested_by,
-          approved_by,
-          status,
-          decided_at,
-          created_at,
-          updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, 'APPROVED', now(), now(), now()
-        )
-      `, [
-        tenantId,
-        recordId,
-        oldStatus,
-        newStatus,
-        reason,
-        validUserProfileId,
-        validUserProfileId,
-      ]);
-    } catch (domainErr: any) {
-      console.warn('Failed to insert acd.attendance_corrections entry:', domainErr.message);
-    }
-
-    // 5. Append immutable change log in audit.change_log
-    try {
-      await query(`
-        INSERT INTO audit.change_log (
-          tenant_id,
-          table_schema,
-          table_name,
-          record_id,
-          action,
-          changed_fields,
-          old_data,
-          new_data,
-          request_id,
-          created_at
-        ) VALUES (
-          $1, 'acd', 'attendance_records', $2, 'U', ARRAY['status', 'remarks', 'row_version'],
-          $3, $4, $5, now()
-        )
-      `, [
-        tenantId,
-        recordId,
-        JSON.stringify({ status: oldStatus, row_version: oldVersion }),
-        JSON.stringify({ status: newStatus, row_version: newVersion, reason }),
-        reason,
-      ]);
-    } catch (changeLogErr: any) {
-      console.warn('Failed to insert audit.change_log entry:', changeLogErr.message);
-    }
-
-    // 6. Append immutable audit event in audit.events
-    try {
-      await query(`
-        INSERT INTO audit.events (
-          tenant_id,
-          event_time,
-          action,
-          resource_type,
-          resource_id,
-          status,
-          severity,
-          detail,
-          created_at
-        ) VALUES (
-          $1, now(), 'ATTENDANCE_CORRECTED', 'ATTENDANCE_RECORD', $2, 'SUCCESS', 'INFO',
-          $3, now()
-        )
-      `, [
-        tenantId,
-        recordId,
-        JSON.stringify({
-          sessionId,
-          studentId: existingRecord.student_id,
-          oldStatus,
-          newStatus,
-          reason,
-          version: newVersion,
-          correctedBy: resolution.session.displayName || 'College Administrator',
-        }),
-      ]);
-    } catch (auditErr: any) {
-      console.warn('Failed to insert audit.events entry:', auditErr.message);
-    }
-
-    // 7. Emit AttendanceCorrected event via existing outbox: sys.outbox_events
-    try {
-      await query(`
-        INSERT INTO sys.outbox_events (
-          tenant_id,
-          service,
-          aggregate_type,
-          aggregate_id,
-          event_type,
-          payload,
-          status,
-          created_at,
-          updated_at
-        ) VALUES (
-          $1,
-          'attendance-service',
-          'AttendanceRecord',
-          $2,
-          'AttendanceCorrected',
-          $3,
-          'PENDING',
-          now(),
-          now()
-        )
-      `, [
-        tenantId,
-        recordId,
-        JSON.stringify({
-          recordId,
-          sessionId,
-          studentId: existingRecord.student_id,
-          oldStatus,
-          newStatus,
-          reason,
-          rowVersion: newVersion,
-          correctedBy: resolution.session.displayName || 'College Administrator',
-          timestamp: new Date().toISOString(),
-        }),
-      ]);
-    } catch (outboxErr: any) {
-      console.warn('Failed to emit to sys.outbox_events:', outboxErr.message);
-    }
-
-    // 8. Recalculate session summary
-    const summaryRes = await query(`
-      SELECT 
-        count(*)::int as total,
-        count(CASE WHEN status = 'PRESENT' THEN 1 END)::int as present_count,
-        count(CASE WHEN status = 'ABSENT' THEN 1 END)::int as absent_count,
-        count(CASE WHEN status = 'LEAVE' THEN 1 END)::int as leave_count,
-        count(CASE WHEN status = 'LATE' THEN 1 END)::int as late_count,
-        count(CASE WHEN status = 'ON_DUTY' THEN 1 END)::int as on_duty_count
-      FROM acd.attendance_records
-      WHERE session_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-    `, [sessionId, tenantId]);
-
-    const summaryRow = summaryRes.rows[0] || { 
-      total: 0, 
-      present_count: 0, 
-      absent_count: 0, 
-      leave_count: 0,
-      late_count: 0,
-      on_duty_count: 0,
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'college_admin',
     };
-    const total = summaryRow.total || 0;
-    const presentCount = summaryRow.present_count || 0;
-    const absentCount = summaryRow.absent_count || 0;
-    const leaveCount = summaryRow.leave_count || 0;
-    const lateCount = summaryRow.late_count || 0;
-    const onDutyCount = summaryRow.on_duty_count || 0;
-    const attendedCount = presentCount + lateCount + onDutyCount;
-    const attendancePercentage = total > 0 ? Math.round((attendedCount / total) * 100) : 0;
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
+
+    const gatewayResponse = await fetch(`${GATEWAY_BASE_URL}/api/v1/academics/attendance/corrections`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(parseResult.data),
+    });
+
+    const data = await gatewayResponse.json();
+
+    if (!gatewayResponse.ok) {
+      return NextResponse.json(
+        {
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Gateway Correction Error',
+          status: gatewayResponse.status,
+          detail: data.detail || 'Failed to process attendance correction via gateway.',
+        },
+        { status: gatewayResponse.status }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Attendance corrected from ${oldStatus} to ${newStatus}. Record updated to v${newVersion}.`,
-      record: updatedRecord,
-      summary: {
-        total,
-        presentCount,
-        absentCount,
-        leaveCount,
-        lateCount,
-        onDutyCount,
-        attendancePercentage,
-      },
+      message: data.message || 'Attendance correction processed successfully.',
+      record: data.data || data,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -328,6 +113,97 @@ export async function POST(req: NextRequest) {
         title: 'Internal Server Error',
         status: 500,
         detail: err.message || 'An unexpected error occurred during attendance correction.',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const resolution = await resolveUserRole(supabase);
+
+    if (!resolution.success) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/unauthorized',
+          title: 'Unauthorized',
+          status: 401,
+          detail: 'Authentication required to view attendance corrections.',
+        },
+        { status: 401 }
+      );
+    }
+
+    const tenantId = resolution.session.tenantId;
+    if (!tenantId) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/bad-request',
+          title: 'Missing Tenant Context',
+          status: 400,
+          detail: 'No active tenant linked to user session.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get('sessionId');
+
+    if (!sessionId) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/validation-failed',
+          title: 'Missing sessionId Parameter',
+          status: 400,
+          detail: 'Valid sessionId query parameter is required.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'faculty',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
+
+    const gatewayResponse = await fetch(`${GATEWAY_BASE_URL}/api/v1/academics/attendance/sessions/${sessionId}/corrections`, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await gatewayResponse.json();
+
+    if (!gatewayResponse.ok) {
+      return NextResponse.json(
+        {
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Gateway Error',
+          status: gatewayResponse.status,
+          detail: data.detail || 'Failed to retrieve attendance corrections from gateway.',
+        },
+        { status: gatewayResponse.status }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      corrections: data.data || data || [],
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        type: 'https://campxsync.edu/errors/internal-server-error',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: err.message || 'An unexpected error occurred retrieving corrections.',
       },
       { status: 500 }
     );

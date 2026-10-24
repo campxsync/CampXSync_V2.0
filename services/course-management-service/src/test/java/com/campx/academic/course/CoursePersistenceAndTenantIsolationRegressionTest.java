@@ -331,18 +331,92 @@ public class CoursePersistenceAndTenantIsolationRegressionTest {
                 sql.contains("iam.perm_all('acd01.manage'::text)") &&
                 sql.contains("department_id IS NOT NULL AND department_id IN (SELECT unnest(iam.perm_department_ids('acd01.manage'::text)))"));
 
-        // 7. course_program_map write policies must enforce AND (not OR) between program and course scopes
-        assertTrue("course_program_map_insert must require AND between program and course scope",
-                sql.contains("core.programs_in_scope('acd01.write'::text, true))) AND") &&
-                sql.contains("core.courses_in_scope('acd01.write'::text, true)))"));
+        // 7. V20261024_01 Option C Asymmetric Curriculum Mapping Static Verification
+        java.io.File asymFile = new java.io.File("../../database/migrations/V20261024_01__asymmetric_course_program_map_rls.sql");
+        if (!asymFile.exists()) {
+            asymFile = new java.io.File("database/migrations/V20261024_01__asymmetric_course_program_map_rls.sql");
+        }
+        assertTrue("Migration file V20261024_01__asymmetric_course_program_map_rls.sql must exist at " + asymFile.getAbsolutePath(),
+                asymFile.exists());
 
-        assertTrue("course_program_map_delete must require AND between program and course scope",
-                sql.contains("core.programs_in_scope('acd01.manage'::text, true))) AND") &&
-                sql.contains("core.courses_in_scope('acd01.manage'::text, true)))"));
+        String asymSql = new String(java.nio.file.Files.readAllBytes(asymFile.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+        String asymWithoutComments = asymSql.replaceAll("--.*", "");
 
+        // A. Zero references to acd03.* in policy expressions
+        assertFalse("Option C migration must NOT reference acd03 permissions", asymWithoutComments.contains("acd03."));
+
+        // B. Contains granular canonical acd01 permissions
+        assertTrue("Option C migration must check acd01.view", asymSql.contains("acd01.view"));
+        assertTrue("Option C migration must check acd01.write", asymSql.contains("acd01.write"));
+        assertTrue("Option C migration must check acd01.manage", asymSql.contains("acd01.manage"));
+
+        // C. Target table is acd.course_program_map
+        assertTrue("Option C migration must target acd.course_program_map", asymSql.contains("acd.course_program_map"));
+
+        // D. Security-Definer Course Validity Helper
+        assertTrue("Option C migration must define core.is_active_course_in_tenant",
+                asymSql.contains("core.is_active_course_in_tenant"));
+        assertTrue("core.is_active_course_in_tenant must be SECURITY DEFINER with empty search_path",
+                asymSql.contains("SECURITY DEFINER") && asymSql.contains("SET search_path = ''"));
+        assertTrue("core.is_active_course_in_tenant must check tenant isolation and active status",
+                asymSql.contains("c.tenant_id = (SELECT core.current_tenant_id())") && asymSql.contains("c.deleted_at IS NULL"));
+
+        // E. INSERT & UPDATE enforce program-driven authority with universal course validity guard
+        assertTrue("course_program_map_insert must require program write authority",
+                asymSql.contains("core.programs_in_scope('acd01.write'::text, true)"));
+        assertTrue("course_program_map_insert must enforce universal course validity guard unbypassable by perm_all",
+                asymSql.contains("core.is_active_course_in_tenant(course_id)"));
+
+        // F. DELETE enforces program-driven authority
+        assertTrue("course_program_map_delete must require program manage authority",
+                asymSql.contains("core.programs_in_scope('acd01.manage'::text, true)"));
+
+        // G. SELECT preserves symmetric visibility under OR
         assertTrue("course_program_map_select must preserve OR between program and course scope",
-                sql.contains("core.programs_in_scope('acd01.view'::text, false))) OR") &&
-                sql.contains("core.courses_in_scope('acd01.view'::text, false)))"));
+                asymSql.contains("core.programs_in_scope('acd01.view'::text, false))) OR") &&
+                asymSql.contains("core.courses_in_scope('acd01.view'::text, false)))"));
+
+        // 8. V20261024_01 Rollback Script Static Verification Against Live Captured Baseline
+        java.io.File rollbackFile = new java.io.File("../../database/migrations/V20261024_01_rollback__revert_asymmetric_course_program_map_rls.sql");
+        if (!rollbackFile.exists()) {
+            rollbackFile = new java.io.File("database/migrations/V20261024_01_rollback__revert_asymmetric_course_program_map_rls.sql");
+        }
+        assertTrue("Rollback file V20261024_01_rollback__revert_asymmetric_course_program_map_rls.sql must exist at " + rollbackFile.getAbsolutePath(),
+                rollbackFile.exists());
+
+        String rollbackSql = new String(java.nio.file.Files.readAllBytes(rollbackFile.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+
+        // A. Must faithfully restore captured live baseline acd03.* permissions
+        assertTrue("Rollback must restore live baseline acd03.view", rollbackSql.contains("acd03.view"));
+        assertTrue("Rollback must restore live baseline acd03.write", rollbackSql.contains("acd03.write"));
+        assertTrue("Rollback must restore live baseline acd03.manage", rollbackSql.contains("acd03.manage"));
+
+        // B. Must NOT contain acd01 in active policy statements
+        String rollbackWithoutComments = rollbackSql.replaceAll("--.*", "");
+        assertFalse("Rollback active statements must NOT reference acd01 permissions (must restore actual live acd03 baseline)",
+                rollbackWithoutComments.contains("acd01."));
+
+        // C. Must restore symmetric OR semantics across all 4 policies
+        assertTrue("course_program_map_select must restore symmetric OR between program and course scope",
+                rollbackSql.contains("core.programs_in_scope('acd03.view'::text, false))) OR") &&
+                rollbackSql.contains("core.courses_in_scope('acd03.view'::text, false)))"));
+        assertTrue("course_program_map_insert must restore symmetric OR between program and course scope",
+                rollbackSql.contains("core.programs_in_scope('acd03.write'::text, true))) OR") &&
+                rollbackSql.contains("core.courses_in_scope('acd03.write'::text, true)))"));
+        assertTrue("course_program_map_update must restore symmetric OR between program and course scope on both USING and WITH CHECK",
+                rollbackSql.contains("core.programs_in_scope('acd03.write'::text, true))) OR") &&
+                rollbackSql.contains("core.courses_in_scope('acd03.write'::text, true)))"));
+        assertTrue("course_program_map_delete must restore symmetric OR between program and course scope",
+                rollbackSql.contains("core.programs_in_scope('acd03.manage'::text, true))) OR") &&
+                rollbackSql.contains("core.courses_in_scope('acd03.manage'::text, true)))"));
+
+        // D. Must clean up helper function
+        assertTrue("Rollback must drop helper function core.is_active_course_in_tenant",
+                rollbackSql.contains("DROP FUNCTION IF EXISTS core.is_active_course_in_tenant(uuid);"));
+
+        // E. Must be wrapped in transactional block
+        assertTrue("Rollback must be transactional (BEGIN ... COMMIT)",
+                rollbackSql.contains("BEGIN;") && rollbackSql.contains("COMMIT;"));
     }
 
     @Test
@@ -379,18 +453,28 @@ public class CoursePersistenceAndTenantIsolationRegressionTest {
         assertTrue("Department-scoped admin CAN delete mapping within permitted department",
                 evaluateCourseProgramMapDeletePolicy(csDeptAdmin, tId, "DEP_CS", "DEP_CS"));
 
-        // Scenario B: Course in one department (DEP_CS) linked to program in another unauthorized department (DEP_EE)
+        // Scenario B: Option C Program-Driven Cross-Department Authority
+        // Program owner (DEP_CS) CAN link an external department's course (DEP_EE) into their program curriculum
+        assertTrue("Department admin CAN link external department course into permitted department program under Option C",
+                evaluateCourseProgramMapInsertPolicy(csDeptAdmin, tId, "DEP_CS", "DEP_EE"));
+        assertTrue("Department admin CAN update mapping within permitted department program",
+                evaluateCourseProgramMapUpdatePolicy(csDeptAdmin, tId, "DEP_CS", "DEP_EE"));
+
+        // Course owner (DEP_CS) must NOT unilaterally link their course into an unauthorized program (DEP_EE)
         assertFalse("Department admin must NOT link permitted course to unauthorized department program",
                 evaluateCourseProgramMapInsertPolicy(csDeptAdmin, tId, "DEP_EE", "DEP_CS"));
-        assertFalse("Department admin must NOT link unauthorized department course to permitted department program",
-                evaluateCourseProgramMapInsertPolicy(csDeptAdmin, tId, "DEP_CS", "DEP_EE"));
-        assertFalse("Department admin must NOT update mapping to unauthorized cross-department pair",
+        assertFalse("Department admin must NOT update mapping to unauthorized department program",
                 evaluateCourseProgramMapUpdatePolicy(csDeptAdmin, tId, "DEP_EE", "DEP_CS"));
 
-        // Scenario C: Unauthorized deletion of a cross-department mapping
-        assertFalse("CS admin cannot unilaterally delete cross-department mapping involving DEP_EE",
+        // Scenario C: Program-Driven Deletion of Cross-Department Mapping
+        // CS admin CAN delete mapping from their program even if the course is from DEP_EE
+        assertTrue("CS admin CAN delete cross-department mapping from their own program",
+                evaluateCourseProgramMapDeletePolicy(csDeptAdmin, tId, "DEP_CS", "DEP_EE"));
+        // CS admin cannot unilaterally delete cross-department mapping where program is owned by DEP_EE
+        assertFalse("CS admin cannot unilaterally delete cross-department mapping involving DEP_EE program",
                 evaluateCourseProgramMapDeletePolicy(csDeptAdmin, tId, "DEP_EE", "DEP_CS"));
-        assertFalse("EE admin cannot unilaterally delete cross-department mapping involving DEP_CS",
+        // EE admin CAN delete cross-department mapping from their own program
+        assertTrue("EE admin CAN delete cross-department mapping from their own program",
                 evaluateCourseProgramMapDeletePolicy(eeDeptAdmin, tId, "DEP_EE", "DEP_CS"));
 
         // Scenario D: Tenant-wide authorized access (Dean / Registrar can establish cross-department links)
@@ -481,23 +565,27 @@ public class CoursePersistenceAndTenantIsolationRegressionTest {
 
     private boolean evaluateCourseProgramMapInsertPolicy(RlsIdentity identity, UUID rowTenantId, String programDeptId, String courseDeptId) {
         if (!identity.tenantId.equals(rowTenantId)) return false;
+        // Option C Universal Guard: Course must exist in tenant (represented by non-null courseDeptId)
+        if (courseDeptId == null) return false;
+        // Option C Program Authority: Must hold perm_all OR own the destination program
         return identity.hasTenantPerm("acd01.write")
-                || ((programDeptId != null && identity.hasDeptPerm("acd01.write", programDeptId))
-                    && (courseDeptId != null && identity.hasDeptPerm("acd01.write", courseDeptId)));
+                || (programDeptId != null && identity.hasDeptPerm("acd01.write", programDeptId));
     }
 
     private boolean evaluateCourseProgramMapUpdatePolicy(RlsIdentity identity, UUID rowTenantId, String programDeptId, String courseDeptId) {
         if (!identity.tenantId.equals(rowTenantId)) return false;
+        // Option C Universal Guard: Course must exist in tenant
+        if (courseDeptId == null) return false;
+        // Option C Program Authority: Must hold perm_all OR own the program
         return identity.hasTenantPerm("acd01.write")
-                || ((programDeptId != null && identity.hasDeptPerm("acd01.write", programDeptId))
-                    && (courseDeptId != null && identity.hasDeptPerm("acd01.write", courseDeptId)));
+                || (programDeptId != null && identity.hasDeptPerm("acd01.write", programDeptId));
     }
 
     private boolean evaluateCourseProgramMapDeletePolicy(RlsIdentity identity, UUID rowTenantId, String programDeptId, String courseDeptId) {
         if (!identity.tenantId.equals(rowTenantId)) return false;
+        // Option C Program Authority for DELETE: Must hold perm_all OR own the program
         return identity.hasTenantPerm("acd01.manage")
-                || ((programDeptId != null && identity.hasDeptPerm("acd01.manage", programDeptId))
-                    && (courseDeptId != null && identity.hasDeptPerm("acd01.manage", courseDeptId)));
+                || (programDeptId != null && identity.hasDeptPerm("acd01.manage", programDeptId));
     }
 
     /**

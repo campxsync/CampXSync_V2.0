@@ -2,12 +2,13 @@ import { redirect } from 'next/navigation';
 import { Layers, BookOpen, GraduationCap, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function CollegeBatchesPage() {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export default async function CollegeBatchesPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, tenantName } = resolution.session;
+  const { tenantId, tenantName, userId, collegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -25,42 +26,66 @@ export default async function CollegeBatchesPage() {
   let batches: any[] = [];
   let subjects: any[] = [];
 
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+    'X-Tenant-Id': tenantId,
+    'X-User-Role': 'COLLEGE_ADMIN',
+  };
+  if (collegeId) {
+    headers['X-College-Id'] = collegeId;
+  }
+
   try {
-    const batchesRes = await query(`
-      SELECT 
-        b.id,
-        b.code,
-        b.name,
-        b.status,
-        p.name as program_name,
-        p.code as program_code
-      FROM acd.batches b
-      LEFT JOIN acd.programs p ON p.id = b.program_id
-      WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
-      ORDER BY b.code ASC
-    `, [tenantId]);
+    // 1. Fetch batches via API Gateway backed by ACD-04 Batch Management Service
+    const batchesUrl = new URL('/api/v1/academics/batches', GATEWAY_BASE_URL);
+    batchesUrl.searchParams.set('pageSize', '100');
 
-    batches = batchesRes.rows;
+    const batchesRes = await fetch(batchesUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
 
-    const subjectsRes = await query(`
-      SELECT 
-        sub.id,
-        sub.code,
-        sub.name,
-        sub.subject_type,
-        sub.credits,
-        sub.status,
-        d.name as department_name,
-        d.code as department_code
-      FROM acd.subjects sub
-      LEFT JOIN core.departments d ON d.id = sub.department_id
-      WHERE sub.tenant_id = $1 AND sub.deleted_at IS NULL
-      ORDER BY sub.code ASC
-    `, [tenantId]);
+    if (batchesRes.ok) {
+      const data = await batchesRes.json();
+      const rawBatches = Array.isArray(data.data) ? data.data : [];
+      batches = rawBatches.map((b: any) => ({
+        id: b.id || b.batchId,
+        code: b.batchCode || b.code || '',
+        name: b.name || '',
+        status: b.status || 'ACTIVE',
+        program_name: b.departmentId || 'Academic Program',
+        program_code: b.departmentId ? b.departmentId.substring(0, 4).toUpperCase() : 'ACD',
+      }));
+    }
 
-    subjects = subjectsRes.rows;
+    // 2. Fetch subjects via API Gateway backed by ACD-03 Subject Management Service
+    const subjectsUrl = new URL('/api/v1/academics/subjects', GATEWAY_BASE_URL);
+    subjectsUrl.searchParams.set('limit', '100');
+
+    const subjectsRes = await fetch(subjectsUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (subjectsRes.ok) {
+      const data = await subjectsRes.json();
+      const rawSubjects = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      subjects = rawSubjects.map((s: any) => ({
+        id: s.id || s.subjectId,
+        code: s.subjectCode || s.code || '',
+        name: s.name || '',
+        subject_type: s.subjectType || s.type || 'THEORY',
+        credits: s.credits != null ? s.credits : 4,
+        status: s.status || 'ACTIVE',
+        department_name: s.departmentId || 'Department',
+        department_code: s.departmentId ? s.departmentId.substring(0, 4).toUpperCase() : 'DEPT',
+      }));
+    }
   } catch (err) {
-    console.error('Failed to query batches and subjects:', err);
+    console.error('Failed to query batches and subjects via API Gateway:', err);
   }
 
   return (

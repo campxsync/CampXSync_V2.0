@@ -227,6 +227,33 @@ public class TestEnvironmentGuardTest {
         TestEnvironmentGuard.verifySafeStagingEnvironment("staging", config);
     }
 
+    @Test(expected = AssertionError.class)
+    public void testStagingEnvironmentRejectedEvenWithValidConfig() {
+        DatabaseConfig config = new DatabaseConfig();
+        config.setJdbcUrl("jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres");
+        config.setUsername("postgres");
+
+        TestEnvironmentGuard.verifySafeStagingEnvironment("staging", config);
+    }
+
+    @Test
+    public void testDevelopmentEnvironmentAcceptedWithValidConfig() {
+        DatabaseConfig config = new DatabaseConfig();
+        config.setJdbcUrl("jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres");
+        config.setUsername("postgres");
+
+        TestEnvironmentGuard.verifySafeStagingEnvironment("development", config);
+    }
+
+    @Test
+    public void testDevEnvironmentAcceptedWithValidConfig() {
+        DatabaseConfig config = new DatabaseConfig();
+        config.setJdbcUrl("jdbc:postgresql://db.azulbaxszsqxymqmlwfe.supabase.co:5432/postgres");
+        config.setUsername("postgres");
+
+        TestEnvironmentGuard.verifySafeStagingEnvironment("dev", config);
+    }
+
     @Test
     public void testResolveSafeTestUserIdWithExplicitConfig() {
         UUID expected = UUID.randomUUID();

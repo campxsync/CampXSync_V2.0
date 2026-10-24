@@ -152,12 +152,47 @@ public class AnalyticsController implements HttpHandler {
                 }
 
                 // 6. Route Dispatching
-                if ("/dashboard".equals(path) && "GET".equalsIgnoreCase(method)) {
+                if ("/dashboard/college-admin".equals(path) && "GET".equalsIgnoreCase(method)) {
                     String period = queryParams.get("period");
-                    String scope = queryParams.get("scope");
-                    String scopeId = queryParams.get("scopeId");
-                    Map<String, Object> res = domainService.getDashboard(period, scope, scopeId, tenantId, userRole, userId, userDeptId);
+                    Map<String, Object> res = domainService.getCollegeAdminDashboard(tenantId, period);
                     sendJson(exchange, 200, toJson(res));
+                }
+                else if ("/dashboard/faculty".equals(path) && "GET".equalsIgnoreCase(method)) {
+                    Map<String, Object> res = domainService.getFacultyDashboard(tenantId, userId);
+                    sendJson(exchange, 200, toJson(res));
+                }
+                else if ("/dashboard/hod".equals(path) && "GET".equalsIgnoreCase(method)) {
+                    String departmentId = queryParams.get("departmentId");
+                    Map<String, Object> res = domainService.getHodDashboard(tenantId, departmentId, userId);
+                    sendJson(exchange, 200, toJson(res));
+                }
+                else if ("/dashboard/platform-admin".equals(path) && "GET".equalsIgnoreCase(method)) {
+                    Map<String, Object> res = domainService.getPlatformAdminDashboard();
+                    sendJson(exchange, 200, toJson(res));
+                }
+                else if ("/dashboard".equals(path) && "GET".equalsIgnoreCase(method)) {
+                    String roleParam = queryParams.get("role");
+                    if ("college_admin".equalsIgnoreCase(roleParam)) {
+                        String period = queryParams.get("period");
+                        Map<String, Object> res = domainService.getCollegeAdminDashboard(tenantId, period);
+                        sendJson(exchange, 200, toJson(res));
+                    } else if ("faculty".equalsIgnoreCase(roleParam)) {
+                        Map<String, Object> res = domainService.getFacultyDashboard(tenantId, userId);
+                        sendJson(exchange, 200, toJson(res));
+                    } else if ("hod".equalsIgnoreCase(roleParam)) {
+                        String departmentId = queryParams.get("departmentId");
+                        Map<String, Object> res = domainService.getHodDashboard(tenantId, departmentId, userId);
+                        sendJson(exchange, 200, toJson(res));
+                    } else if ("platform_admin".equalsIgnoreCase(roleParam)) {
+                        Map<String, Object> res = domainService.getPlatformAdminDashboard();
+                        sendJson(exchange, 200, toJson(res));
+                    } else {
+                        String period = queryParams.get("period");
+                        String scope = queryParams.get("scope");
+                        String scopeId = queryParams.get("scopeId");
+                        Map<String, Object> res = domainService.getDashboard(period, scope, scopeId, tenantId, userRole, userId, userDeptId);
+                        sendJson(exchange, 200, toJson(res));
+                    }
                 }
                 else if ("/attendance".equals(path) && "GET".equalsIgnoreCase(method)) {
                     String batchId = queryParams.get("batchId");
@@ -299,8 +334,11 @@ public class AnalyticsController implements HttpHandler {
             p = p.substring("/api/v1/analytics".length());
         } else if (p.startsWith("/v1/analytics")) {
             p = p.substring("/v1/analytics".length());
-        } else if (p.startsWith("/api/v1/dashboards") || p.startsWith("/v1/dashboards") ||
-                p.startsWith("/api/v1/kpis") || p.startsWith("/v1/kpis")) {
+        } else if (p.startsWith("/api/v1/dashboards")) {
+            p = "/dashboard" + p.substring("/api/v1/dashboards".length());
+        } else if (p.startsWith("/v1/dashboards")) {
+            p = "/dashboard" + p.substring("/v1/dashboards".length());
+        } else if (p.startsWith("/api/v1/kpis") || p.startsWith("/v1/kpis")) {
             return "/dashboard";
         } else if (p.startsWith("/api/v1/reports") || p.startsWith("/v1/reports")) {
             return "/export";

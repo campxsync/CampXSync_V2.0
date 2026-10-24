@@ -1013,7 +1013,18 @@ public class CollegeAdminController implements HttpHandler {
     }
 
     private void handleGetAuditLogs(HttpExchange exchange) throws IOException {
+        String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
         List<Map<String, Object>> logs = domainService.getAuditTrail();
+        if (tenantId != null && !tenantId.trim().isEmpty()) {
+            List<Map<String, Object>> filtered = new ArrayList<>();
+            for (Map<String, Object> log : logs) {
+                Object logTenant = log.get("tenantId");
+                if (logTenant == null || tenantId.trim().equals(logTenant.toString())) {
+                    filtered.add(log);
+                }
+            }
+            logs = filtered;
+        }
         StringBuilder sb = new StringBuilder("{\"auditLogs\":[");
         for (int i = 0; i < logs.size(); i++) {
             if (i > 0) sb.append(",");
@@ -1026,6 +1037,7 @@ public class CollegeAdminController implements HttpHandler {
             sb.append("\"resourceType\":\"").append(log.get("resourceType")).append("\",");
             sb.append("\"resourceId\":\"").append(log.get("resourceId")).append("\",");
             sb.append("\"status\":\"").append(log.get("status")).append("\",");
+            sb.append("\"severity\":\"").append(escape((String) log.getOrDefault("severity", "INFO"))).append("\",");
             sb.append("\"description\":\"").append(escape((String) log.get("description"))).append("\",");
             sb.append("\"traceId\":\"").append(log.get("traceId") != null ? log.get("traceId") : "").append("\",");
             sb.append("\"timestamp\":").append(log.get("timestamp"));

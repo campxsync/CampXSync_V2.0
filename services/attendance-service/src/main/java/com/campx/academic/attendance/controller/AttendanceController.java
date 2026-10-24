@@ -1,8 +1,12 @@
 package com.campx.academic.attendance.controller;
 
 import com.campx.academic.attendance.exception.*;
+import com.campx.academic.attendance.model.AttendanceCorrectionEntity;
 import com.campx.academic.attendance.model.AttendanceModels.*;
+import com.campx.academic.attendance.model.AttendanceRecordEntity;
+import com.campx.academic.attendance.model.AttendanceSessionEntity;
 import com.campx.academic.attendance.model.ErrorResponse;
+import com.campx.academic.attendance.security.UserSecurityContext;
 import com.campx.academic.attendance.service.AttendanceDomainService;
 import com.campx.academic.attendance.service.MetricsCollector;
 import com.campx.academic.attendance.service.RateLimiter;
@@ -41,6 +45,8 @@ public class AttendanceController implements HttpHandler {
     private final Pattern pSessionRecords = Pattern.compile("^/sessions/([^/]+)/records/?$");
     private final Pattern pRecordCorrect = Pattern.compile("^/sessions/([^/]+)/records/([^/]+)/correct/?$");
     private final Pattern pSessionCorrections = Pattern.compile("^/sessions/([^/]+)/corrections/?$");
+    private final Pattern pCorrectionDecide = Pattern.compile("^/corrections/([^/]+)/decide/?$");
+    private final Pattern pCorrectionItem = Pattern.compile("^/corrections/([^/]+)/?$");
     private final Pattern pSessionItem = Pattern.compile("^/sessions/([^/]+)/?$");
     private final Pattern pStudentSummary = Pattern.compile("^/summaries/student/([^/]+)/?$");
     private final Pattern pBatchSummary = Pattern.compile("^/summaries/batch/([^/]+)/?$");
@@ -224,21 +230,49 @@ public class AttendanceController implements HttpHandler {
                 responseJson = buildSuccessEnvelope(capRes, "Device attendance captured", traceId);
                 responseCode = 201;
             }
-            // Direct Corrections endpoint: POST /corrections
+            // Corrections endpoint: POST /corrections
             else if ("/corrections".equals(path) && "POST".equalsIgnoreCase(method)) {
                 Map<String, String> m = parseSimpleJson(requestBody);
-                String sId = m.get("sessionId");
-                String stuId = m.get("studentId");
-                CorrectionRequest cReq = new CorrectionRequest();
-                cReq.studentId = stuId;
-                cReq.newStatus = m.get("newStatus");
-                cReq.reason = m.get("reason");
-                if (m.containsKey("expectedVersion")) {
-                    cReq.expectedVersion = Integer.parseInt(m.get("expectedVersion"));
+                String recordIdStr = m.get("recordId");
+                if (recordIdStr != null && domainService.getRepository() != null) {
+                    UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                    UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                    UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+
+                    AttendanceCorrectionEntity ent = new AttendanceCorrectionEntity();
+                    ent.setRecordId(UUID.fromString(recordIdStr));
+                    ent.setNewStatus(m.get("newStatus"));
+                    ent.setReason(m.get("reason"));
+                    ent.setRequestedBy(uUuid);
+                    if (m.containsKey("expectedVersion")) {
+                        ent.setRowVersion(Integer.parseInt(m.get("expectedVersion")));
+                    }
+                    AttendanceCorrectionEntity requested = domainService.requestRelationalCorrection(ctx, ent);
+
+                    String approverIdStr = m.get("approverId");
+                    if (approverIdStr != null && !approverIdStr.trim().isEmpty()) {
+                        UUID appUuid = UUID.fromString(approverIdStr.trim());
+                        AttendanceCorrectionEntity applied = domainService.applyRelationalCorrection(ctx, requested.getId(), "APPROVED", appUuid);
+                        responseJson = buildSuccessEnvelope(applied, "Attendance corrected successfully", traceId);
+                        responseCode = 200;
+                    } else {
+                        responseJson = buildSuccessEnvelope(requested, "Correction requested successfully", traceId);
+                        responseCode = 201;
+                    }
+                } else {
+                    String sId = m.get("sessionId");
+                    String stuId = m.get("studentId");
+                    CorrectionRequest cReq = new CorrectionRequest();
+                    cReq.studentId = stuId;
+                    cReq.newStatus = m.get("newStatus");
+                    cReq.reason = m.get("reason");
+                    if (m.containsKey("expectedVersion")) {
+                        cReq.expectedVersion = Integer.parseInt(m.get("expectedVersion"));
+                    }
+                    AttendanceCorrection corr = domainService.correctAttendance(sId, stuId, cReq, tenantId, userId, userRole);
+                    responseJson = buildSuccessEnvelope(corr, "Attendance corrected successfully", traceId);
+                    responseCode = 200;
                 }
-                AttendanceCorrection corr = domainService.correctAttendance(sId, stuId, cReq, tenantId, userId, userRole);
-                responseJson = buildSuccessEnvelope(corr, "Attendance corrected successfully", traceId);
-                responseCode = 200;
             }
             // Reconcile Summaries: POST /summaries/reconcile
             else if ("/summaries/reconcile".equals(path) && "POST".equalsIgnoreCase(method)) {
@@ -363,12 +397,17 @@ public class AttendanceController implements HttpHandler {
             return buildSuccessEnvelope(sess, "Session archived successfully", traceId);
         }
 
-        // /sessions/{id}/records (POST: mark attendance)
+        // /sessions/{id}/records (GET: list records, POST: mark attendance)
         if ((m = pSessionRecords.matcher(path)).matches()) {
             String sId = m.group(1);
-            MarkAttendanceRequest req = parseMarkAttendanceRequest(body);
-            MarkSummaryResponse res = domainService.markAttendance(sId, req, tenantId, userId, userRole);
-            return buildSuccessEnvelope(res, "Attendance marked successfully", traceId);
+            if ("GET".equalsIgnoreCase(method)) {
+                List<AttendanceRecord> list = domainService.getSessionRecords(sId, tenantId);
+                return buildSuccessEnvelope(list, "Attendance records retrieved", traceId);
+            } else {
+                MarkAttendanceRequest req = parseMarkAttendanceRequest(body);
+                MarkSummaryResponse res = domainService.markAttendance(sId, req, tenantId, userId, userRole);
+                return buildSuccessEnvelope(res, "Attendance marked successfully", traceId);
+            }
         }
 
         // /sessions/{id}/records/{studentId}/correct (PUT: correct record)
@@ -383,8 +422,48 @@ public class AttendanceController implements HttpHandler {
         // /sessions/{id}/corrections (GET: list corrections for session)
         if ((m = pSessionCorrections.matcher(path)).matches()) {
             String sId = m.group(1);
+            if (domainService.getRepository() != null) {
+                try {
+                    UUID sessUuid = UUID.fromString(sId);
+                    UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                    UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                    UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+                    List<AttendanceCorrectionEntity> list = domainService.getRelationalCorrectionsBySessionId(ctx, sessUuid);
+                    return buildSuccessEnvelope(list, "Session corrections retrieved", traceId);
+                } catch (IllegalArgumentException notUuid) {
+                    // fall back
+                }
+            }
             List<AttendanceCorrection> list = domainService.getSessionCorrections(sId, tenantId);
             return buildSuccessEnvelope(list, "Session corrections retrieved", traceId);
+        }
+
+        // /corrections/{id}/decide (POST: approve or reject correction)
+        if ((m = pCorrectionDecide.matcher(path)).matches()) {
+            String cIdStr = m.group(1);
+            UUID cId = UUID.fromString(cIdStr);
+            Map<String, String> bodyMap = parseSimpleJson(body);
+            String decision = bodyMap.getOrDefault("decision", "APPROVED").toUpperCase();
+            UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+            UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+            UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+            AttendanceCorrectionEntity decided = domainService.applyRelationalCorrection(ctx, cId, decision, uUuid);
+            return buildSuccessEnvelope(decided, "Correction decision applied: " + decision, traceId);
+        }
+
+        // /corrections/{id} (GET: detail)
+        if ((m = pCorrectionItem.matcher(path)).matches()) {
+            String cIdStr = m.group(1);
+            UUID cId = UUID.fromString(cIdStr);
+            UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+            UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+            UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+            Optional<AttendanceCorrectionEntity> opt = domainService.getRelationalCorrectionById(ctx, cId);
+            if (opt.isPresent()) {
+                return buildSuccessEnvelope(opt.get(), "Attendance correction retrieved", traceId);
+            } else {
+                throw new AttendanceNotFoundException("Attendance correction not found: " + cId);
+            }
         }
 
         // /sessions/{id} (GET: detail, PUT: update, DELETE: cancel)
@@ -439,13 +518,17 @@ public class AttendanceController implements HttpHandler {
         }
         String role = userRole.toUpperCase();
 
-        // Super Admin & Academic Admin have full access across the institution
-        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role)) {
+        // Super Admin, Academic Admin, College Admin, Institute Admin have full administrative access
+        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role) || "COLLEGE_ADMIN".equals(role) || "INSTITUTE_ADMIN".equals(role)) {
             return true;
         }
 
         // Faculty: Create, Mark, Submit, Correct assigned classes; view reports/summaries
+        // Authority separation: Faculty CANNOT approve/decide correction requests
         if ("FACULTY".equals(role)) {
+            if (path.contains("/decide")) {
+                return false;
+            }
             return true; // fine-grained assignment verified in domain service
         }
 
@@ -470,9 +553,15 @@ public class AttendanceController implements HttpHandler {
                     (path.startsWith("/student/") || path.startsWith("/summaries/student/"));
         }
 
-        // Department Head: Read-only access to department batches/subjects (Story 68)
-        if ("DEPARTMENT_HEAD".equals(role)) {
-            return "GET".equalsIgnoreCase(method);
+        // Department Head / HOD: Can view and can approve/reject corrections
+        if ("DEPARTMENT_HEAD".equals(role) || "HOD".equals(role)) {
+            if ("GET".equalsIgnoreCase(method)) {
+                return true;
+            }
+            if (path.contains("/decide") && "POST".equalsIgnoreCase(method)) {
+                return true;
+            }
+            return false;
         }
 
         // Exam Cell: Read-only access to reports and summaries (Story 69)
@@ -553,6 +642,30 @@ public class AttendanceController implements HttpHandler {
                     "\",\"studentId\":\"" + c.getStudentId() + "\",\"oldStatus\":\"" + c.getOldStatus() +
                     "\",\"newStatus\":\"" + c.getNewStatus() + "\",\"reason\":\"" + escape(c.getReason()) +
                     "\",\"correctedBy\":\"" + c.getCorrectedBy() + "\",\"workflowStatus\":\"" + c.getWorkflowStatus() + "\"}";
+        }
+        if (obj instanceof AttendanceCorrectionEntity) {
+            AttendanceCorrectionEntity c = (AttendanceCorrectionEntity) obj;
+            return "{\"id\":\"" + c.getId() + "\",\"tenantId\":\"" + c.getTenantId() +
+                    "\",\"recordId\":\"" + c.getRecordId() + "\",\"oldStatus\":\"" + c.getOldStatus() +
+                    "\",\"newStatus\":\"" + c.getNewStatus() + "\",\"reason\":\"" + escape(c.getReason()) +
+                    "\",\"status\":\"" + c.getStatus() + "\",\"requestedBy\":\"" + (c.getRequestedBy() != null ? c.getRequestedBy() : "") +
+                    "\",\"approvedBy\":\"" + (c.getApprovedBy() != null ? c.getApprovedBy() : "") +
+                    "\",\"decidedAt\":\"" + (c.getDecidedAt() != null ? c.getDecidedAt().toString() : "") +
+                    "\",\"rowVersion\":" + c.getRowVersion() + "}";
+        }
+        if (obj instanceof AttendanceRecordEntity) {
+            AttendanceRecordEntity r = (AttendanceRecordEntity) obj;
+            return "{\"id\":\"" + r.getId() + "\",\"tenantId\":\"" + r.getTenantId() +
+                    "\",\"sessionId\":\"" + r.getSessionId() + "\",\"studentId\":\"" + r.getStudentId() +
+                    "\",\"status\":\"" + r.getStatus() + "\",\"method\":\"" + r.getMethod() +
+                    "\",\"remarks\":\"" + escape(r.getRemarks()) + "\",\"rowVersion\":" + r.getRowVersion() + "}";
+        }
+        if (obj instanceof AttendanceSessionEntity) {
+            AttendanceSessionEntity s = (AttendanceSessionEntity) obj;
+            return "{\"id\":\"" + s.getId() + "\",\"tenantId\":\"" + s.getTenantId() +
+                    "\",\"sectionId\":\"" + s.getSectionId() + "\",\"sessionDate\":\"" + s.getSessionDate() +
+                    "\",\"startTime\":\"" + s.getStartTime() + "\",\"endTime\":\"" + s.getEndTime() +
+                    "\",\"status\":\"" + s.getStatus() + "\"}";
         }
         if (obj instanceof AttendanceSummary) {
             AttendanceSummary s = (AttendanceSummary) obj;
@@ -763,5 +876,16 @@ public class AttendanceController implements HttpHandler {
     private String escape(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private UUID parseUuidOrDefault(String val, UUID defaultVal) {
+        if (val == null || val.trim().isEmpty()) {
+            return defaultVal;
+        }
+        try {
+            return UUID.fromString(val.trim());
+        } catch (IllegalArgumentException e) {
+            return defaultVal;
+        }
     }
 }

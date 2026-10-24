@@ -3,7 +3,6 @@ import { History, CalendarCheck2, CheckCircle2, Clock, Users, ArrowRight } from 
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function FacultySessionsPage() {
   const supabase = await createClient();
@@ -27,35 +28,45 @@ export default async function FacultySessionsPage() {
 
   let sessions: any[] = [];
   try {
-    const res = await query(`
-      SELECT 
-        sess.id,
-        sess.session_date,
-        sess.start_time,
-        sess.end_time,
-        sess.status,
-        sess.created_at,
-        sess.locked_at,
-        te.id as timetable_entry_id,
-        sub.code as subject_code,
-        sub.name as subject_name,
-        sec.section_code as section_name,
-        count(ar.id)::int as total_students_marked,
-        count(CASE WHEN ar.status = 'PRESENT' THEN 1 END)::int as present_count,
-        count(CASE WHEN ar.status = 'ABSENT' THEN 1 END)::int as absent_count
-      FROM acd.attendance_sessions sess
-      LEFT JOIN acd.timetable_entries te ON te.id = sess.timetable_entry_id
-      LEFT JOIN acd.subjects sub ON sub.id = te.subject_id
-      LEFT JOIN acd.course_sections sec ON sec.id = sess.section_id
-      LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id
-      WHERE sess.tenant_id = $1 AND sess.deleted_at IS NULL
-      GROUP BY sess.id, sess.session_date, sess.start_time, sess.end_time, sess.status, sess.created_at, sess.locked_at, te.id, sub.code, sub.name, sec.section_code
-      ORDER BY sess.session_date DESC, sess.start_time DESC
-    `, [tenantId]);
+    const gatewayUrl = new URL('/api/v1/academics/attendance/sessions', GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'faculty',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
 
-    sessions = res.rows;
+    const res = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const rawList = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      sessions = rawList.map((sess: any) => ({
+        id: sess.id,
+        session_date: sess.sessionDate || sess.attendanceDate || sess.session_date,
+        start_time: sess.startTime || sess.start_time,
+        end_time: sess.endTime || sess.end_time,
+        status: sess.status,
+        created_at: sess.createdAt || sess.created_at,
+        locked_at: sess.lockedAt || sess.locked_at,
+        timetable_entry_id: sess.timetableEntryId || sess.timetable_entry_id,
+        subject_code: sess.subjectCode || sess.subject_code || 'GEN',
+        subject_name: sess.subjectName || sess.subject_name || 'Class Session',
+        section_name: sess.sectionName || sess.section_name || 'Section A',
+        total_students_marked: sess.totalStudentsMarked || sess.total_students_marked || 0,
+        present_count: sess.presentCount || sess.present_count || 0,
+        absent_count: sess.absentCount || sess.absent_count || 0,
+      }));
+    }
   } catch (err) {
-    console.error('Failed to query faculty sessions:', err);
+    console.error('Failed to query faculty sessions via API gateway:', err);
   }
 
   const closedSessions = sessions.filter((s) => s.status === 'CLOSED');

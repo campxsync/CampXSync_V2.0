@@ -29,7 +29,7 @@ public class PostgresAuditRepository implements AuditLogRepository {
             "  principal_id, principal_type, resource_type, resource_id, " +
             "  status, severity, ip, user_agent, correlation_id, " +
             "  detail, created_at, created_by" +
-            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)";
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::inet, ?, ?, ?::jsonb, ?, ?)";
 
     private static final String SQL_FIND_AUDIT_BY_TENANT =
             "SELECT id, tenant_id, college_id, event_time, action, " +

@@ -2,6 +2,9 @@ package com.campx.academic.analytics.service;
 
 import com.campx.academic.analytics.exception.AnalyticsExceptions.*;
 import com.campx.academic.analytics.model.AnalyticsModels.*;
+import com.campx.academic.analytics.repository.AnalyticsDashboardRepository;
+import com.campx.academic.analytics.repository.InMemoryAnalyticsDashboardRepository;
+import com.campx.academic.analytics.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 
@@ -23,6 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class AnalyticsDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(AnalyticsDomainService.class);
+
+    private AnalyticsDashboardRepository dashboardRepository;
 
     // =========================================================================
     // Core Collections (Thread-Safe In-Memory Stores simulating MongoDB)
@@ -77,8 +82,21 @@ public class AnalyticsDomainService {
     private final AtomicLong projectionVersionSeq = new AtomicLong(10);
 
     public AnalyticsDomainService() {
+        this(new InMemoryAnalyticsDashboardRepository());
+    }
+
+    public AnalyticsDomainService(AnalyticsDashboardRepository dashboardRepository) {
+        this.dashboardRepository = dashboardRepository != null ? dashboardRepository : new InMemoryAnalyticsDashboardRepository();
         seedReportDefinitions();
         seedDefaultReferenceData();
+    }
+
+    public void setDashboardRepository(AnalyticsDashboardRepository dashboardRepository) {
+        this.dashboardRepository = dashboardRepository;
+    }
+
+    public AnalyticsDashboardRepository getDashboardRepository() {
+        return this.dashboardRepository;
     }
 
     // =========================================================================
@@ -621,6 +639,40 @@ public class AnalyticsDomainService {
     // =========================================================================
     // Query APIs with RBAC / ABAC (US-004..018, US-055)
     // =========================================================================
+
+    public Map<String, Object> getCollegeAdminDashboard(String tenantId, String period) {
+        UUID tId = parseUuidSafe(tenantId, "a0000000-0000-0000-0000-000000000001");
+        UserSecurityContext ctx = new UserSecurityContext(null, tId, "COLLEGE_ADMIN");
+        return dashboardRepository.getCollegeAdminDashboard(ctx, period);
+    }
+
+    public Map<String, Object> getFacultyDashboard(String tenantId, String userId) {
+        UUID tId = parseUuidSafe(tenantId, "a0000000-0000-0000-0000-000000000001");
+        UUID uId = parseUuidSafe(userId, null);
+        UserSecurityContext ctx = new UserSecurityContext(uId, tId, "FACULTY");
+        return dashboardRepository.getFacultyDashboard(ctx);
+    }
+
+    public Map<String, Object> getHodDashboard(String tenantId, String departmentId, String userId) {
+        UUID tId = parseUuidSafe(tenantId, "a0000000-0000-0000-0000-000000000001");
+        UUID uId = parseUuidSafe(userId, null);
+        UserSecurityContext ctx = new UserSecurityContext(uId, tId, "HOD", departmentId);
+        return dashboardRepository.getHodDashboard(ctx, departmentId);
+    }
+
+    public Map<String, Object> getPlatformAdminDashboard() {
+        UserSecurityContext ctx = new UserSecurityContext(null, null, "PLATFORM_ADMIN");
+        return dashboardRepository.getPlatformAdminDashboard(ctx);
+    }
+
+    private UUID parseUuidSafe(String str, String fallback) {
+        if (str != null && !str.trim().isEmpty()) {
+            try {
+                return UUID.fromString(str.trim());
+            } catch (Exception ignored) {}
+        }
+        return fallback != null ? UUID.fromString(fallback) : null;
+    }
 
     /**
      * GET /api/v1/academics/analytics/dashboard

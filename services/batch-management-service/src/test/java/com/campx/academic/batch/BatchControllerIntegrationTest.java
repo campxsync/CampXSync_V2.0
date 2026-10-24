@@ -32,6 +32,7 @@ public class BatchControllerIntegrationTest {
 
     @BeforeClass
     public static void startServer() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         domainService = new BatchDomainService();
         server = new BatchServer(TEST_PORT, domainService);
         server.start();
@@ -42,6 +43,7 @@ public class BatchControllerIntegrationTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
         CampXLoggerFactory.flush();
     }
 

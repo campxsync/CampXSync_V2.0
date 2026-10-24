@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { DepartmentsManager } from './departments-manager';
-import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function CollegeDepartmentsPage() {
   const supabase = await createClient();
@@ -23,23 +24,39 @@ export default async function CollegeDepartmentsPage() {
   let programs: any[] = [];
 
   try {
-    const deptRes = await query(`
-      SELECT id, name, code, status, created_at
-      FROM core.departments
-      WHERE tenant_id = $1 AND deleted_at IS NULL
-      ORDER BY name
-    `, [tenantId]);
-    departments = deptRes.rows;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
 
-    const progRes = await query(`
-      SELECT id, department_id, name, code, level, duration_years, total_terms, status
-      FROM acd.programs
-      WHERE tenant_id = $1 AND deleted_at IS NULL
-      ORDER BY name
-    `, [tenantId]);
-    programs = progRes.rows;
+    const deptUrl = new URL('/api/v1/college-admin/departments', GATEWAY_BASE_URL);
+    const deptRes = await fetch(deptUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (deptRes.ok) {
+      const dData = await deptRes.json();
+      departments = Array.isArray(dData.departments) ? dData.departments : [];
+    }
+
+    const progUrl = new URL('/api/v1/college-admin/programs', GATEWAY_BASE_URL);
+    const progRes = await fetch(progUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (progRes.ok) {
+      const pData = await progRes.json();
+      programs = Array.isArray(pData.programs) ? pData.programs : [];
+    }
   } catch (err) {
-    console.error('Error querying departments or programs:', err);
+    console.error('Error querying departments or programs via API gateway:', err);
   }
 
   return (

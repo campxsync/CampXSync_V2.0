@@ -3,13 +3,14 @@ import { Calendar, Clock, MapPin, BookOpen, Users, CalendarCheck2 } from 'lucide
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function FacultyTimetablePage() {
   const supabase = await createClient();
@@ -19,32 +20,47 @@ export default async function FacultyTimetablePage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, displayName } = resolution.session;
+  const { tenantId, displayName, userId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
 
   let entries: any[] = [];
   try {
-    const res = await query(`
-      SELECT 
-        tte.id,
-        tte.day_of_week,
-        tte.start_time,
-        tte.end_time,
-        sub.name as subject_name,
-        sub.code as subject_code,
-        sec.section_code as section_name
-      FROM acd.timetable_entries tte
-      JOIN acd.subjects sub ON sub.id = tte.subject_id
-      LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
-      WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
-      ORDER BY tte.day_of_week ASC, tte.start_time ASC
-    `, [tenantId]);
+    const gatewayUrl = new URL('/api/v1/academics/analytics/dashboard', GATEWAY_BASE_URL);
+    gatewayUrl.searchParams.set('role', 'FACULTY');
 
-    entries = res.rows;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'FACULTY',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
+
+    const res = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const slots = Array.isArray(data.allSlots) ? data.allSlots : (Array.isArray(data.todaySlots) ? data.todaySlots : []);
+      entries = slots.map((s: any) => ({
+        id: s.id,
+        day_of_week: s.dayOfWeek || s.day_of_week,
+        start_time: s.startTime || s.start_time,
+        end_time: s.endTime || s.end_time,
+        subject_name: s.subjectName || s.subject_name,
+        subject_code: s.subjectCode || s.subject_code,
+        section_name: s.sectionName || s.section_name,
+      }));
+    }
   } catch (err) {
-    console.error('Failed to query faculty timetable:', err);
+    console.error('Failed to query faculty timetable via API gateway:', err);
   }
 
   const days = [

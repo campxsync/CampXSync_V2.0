@@ -2,18 +2,108 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+
+/**
+ * Cutover ACD-05 Timetable Slot and Version Route.
+ * Routes directly to authoritative CampXSync API Gateway (/api/v1/academics/timetables/entries)
+ * backed by Java Timetable Management Domain Service.
+ * Direct database access has been removed in compliance with Wave 5 relational persistence cutover.
+ */
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const CreateTimetableEntrySchema = z.object({
   timetableVersionId: z.string().uuid('Valid timetable version ID required'),
   sectionId: z.string().uuid('Valid section ID required'),
   subjectId: z.string().uuid('Valid subject ID required'),
   employeeId: z.string().uuid('Valid faculty employee ID required'),
+  roomId: z.string().uuid('Valid room ID required').optional(),
   dayOfWeek: z.number().int().min(0).max(6),
   startTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time format must be HH:MM or HH:MM:SS'),
   endTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time format must be HH:MM or HH:MM:SS'),
   entryType: z.enum(['LECTURE', 'LAB', 'TUTORIAL', 'SEMINAR']).default('LECTURE'),
+  validFrom: z.string().optional(),
+  validTo: z.string().optional(),
 });
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const resolution = await resolveUserRole(supabase);
+
+    if (!resolution.success) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Unauthorized session.',
+        },
+        { status: 403 }
+      );
+    }
+
+    const tenantId = resolution.session.tenantId;
+    if (!tenantId) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/bad-request',
+          title: 'Missing Tenant Context',
+          status: 400,
+          detail: 'No active tenant linked to user session.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const gatewayUrl = new URL('/api/v1/academics/timetables/entries', GATEWAY_BASE_URL);
+    url.searchParams.forEach((value, key) => {
+      gatewayUrl.searchParams.set(key, value);
+    });
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'college_admin',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
+
+    const gatewayResponse = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await gatewayResponse.json();
+
+    if (!gatewayResponse.ok) {
+      return NextResponse.json(
+        {
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Gateway Error',
+          status: gatewayResponse.status,
+          detail: data.detail || 'Failed to retrieve timetable entries from gateway.',
+        },
+        { status: gatewayResponse.status }
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        type: 'https://campxsync.edu/errors/internal-server-error',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: err.message || 'An unexpected error occurred.',
+      },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,91 +149,65 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { timetableVersionId, sectionId, subjectId, employeeId, dayOfWeek, startTime, endTime, entryType } = parseResult.data;
+    const payload = parseResult.data;
 
-    // 1. Verify tenant ownership of subject
-    const subRes = await query(`
-      SELECT id FROM acd.subjects
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      LIMIT 1
-    `, [subjectId, tenantId]);
+    // Normalize HH:MM to HH:MM:00 if needed for Java LocalTime
+    const normalizeTime = (t: string) => (t.length === 5 ? `${t}:00` : t);
 
-    if (subRes.rows.length === 0) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/not-found',
-          title: 'Subject Not Found',
-          status: 404,
-          detail: 'Subject does not exist in your tenant workspace.',
-        },
-        { status: 404 }
-      );
+    const gatewayPayload = {
+      timetableVersionId: payload.timetableVersionId,
+      sectionId: payload.sectionId,
+      subjectId: payload.subjectId,
+      employeeId: payload.employeeId,
+      roomId: payload.roomId || null,
+      dayOfWeek: payload.dayOfWeek,
+      startTime: normalizeTime(payload.startTime),
+      endTime: normalizeTime(payload.endTime),
+      slotType: payload.entryType,
+      validFrom: payload.validFrom || new Date().toISOString().split('T')[0],
+      validTo: payload.validTo || null,
+    };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'college_admin',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
     }
 
-    // 2. Safeguard trigger acd.guard_timetable_entry: ensure section_faculty assignment exists
-    await query(`
-      INSERT INTO acd.section_faculty (tenant_id, section_id, employee_id, role)
-      VALUES ($1, $2, $3, 'PRIMARY')
-      ON CONFLICT DO NOTHING
-    `, [tenantId, sectionId, employeeId]);
+    const gatewayResponse = await fetch(`${GATEWAY_BASE_URL}/api/v1/academics/timetables/entries`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(gatewayPayload),
+    });
 
-    // 3. Insert timetable entry
-    const entryRes = await query(`
-      INSERT INTO acd.timetable_entries (
-        tenant_id, timetable_version_id, section_id, subject_id, employee_id,
-        day_of_week, start_time, end_time, entry_type, valid_from
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id, day_of_week, start_time, end_time, entry_type, created_at
-    `, [
-      tenantId,
-      timetableVersionId,
-      sectionId,
-      subjectId,
-      employeeId,
-      dayOfWeek,
-      startTime,
-      endTime,
-      entryType,
-      new Date().toISOString().split('T')[0],
-    ]);
+    const data = await gatewayResponse.json();
 
-    const entry = entryRes.rows[0];
-
-    // 4. Record Audit Event in audit.events
-    await query(`
-      INSERT INTO audit.events (
-        tenant_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
-      )
-      VALUES ($1, now(), 'TIMETABLE_ENTRY_CREATED', 'COLLEGE_ADMIN', $2, 'TIMETABLE_ENTRY', $3, 'SUCCESS', 'INFO', $4)
-    `, [
-      tenantId,
-      resolution.session.userId || null,
-      entry.id,
-      JSON.stringify({ timetableVersionId, sectionId, subjectId, employeeId, dayOfWeek, startTime, endTime, entryType }),
-    ]);
+    if (!gatewayResponse.ok) {
+      return NextResponse.json(
+        {
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Gateway Error',
+          status: gatewayResponse.status,
+          detail: data.detail || 'Failed to create timetable slot via API Gateway.',
+        },
+        { status: gatewayResponse.status }
+      );
+    }
 
     return NextResponse.json(
       {
         success: true,
         message: 'Timetable entry added successfully.',
-        entry,
+        entry: data,
       },
       { status: 201 }
     );
   } catch (err: any) {
-    if (err?.message?.includes('ex_tte_employee')) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/conflict',
-          title: 'Faculty Schedule Conflict',
-          status: 409,
-          detail: 'The assigned faculty member is already scheduled for another class during this time slot.',
-        },
-        { status: 409 }
-      );
-    }
-
     return NextResponse.json(
       {
         type: 'https://campxsync.edu/errors/internal-server-error',

@@ -43,6 +43,19 @@ public class PostgresFeatureOverrideRepositoryTest {
         otherTenantContext = new UserSecurityContext(UUID.randomUUID(), otherTenantId);
 
         testFlagKey = "flag_test_" + UUID.randomUUID().toString().substring(0, 8);
+
+        // Feature flags are platform-level entities; pre-create test flag using raw pooler connection
+        try (Connection conn = connectionManager.getConnection()) {
+            conn.setAutoCommit(true);
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO cfg.feature_flags (id, flag_key, name, enabled, created_at, updated_at, row_version) " +
+                    "VALUES (?, ?, ?, true, now(), now(), 1)")) {
+                ps.setObject(1, UUID.randomUUID());
+                ps.setString(2, testFlagKey);
+                ps.setString(3, testFlagKey);
+                ps.executeUpdate();
+            }
+        }
     }
 
     @After

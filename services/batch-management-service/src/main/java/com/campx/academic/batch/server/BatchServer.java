@@ -38,7 +38,8 @@ public class BatchServer {
             return;
         }
 
-        server = HttpServer.create(new InetSocketAddress(port), 0);
+        String bindHost = com.campx.logger.security.GatewayHmacSecurityConfig.getBindHost();
+        server = HttpServer.create(new InetSocketAddress(bindHost, port), 0);
         server.setExecutor(null);
 
         this.controller = new BatchController(domainService);

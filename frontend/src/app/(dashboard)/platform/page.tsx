@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { PlatformDashboardView } from './platform-dashboard-view';
 import { sanitizePreferences, PRODUCT_DEFAULTS } from '@/lib/preferences/preference-model';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function PlatformAdminDashboardPage() {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export default async function PlatformAdminDashboardPage() {
 
   const { userId } = resolution.session;
 
-  // Load real aggregate counts from Supabase PostgreSQL
+  // Load aggregate counts via authoritative API Gateway (ACD-10 / Java Reporting & Analytics)
   let tenantCount = 0;
   let totalUserCount = 0;
   let roleTemplateCount = 30;
@@ -33,78 +34,47 @@ export default async function PlatformAdminDashboardPage() {
   };
 
   try {
-    // 1. Cross-tenant aggregated institute & user statistics (NO tenant student/faculty rows exposed)
-    const tenantsRes = await query(`
-      SELECT 
-        t.id, 
-        t.name, 
-        t.code, 
-        t.status, 
-        t.created_at,
-        count(DISTINCT c.id)::int as college_count,
-        count(up.id)::int as user_count
-      FROM core.tenants t
-      LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL
-      LEFT JOIN iam.user_profiles up ON up.tenant_id = t.id AND up.deleted_at IS NULL
-      WHERE t.deleted_at IS NULL
-      GROUP BY t.id, t.name, t.code, t.status, t.created_at
-      ORDER BY t.created_at DESC
-    `);
-    institutes = tenantsRes.rows || [];
-    tenantCount = institutes.length;
+    const gatewayUrl = new URL('/api/v1/academics/analytics/dashboard', GATEWAY_BASE_URL);
+    gatewayUrl.searchParams.set('role', 'PLATFORM_ADMIN');
 
-    // Group institutes by status
-    institutes.forEach((inst) => {
-      const s = (inst.status || 'ACTIVE').toUpperCase();
-      if (s === 'ACTIVE') statusCounts.ACTIVE++;
-      else if (s === 'SUSPENDED') statusCounts.SUSPENDED++;
-      else if (s === 'INACTIVE' || s === 'ONBOARDING' || s === 'REQUESTED') statusCounts.ONBOARDING++;
-      else statusCounts.OFFBOARDED++;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-User-Role': 'PLATFORM_ADMIN',
+    };
+
+    const res = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
     });
 
-    // 2. Global platform total user count
-    const usersRes = await query(`
-      SELECT count(*)::int as count
-      FROM iam.user_profiles
-      WHERE deleted_at IS NULL
-    `);
-    totalUserCount = Number(usersRes.rows[0]?.count) || 0;
+    if (res.ok) {
+      const data = await res.json();
+      institutes = Array.isArray(data.institutes) ? data.institutes : [];
+      tenantCount = Number(data.tenantCount) || institutes.length;
+      roleTemplateCount = Number(data.roleTemplateCount) || 30;
+      if (data.statusCounts) {
+        Object.assign(statusCounts, data.statusCounts);
+      }
+      totalUserCount = institutes.reduce((acc: number, curr: any) => acc + (Number(curr.userCount || curr.user_count) || 0), 0);
+    }
 
-    // 3. System role templates count
-    const rolesRes = await query(`
-      SELECT count(*)::int as count
-      FROM iam.roles
-      WHERE is_system = true AND deleted_at IS NULL
-    `);
-    roleTemplateCount = Number(rolesRes.rows[0]?.count) || 30;
-
-    // 4. Recent platform audit events
-    const auditRes = await query(`
-      SELECT 
-        ae.id,
-        ae.event_time,
-        ae.action,
-        ae.resource_type,
-        ae.status,
-        ae.severity,
-        t.code as tenant_code
-      FROM audit.events ae
-      LEFT JOIN core.tenants t ON t.id = ae.tenant_id
-      ORDER BY ae.event_time DESC
-      LIMIT 5
-    `);
-    recentAuditEvents = auditRes.rows || [];
-
-    // 5. Load User Preferences
-    const prefRes = await query(
-      `SELECT preferences FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-      [userId]
-    );
-    if (prefRes.rows.length > 0 && prefRes.rows[0].preferences) {
-      userPreferences = sanitizePreferences(prefRes.rows[0].preferences, 'platform_admin', PRODUCT_DEFAULTS);
+    // Load preferences via Gateway
+    const prefUrl = new URL('/api/v1/user/preferences?role=platform_admin', GATEWAY_BASE_URL);
+    const prefRes = await fetch(prefUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (prefRes.ok) {
+      const prefData = await prefRes.json();
+      if (prefData.preferences) {
+        userPreferences = sanitizePreferences(prefData.preferences, 'platform_admin', PRODUCT_DEFAULTS);
+      }
     }
   } catch (e) {
-    console.error('Platform aggregate query failed:', e);
+    console.error('Platform aggregate query failed via gateway:', e);
   }
 
   return (

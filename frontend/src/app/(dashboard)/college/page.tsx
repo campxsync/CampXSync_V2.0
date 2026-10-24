@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { CollegeDashboardView } from './college-dashboard-view';
 import { sanitizePreferences, PRODUCT_DEFAULTS } from '@/lib/preferences/preference-model';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function CollegeAdminDashboardPage() {
   const supabase = await createClient();
@@ -15,12 +16,11 @@ export default async function CollegeAdminDashboardPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, tenantName, userId } = resolution.session;
+  const { tenantId, tenantName, userId, collegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
 
-  // Real database counts from Supabase PostgreSQL staging
   let studentCount = 0;
   let facultyCount = 0;
   let sessionCount = 0;
@@ -37,210 +37,58 @@ export default async function CollegeAdminDashboardPage() {
   let userPreferences = PRODUCT_DEFAULTS;
 
   try {
-    // 1. Overall Aggregate KPIs
-    const statsRes = await query(
-      `
-      SELECT 
-        (SELECT count(*)::int FROM stu.students WHERE tenant_id = $1 AND deleted_at IS NULL) as student_count,
-        (SELECT count(*)::int FROM hrm.employees WHERE tenant_id = $1 AND deleted_at IS NULL) as faculty_count,
-        (SELECT count(*)::int FROM acd.attendance_sessions WHERE tenant_id = $1 AND deleted_at IS NULL) as session_count,
-        (SELECT count(*)::int FROM acd.attendance_records WHERE tenant_id = $1 AND deleted_at IS NULL) as total_records,
-        (SELECT count(*)::int FROM acd.attendance_records WHERE tenant_id = $1 AND status = 'PRESENT' AND deleted_at IS NULL) as present_records
-      `,
-      [tenantId]
-    );
+    // Cutover: Fetch authoritative metrics via API Gateway backed by Java Reporting & Analytics Service
+    const gatewayUrl = new URL('/api/v1/academics/analytics/dashboard', GATEWAY_BASE_URL);
+    gatewayUrl.searchParams.set('role', 'COLLEGE_ADMIN');
 
-    if (statsRes.rows.length > 0) {
-      const row = statsRes.rows[0];
-      studentCount = Number(row.student_count) || 0;
-      facultyCount = Number(row.faculty_count) || 0;
-      sessionCount = Number(row.session_count) || 0;
-      totalRecords = Number(row.total_records) || 0;
-      presentRecords = Number(row.present_records) || 0;
-      overallPercentage =
-        totalRecords > 0 ? Math.round((presentRecords / totalRecords) * 1000) / 10 : 0;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (collegeId) {
+      headers['X-College-Id'] = collegeId;
     }
 
-    // 2. Shortage Students (< 75% statutory threshold per ACD-06 / DEC-14)
-    const shortageRes = await query(
-      `
-      SELECT 
-        s.id as student_id,
-        s.enrollment_no,
-        p.display_name,
-        count(r.id)::int as total_sessions,
-        count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::int as attended,
-        ROUND((count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::numeric / NULLIF(count(r.id), 0)) * 100, 1) as percentage
-      FROM stu.students s
-      JOIN core.persons p ON p.id = s.person_id
-      JOIN acd.attendance_records r ON r.student_id = s.id AND r.deleted_at IS NULL
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      GROUP BY s.id, s.enrollment_no, p.display_name
-      HAVING (count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::numeric / NULLIF(count(r.id), 0)) < 0.75
-      ORDER BY percentage ASC;
-      `,
-      [tenantId]
-    );
+    const gatewayResponse = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
 
-    shortageStudents = shortageRes.rows.map((r: any) => ({
-      studentId: r.student_id,
-      enrollmentNo: r.enrollment_no,
-      displayName: r.display_name,
-      totalSessions: Number(r.total_sessions) || 0,
-      attended: Number(r.attended) || 0,
-      percentage: Number(r.percentage) || 0,
-    }));
-    shortageCount = shortageStudents.length;
+    if (gatewayResponse.ok) {
+      const data = await gatewayResponse.json();
+      if (data.kpis) {
+        studentCount = Number(data.kpis.studentCount) || 0;
+        facultyCount = Number(data.kpis.facultyCount) || 0;
+        sessionCount = Number(data.kpis.sessionCount) || 0;
+        totalRecords = Number(data.kpis.totalRecords) || 0;
+        presentRecords = Number(data.kpis.presentRecords) || 0;
+        overallPercentage = Number(data.kpis.overallPercentage) || 0;
+      }
+      shortageStudents = Array.isArray(data.shortageStudents) ? data.shortageStudents : [];
+      shortageCount = Number(data.shortageCount) || shortageStudents.length;
+      trend = Array.isArray(data.trend) ? data.trend : [];
+      batchBreakdown = Array.isArray(data.batchBreakdown) ? data.batchBreakdown : [];
+      missedSessions = Array.isArray(data.missedSessions) ? data.missedSessions : [];
+      recentSessions = Array.isArray(data.recentSessions) ? data.recentSessions : [];
+    } else {
+      console.warn(`Gateway returned status ${gatewayResponse.status} for college admin dashboard`);
+    }
 
-    // 3. 14-Day Attendance Trend
-    const trendRes = await query(
-      `
-      SELECT 
-        TO_CHAR(s.session_date, 'YYYY-MM-DD') as date_str,
-        TO_CHAR(s.session_date, 'DD Mon') as display_date,
-        count(r.id)::int as total_records,
-        count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::int as present_records,
-        ROUND((count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::numeric / NULLIF(count(r.id), 0)) * 100, 1) as percentage
-      FROM acd.attendance_sessions s
-      JOIN acd.attendance_records r ON r.session_id = s.id AND r.deleted_at IS NULL
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      GROUP BY s.session_date
-      ORDER BY s.session_date ASC
-      LIMIT 14;
-      `,
-      [tenantId]
-    );
+    // Load User Preferences via Supabase Auth metadata or client
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('preferences')
+      .eq('id', userId)
+      .maybeSingle();
 
-    trend = trendRes.rows.map((r: any) => ({
-      dateStr: r.date_str,
-      displayDate: r.display_date,
-      totalRecords: Number(r.total_records) || 0,
-      presentRecords: Number(r.present_records) || 0,
-      percentage: Number(r.percentage) || 0,
-    }));
-
-    // 4. Batch & Subject Distribution
-    const batchRes = await query(
-      `
-      SELECT 
-        sec.section_code,
-        sub.code as subject_code,
-        sub.name as subject_name,
-        count(DISTINCT s.id)::int as sessions_held,
-        count(r.id)::int as total_records,
-        count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::int as present_records,
-        ROUND((count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::numeric / NULLIF(count(r.id), 0)) * 100, 1) as percentage
-      FROM acd.attendance_sessions s
-      JOIN acd.timetable_entries tte ON tte.id = s.timetable_entry_id
-      JOIN acd.subjects sub ON sub.id = tte.subject_id
-      JOIN acd.course_sections sec ON sec.id = tte.section_id
-      LEFT JOIN acd.attendance_records r ON r.session_id = s.id AND r.deleted_at IS NULL
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      GROUP BY sec.section_code, sub.code, sub.name
-      ORDER BY sec.section_code, sub.code;
-      `,
-      [tenantId]
-    );
-
-    batchBreakdown = batchRes.rows.map((r: any) => ({
-      sectionCode: r.section_code,
-      subjectCode: r.subject_code,
-      subjectName: r.subject_name,
-      sessionsHeld: Number(r.sessions_held) || 0,
-      totalRecords: Number(r.total_records) || 0,
-      presentRecords: Number(r.present_records) || 0,
-      percentage: Number(r.percentage) || 0,
-    }));
-
-    // 5. Missed & Pending Sessions (Sessions in OPEN status)
-    const missedRes = await query(
-      `
-      SELECT 
-        s.id,
-        TO_CHAR(s.session_date, 'YYYY-MM-DD') as session_date,
-        s.start_time,
-        s.end_time,
-        s.status,
-        sub.name as subject_name,
-        sub.code as subject_code,
-        sec.section_code,
-        p.display_name as faculty_name
-      FROM acd.attendance_sessions s
-      JOIN acd.timetable_entries tte ON tte.id = s.timetable_entry_id
-      JOIN acd.subjects sub ON sub.id = tte.subject_id
-      JOIN acd.course_sections sec ON sec.id = tte.section_id
-      JOIN hrm.employees emp ON emp.id = s.employee_id
-      JOIN core.persons p ON p.id = emp.person_id
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL AND s.status = 'OPEN'
-      ORDER BY s.session_date ASC;
-      `,
-      [tenantId]
-    );
-
-    missedSessions = missedRes.rows.map((r: any) => ({
-      id: r.id,
-      sessionDate: r.session_date,
-      startTime: String(r.start_time || '09:00:00'),
-      endTime: String(r.end_time || '10:00:00'),
-      status: r.status,
-      subjectName: r.subject_name,
-      subjectCode: r.subject_code,
-      sectionCode: r.section_code,
-      facultyName: r.faculty_name,
-    }));
-
-    // 6. Recent Sessions
-    const recentRes = await query(
-      `
-      SELECT 
-        s.id,
-        TO_CHAR(s.session_date, 'YYYY-MM-DD') as session_date,
-        s.start_time,
-        s.end_time,
-        s.status,
-        sub.name as subject_name,
-        sub.code as subject_code,
-        sec.section_code,
-        p.display_name as faculty_name,
-        (SELECT count(*) FROM acd.attendance_records r WHERE r.session_id = s.id AND r.deleted_at IS NULL)::int as total_records,
-        (SELECT count(*) FROM acd.attendance_records r WHERE r.session_id = s.id AND r.status = 'PRESENT' AND r.deleted_at IS NULL)::int as present_count
-      FROM acd.attendance_sessions s
-      JOIN acd.timetable_entries tte ON tte.id = s.timetable_entry_id
-      JOIN acd.subjects sub ON sub.id = tte.subject_id
-      JOIN acd.course_sections sec ON sec.id = tte.section_id
-      JOIN hrm.employees emp ON emp.id = s.employee_id
-      JOIN core.persons p ON p.id = emp.person_id
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      ORDER BY s.session_date DESC
-      LIMIT 6;
-      `,
-      [tenantId]
-    );
-
-    recentSessions = recentRes.rows.map((r: any) => ({
-      id: r.id,
-      sessionDate: r.session_date,
-      startTime: String(r.start_time || '09:00:00'),
-      endTime: String(r.end_time || '10:00:00'),
-      status: r.status,
-      subjectName: r.subject_name,
-      subjectCode: r.subject_code,
-      sectionCode: r.section_code,
-      facultyName: r.faculty_name,
-      totalRecords: Number(r.total_records) || 0,
-      presentCount: Number(r.present_count) || 0,
-    }));
-
-    // 7. Load User Preferences from iam.user_profiles
-    const prefRes = await query(
-      `SELECT preferences FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-      [userId]
-    );
-    if (prefRes.rows.length > 0 && prefRes.rows[0].preferences) {
-      userPreferences = sanitizePreferences(prefRes.rows[0].preferences, 'college_admin', PRODUCT_DEFAULTS);
+    if (profile?.preferences) {
+      userPreferences = sanitizePreferences(profile.preferences, 'college_admin', PRODUCT_DEFAULTS);
     }
   } catch (err) {
-    console.error('College admin dashboard query error:', err);
+    console.error('College admin dashboard gateway fetch error:', err);
   }
 
   return (

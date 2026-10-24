@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const AssignBatchSchema = z.object({
   studentId: z.string().uuid('Valid student ID is required'),
@@ -56,87 +57,51 @@ export async function POST(req: NextRequest) {
 
     const { studentId, batchId, rollNo } = parseResult.data;
 
-    // 1. Verify student exists in tenant
-    const stuRes = await query(`
-      SELECT s.id, s.college_id, s.enrollment_no, p.display_name
-      FROM stu.students s
-      LEFT JOIN core.persons p ON p.id = s.person_id
-      WHERE s.id = $1 AND s.tenant_id = $2 AND s.deleted_at IS NULL
-      LIMIT 1
-    `, [studentId, tenantId]);
+    const gatewayUrl = new URL(`/api/v1/academics/batches/${batchId}/students`, GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
 
-    if (stuRes.rows.length === 0) {
+    const gatewayPayload = {
+      studentId,
+      rollNo: rollNo || undefined,
+    };
+
+    const gatewayRes = await fetch(gatewayUrl.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(gatewayPayload),
+    });
+
+    const data = await gatewayRes.json().catch(() => ({}));
+
+    if (!gatewayRes.ok) {
       return NextResponse.json(
         {
-          type: 'https://campxsync.edu/errors/not-found',
-          title: 'Student Not Found',
-          status: 404,
-          detail: 'Student does not exist in your tenant workspace.',
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Batch Assignment Failed',
+          status: gatewayRes.status,
+          detail: data.detail || data.message || 'Error communicating with batch management service via API Gateway.',
         },
-        { status: 404 }
+        { status: gatewayRes.status }
       );
     }
-    const student = stuRes.rows[0];
 
-    // 2. Verify batch exists in tenant
-    const batchRes = await query(`
-      SELECT id, name, code
-      FROM acd.batches
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      LIMIT 1
-    `, [batchId, tenantId]);
-
-    if (batchRes.rows.length === 0) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/not-found',
-          title: 'Batch Not Found',
-          status: 404,
-          detail: 'Batch does not exist in your tenant workspace.',
-        },
-        { status: 404 }
-      );
-    }
-    const batch = batchRes.rows[0];
-
-    // 3. Upsert into acd.batch_students
-    const effectiveRollNo = rollNo || student.enrollment_no;
-    await query(`
-      INSERT INTO acd.batch_students (
-        tenant_id, batch_id, student_id, roll_no, joined_on, status, row_version
-      )
-      VALUES ($1, $2, $3, $4, CURRENT_DATE, 'ACTIVE', 1)
-      ON CONFLICT (tenant_id, batch_id, student_id) WHERE deleted_at IS NULL
-      DO UPDATE SET 
-        status = 'ACTIVE',
-        roll_no = COALESCE($4, acd.batch_students.roll_no),
-        updated_at = now()
-    `, [tenantId, batchId, studentId, effectiveRollNo]);
-
-    // 4. Record Audit Event
-    await query(`
-      INSERT INTO audit.events (
-        tenant_id, college_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
-      )
-      VALUES ($1, $2, now(), 'STUDENT_BATCH_ASSIGNED', 'COLLEGE_ADMIN', $3, 'STUDENT', $4, 'SUCCESS', 'INFO', $5)
-    `, [
-      tenantId,
-      student.college_id,
-      resolution.session.userId || null,
-      student.id,
-      JSON.stringify({
-        enrollmentNo: student.enrollment_no,
-        studentName: student.display_name,
-        batchId,
-        batchName: batch.name,
-        batchCode: batch.code,
-        rollNo: effectiveRollNo,
-      }),
-    ]);
+    const assignment = data.data || data;
+    const studentName = assignment.studentName || 'Student';
+    const batchName = assignment.batchName || 'batch';
 
     return NextResponse.json({
       success: true,
-      message: `Student '${student.display_name || student.enrollment_no}' successfully assigned to batch '${batch.name}'.`,
+      message: `Student '${studentName}' successfully assigned to batch '${batchName}'.`,
+      data: assignment,
     });
   } catch (err: any) {
     return NextResponse.json(

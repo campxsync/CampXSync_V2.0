@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 
-import { query } from '@/lib/db';
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const CreateProgramSchema = z.object({
   departmentId: z.string().uuid('Valid department ID is required'),
@@ -64,55 +64,44 @@ export async function POST(req: NextRequest) {
 
     const { departmentId, name, code, level, durationYears, totalTerms } = parseResult.data;
 
-    // Verify department belongs to this tenant
-    const deptRes = await query(`
-      SELECT id, college_id
-      FROM core.departments
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      LIMIT 1
-    `, [departmentId, tenantId]);
-
-    const dept = deptRes.rows[0];
-    if (!dept) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/not-found',
-          title: 'Department Not Found',
-          status: 404,
-          detail: 'Selected department does not exist in your institutional tenant.',
-        },
-        { status: 404 }
-      );
+    const gatewayUrl = new URL('/api/v1/college-admin/programs', GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
     }
 
-    // Insert program strictly in tenant scope
-    const progRes = await query(`
-      INSERT INTO acd.programs (
-        tenant_id, college_id, department_id, name, code, level, duration_years, total_terms, published, status
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, 'ACTIVE')
-      RETURNING id, name, code, level, duration_years, total_terms, status, created_at
-    `, [
-      tenantId,
-      dept.college_id,
+    const payload = {
       departmentId,
       name,
-      code,
+      programCode: code,
       level,
       durationYears,
       totalTerms,
-    ]);
+      published: true,
+    };
 
-    const prog = progRes.rows[0];
-    if (!prog) {
+    const gatewayRes = await fetch(gatewayUrl.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    const data = await gatewayRes.json();
+    if (!gatewayRes.ok) {
       return NextResponse.json(
         {
-          type: 'https://campxsync.edu/errors/database-error',
-          title: 'Program Creation Failed',
-          status: 500,
-          detail: 'Database error creating program record.',
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Program Creation Failed',
+          status: gatewayRes.status,
+          detail: data.detail || data.message || 'Error communicating with college admin service.',
         },
-        { status: 500 }
+        { status: gatewayRes.status }
       );
     }
 
@@ -120,7 +109,7 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         message: `Academic Program '${name}' (${code}) created successfully.`,
-        program: prog,
+        program: data,
       },
       { status: 201 }
     );

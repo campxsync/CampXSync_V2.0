@@ -51,6 +51,7 @@ public class DepartmentProgramCoursePersistenceAndRestartTest {
         programRepository = new PostgresProgramRepository(connectionManager);
 
         try (Connection conn = connectionManager.getConnection()) {
+            com.campx.admin.college.config.TestEnvironmentGuard.setTenantJwtContext(conn, tenantId);
 
             // Find active college under tenant
             try (PreparedStatement ps = conn.prepareStatement(
@@ -78,6 +79,7 @@ public class DepartmentProgramCoursePersistenceAndRestartTest {
 
         // Clean up in reverse dependency order: Course Map -> Course -> Program -> Department
         try (Connection conn = connectionManager.getConnection()) {
+            com.campx.admin.college.config.TestEnvironmentGuard.setTenantJwtContext(conn, tenantId);
             if (testCourseId != null) {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "DELETE FROM acd.course_program_map WHERE course_id = ?")) {

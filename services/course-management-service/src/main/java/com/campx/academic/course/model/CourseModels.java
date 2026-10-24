@@ -20,26 +20,26 @@ public final class CourseModels {
      */
     public static class Course {
         private String id;
-        private String tenantId = "DEFAULT_CAMPUS";
-        private String institutionId = "INST_DEFAULT";
-        private String campusId = "CAMPUS_MAIN";
+        private String tenantId;
+        private String institutionId;
+        private String campusId;
         private String courseCode; // Normalized unique business code
         private String courseName;
         private String description;
-        private int durationYears = 1;
-        private double totalCredits = 4.0;
+        private int durationYears;
+        private double totalCredits;
         private String departmentId;
         private String programId;
-        private String courseType = "THEORY"; // THEORY, LAB, INTEGRATED, PROJECT
-        private String courseCategory = "CORE"; // CORE, ELECTIVE, REGULATORY, AUDIT
-        private String status = "DRAFT"; // DRAFT, UNDER_REVIEW, APPROVED, ACTIVE, SUSPENDED, DEACTIVATED, ARCHIVED
+        private String courseType; // THEORY, LAB, INTEGRATED, PROJECT
+        private String courseCategory; // CORE, ELECTIVE, REGULATORY, AUDIT
+        private String status; // DRAFT, UNDER_REVIEW, APPROVED, ACTIVE, SUSPENDED, DEACTIVATED, ARCHIVED
         private int currentVersion = 1;
         private List<String> tags = new ArrayList<>();
         private List<String> accreditationReferences = new ArrayList<>();
         private long createdAt = System.currentTimeMillis();
         private long updatedAt = System.currentTimeMillis();
-        private String level = "100";
-        private String createdBy = "admin";
+        private String level;
+        private String createdBy;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }

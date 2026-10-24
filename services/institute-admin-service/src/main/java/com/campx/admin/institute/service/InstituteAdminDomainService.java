@@ -3,6 +3,8 @@ package com.campx.admin.institute.service;
 import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.InstituteModels.*;
 import com.campx.admin.institute.model.InstituteModels.Calendar;
+import com.campx.admin.institute.model.OnboardCollegeRequest;
+import com.campx.admin.institute.model.OnboardCollegeResponse;
 import com.campx.admin.institute.repository.*;
 import com.campx.admin.institute.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
@@ -41,6 +43,7 @@ public class InstituteAdminDomainService {
     private final DataGovernanceRepository dataGovernanceRepository;
     private final AccessEventRepository accessEventRepository;
     private final AuditChangeLogRepository auditChangeLogRepository;
+    private CollegeOnboardingRepository collegeOnboardingRepository;
     private final Map<String, TenantProvisioning> provisioningJobs = new ConcurrentHashMap<>();
     private final Map<String, GlobalSetting> globalSettings = new ConcurrentHashMap<>();
     private final Map<String, CommercialPlan> commercialPlans = new ConcurrentHashMap<>();
@@ -298,7 +301,30 @@ public class InstituteAdminDomainService {
         this.dataGovernanceRepository = dataGovernanceRepository != null ? dataGovernanceRepository : resolveDefaultDataGovernanceRepository();
         this.accessEventRepository = accessEventRepository != null ? accessEventRepository : resolveDefaultAccessEventRepository();
         this.auditChangeLogRepository = auditChangeLogRepository != null ? auditChangeLogRepository : resolveDefaultAuditChangeLogRepository();
+        this.collegeOnboardingRepository = resolveDefaultCollegeOnboardingRepository();
         seedDefaults();
+    }
+
+    private static CollegeOnboardingRepository resolveDefaultCollegeOnboardingRepository() {
+        if (isDatabaseConfigured()) {
+            return new PostgresCollegeOnboardingRepository();
+        }
+        return new InMemoryCollegeOnboardingRepository();
+    }
+
+    public CollegeOnboardingRepository getCollegeOnboardingRepository() {
+        return collegeOnboardingRepository;
+    }
+
+    public void setCollegeOnboardingRepository(CollegeOnboardingRepository collegeOnboardingRepository) {
+        this.collegeOnboardingRepository = collegeOnboardingRepository;
+    }
+
+    public OnboardCollegeResponse onboardCollegeTenant(UserSecurityContext context, OnboardCollegeRequest request) {
+        if (collegeOnboardingRepository == null) {
+            collegeOnboardingRepository = resolveDefaultCollegeOnboardingRepository();
+        }
+        return collegeOnboardingRepository.onboardCollege(context, request);
     }
 
     public TenantRepository getTenantRepository() {

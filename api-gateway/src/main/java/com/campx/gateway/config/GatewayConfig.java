@@ -129,6 +129,8 @@ public class GatewayConfig {
         routeTable.put("/v1/platform-roles", "http://localhost:8081/api/v1/admin/roles");
         routeTable.put("/v1/billing-accounts", "http://localhost:8081/api/v1/admin/billing/plans");
         routeTable.put("/v1/platform-audit-logs", "http://localhost:8081/api/v1/admin/audit-logs");
+        routeTable.put("/v1/onboard-tenant", "http://localhost:8081/api/v1/admin/onboard-tenant");
+        routeTable.put("/v1/tenants/onboard", "http://localhost:8081/api/v1/admin/onboard-tenant");
 
         routeTable.put("/v1/college-profile", "http://localhost:8082/api/v1/college-admin/profile");
         routeTable.put("/v1/departments", "http://localhost:8082/api/v1/college-admin/departments");

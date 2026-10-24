@@ -256,6 +256,7 @@ public final class BatchModels {
         private String batchId;
         private String sectionId;
         private String studentId;
+        private String rollNo;
         private String tenantId = "TENANT-001";
         private String effectiveFrom;
         private String effectiveTo;
@@ -279,6 +280,8 @@ public final class BatchModels {
         public void setSectionId(String sectionId) { this.sectionId = sectionId; }
         public String getStudentId() { return studentId; }
         public void setStudentId(String studentId) { this.studentId = studentId; }
+        public String getRollNo() { return rollNo; }
+        public void setRollNo(String rollNo) { this.rollNo = rollNo; }
         public String getTenantId() { return tenantId; }
         public void setTenantId(String tenantId) { this.tenantId = tenantId; }
         public String getEffectiveFrom() { return effectiveFrom; }
@@ -310,6 +313,7 @@ public final class BatchModels {
             r.batchId = this.batchId;
             r.sectionId = this.sectionId;
             r.studentId = this.studentId;
+            r.rollNo = this.rollNo;
             r.tenantId = this.tenantId;
             r.effectiveFrom = this.effectiveFrom;
             r.effectiveTo = this.effectiveTo;

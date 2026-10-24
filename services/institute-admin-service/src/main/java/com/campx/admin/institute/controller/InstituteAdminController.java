@@ -4,6 +4,8 @@ import com.campx.admin.institute.exception.*;
 import com.campx.admin.institute.model.ErrorResponse;
 import com.campx.admin.institute.model.InstituteModels.*;
 import com.campx.admin.institute.model.InstituteModels.Calendar;
+import com.campx.admin.institute.model.OnboardCollegeRequest;
+import com.campx.admin.institute.model.OnboardCollegeResponse;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -183,6 +185,13 @@ public class InstituteAdminController implements HttpHandler {
             if (path.equals("/api/v1/admin/colleges") && "POST".equalsIgnoreCase(method)) {
                 flow.step("handleRegisterCollege");
                 handleRegisterCollege(exchange);
+                return;
+            }
+
+            // 2b. Tenant & College Onboarding Endpoint (Wave 9)
+            if ((path.equals("/api/v1/admin/onboard-tenant") || path.equals("/api/v1/admin/tenants/onboard")) && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleOnboardCollegeTenant");
+                handleOnboardCollegeTenant(exchange);
                 return;
             }
 
@@ -923,6 +932,95 @@ public class InstituteAdminController implements HttpHandler {
         UserSecurityContext context = extractPlatformSecurityContext(exchange);
         College registered = domainService.registerCollege(context, c);
         sendJson(exchange, 201, "{\"id\":\"" + registered.getId() + "\",\"collegeCode\":\"" + registered.getCollegeCode() + "\",\"status\":\"" + registered.getStatus() + "\"}");
+    }
+
+    private void handleOnboardCollegeTenant(HttpExchange exchange) throws IOException {
+        String role = exchange.getRequestHeaders().getFirst("X-User-Role");
+        if (role == null || role.trim().isEmpty()) {
+            role = LogContext.getUserRole();
+        }
+        if (role != null && !role.trim().isEmpty()) {
+            String upper = role.trim().toUpperCase(Locale.ROOT);
+            if (!"PLATFORM_ADMIN".equals(upper) && !"SUPER_ADMIN".equals(upper)) {
+                sendError(exchange, 403, "Forbidden", "ADM01_FORBIDDEN",
+                        "Platform administrator privileges required for tenant onboarding. Current role: " + role, exchange.getRequestURI().getPath());
+                return;
+            }
+        }
+
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+
+        OnboardCollegeRequest req = new OnboardCollegeRequest();
+        req.setTenantName(extract(body, "tenantName", null));
+        if (req.getTenantName() == null) req.setTenantName(extract(body, "tenant_name", null));
+        req.setTenantCode(extract(body, "tenantCode", null));
+        if (req.getTenantCode() == null) req.setTenantCode(extract(body, "tenant_code", null));
+        req.setCollegeName(extract(body, "collegeName", null));
+        if (req.getCollegeName() == null) req.setCollegeName(extract(body, "college_name", null));
+        req.setCollegeCode(extract(body, "collegeCode", null));
+        if (req.getCollegeCode() == null) req.setCollegeCode(extract(body, "college_code", null));
+        req.setAdminName(extract(body, "adminName", null));
+        if (req.getAdminName() == null) req.setAdminName(extract(body, "admin_name", null));
+        req.setAdminEmail(extract(body, "adminEmail", null));
+        if (req.getAdminEmail() == null) req.setAdminEmail(extract(body, "admin_email", null));
+        req.setSubdomain(extract(body, "subdomain", null));
+        req.setPlan(extract(body, "plan", "ENTERPRISE"));
+        req.setIdempotencyKey(extract(body, "idempotencyKey", null));
+        if (req.getIdempotencyKey() == null) req.setIdempotencyKey(extract(body, "idempotency_key", null));
+
+        if (req.getTenantName() == null || req.getTenantName().trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'tenantName'");
+        }
+        if (req.getTenantCode() == null || req.getTenantCode().trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'tenantCode'");
+        }
+        if (req.getCollegeName() == null || req.getCollegeName().trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'collegeName'");
+        }
+        if (req.getCollegeCode() == null || req.getCollegeCode().trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'collegeCode'");
+        }
+        if (req.getAdminEmail() == null || req.getAdminEmail().trim().isEmpty()) {
+            throw new MalformedPayloadException("Missing required field 'adminEmail'");
+        }
+
+        UserSecurityContext context = extractPlatformSecurityContext(exchange);
+        OnboardCollegeResponse resp = domainService.onboardCollegeTenant(context, req);
+
+        int statusCode = resp.isIdempotentReplay() ? 200 : 201;
+        sendJson(exchange, statusCode, onboardCollegeResponseToJson(resp));
+    }
+
+    private String onboardCollegeResponseToJson(OnboardCollegeResponse resp) {
+        if (resp == null) return "null";
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("\"tenantId\":").append(resp.getTenantId() != null ? "\"" + resp.getTenantId() + "\"" : "null").append(",");
+        sb.append("\"tenantCode\":").append(resp.getTenantCode() != null ? "\"" + escape(resp.getTenantCode()) + "\"" : "null").append(",");
+        sb.append("\"tenantName\":").append(resp.getTenantName() != null ? "\"" + escape(resp.getTenantName()) + "\"" : "null").append(",");
+        sb.append("\"collegeId\":").append(resp.getCollegeId() != null ? "\"" + resp.getCollegeId() + "\"" : "null").append(",");
+        sb.append("\"collegeCode\":").append(resp.getCollegeCode() != null ? "\"" + escape(resp.getCollegeCode()) + "\"" : "null").append(",");
+        sb.append("\"collegeName\":").append(resp.getCollegeName() != null ? "\"" + escape(resp.getCollegeName()) + "\"" : "null").append(",");
+        sb.append("\"adminUserId\":").append(resp.getAdminUserId() != null ? "\"" + resp.getAdminUserId() + "\"" : "null").append(",");
+        sb.append("\"adminEmail\":").append(resp.getAdminEmail() != null ? "\"" + escape(resp.getAdminEmail()) + "\"" : "null").append(",");
+        sb.append("\"status\":").append(resp.getStatus() != null ? "\"" + escape(resp.getStatus()) + "\"" : "null").append(",");
+        sb.append("\"idempotentReplay\":").append(resp.isIdempotentReplay()).append(",");
+        sb.append("\"sagaSteps\":[");
+        List<OnboardCollegeResponse.SagaStep> steps = resp.getSagaSteps();
+        if (steps != null) {
+            for (int i = 0; i < steps.size(); i++) {
+                if (i > 0) sb.append(",");
+                OnboardCollegeResponse.SagaStep s = steps.get(i);
+                sb.append("{\"step\":").append(s.getStep())
+                  .append(",\"name\":\"").append(escape(s.getName()))
+                  .append("\",\"status\":\"").append(escape(s.getStatus()))
+                  .append("\",\"title\":\"").append(escape(s.getTitle())).append("\"}");
+            }
+        }
+        sb.append("]}");
+        return sb.toString();
     }
 
     private void handleProvisionTenant(HttpExchange exchange, String path) throws IOException {

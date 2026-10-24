@@ -2,6 +2,11 @@ package com.campx.academic.batch.service;
 
 import com.campx.academic.batch.exception.*;
 import com.campx.academic.batch.model.BatchModels.*;
+import com.campx.academic.batch.repository.BatchAssignmentEntity;
+import com.campx.academic.batch.repository.BatchAssignmentRepository;
+import com.campx.academic.batch.repository.InMemoryBatchAssignmentRepository;
+import com.campx.academic.batch.repository.PostgresBatchAssignmentRepository;
+import com.campx.academic.batch.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.context.LogContext;
@@ -18,6 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class BatchDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(BatchDomainService.class);
+
+    private final BatchAssignmentRepository assignmentRepository;
 
     // Primary In-Memory Collections (simulating MongoDB collections)
     private final Map<String, Batch> batches = new ConcurrentHashMap<>();
@@ -52,7 +59,75 @@ public class BatchDomainService {
     private final AtomicLong requestIdSeq = new AtomicLong(100);
 
     public BatchDomainService() {
+        this(resolveDefaultRepository());
+    }
+
+    public BatchDomainService(BatchAssignmentRepository assignmentRepository) {
+        this.assignmentRepository = assignmentRepository != null ? assignmentRepository : resolveDefaultRepository();
         seedSampleData();
+    }
+
+    public BatchAssignmentRepository getAssignmentRepository() {
+        return assignmentRepository;
+    }
+
+    public boolean isRelationalMode() {
+        return assignmentRepository instanceof PostgresBatchAssignmentRepository;
+    }
+
+    public static boolean isDeployedEnvironment() {
+        String env = System.getProperty("campx.environment");
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("CAMPX_ENVIRONMENT");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("DEPLOYMENT_ENV");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("APP_ENV");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("NODE_ENV");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("VERCEL_ENV");
+        }
+        return env != null && !env.trim().isEmpty()
+                && !env.equalsIgnoreCase("test")
+                && !env.equalsIgnoreCase("local")
+                && !env.equalsIgnoreCase("development");
+    }
+
+    public static BatchAssignmentRepository resolveDefaultRepository() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        return resolveRepository(mode, isDeployedEnvironment());
+    }
+
+    public static BatchAssignmentRepository resolveRepository(String mode, boolean isDeployed) {
+        if (isDeployed) {
+            if (mode == null || mode.trim().isEmpty()) {
+                throw new IllegalStateException("Missing required persistence configuration in deployed environment. Deployed runtime must explicitly configure 'campx.persistence.mode=postgres'.");
+            }
+            String clean = mode.trim();
+            if ("in_memory".equalsIgnoreCase(clean) || "inmemory".equalsIgnoreCase(clean) || "in-memory".equalsIgnoreCase(clean) || "mock".equalsIgnoreCase(clean)) {
+                throw new IllegalStateException("Ephemeral in-memory persistence is strictly prohibited in deployed environment.");
+            }
+        }
+        if (mode == null || mode.trim().isEmpty()) {
+            return new InMemoryBatchAssignmentRepository();
+        }
+        String cleanMode = mode.trim();
+        if ("in_memory".equalsIgnoreCase(cleanMode) || "inmemory".equalsIgnoreCase(cleanMode) || "in-memory".equalsIgnoreCase(cleanMode) || "mock".equalsIgnoreCase(cleanMode)) {
+            return new InMemoryBatchAssignmentRepository();
+        }
+        if ("postgres".equalsIgnoreCase(cleanMode) || "relational".equalsIgnoreCase(cleanMode)) {
+            com.campx.academic.batch.config.DatabaseConnectionManager.getInstance().initialize();
+            return new PostgresBatchAssignmentRepository();
+        }
+        throw new IllegalStateException("Unsupported persistence mode: '" + mode + "'. Expected 'postgres', 'relational', or 'in_memory'.");
     }
 
     /**
@@ -1592,5 +1667,64 @@ public class BatchDomainService {
 
     public void registerStudent(String studentId, boolean eligible) {
         this.eligibleStudentRegistry.put(studentId, eligible);
+    }
+
+    // =========================================================================
+    // Relational Batch Assignment Operations (ACD-04 Authoritative Persistence)
+    // =========================================================================
+
+    /**
+     * Authoritative relational batch assignment operation executing against {@code acd.batch_students}.
+     * Enforces tenant context, role authorization, batch/student verification, duplicate conflict handling,
+     * and audit logging into {@code audit.events}.
+     */
+    public BatchAssignmentEntity assignStudentRelational(UserSecurityContext ctx, UUID batchId, UUID studentId, String rollNo) {
+        if (ctx == null) {
+            throw new BatchForbiddenException("Missing security context for batch assignment");
+        }
+        String role = ctx.getRole();
+        if (!"COLLEGE_ADMIN".equalsIgnoreCase(role) &&
+            !"ACADEMIC_ADMIN".equalsIgnoreCase(role) &&
+            !"DEPARTMENT_HEAD".equalsIgnoreCase(role) &&
+            !"SUPER_ADMIN".equalsIgnoreCase(role)) {
+            throw new BatchForbiddenException("Caller role '" + role + "' is not authorized for batch assignment");
+        }
+        if (batchId == null) {
+            throw new BatchValidationException("batchId is required");
+        }
+        if (studentId == null) {
+            throw new BatchValidationException("studentId is required");
+        }
+
+        BatchAssignmentEntity entity = new BatchAssignmentEntity();
+        entity.setTenantId(ctx.getTenantId());
+        entity.setBatchId(batchId);
+        entity.setStudentId(studentId);
+        entity.setRollNo(rollNo);
+        entity.setStatus("ACTIVE");
+
+        return assignmentRepository.assignStudent(ctx, entity);
+    }
+
+    public Optional<BatchAssignmentEntity> findRelationalAssignment(UserSecurityContext ctx, UUID batchId, UUID studentId) {
+        if (ctx == null) throw new BatchForbiddenException("Missing security context");
+        return assignmentRepository.findAssignment(ctx, batchId, studentId);
+    }
+
+    public List<BatchAssignmentEntity> listRelationalAssignments(UserSecurityContext ctx, UUID batchId) {
+        if (ctx == null) throw new BatchForbiddenException("Missing security context");
+        return assignmentRepository.listAssignmentsByBatch(ctx, batchId);
+    }
+
+    public BatchAssignmentEntity removeRelationalAssignment(UserSecurityContext ctx, UUID batchId, UUID studentId, String reason) {
+        if (ctx == null) throw new BatchForbiddenException("Missing security context");
+        String role = ctx.getRole();
+        if (!"COLLEGE_ADMIN".equalsIgnoreCase(role) &&
+            !"ACADEMIC_ADMIN".equalsIgnoreCase(role) &&
+            !"DEPARTMENT_HEAD".equalsIgnoreCase(role) &&
+            !"SUPER_ADMIN".equalsIgnoreCase(role)) {
+            throw new BatchForbiddenException("Caller role '" + role + "' is not authorized for batch assignment removal");
+        }
+        return assignmentRepository.removeAssignment(ctx, batchId, studentId, reason);
     }
 }

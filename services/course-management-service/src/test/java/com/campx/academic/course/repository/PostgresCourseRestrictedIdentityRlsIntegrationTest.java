@@ -34,15 +34,19 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     private UserSecurityContext adminContext;
     private UserSecurityContext csContext;
     private UserSecurityContext eeContext;
+    private UserSecurityContext csDeanContext;
+    private UserSecurityContext eeDeanContext;
     private UserSecurityContext crossTenantContext;
 
     private UUID tenantId;
     private UUID otherTenantId;
+    private UUID foreignTenantId;
     private UUID deptCsId;
     private UUID deptEeId;
     private UUID courseCsId;
     private UUID courseCs2Id;
     private UUID courseEeId;
+    private UUID foreignCourseId;
     private UUID progCsId;
     private UUID progEeId;
 
@@ -51,6 +55,8 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     private final List<UUID> createdProgIds = new ArrayList<>();
     private final List<UUID> createdDeptIds = new ArrayList<>();
     private final List<UUID> createdRoleAssignmentIds = new ArrayList<>();
+    private final List<UUID> createdUserIds = new ArrayList<>();
+    private final List<UUID> createdTenantIds = new ArrayList<>();
 
     @Before
     public void setUp() throws Exception {
@@ -75,6 +81,10 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
             courseCs2Id = provisionCourse(conn, "CRS_CS2_" + randomSuffix(), "CS Advanced Course", deptCsId);
             courseEeId = provisionCourse(conn, "CRS_EE_" + randomSuffix(), "EE Circuits Course", deptEeId);
 
+            // 5b. Resolve or provision foreign tenant and course fixture for cross-tenant testing
+            foreignTenantId = resolveForeignTenantId(conn);
+            foreignCourseId = provisionForeignTenantCourse(conn, foreignTenantId);
+
             // 6. Provision dedicated restricted test identities (NO wildcard grants, strictly department-scoped)
             UUID csUserId = UUID.randomUUID();
             UUID eeUserId = UUID.randomUUID();
@@ -85,6 +95,16 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
             csContext = new UserSecurityContext(csUserId, tenantId);
             eeContext = new UserSecurityContext(eeUserId, tenantId);
 
+            // 6b. Provision authorized programme owners holding acd01.manage in their respective department scopes
+            UUID csDeanUserId = UUID.randomUUID();
+            UUID eeDeanUserId = UUID.randomUUID();
+
+            provisionDepartmentRoleAssignment(conn, csDeanUserId, tenantId, deptCsId, "DEAN");
+            provisionDepartmentRoleAssignment(conn, eeDeanUserId, tenantId, deptEeId, "DEAN");
+
+            csDeanContext = new UserSecurityContext(csDeanUserId, tenantId);
+            eeDeanContext = new UserSecurityContext(eeDeanUserId, tenantId);
+
             otherTenantId = UUID.randomUUID();
             crossTenantContext = new UserSecurityContext(UUID.randomUUID(), otherTenantId);
         }
@@ -93,17 +113,28 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     @After
     public void tearDown() {
         if (connectionManager == null || (createdMapIds.isEmpty() && createdCourseIds.isEmpty()
-                && createdProgIds.isEmpty() && createdRoleAssignmentIds.isEmpty() && createdDeptIds.isEmpty())) {
+                && createdProgIds.isEmpty() && createdRoleAssignmentIds.isEmpty() && createdDeptIds.isEmpty()
+                && createdTenantIds.isEmpty())) {
             return;
         }
 
         try (Connection conn = connectionManager.getConnection()) {
+            TestEnvironmentGuard.setTenantJwtContext(conn, tenantId);
             for (UUID mapId : createdMapIds) {
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM acd.course_program_map WHERE id = ?")) {
                     ps.setObject(1, mapId);
                     ps.executeUpdate();
                 } catch (Exception ignored) {}
             }
+            if (foreignCourseId != null && foreignTenantId != null && createdCourseIds.contains(foreignCourseId)) {
+                TestEnvironmentGuard.setTenantJwtContext(conn, foreignTenantId);
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM acd.courses WHERE id = ?")) {
+                    ps.setObject(1, foreignCourseId);
+                    ps.executeUpdate();
+                } catch (Exception ignored) {}
+                createdCourseIds.remove(foreignCourseId);
+            }
+            TestEnvironmentGuard.setTenantJwtContext(conn, tenantId);
             for (UUID courseId : createdCourseIds) {
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM acd.courses WHERE id = ?")) {
                     ps.setObject(1, courseId);
@@ -122,9 +153,25 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
                     ps.executeUpdate();
                 } catch (Exception ignored) {}
             }
+            for (UUID uid : createdUserIds) {
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM iam.user_profiles WHERE id = ?")) {
+                    ps.setObject(1, uid);
+                    ps.executeUpdate();
+                } catch (Exception ignored) {}
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM auth.users WHERE id = ?")) {
+                    ps.setObject(1, uid);
+                    ps.executeUpdate();
+                } catch (Exception ignored) {}
+            }
             for (UUID deptId : createdDeptIds) {
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM core.departments WHERE id = ?")) {
                     ps.setObject(1, deptId);
+                    ps.executeUpdate();
+                } catch (Exception ignored) {}
+            }
+            for (UUID tId : createdTenantIds) {
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM core.tenants WHERE id = ?")) {
+                    ps.setObject(1, tId);
                     ps.executeUpdate();
                 } catch (Exception ignored) {}
             }
@@ -135,6 +182,8 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
         createdProgIds.clear();
         createdDeptIds.clear();
         createdRoleAssignmentIds.clear();
+        createdUserIds.clear();
+        createdTenantIds.clear();
     }
 
     // -------------------------------------------------------------------------
@@ -176,34 +225,41 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     }
 
     @Test
-    public void testST02_DeniedInsertOnlyProgramInScope() {
-        // CS User attempting to map EE Course into CS Program (Course is foreign/EE)
-        // Pre-proof: PROG_CS and CRS_EE exist in DB (eliminates FK error 23503)
+    public void testST02_AuthorizedInsertExternalCourseIntoOwnedProgram() {
+        // CS User mapping EE Course into CS Program: Program is owned by caller, Course is external (EE)
+        // Under Option C asymmetric policy, program owner holds authority to include external courses
         assertFixtureExists("acd.programs", progCsId);
         assertFixtureExists("acd.courses", courseEeId);
 
         UUID mapId = UUID.randomUUID();
         createdMapIds.add(mapId);
 
-        try {
-            csContext.executeInTransaction(connectionManager, conn -> {
-                String sql = "INSERT INTO acd.course_program_map (id, tenant_id, course_id, program_id, created_at) " +
-                        "VALUES (?, ?, ?, ?, now())";
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setObject(1, mapId);
-                    ps.setObject(2, tenantId);
-                    ps.setObject(3, courseEeId);
-                    ps.setObject(4, progCsId);
-                    return ps.executeUpdate();
-                }
-            });
-            fail("Expected PostgreSQL RLS policy violation (42501)");
-        } catch (Exception ex) {
-            assertRlsViolation(ex);
-        }
+        int rows = csContext.executeInTransaction(connectionManager, conn -> {
+            String sql = "INSERT INTO acd.course_program_map (id, tenant_id, course_id, program_id, created_at) " +
+                    "VALUES (?, ?, ?, ?, now())";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, mapId);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, courseEeId);
+                ps.setObject(4, progCsId);
+                return ps.executeUpdate();
+            }
+        });
 
-        // Post-verification: Ensure row was not inserted
-        assertFixtureNotExists("acd.course_program_map", mapId);
+        assertEquals("Authorized insert of external course into owned program must succeed under Option C", 1, rows);
+
+        // Independent verification via admin context
+        boolean exists = adminContext.executeInTransaction(connectionManager, conn -> {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT 1 FROM acd.course_program_map WHERE id = ? AND tenant_id = ?")) {
+                ps.setObject(1, mapId);
+                ps.setObject(2, tenantId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        });
+        assertTrue("Fixture must exist in database after authorized insert", exists);
     }
 
     @Test
@@ -364,7 +420,8 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     public void testST08_AuthorizedDeleteWithinScope() {
         UUID mapId = insertMappingPrivileged(courseCsId, progCsId);
 
-        int rows = csContext.executeInTransaction(connectionManager, conn -> {
+        // Authorized programme owner (Dean of CS) holds acd01.manage scoped to PROG_CS.
+        int rows = csDeanContext.executeInTransaction(connectionManager, conn -> {
             String sql = "DELETE FROM acd.course_program_map WHERE id = ? AND tenant_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setObject(1, mapId);
@@ -501,6 +558,131 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
         assertEquals("Tenant Admin must be authorized to delete cross-department mapping", 1, deleteRows);
     }
 
+    @Test
+    public void testST13_AuthorizedDeleteCrossDepartmentMappingByProgramOwner() {
+        // Cross-department mapping created by admin: EE Program + CS Course
+        UUID mapId = insertMappingPrivileged(courseCsId, progEeId);
+
+        // EE Dean owns PROG_EE and holds scoped acd01.manage authority. Under Option C, program owner is authorized to delete mapping.
+        int rows = eeDeanContext.executeInTransaction(connectionManager, conn -> {
+            String sql = "DELETE FROM acd.course_program_map WHERE id = ? AND tenant_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, mapId);
+                ps.setObject(2, tenantId);
+                return ps.executeUpdate();
+            }
+        });
+
+        assertEquals("Program owner must be authorized to delete cross-department course from their program", 1, rows);
+        assertFixtureNotExists("acd.course_program_map", mapId);
+    }
+
+    @Test
+    public void testST14_DeniedUpdateByCourseOwnerOnCrossDepartmentMapping() {
+        // Cross-department mapping created by admin: EE Program + CS Course
+        UUID mapId = insertMappingPrivileged(courseCsId, progEeId);
+
+        // CS User owns CRS_CS, but does NOT own PROG_EE.
+        // Under Option C, course owner cannot modify mapping in a foreign program.
+        int rows = csContext.executeInTransaction(connectionManager, conn -> {
+            String sql = "UPDATE acd.course_program_map SET course_id = ? WHERE id = ? AND tenant_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, courseCs2Id);
+                ps.setObject(2, mapId);
+                ps.setObject(3, tenantId);
+                return ps.executeUpdate();
+            }
+        });
+
+        assertEquals("Course owner cannot update mapping in foreign program without program authority (affects 0 rows)", 0, rows);
+
+        // Verify mapping remains unchanged
+        UUID currentCourse = adminContext.executeInTransaction(connectionManager, conn -> {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT course_id FROM acd.course_program_map WHERE id = ?")) {
+                ps.setObject(1, mapId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue(rs.next());
+                    return (UUID) rs.getObject("course_id");
+                }
+            }
+        });
+        assertEquals("Course ID must remain CRS_CS", courseCsId, currentCourse);
+    }
+
+    @Test
+    public void testST15_DeniedCrossTenantCourseInsert() {
+        // Genuine course fixture owned by a different tenant
+        assertNotNull("Foreign course fixture must be provisioned", foreignCourseId);
+        assertNotNull("Foreign tenant must be resolved", foreignTenantId);
+        assertNotEquals("Foreign tenant must be distinct from current tenant", tenantId, foreignTenantId);
+        assertForeignFixtureExists("acd.courses", foreignCourseId, foreignTenantId);
+        assertFixtureExists("acd.programs", progCsId);
+
+        UUID crossTenantMapId = UUID.randomUUID();
+        createdMapIds.add(crossTenantMapId);
+
+        // 1. Assert: Inserting foreign-tenant course into current tenant's program is DENIED by RLS
+        try {
+            csContext.executeInTransaction(connectionManager, conn -> {
+                String sql = "INSERT INTO acd.course_program_map (id, tenant_id, course_id, program_id, created_at) " +
+                        "VALUES (?, ?, ?, ?, now())";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setObject(1, crossTenantMapId);
+                    ps.setObject(2, tenantId);
+                    ps.setObject(3, foreignCourseId);
+                    ps.setObject(4, progCsId);
+                    return ps.executeUpdate();
+                }
+            });
+            fail("Expected PostgreSQL RLS policy violation (42501) for foreign-tenant course fixture");
+        } catch (Exception ex) {
+            assertRlsViolation(ex);
+        }
+
+        assertFixtureNotExists("acd.course_program_map", crossTenantMapId);
+
+        // 2. Positive Control: Verify legitimate same-tenant cross-department mapping remains possible
+        // CS User mapping EE Course (same tenant, different department) into CS Program
+        assertFixtureExists("acd.courses", courseEeId);
+        UUID legitimateMapId = UUID.randomUUID();
+        createdMapIds.add(legitimateMapId);
+
+        int rows = csContext.executeInTransaction(connectionManager, conn -> {
+            String sql = "INSERT INTO acd.course_program_map (id, tenant_id, course_id, program_id, created_at) " +
+                    "VALUES (?, ?, ?, ?, now())";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, legitimateMapId);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, courseEeId);
+                ps.setObject(4, progCsId);
+                return ps.executeUpdate();
+            }
+        });
+
+        assertEquals("Legitimate same-tenant cross-department mapping must succeed", 1, rows);
+        assertFixtureExists("acd.course_program_map", legitimateMapId);
+    }
+
+    @Test
+    public void testST16_DeniedDeleteByHodWithoutManageAuthority() {
+        // Mapping in CS Program created by admin
+        UUID mapId = insertMappingPrivileged(courseCsId, progCsId);
+
+        // CS HOD holds acd01.write but lacks acd01.manage.
+        // Under canonical Option C RLS policy, deletion requires acd01.manage, so HOD is denied (0 rows affected).
+        int rows = csContext.executeInTransaction(connectionManager, conn -> {
+            String sql = "DELETE FROM acd.course_program_map WHERE id = ? AND tenant_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, mapId);
+                ps.setObject(2, tenantId);
+                return ps.executeUpdate();
+            }
+        });
+
+        assertEquals("HOD without acd01.manage authority must not delete mapping (0 rows affected)", 0, rows);
+        assertFixtureExists("acd.course_program_map", mapId);
+    }
+
     // -------------------------------------------------------------------------
     // Helper Methods
     // -------------------------------------------------------------------------
@@ -535,6 +717,21 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
         assertTrue("Fixture " + id + " must exist in " + table, exists);
     }
 
+    private void assertForeignFixtureExists(String table, UUID id, UUID fTenantId) {
+        try (Connection conn = connectionManager.getConnection()) {
+            TestEnvironmentGuard.setTenantJwtContext(conn, fTenantId);
+            try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM " + table + " WHERE id = ? AND tenant_id = ?")) {
+                ps.setObject(1, id);
+                ps.setObject(2, fTenantId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    assertTrue("Foreign fixture " + id + " must exist in " + table + " under tenant " + fTenantId, rs.next());
+                }
+            }
+        } catch (SQLException e) {
+            fail("Failed to verify foreign fixture in " + table + ": " + e.getMessage());
+        }
+    }
+
     private void assertFixtureNotExists(String table, UUID id) {
         boolean exists = adminContext.executeInTransaction(connectionManager, conn -> {
             try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM " + table + " WHERE id = ?")) {
@@ -566,13 +763,15 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     private UUID provisionDepartment(Connection conn, String code, String name) throws SQLException {
         UUID id = UUID.randomUUID();
         createdDeptIds.add(id);
-        String sql = "INSERT INTO core.departments (id, tenant_id, code, name, status, created_at, updated_at, row_version) " +
-                "VALUES (?, ?, ?, ?, 'ACTIVE', now(), now(), 1)";
+        UUID collegeId = resolveCollegeId(conn);
+        String sql = "INSERT INTO core.departments (id, tenant_id, college_id, code, name, status, created_at, updated_at, row_version) " +
+                "VALUES (?, ?, ?, ?, ?, 'ACTIVE', now(), now(), 1)";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, id);
             ps.setObject(2, tenantId);
-            ps.setString(3, code);
-            ps.setString(4, name);
+            ps.setObject(3, collegeId);
+            ps.setString(4, code);
+            ps.setString(5, name);
             ps.executeUpdate();
         }
         return id;
@@ -581,14 +780,16 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     private UUID provisionProgram(Connection conn, String code, String name, UUID deptId) throws SQLException {
         UUID id = UUID.randomUUID();
         createdProgIds.add(id);
-        String sql = "INSERT INTO acd.programs (id, tenant_id, department_id, code, name, duration_years, status, created_at, updated_at, row_version) " +
-                "VALUES (?, ?, ?, ?, ?, 4, 'ACTIVE', now(), now(), 1)";
+        UUID collegeId = resolveCollegeId(conn);
+        String sql = "INSERT INTO acd.programs (id, tenant_id, college_id, department_id, code, name, level, duration_years, published, status, created_at, updated_at, row_version) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 'UG', 4, true, 'ACTIVE', now(), now(), 1)";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, id);
             ps.setObject(2, tenantId);
-            ps.setObject(3, deptId);
-            ps.setString(4, code);
-            ps.setString(5, name);
+            ps.setObject(3, collegeId);
+            ps.setObject(4, deptId);
+            ps.setString(5, code);
+            ps.setString(6, name);
             ps.executeUpdate();
         }
         return id;
@@ -613,19 +814,120 @@ public class PostgresCourseRestrictedIdentityRlsIntegrationTest {
     private void provisionDepartmentRoleAssignment(Connection conn, UUID userId, UUID tenantId, UUID deptId, String roleCode) throws SQLException {
         UUID id = UUID.randomUUID();
         createdRoleAssignmentIds.add(id);
-        String sql = "INSERT INTO iam.role_assignments (id, tenant_id, user_id, role_code, department_id, created_at, updated_at) " +
-                "VALUES (?, ?, ?, ?, ?, now(), now())";
+        createdUserIds.add(userId);
+
+        try (PreparedStatement userPs = conn.prepareStatement(
+                "INSERT INTO auth.users (id, email) VALUES (?, ?) ON CONFLICT (id) DO NOTHING")) {
+            userPs.setObject(1, userId);
+            userPs.setString(2, "user_" + userId.toString().substring(0, 8) + "@campx.test");
+            userPs.executeUpdate();
+        }
+
+        UUID collegeId = resolveCollegeId(conn);
+        String effectiveRole = ("DEPT_HEAD".equalsIgnoreCase(roleCode) || "HOD".equalsIgnoreCase(roleCode)) ? "HOD" : roleCode;
+        UUID roleId = resolveRoleId(conn, effectiveRole);
+
+        try (PreparedStatement profPs = conn.prepareStatement(
+                "INSERT INTO iam.user_profiles (id, tenant_id, college_id, department_id, email, full_name, status, created_at, updated_at, row_version) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', now(), now(), 1) ON CONFLICT (id) DO NOTHING")) {
+            profPs.setObject(1, userId);
+            profPs.setObject(2, tenantId);
+            profPs.setObject(3, collegeId);
+            profPs.setObject(4, deptId);
+            profPs.setString(5, "user_" + userId.toString().substring(0, 8) + "@campx.test");
+            profPs.setString(6, "Test Restricted " + effectiveRole + " " + userId.toString().substring(0, 6));
+            profPs.executeUpdate();
+        }
+
+        String sql = "INSERT INTO iam.role_assignments (id, tenant_id, user_id, role_id, college_id, department_id, created_at, updated_at, row_version) " +
+                "VALUES (?, ?, ?, ?, ?, ?, now(), now(), 1)";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, id);
             ps.setObject(2, tenantId);
             ps.setObject(3, userId);
-            ps.setString(4, roleCode);
-            ps.setObject(5, deptId);
+            ps.setObject(4, roleId);
+            ps.setObject(5, collegeId);
+            ps.setObject(6, deptId);
             ps.executeUpdate();
         }
     }
 
+    private UUID resolveCollegeId(Connection conn) throws SQLException {
+        String sql = "SELECT id FROM core.colleges WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, tenantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return (UUID) rs.getObject("id");
+                }
+            }
+        }
+        throw new IllegalStateException("No college found in tenant " + tenantId);
+    }
+
+    private UUID resolveRoleId(Connection conn, String roleCode) throws SQLException {
+        String sql = "SELECT id FROM iam.roles WHERE code = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, roleCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return (UUID) rs.getObject("id");
+                }
+            }
+        }
+        throw new IllegalStateException("Role code not found in iam.roles: " + roleCode);
+    }
+
     private String randomSuffix() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+    }
+
+    private UUID resolveForeignTenantId(Connection conn) throws SQLException {
+        String sql = "SELECT id FROM core.tenants WHERE id != ? AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, tenantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return (UUID) rs.getObject("id");
+                }
+            }
+        }
+        // Fallback: Provision secondary safe test tenant if not present
+        UUID fallbackTenantId = UUID.fromString("b0000000-0000-0000-0000-000000000002");
+        String insertSql = "INSERT INTO core.tenants (id, name, code, status, created_at, updated_at, row_version) " +
+                "VALUES (?, 'Foreign Test Tenant', 'T_FOREIGN', 'ACTIVE', now(), now(), 1) " +
+                "ON CONFLICT (id) DO NOTHING";
+        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+            ps.setObject(1, fallbackTenantId);
+            int rows = ps.executeUpdate();
+            if (rows > 0) {
+                createdTenantIds.add(fallbackTenantId);
+            }
+        }
+        return fallbackTenantId;
+    }
+
+    private UUID provisionForeignTenantCourse(Connection conn, UUID fTenantId) throws SQLException {
+        String selectSql = "SELECT id FROM acd.courses WHERE tenant_id = ? AND deleted_at IS NULL LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+            ps.setObject(1, fTenantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return (UUID) rs.getObject("id");
+                }
+            }
+        }
+        UUID id = UUID.randomUUID();
+        createdCourseIds.add(id);
+        String insertSql = "INSERT INTO acd.courses (id, tenant_id, department_id, code, name, level, credits, status, created_at, updated_at, row_version) " +
+                "VALUES (?, ?, NULL, ?, ?, '100', 3.0, 'ACTIVE', now(), now(), 1)";
+        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+            ps.setObject(1, id);
+            ps.setObject(2, fTenantId);
+            ps.setString(3, "CRS_FOR_" + randomSuffix());
+            ps.setString(4, "Foreign Tenant Course");
+            ps.executeUpdate();
+        }
+        return id;
     }
 }

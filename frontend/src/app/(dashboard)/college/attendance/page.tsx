@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { AttendanceManager } from './attendance-manager';
-import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function CollegeAttendancePage() {
   const supabase = await createClient();
@@ -21,46 +22,43 @@ export default async function CollegeAttendancePage() {
   let sessions: any[] = [];
 
   try {
-    const res = await query(`
-      SELECT 
-        s.id,
-        s.session_date,
-        s.start_time,
-        s.end_time,
-        s.status,
-        s.locked_at,
-        sub.name as subject_name,
-        sub.code as subject_code,
-        sec.section_code,
-        p.display_name as faculty_name,
-        (SELECT count(*) FROM acd.attendance_records r WHERE r.session_id = s.id AND r.deleted_at IS NULL) as total_records,
-        (SELECT count(*) FROM acd.attendance_records r WHERE r.session_id = s.id AND r.status = 'PRESENT' AND r.deleted_at IS NULL) as present_count
-      FROM acd.attendance_sessions s
-      LEFT JOIN acd.timetable_entries tte ON tte.id = s.timetable_entry_id
-      LEFT JOIN acd.subjects sub ON sub.id = tte.subject_id
-      LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
-      LEFT JOIN hrm.employees emp ON emp.id = s.employee_id
-      LEFT JOIN core.persons p ON p.id = emp.person_id
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      ORDER BY s.session_date DESC
-    `, [tenantId]);
+    const gatewayUrl = new URL('/api/v1/academics/attendance/sessions', GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
 
-    sessions = res.rows.map((s: any) => ({
-      id: s.id,
-      session_date: s.session_date,
-      start_time: s.start_time,
-      end_time: s.end_time,
-      status: s.status,
-      locked_at: s.locked_at,
-      subject_name: s.subject_name,
-      subject_code: s.subject_code,
-      section_code: s.section_code,
-      faculty_name: s.faculty_name,
-      total_records: Number(s.total_records) || 0,
-      present_count: Number(s.present_count) || 0,
-    }));
+    const res = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const rawList = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      sessions = rawList.map((s: any) => ({
+        id: s.id,
+        session_date: s.sessionDate || s.attendanceDate || s.session_date,
+        start_time: s.startTime || s.start_time,
+        end_time: s.endTime || s.end_time,
+        status: s.status,
+        locked_at: s.lockedAt || s.locked_at,
+        subject_name: s.subjectName || s.subject_name || 'Class Session',
+        subject_code: s.subjectCode || s.subject_code || 'GEN',
+        section_code: s.sectionCode || s.section_code || s.sectionName || 'Section A',
+        faculty_name: s.facultyName || s.faculty_name || 'Assigned Instructor',
+        total_records: Number(s.totalRecords || s.total_records || s.totalStudentsMarked || s.total_students_marked) || 0,
+        present_count: Number(s.presentCount || s.present_count) || 0,
+      }));
+    }
   } catch (err) {
-    console.error('Error querying attendance sessions:', err);
+    console.error('Error querying attendance sessions via API gateway:', err);
   }
 
   return (

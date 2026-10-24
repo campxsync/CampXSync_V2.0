@@ -1,10 +1,18 @@
 package com.campx.academic.timetable.service;
 
 import com.campx.academic.timetable.exception.*;
+import com.campx.academic.timetable.model.*;
 import com.campx.academic.timetable.model.TimetableModels.*;
+import com.campx.academic.timetable.repository.InMemoryTimetableRepository;
+import com.campx.academic.timetable.repository.PostgresTimetableRepository;
+import com.campx.academic.timetable.repository.TimetableRepository;
+import com.campx.academic.timetable.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -19,6 +27,16 @@ import java.util.stream.Collectors;
 public class TimetableDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(TimetableDomainService.class);
+
+    private TimetableRepository repository;
+
+    public TimetableRepository getRepository() {
+        return repository;
+    }
+
+    public void setRepository(TimetableRepository repository) {
+        this.repository = repository;
+    }
 
     // =========================================================================
     // 1. Data Collections (Thread-safe MongoDB in-memory representations)
@@ -113,6 +131,11 @@ public class TimetableDomainService {
     private final Map<String, Set<String>> roomUnavailability = new ConcurrentHashMap<>();
 
     public TimetableDomainService() {
+        this(new PostgresTimetableRepository());
+    }
+
+    public TimetableDomainService(TimetableRepository repository) {
+        this.repository = repository != null ? repository : new PostgresTimetableRepository();
         seedDefaults();
     }
 
@@ -1303,6 +1326,111 @@ public class TimetableDomainService {
 
     public Map<String, CalendarWindow> getCalendarWindows() {
         return calendarWindows;
+    }
+
+    // =========================================================================
+    // 16. Relational Persistence Operations (Wave 5: PostgreSQL & Outbox)
+    // =========================================================================
+
+    public TimetableEntity createTimetableRelational(UserSecurityContext context, TimetableEntity timetable) {
+        if (timetable == null) throw new IllegalArgumentException("Timetable cannot be null");
+        if (timetable.getName() == null || timetable.getName().trim().isEmpty()) {
+            throw new TimetableValidationException("Timetable name is required");
+        }
+        if (timetable.getCollegeId() == null) {
+            throw new TimetableValidationException("College ID is required");
+        }
+        if (timetable.getTermId() == null) {
+            throw new TimetableValidationException("Term ID is required");
+        }
+        return repository.saveTimetable(context, timetable);
+    }
+
+    public Optional<TimetableEntity> findTimetableByIdRelational(UserSecurityContext context, UUID timetableId) {
+        return repository.findTimetableById(context, timetableId);
+    }
+
+    public TimetableVersionEntity createVersionRelational(UserSecurityContext context, TimetableVersionEntity version) {
+        if (version == null) throw new IllegalArgumentException("Version cannot be null");
+        if (version.getTimetableId() == null) {
+            throw new TimetableValidationException("Timetable ID is required for version");
+        }
+        return repository.saveVersion(context, version);
+    }
+
+    public Optional<TimetableVersionEntity> findVersionByIdRelational(UserSecurityContext context, UUID versionId) {
+        return repository.findVersionById(context, versionId);
+    }
+
+    public Optional<TimetableVersionEntity> findActiveVersionByTimetableIdRelational(UserSecurityContext context, UUID timetableId) {
+        return repository.findActiveVersionByTimetableId(context, timetableId);
+    }
+
+    public TimetableEntryEntity createSlotRelational(UserSecurityContext context, CreateTimetableSlotRequest req) {
+        if (req == null) throw new IllegalArgumentException("Slot request cannot be null");
+        if (req.getTimetableVersionId() == null) {
+            throw new TimetableValidationException("Timetable version ID is required");
+        }
+        if (req.getDayOfWeek() < 0 || req.getDayOfWeek() > 6) {
+            throw new TimetableValidationException("Day of week must be between 0 (Sunday) and 6 (Saturday)");
+        }
+        if (req.getStartTime() == null || req.getEndTime() == null) {
+            throw new TimetableValidationException("Start time and end time are required");
+        }
+
+        LocalTime start;
+        LocalTime end;
+        try {
+            start = LocalTime.parse(req.getStartTime().trim());
+            end = LocalTime.parse(req.getEndTime().trim());
+        } catch (DateTimeParseException e) {
+            throw new TimetableValidationException("Invalid time format: " + e.getMessage());
+        }
+
+        if (!end.isAfter(start)) {
+            throw new TimetableValidationException("Slot end time must be after start time");
+        }
+
+        // Trigger compliance: ensure prerequisite section_faculty assignment exists
+        if (req.getSectionId() != null && req.getEmployeeId() != null) {
+            repository.ensureSectionFacultyAssignment(context, req.getSectionId(), req.getEmployeeId());
+        }
+
+        TimetableEntryEntity entry = new TimetableEntryEntity();
+        entry.setTimetableVersionId(req.getTimetableVersionId());
+        entry.setSectionId(req.getSectionId());
+        entry.setSubjectId(req.getSubjectId());
+        entry.setEmployeeId(req.getEmployeeId());
+        entry.setRoomId(req.getRoomId());
+        entry.setDayOfWeek(req.getDayOfWeek());
+        entry.setStartTime(start);
+        entry.setEndTime(end);
+        entry.setEntryType(req.getEntryType() != null ? req.getEntryType() : "LECTURE");
+
+        if (req.getValidFrom() != null && !req.getValidFrom().trim().isEmpty()) {
+            try {
+                entry.setValidFrom(LocalDate.parse(req.getValidFrom().trim()));
+            } catch (DateTimeParseException ignored) {}
+        }
+        if (req.getValidTo() != null && !req.getValidTo().trim().isEmpty()) {
+            try {
+                entry.setValidTo(LocalDate.parse(req.getValidTo().trim()));
+            } catch (DateTimeParseException ignored) {}
+        }
+
+        return repository.saveEntry(context, entry);
+    }
+
+    public List<TimetableSlotResponse> findSlotResponsesByVersionRelational(UserSecurityContext context, UUID versionId) {
+        return repository.findSlotResponsesByVersionId(context, versionId);
+    }
+
+    public List<TimetableEntryEntity> findEntriesByVersionRelational(UserSecurityContext context, UUID versionId) {
+        return repository.findEntriesByVersionId(context, versionId);
+    }
+
+    public boolean deleteSlotRelational(UserSecurityContext context, UUID slotId) {
+        return repository.deleteEntry(context, slotId);
     }
 
     public static class MapBuilder {

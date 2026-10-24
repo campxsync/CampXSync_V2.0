@@ -1,52 +1,61 @@
-# Next Antigravity Task — Wave 5: Timetable Domain & Relational Persistence
+# Next Antigravity Task — Wave 11: Production Readiness & Final Cutover
 
 **Target Repository:** `D:\CampXSync\CampXSync_V2.0`  
-**Governing Documents:** `.agent/rules/campxsync-wave-control.md`, `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md`, `docs/project-control/PROGRESS.md`, `docs/reports/wave-4/COMPLETION_REPORT.md`  
-**Current Branch:** `feature/java-backend-integration`
+**Governing Documents:** `.agent/rules/campxsync-wave-control.md`, `docs/CAMPXSYNC_AUTONOMOUS_WAVE_EXECUTION.md`, `docs/project-control/PROGRESS.md`, `docs/reports/wave-10/COMPLETION_REPORT.md`  
+**Current Branch:** `feature/java-backend-integration`  
+**Execution State:** **STOPPED AT WAVE 10 COMPLETION — DO NOT PROCEED TO WAVE 11 WITHOUT EXPLICIT USER AUTHORIZATION**
 
 ---
 
-## 1. Wave 4 Completion Status
+## 1. Wave 10 Completion & Remediation Status
 
-Wave 4 (Student Domain Foundation & Roster) has reached complete, verified closeout on development database `azulbaxszsqxymqmlwfe`:
-- **G1 Least-Privilege Role:** Verified live with `campx_app_server` (`rolsuper=false`, `rolbypassrls=false`, `rolcanlogin=true`).
-- **Student & Person Domain Persistence:** `core.persons`, `stu.students`, and `doc.documents` live persistence and joined read-back verified.
-- **Transactional Outbox Persistence:** Decision Gate DEC-W4-OUTBOX applied and verified live via `LivePostgresStudentPersistenceTest` (2/2 PASS).
-- **Tenant Isolation & Security:** Fail-closed tenant boundaries, cross-tenant read denial (0 rows), cross-tenant write denial (RLS violation), atomic rollback on outbox failure, and unconditional rollback leaving zero residual rows verified live.
-- **Suite Verification:** All 39 unit tests in `student-service`, gateway routes in `api-gateway`, 58 tests in `logger`, and full 16-module reactor test-compilation pass cleanly.
-
----
-
-## 2. Next Task: Wave 5 — Timetable Domain & Relational Persistence
-
-In accordance with Section 6 of `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md`, proceed to Wave 5:
-
-### Step 1: Preflight & Schema Audit
-- Inspect the existing timetable schema in PostgreSQL (`acd.timetables`, `acd.timetable_entries`, `acd.course_sections`, rooms, and periods) on development ref `azulbaxszsqxymqmlwfe`.
-- Inspect existing RLS policies and role grants on timetable tables for `authenticated` and `campx_app_server`.
-
-### Step 2: Timetable Conflict Rules & Architecture Specification
-- Document conflict rules before implementation:
-  1. Faculty double-booking (same faculty cannot teach two sections simultaneously).
-  2. Batch / Section double-booking (same student cohort cannot have two classes at the same slot).
-  3. Room double-booking (if physical rooms are in scope).
-- Define effective dates, term versioning, and Indian Standard Time (IST) conventions.
-- Prepare conflict enforcement strategy (service-level locking vs. exclusion constraints).
-
-### Step 3: Implement Timetable Java Domain Service (`services/timetable-service` or ACD-05)
-- Model timetable slot entities with aggregate ownership and foreign keys to tenant, college, program, batch, faculty, and course.
-- Implement API Gateway routing for timetable endpoints (`/api/v1/timetables`).
-- Implement transactional outbox event emission for slot creations, mutations, and cancellations (`timetable.slot_changed.v1`).
-
-### Step 4: Verification & Test Suite
-- Comprehensive unit tests for conflict rules, concurrency, invalid references, and department scoping.
-- Live integration tests against `azulbaxszsqxymqmlwfe` validating RLS isolation, conflict rejection, and outbox persistence with rollback.
+Wave 10 (Frontend Database-Access Retirement, Integrated E2E Regression, and Consolidated Go-Live Mandate) is complete:
+- **Consolidated Go-Live Execution Status:** **CONDITIONAL GO (READY FOR APPROVED LIVE STAGING GATE)** as documented in [`docs/reports/wave-10/CONSOLIDATED_GO_LIVE_REPORT.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/reports/wave-10/CONSOLIDATED_GO_LIVE_REPORT.md). Target release deadline: October 31, 2026.
+- **ACD-04 Fail-Closed Persistence Mode Hardening:** Deployed environment detection implemented; startup fails fast with `IllegalStateException` on missing or in-memory persistence in deployed runtimes.
+- **Gateway Cryptographic Trust Boundary:** `GatewayHmacVerifier` implemented in ACD-04 with full cryptographic parity to ADM-01/ADM-02 (`X-Gateway-Timestamp`, `X-Gateway-Signature`, HMAC-SHA256, 60s replay protection, UUID identity validation). Bound `BatchServer` strictly to loopback `127.0.0.1`.
+- **Database RLS, Claims & Connection Scope Verification:** Hardened `UserSecurityContext` to set complete JWT claims (`sub`, `tenant_id`, `user_role`, `college_id`). Ensured connection pool context cleanup via `RESET ROLE`, claim clearing, and restoring `autoCommit(true)` in `finally` blocks.
+- **Frontend Direct Database Access Retired on Academic Batches:** `frontend/src/app/(dashboard)/college/batches/page.tsx` cut over from direct SQL `@/lib/db` queries to API Gateway `/api/v1/academics/batches` (ACD-04) and `/api/v1/academics/subjects` (ACD-03).
+- **Consolidated Test Accounting:** **1,008 tests executed**, **957 passed**, **0 failed**, **0 errored**, **51 skipped** (isolated live tests).
+  - `api-gateway`: 154/154 PASS.
+  - `batch-management-service`: 62/62 PASS (+21 tests including 12 security/runtime mode tests).
+  - `institute-admin-service`: 402/402 PASS.
+  - `college-admin-service`: 114/114 PASS (29 skipped live Postgres tests).
+  - `course-management-service`: 75/75 PASS (22 skipped live Postgres tests).
+  - `student-service`: 39/39 PASS.
+  - `timetable-management-service`: 38/38 PASS.
+  - `attendance-service`: 35/35 PASS.
+  - `analytics-service`: 38/38 PASS.
+  - Frontend TypeScript check (`tsc --noEmit`): 0 errors.
+  - Frontend Next.js production build (`npm run build`): 20/20 routes compiled, 0 errors.
+- **Completion Report:** Documented in [`docs/reports/wave-10/CONSOLIDATED_GO_LIVE_REPORT.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/reports/wave-10/CONSOLIDATED_GO_LIVE_REPORT.md) and [`docs/reports/wave-10/COMPLETION_REPORT.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/reports/wave-10/COMPLETION_REPORT.md).
 
 ---
 
-## 3. Mandatory Safeguards
+## 2. Next Task: Wave 11 — Production Readiness & Final Cutover (Awaiting User Authorization)
 
-- Development Supabase ref `azulbaxszsqxymqmlwfe` exclusively.
-- Strictly prohibit production `ekspahbsbwdpraaqfqui` and legacy staging `kpwdvvcschankgggitnj`.
-- Preserve current branch `feature/java-backend-integration`, working tree, and untracked files.
-- Zero unapproved database changes, resets, stashes, or commits.
+When explicitly authorized by the user to begin Wave 11, the scope will encompass:
+
+### Step 1: Preflight Audit & Environment Consistency
+- Verify production environment configuration parameters and secret propagation (without logging credentials).
+- Confirm all services build cleanly in production release mode (`mvn clean package -DskipTests`).
+- Validate Next.js production build (`npm run build` in `frontend/`).
+
+### Step 2: G3 Assessment & JDK/Framework Finalization
+- Close Gate G3: formal assessment of Java 8 compatibility and runtime requirements.
+- Review dependency vulnerabilities and license compliance across all microservices.
+
+### Step 3: Production Database Verification & Migration Check
+- Confirm zero unmigrated schema requirements on the target production database.
+- Verify RLS policies and `campx_app_server` role grants match the verified development reference.
+
+### Step 4: Final Handover & Wave 11 Report
+- Create `docs/reports/wave-11/COMPLETION_REPORT.md`.
+- Produce final operational runbook and architecture handover documentation.
+
+---
+
+## 3. Mandatory Safeguards & Stop Enforcement
+
+- **STOP ENFORCEMENT:** Autonomous wave execution strictly terminates at Wave 10. Do **NOT** execute Wave 11 tasks without explicit user instruction.
+- **Database Safety:** Production database `ekspahbsbwdpraaqfqui` and legacy staging `kpwdvvcschankgggitnj` remain strictly prohibited.
+- **Repository Safety:** Current branch `feature/java-backend-integration`, working tree, and untracked files must be preserved. Zero unapproved commits, pushes, resets, or stashing.

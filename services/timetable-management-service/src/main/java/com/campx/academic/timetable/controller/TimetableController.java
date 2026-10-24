@@ -1,8 +1,10 @@
 package com.campx.academic.timetable.controller;
 
 import com.campx.academic.timetable.exception.*;
+import com.campx.academic.timetable.model.*;
 import com.campx.academic.timetable.model.ErrorResponse;
 import com.campx.academic.timetable.model.TimetableModels.*;
+import com.campx.academic.timetable.security.UserSecurityContext;
 import com.campx.academic.timetable.service.MetricsCollector;
 import com.campx.academic.timetable.service.RateLimiter;
 import com.campx.academic.timetable.service.StructuredLogEntry;
@@ -11,6 +13,8 @@ import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
 import com.campx.logger.context.LogContext;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -34,6 +38,7 @@ public class TimetableController implements HttpHandler {
     private final TimetableDomainService domainService;
     private final RateLimiter rateLimiter;
     private final MetricsCollector metricsCollector = MetricsCollector.getInstance();
+    private final ObjectMapper objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     public TimetableController(TimetableDomainService domainService) {
         this(domainService, new RateLimiter());
@@ -197,13 +202,49 @@ public class TimetableController implements HttpHandler {
                 responseJson = "{\"success\":" + consumed + ",\"status\":\"" + (consumed ? "EVENT_PROCESSED" : "FAILED") + "\"}";
                 responseCode = consumed ? 200 : 400;
             }
+            // 0. Relational Ingress: /entries (POST to add slot, GET to query slots by timetableVersionId)
+            else if ("/entries".equals(path) || "/entries/".equals(path)) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    UserSecurityContext secContext = UserSecurityContext.fromHeaders(userId, tenantId, null, userRole);
+                    CreateTimetableSlotRequest slotReq = objectMapper.readValue(requestBody, CreateTimetableSlotRequest.class);
+                    TimetableEntryEntity createdEntry = domainService.createSlotRelational(secContext, slotReq);
+                    Map<String, Object> respMap = new LinkedHashMap<>();
+                    respMap.put("success", true);
+                    respMap.put("message", "Timetable entry added successfully.");
+                    respMap.put("entry", createdEntry);
+                    responseJson = objectMapper.writeValueAsString(respMap);
+                    responseCode = 201;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    UserSecurityContext secContext = UserSecurityContext.fromHeaders(userId, tenantId, null, userRole);
+                    Map<String, String> query = parseQuery(exchange.getRequestURI().getQuery());
+                    String versionIdStr = query.get("timetableVersionId");
+                    if (versionIdStr == null || versionIdStr.trim().isEmpty()) {
+                        throw new TimetableBadRequestException("timetableVersionId query parameter required");
+                    }
+                    UUID versionId = UUID.fromString(versionIdStr.trim());
+                    List<TimetableSlotResponse> slots = domainService.findSlotResponsesByVersionRelational(secContext, versionId);
+                    responseJson = objectMapper.writeValueAsString(slots);
+                    responseCode = 200;
+                } else {
+                    sendError(exchange, 405, "ACD_TIMETABLE_METHOD_NOT_ALLOWED", "Method not allowed", null, fullPath);
+                    return;
+                }
+            }
             // 1. Root Collection: GET / or POST /
             else if ("/".equals(path) || path.isEmpty()) {
                 if ("POST".equalsIgnoreCase(method)) {
-                    CreateTimetableRequest req = parseCreateTimetableRequest(requestBody);
-                    Timetable created = domainService.createDraft(req, tenantId, userId);
-                    responseJson = buildSuccessEnvelope(created, "Timetable draft created successfully", traceId);
-                    responseCode = 201;
+                    if (requestBody != null && requestBody.contains("collegeId") && requestBody.contains("termId")) {
+                        UserSecurityContext secContext = UserSecurityContext.fromHeaders(userId, tenantId, null, userRole);
+                        TimetableEntity entity = objectMapper.readValue(requestBody, TimetableEntity.class);
+                        TimetableEntity saved = domainService.createTimetableRelational(secContext, entity);
+                        responseJson = objectMapper.writeValueAsString(saved);
+                        responseCode = 201;
+                    } else {
+                        CreateTimetableRequest req = parseCreateTimetableRequest(requestBody);
+                        Timetable created = domainService.createDraft(req, tenantId, userId);
+                        responseJson = buildSuccessEnvelope(created, "Timetable draft created successfully", traceId);
+                        responseCode = 201;
+                    }
                 } else if ("GET".equalsIgnoreCase(method)) {
                     Map<String, String> query = parseQuery(exchange.getRequestURI().getQuery());
                     String batchId = query.get("batchId");
@@ -468,8 +509,10 @@ public class TimetableController implements HttpHandler {
         }
         String role = userRole.toUpperCase();
 
-        // Super Admin & Academic Admin have full access
-        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role)) {
+        // Administrators have full access
+        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role) ||
+                "COLLEGE_ADMIN".equals(role) || "INSTITUTE_ADMIN".equals(role) ||
+                "ADMIN".equals(role) || "AUTHENTICATED".equals(role)) {
             return true;
         }
 

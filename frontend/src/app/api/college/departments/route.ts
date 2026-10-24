@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const CreateDepartmentSchema = z.object({
   name: z.string().min(2, 'Department name must be at least 2 characters').max(100),
@@ -60,42 +61,41 @@ export async function POST(req: NextRequest) {
 
     const { name, code } = parseResult.data;
 
-    // 2. Fetch primary college id for tenant if available
-    let collegeId = resolution.session.collegeId;
-    if (!collegeId) {
-      const colRes = await query(`
-        SELECT id FROM core.colleges WHERE tenant_id = $1 AND deleted_at IS NULL LIMIT 1
-      `, [tenantId]);
-      if (colRes.rows.length > 0) {
-        collegeId = colRes.rows[0].id;
-      } else {
-        const createCol = await query(`
-          INSERT INTO core.colleges (tenant_id, code, name, status, provisioning_status)
-          VALUES ($1, 'MAIN', 'Main Campus', 'ACTIVE', 'ACTIVE')
-          RETURNING id
-        `, [tenantId]);
-        collegeId = createCol.rows[0]?.id;
-      }
+    const gatewayUrl = new URL('/api/v1/college-admin/departments', GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
     }
 
-    // 3. Insert department strictly within tenant scope
-    const deptRes = await query(`
-      INSERT INTO core.departments (tenant_id, college_id, name, code, status)
-      VALUES ($1, $2, $3, $4, 'ACTIVE')
-      RETURNING id, name, code, status, created_at
-    `, [tenantId, collegeId, name, code]);
+    const payload = {
+      name,
+      departmentCode: code,
+      collegeId: resolution.session.collegeId || null,
+      headUserId: 'FACULTY_HOD',
+    };
 
-    const dept = deptRes.rows[0];
+    const gatewayRes = await fetch(gatewayUrl.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
 
-    if (!dept) {
+    const data = await gatewayRes.json();
+    if (!gatewayRes.ok) {
       return NextResponse.json(
         {
-          type: 'https://campxsync.edu/errors/database-error',
-          title: 'Department Creation Failed',
-          status: 500,
-          detail: 'Database error inserting department record.',
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Department Creation Failed',
+          status: gatewayRes.status,
+          detail: data.detail || data.message || 'Error communicating with college admin service.',
         },
-        { status: 500 }
+        { status: gatewayRes.status }
       );
     }
 
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         message: `Department '${name}' (${code}) created successfully.`,
-        department: dept,
+        department: data,
       },
       { status: 201 }
     );

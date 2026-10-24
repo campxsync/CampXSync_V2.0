@@ -42,6 +42,7 @@ public class PostgresDepartmentRepositoryTest {
         repository = new PostgresDepartmentRepository(connectionManager);
 
         try (Connection conn = connectionManager.getConnection()) {
+            com.campx.admin.college.config.TestEnvironmentGuard.setTenantJwtContext(conn, tenantId);
 
             // Discover or create an active college under this tenant
             try (PreparedStatement ps = conn.prepareStatement(

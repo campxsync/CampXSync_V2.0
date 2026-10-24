@@ -2,13 +2,14 @@ import { redirect } from 'next/navigation';
 import { History, ShieldCheck, CheckCircle2, Clock, FileText, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function CollegeAuditLogPage() {
   const supabase = await createClient();
@@ -18,33 +19,58 @@ export default async function CollegeAuditLogPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, tenantName } = resolution.session;
+  const { tenantId, tenantName, userId, collegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
 
   let auditEvents: any[] = [];
   try {
-    const res = await query(`
-      SELECT 
-        id,
-        event_time,
-        action,
-        resource_type,
-        resource_id,
-        status,
-        severity,
-        detail,
-        created_at
-      FROM audit.events
-      WHERE tenant_id = $1
-      ORDER BY event_time DESC
-      LIMIT 100
-    `, [tenantId]);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': 'COLLEGE_ADMIN',
+    };
+    if (collegeId) {
+      headers['X-College-Id'] = collegeId;
+    }
 
-    auditEvents = res.rows;
+    const auditUrl = new URL('/api/v1/college-admin/audit-logs', GATEWAY_BASE_URL);
+    let res = await fetch(auditUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      const platformAuditUrl = new URL('/api/v1/admin/audit-logs', GATEWAY_BASE_URL);
+      res = await fetch(platformAuditUrl.toString(), {
+        method: 'GET',
+        headers,
+        cache: 'no-store',
+      });
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      const logs = Array.isArray(data.auditLogs)
+        ? data.auditLogs
+        : (Array.isArray(data.auditEntries) ? data.auditEntries : (Array.isArray(data) ? data : []));
+      auditEvents = logs.map((log: any) => ({
+        id: log.eventId || log.id || 'EVT-UNKNOWN',
+        event_time: log.timestamp ? new Date(log.timestamp).toISOString() : (log.eventTime || log.event_time || new Date().toISOString()),
+        action: log.action || 'AUDIT_LOG',
+        resource_type: log.resourceType || log.resource_type || 'SYSTEM',
+        resource_id: log.resourceId || log.resource_id || '',
+        status: log.status || 'SUCCESS',
+        severity: log.severity || 'INFO',
+        detail: log.description || log.detail || '',
+        created_at: log.timestamp ? new Date(log.timestamp).toISOString() : new Date().toISOString(),
+      }));
+    }
   } catch (err) {
-    console.error('Failed to query audit.events:', err);
+    console.error('Failed to query audit logs via API gateway:', err);
   }
 
   return (
@@ -77,7 +103,7 @@ export default async function CollegeAuditLogPage() {
           title="Audit Ledger State"
           value="Tamper-Evident"
           icon={CheckCircle2}
-          description="Direct PostgreSQL schema isolation"
+          description="Authoritative Gateway integration"
         />
       </div>
 

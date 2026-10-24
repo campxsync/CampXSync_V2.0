@@ -8,4 +8,8 @@ public class ResourceConflictException extends InstituteAdminException {
     public ResourceConflictException(String resourceType, String field, String value) {
         super(409, "RESOURCE_CONFLICT", resourceType + " with " + field + " '" + value + "' already exists");
     }
+
+    public ResourceConflictException(String resourceType, String message) {
+        super(409, "RESOURCE_CONFLICT", resourceType + ": " + message);
+    }
 }

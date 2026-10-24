@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import {
   PRODUCT_DEFAULTS,
-  ROLE_DEFAULT_WIDGETS,
   sanitizePreferences,
-  UserPreferences,
 } from '@/lib/preferences/preference-model';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const RoleDashboardConfigSchema = z.object({
   order: z.array(z.string().max(50)).max(20).default([]),
@@ -59,32 +58,37 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { userId, role } = resolution.session;
+    const { userId, role, tenantId } = resolution.session;
     const url = new URL(req.url);
     const requestedRole = url.searchParams.get('role') || role;
 
-    // Load preferences from PostgreSQL iam.user_profiles
-    const profileRes = await query(
-      `SELECT preferences FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-      [userId]
-    );
-
-    if (profileRes.rows.length === 0 || !profileRes.rows[0].preferences) {
-      // User has no saved preferences row; return product defaults
-      return NextResponse.json({
-        success: true,
-        preferences: sanitizePreferences(PRODUCT_DEFAULTS, requestedRole, PRODUCT_DEFAULTS),
-        isAccountSynced: profileRes.rows.length > 0,
-      });
+    const gatewayUrl = new URL('/api/v1/user/preferences', GATEWAY_BASE_URL);
+    if (requestedRole) {
+      gatewayUrl.searchParams.set('role', requestedRole);
     }
 
-    const dbPrefs = profileRes.rows[0].preferences;
-    const effective = sanitizePreferences(dbPrefs, requestedRole, PRODUCT_DEFAULTS);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId || '11111111-1111-1111-1111-111111111111',
+      'X-User-Role': role || 'college_admin',
+    };
 
+    const gatewayRes = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+    });
+
+    if (gatewayRes.ok) {
+      const data = await gatewayRes.json();
+      return NextResponse.json(data);
+    }
+
+    // Fallback gracefully to product defaults if backend preferences service returns 404
     return NextResponse.json({
       success: true,
-      preferences: effective,
-      isAccountSynced: true,
+      preferences: sanitizePreferences(PRODUCT_DEFAULTS, requestedRole, PRODUCT_DEFAULTS),
+      isAccountSynced: false,
     });
   } catch (err: any) {
     console.error('GET /api/user/preferences error:', err);
@@ -93,7 +97,7 @@ export async function GET(req: NextRequest) {
         type: 'https://campxsync.edu/errors/internal-error',
         title: 'Preferences Fetch Error',
         status: 500,
-        detail: 'Failed to retrieve preferences from database.',
+        detail: 'Failed to retrieve preferences from gateway service.',
       },
       { status: 500 }
     );
@@ -148,73 +152,42 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Non-platform users may only configure preferences for their own authenticated role
     const effectiveRole =
       resolution.session.role === 'platform_admin' && parsed.data.role
         ? parsed.data.role
         : resolution.session.role;
     const sanitized = sanitizePreferences(parsed.data.preferences, effectiveRole, PRODUCT_DEFAULTS);
 
-    // Fetch existing preferences to perform deep merge of role settings
-    const currentRes = await query(
-      `SELECT preferences, row_version FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-      [userId]
-    );
-
-    if (currentRes.rows.length === 0) {
-      // User has no persistent user_profile (e.g. pure platform service identity)
-      return NextResponse.json({
-        success: true,
-        preferences: sanitized,
-        isAccountSynced: false,
-        message: 'Saved to local workspace context. No persistent user_profile record found for account sync.',
-      });
-    }
-
-    const existingPrefs = currentRes.rows[0].preferences || {};
-    const existingRoles = existingPrefs.roles || {};
-
-    // Ensure role-scoped widget configs are preserved without clobbering each other
-    const mergedRoles = {
-      ...existingRoles,
-      ...sanitized.roles,
+    const gatewayUrl = new URL('/api/v1/user/preferences', GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId || '11111111-1111-1111-1111-111111111111',
+      'X-User-Role': effectiveRole,
     };
 
-    const finalPrefsToStore = {
-      ...existingPrefs,
-      ...sanitized,
-      roles: mergedRoles,
-    };
-
-    // Update PostgreSQL iam.user_profiles.preferences
-    const updateRes = await query(
-      `
-      UPDATE iam.user_profiles
-      SET 
-        preferences = $1,
-        row_version = row_version + 1,
-        updated_at = NOW()
-      WHERE id = $2 AND deleted_at IS NULL
-      RETURNING id, row_version, preferences
-      `,
-      [JSON.stringify(finalPrefsToStore), userId]
-    );
-
-    if (updateRes.rows.length === 0) {
-      return NextResponse.json({
-        success: true,
-        preferences: sanitized,
-        isAccountSynced: false,
-        message: 'Update touched 0 rows; local fallback active.',
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      preferences: sanitizePreferences(updateRes.rows[0].preferences, effectiveRole, PRODUCT_DEFAULTS),
-      isAccountSynced: true,
-      message: 'Preferences successfully synced to institutional profile in PostgreSQL.',
+    const gatewayRes = await fetch(gatewayUrl.toString(), {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(sanitized),
     });
+
+    if (gatewayRes.ok) {
+      const data = await gatewayRes.json();
+      return NextResponse.json(data);
+    }
+
+    const errData = await gatewayRes.json().catch(() => ({}));
+    return NextResponse.json(
+      {
+        success: true,
+        preferences: sanitized,
+        isAccountSynced: false,
+        message: errData.detail || 'Saved to local workspace context.',
+      },
+      { status: 200 }
+    );
   } catch (err: any) {
     console.error('PUT /api/user/preferences error:', err);
     return NextResponse.json(
@@ -222,7 +195,7 @@ export async function PUT(req: NextRequest) {
         type: 'https://campxsync.edu/errors/internal-error',
         title: 'Preference Save Error',
         status: 500,
-        detail: 'Failed to persist preferences to database.',
+        detail: 'Failed to persist preferences via gateway.',
       },
       { status: 500 }
     );

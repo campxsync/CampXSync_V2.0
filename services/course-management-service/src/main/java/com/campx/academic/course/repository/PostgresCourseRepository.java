@@ -479,7 +479,7 @@ public class PostgresCourseRepository implements CourseRepository {
             sb.append("\"durationYears\":").append(course.getDurationYears());
             first = false;
         }
-        if (course.getTags() != null) {
+        if (course.getTags() != null && !course.getTags().isEmpty()) {
             if (!first) sb.append(",");
             sb.append("\"tags\":[");
             for (int i = 0; i < course.getTags().size(); i++) {
@@ -508,6 +508,10 @@ public class PostgresCourseRepository implements CourseRepository {
             if (cc != null && !cc.isEmpty()) {
                 course.setCourseCategory(cc);
             }
+            Integer dy = extractJsonInt(json, "durationYears");
+            if (dy != null && dy > 0) {
+                course.setDurationYears(dy);
+            }
             int tagsIdx = json.indexOf("\"tags\"");
             if (tagsIdx >= 0) {
                 int openBracket = json.indexOf('[', tagsIdx);
@@ -528,6 +532,28 @@ public class PostgresCourseRepository implements CourseRepository {
                 }
             }
         } catch (Exception ignored) {}
+    }
+
+    private static Integer extractJsonInt(String json, String key) {
+        if (json == null) return null;
+        int keyIdx = json.indexOf("\"" + key + "\"");
+        if (keyIdx < 0) return null;
+        int colonIdx = json.indexOf(':', keyIdx + key.length() + 2);
+        if (colonIdx < 0) return null;
+        int start = colonIdx + 1;
+        while (start < json.length() && Character.isWhitespace(json.charAt(start))) {
+            start++;
+        }
+        int end = start;
+        while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) {
+            end++;
+        }
+        if (end > start) {
+            try {
+                return Integer.parseInt(json.substring(start, end));
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
     }
 
     private static String extractJsonString(String json, String key) {

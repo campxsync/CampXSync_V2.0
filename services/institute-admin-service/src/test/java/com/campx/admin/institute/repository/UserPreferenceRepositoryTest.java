@@ -7,10 +7,12 @@ import com.campx.admin.institute.model.preference.UserPreferences;
 import com.campx.admin.institute.security.UserSecurityContext;
 import com.campx.platform.audit.AuditLogRepository;
 import com.campx.platform.audit.AuditRecord;
+import com.campx.logger.context.LogContext;
 import com.campx.platform.intelligence.ControlledIntelligenceAdapter;
 import com.campx.platform.intelligence.IntelligenceContextEvent;
 import com.campx.platform.outbox.OutboxRepository;
 import com.campx.platform.outbox.TransactionalOutboxWriter;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -56,6 +58,7 @@ public class UserPreferenceRepositoryTest {
 
     @Before
     public void setUp() {
+        LogContext.clear();
         executedSqls = new ArrayList<>();
         lastParameters = new HashMap<>();
         commitCalled = false;
@@ -79,6 +82,11 @@ public class UserPreferenceRepositoryTest {
         );
 
         callerContext = new UserSecurityContext(USER_ID, TENANT_ID);
+    }
+
+    @After
+    public void tearDown() {
+        LogContext.clear();
     }
 
     @Test

@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { InstitutesRegistryClient, InstituteRecord } from './institutes-registry-client';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function InstitutesRegistryPage() {
   const supabase = await createClient();
@@ -14,28 +15,31 @@ export default async function InstitutesRegistryPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
+  const { userId } = resolution.session;
+
   let institutes: InstituteRecord[] = [];
   try {
-    const res = await query(`
-      SELECT 
-        t.id, 
-        t.name, 
-        t.code, 
-        t.status, 
-        t.created_at, 
-        t.updated_at,
-        count(DISTINCT c.id)::int as college_count,
-        count(up.id)::int as user_count
-      FROM core.tenants t
-      LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL
-      LEFT JOIN iam.user_profiles up ON up.tenant_id = t.id AND up.deleted_at IS NULL
-      WHERE t.deleted_at IS NULL
-      GROUP BY t.id, t.name, t.code, t.status, t.created_at, t.updated_at
-      ORDER BY t.created_at DESC
-    `);
-    institutes = res.rows || [];
+    const gatewayUrl = new URL('/api/v1/academics/analytics/dashboard', GATEWAY_BASE_URL);
+    gatewayUrl.searchParams.set('role', 'PLATFORM_ADMIN');
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-User-Role': 'PLATFORM_ADMIN',
+    };
+
+    const res = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      institutes = Array.isArray(data.institutes) ? data.institutes : [];
+    }
   } catch (err) {
-    console.error('Failed to load institutes:', err);
+    console.error('Failed to load institutes via API gateway:', err);
   }
 
   return <InstitutesRegistryClient initialInstitutes={institutes} />;

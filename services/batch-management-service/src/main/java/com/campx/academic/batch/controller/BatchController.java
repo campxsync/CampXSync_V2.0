@@ -3,6 +3,9 @@ package com.campx.academic.batch.controller;
 import com.campx.academic.batch.exception.*;
 import com.campx.academic.batch.model.BatchModels.*;
 import com.campx.academic.batch.model.ErrorResponse;
+import com.campx.academic.batch.repository.BatchAssignmentEntity;
+import com.campx.academic.batch.security.GatewayHmacVerifier;
+import com.campx.academic.batch.security.UserSecurityContext;
 import com.campx.academic.batch.service.BatchDomainService;
 import com.campx.academic.batch.service.MetricsCollector;
 import com.campx.academic.batch.service.RateLimiter;
@@ -14,9 +17,9 @@ import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -34,18 +37,28 @@ public class BatchController implements HttpHandler {
     private final BatchDomainService domainService;
     private final RateLimiter rateLimiter;
     private final MetricsCollector metricsCollector = MetricsCollector.getInstance();
+    private final GatewayHmacVerifier gatewayHmacVerifier;
 
     public BatchController(BatchDomainService domainService) {
-        this(domainService, new RateLimiter());
+        this(domainService, new RateLimiter(), new GatewayHmacVerifier());
     }
 
     public BatchController(BatchDomainService domainService, RateLimiter rateLimiter) {
+        this(domainService, rateLimiter, new GatewayHmacVerifier());
+    }
+
+    public BatchController(BatchDomainService domainService, RateLimiter rateLimiter, GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
         this.rateLimiter = rateLimiter != null ? rateLimiter : new RateLimiter();
+        this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier : new GatewayHmacVerifier();
     }
 
     public RateLimiter getRateLimiter() {
         return rateLimiter;
+    }
+
+    public GatewayHmacVerifier getGatewayHmacVerifier() {
+        return gatewayHmacVerifier;
     }
 
     @Override
@@ -55,7 +68,7 @@ public class BatchController implements HttpHandler {
         long startTime = System.currentTimeMillis();
 
         try {
-            // 1. Correlation Context Extraction (§51)
+            // Correlation Context Extraction (§51)
             String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
             if (traceId == null || traceId.trim().isEmpty()) {
                 traceId = exchange.getRequestHeaders().getFirst("X-Correlation-Id");
@@ -65,26 +78,77 @@ public class BatchController implements HttpHandler {
             } else {
                 LogContext.setTraceId(traceId);
             }
+            LogContext.setService("ACD-04-BatchManagementService");
+            exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+            exchange.getResponseHeaders().set("X-Correlation-Id", traceId);
 
-            String tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+            // Operational Endpoints (bypass HMAC to allow liveness/metrics scraping)
+            if ("/actuator/health".equals(fullPath) || fullPath.endsWith("/health")) {
+                sendJson(exchange, 200, "{\"status\":\"UP\",\"service\":\"ACD-04-BatchManagementService\"}");
+                return;
+            }
+            if ("/metrics".equals(fullPath) || fullPath.endsWith("/metrics")) {
+                String prom = metricsCollector.toPrometheusFormat(domainService);
+                byte[] bytes = prom.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=UTF-8");
+                exchange.sendResponseHeaders(200, bytes.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(bytes);
+                }
+                return;
+            }
+
+            // Read request body bytes once for HMAC verification and route dispatch
+            byte[] bodyBytes = readRequestBodyBytes(exchange);
+            String requestBody = new String(bodyBytes, StandardCharsets.UTF_8);
+
+            // Platform Trust Boundary: Verify Gateway HMAC signature
+            GatewayHmacVerifier.VerificationResult authResult = gatewayHmacVerifier.verify(exchange, method, fullPath, bodyBytes);
+            if (!authResult.isSuccess()) {
+                metricsCollector.recordError(authResult.getErrorCode());
+                metricsCollector.recordRequest(method, fullPath, authResult.getStatus(), System.currentTimeMillis() - startTime);
+                sendError(exchange, authResult.getStatus(), authResult.getErrorCode(), authResult.getMessage(), fullPath);
+                return;
+            }
+
+            // Extract verified identity and tenant context
+            String tenantId = authResult.getTenantId();
+            if (tenantId == null || tenantId.trim().isEmpty()) {
+                tenantId = exchange.getRequestHeaders().getFirst("X-Tenant-Id");
+            }
             if (tenantId != null && !tenantId.trim().isEmpty()) {
                 LogContext.setTenantId(tenantId);
-            } else {
+            } else if (!gatewayHmacVerifier.isAuthEnabled()) {
                 tenantId = "TENANT-001";
+            } else {
+                sendError(exchange, 401, "ACD04_MISSING_INTERNAL_AUTH", "Missing verified tenant context", fullPath);
+                return;
             }
 
-            String userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+            String userId = authResult.getUserId();
+            if (userId == null || userId.trim().isEmpty()) {
+                userId = exchange.getRequestHeaders().getFirst("X-User-Id");
+            }
             if (userId != null && !userId.trim().isEmpty()) {
                 LogContext.setUserId(userId);
-            } else {
+            } else if (!gatewayHmacVerifier.isAuthEnabled()) {
                 userId = "admin-1";
+            } else {
+                sendError(exchange, 401, "ACD04_MISSING_INTERNAL_AUTH", "Missing verified user identity", fullPath);
+                return;
             }
 
-            String userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+            String userRole = authResult.getUserRole();
+            if (userRole == null || userRole.trim().isEmpty()) {
+                userRole = exchange.getRequestHeaders().getFirst("X-User-Role");
+            }
             if (userRole != null && !userRole.trim().isEmpty()) {
                 LogContext.setUserRole(userRole);
-            } else {
+            } else if (!gatewayHmacVerifier.isAuthEnabled()) {
                 userRole = "ACADEMIC_ADMIN";
+            } else {
+                sendError(exchange, 401, "ACD04_MISSING_INTERNAL_AUTH", "Missing verified user role", fullPath);
+                return;
             }
 
             String idempotencyKey = exchange.getRequestHeaders().getFirst("Idempotency-Key");
@@ -108,51 +172,30 @@ public class BatchController implements HttpHandler {
                 }
             }
 
-            LogContext.setService("ACD-04-BatchManagementService");
-            exchange.getResponseHeaders().set("X-Trace-Id", traceId);
-            exchange.getResponseHeaders().set("X-Correlation-Id", traceId);
-
-            // Operational Endpoints
-            if ("/actuator/health".equals(fullPath) || fullPath.endsWith("/health")) {
-                sendJson(exchange, 200, "{\"status\":\"UP\",\"service\":\"ACD-04-BatchManagementService\"}");
+            // Rate Limiter Check (Story 69)
+            RateLimiter.RateLimitResult rateCheck = rateLimiter.tryAcquire(tenantId + ":" + userId);
+            exchange.getResponseHeaders().set("X-RateLimit-Limit", String.valueOf(rateCheck.getLimit()));
+            exchange.getResponseHeaders().set("X-RateLimit-Remaining", String.valueOf(rateCheck.getRemaining()));
+            if (!rateCheck.isAllowed()) {
+                exchange.getResponseHeaders().set("Retry-After", String.valueOf(rateCheck.getRetryAfterSeconds()));
+                metricsCollector.recordError("ACD_RATE_LIMIT_EXCEEDED");
+                metricsCollector.recordRequest(method, fullPath, 429, System.currentTimeMillis() - startTime);
+                sendError(exchange, 429, "ACD_RATE_LIMIT_EXCEEDED", "Too many requests. Limit exceeded.", fullPath);
                 return;
             }
-            if ("/metrics".equals(fullPath) || fullPath.endsWith("/metrics")) {
-            String prom = metricsCollector.toPrometheusFormat(domainService);
-            byte[] bytes = prom.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=UTF-8");
-            exchange.sendResponseHeaders(200, bytes.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(bytes);
+
+            // Normalize path
+            String path = fullPath;
+            if (path.startsWith("/api/v1/academics/batches")) {
+                path = path.substring("/api/v1/academics/batches".length());
+            } else if (path.startsWith("/api/v1/batches")) {
+                path = path.substring("/api/v1/batches".length());
             }
-            return;
-        }
+            if (path.isEmpty()) {
+                path = "/";
+            }
 
-        // Rate Limiter Check (Story 69)
-        RateLimiter.RateLimitResult rateCheck = rateLimiter.tryAcquire(tenantId + ":" + userId);
-        exchange.getResponseHeaders().set("X-RateLimit-Limit", String.valueOf(rateCheck.getLimit()));
-        exchange.getResponseHeaders().set("X-RateLimit-Remaining", String.valueOf(rateCheck.getRemaining()));
-        if (!rateCheck.isAllowed()) {
-            exchange.getResponseHeaders().set("Retry-After", String.valueOf(rateCheck.getRetryAfterSeconds()));
-            metricsCollector.recordError("ACD_RATE_LIMIT_EXCEEDED");
-            metricsCollector.recordRequest(method, fullPath, 429, System.currentTimeMillis() - startTime);
-            sendError(exchange, 429, "ACD_RATE_LIMIT_EXCEEDED", "Too many requests. Limit exceeded.", fullPath);
-            return;
-        }
-
-        // Normalize path
-        String path = fullPath;
-        if (path.startsWith("/api/v1/academics/batches")) {
-            path = path.substring("/api/v1/academics/batches".length());
-        } else if (path.startsWith("/api/v1/batches")) {
-            path = path.substring("/api/v1/batches".length());
-        }
-        if (path.isEmpty()) {
-            path = "/";
-        }
-
-        String requestBody = readRequestBody(exchange);
-        int responseStatus = 200;
+            int responseStatus = 200;
 
         try (FlowTracker flow = logger.flow("BatchDispatch", method + ":" + fullPath)) {
             // Idempotency Check on mutation requests (Story 48)
@@ -426,17 +469,42 @@ public class BatchController implements HttpHandler {
                 return;
             }
 
-            // POST /{id}/students (Enroll student - Story 23)
+            // POST /{id}/students (Enroll student - Story 23 & Relational Batch Assignment)
             if ("POST".equalsIgnoreCase(method) && "/students".equals(subPath)) {
-                assertRole(userRole, "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "SUPER_ADMIN");
+                assertRole(userRole, "COLLEGE_ADMIN", "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "SUPER_ADMIN");
                 Map<String, String> stuPayload = parseSimpleJson(body);
                 String studentId = stuPayload.get("studentId");
+                String rollNo = stuPayload.get("rollNo");
                 String sectionId = stuPayload.get("sectionId");
                 String effectiveFrom = stuPayload.get("effectiveFrom");
                 String memTypeStr = stuPayload.get("membershipType");
                 MembershipType memType = memTypeStr != null ? MembershipType.valueOf(memTypeStr.toUpperCase()) : MembershipType.REGULAR;
 
+                UUID batchUuid = parseUuidOrNull(batchId);
+                UUID studentUuid = parseUuidOrNull(studentId);
+
+                if (batchUuid != null && studentUuid != null) {
+                    String rawCollegeId = exchange.getRequestHeaders().getFirst("X-College-Id");
+                    UserSecurityContext ctx = UserSecurityContext.fromHeaders(userId, tenantId, rawCollegeId, userRole);
+
+                    BatchAssignmentEntity assigned = domainService.assignStudentRelational(ctx, batchUuid, studentUuid, rollNo);
+                    String dataJson = serializeBatchAssignmentEntity(assigned);
+                    String respJson = formatSuccessResponse(dataJson, exchange);
+                    if (idempotencyKey != null) {
+                        domainService.saveIdempotencyRecord(idempotencyKey, tenantId, "ASSIGN_BATCH", 201, respJson);
+                    }
+                    sendJson(exchange, 201, respJson);
+                    return;
+                }
+
+                if (domainService.isRelationalMode()) {
+                    throw new BatchValidationException("Relational persistence requires valid UUID batchId and studentId; legacy identifier cannot bypass relational persistence");
+                }
+
                 BatchRoster roster = domainService.addStudentToBatch(batchId, studentId, sectionId, memType, effectiveFrom, userId, userRole);
+                if (rollNo != null && !rollNo.trim().isEmpty()) {
+                    roster.setRollNo(rollNo.trim());
+                }
                 String respJson = formatSuccessResponse(serializeRoster(roster), exchange);
                 if (idempotencyKey != null) {
                     domainService.saveIdempotencyRecord(idempotencyKey, tenantId, "ADD_STUDENT", 201, respJson);
@@ -447,10 +515,28 @@ public class BatchController implements HttpHandler {
 
             // DELETE /{id}/students/{studentId} (Remove student - Story 26)
             if ("DELETE".equalsIgnoreCase(method) && subPath.startsWith("/students/")) {
-                assertRole(userRole, "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "SUPER_ADMIN");
+                assertRole(userRole, "COLLEGE_ADMIN", "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "SUPER_ADMIN");
                 String studentId = subPath.substring("/students/".length());
                 Map<String, String> delPayload = parseSimpleJson(body);
                 String reason = delPayload.get("reason");
+
+                UUID batchUuid = parseUuidOrNull(batchId);
+                UUID studentUuid = parseUuidOrNull(studentId);
+
+                if (batchUuid != null && studentUuid != null) {
+                    String rawCollegeId = exchange.getRequestHeaders().getFirst("X-College-Id");
+                    UserSecurityContext ctx = UserSecurityContext.fromHeaders(userId, tenantId, rawCollegeId, userRole);
+
+                    BatchAssignmentEntity removed = domainService.removeRelationalAssignment(ctx, batchUuid, studentUuid, reason);
+                    String dataJson = serializeBatchAssignmentEntity(removed);
+                    sendJson(exchange, 200, formatSuccessResponse(dataJson, exchange));
+                    return;
+                }
+
+                if (domainService.isRelationalMode()) {
+                    throw new BatchValidationException("Relational persistence requires valid UUID batchId and studentId; legacy identifier cannot bypass relational persistence");
+                }
+
                 BatchRoster removed = domainService.removeStudentFromBatch(batchId, studentId, reason, userId, userRole);
                 sendJson(exchange, 200, formatSuccessResponse(serializeRoster(removed), exchange));
                 return;
@@ -562,6 +648,9 @@ public class BatchController implements HttpHandler {
         sb.append("\"membershipType\":\"").append(r.getMembershipType().name()).append("\",");
         sb.append("\"effectiveFrom\":\"").append(r.getEffectiveFrom() != null ? r.getEffectiveFrom() : "").append("\",");
         sb.append("\"effectiveTo\":\"").append(r.getEffectiveTo() != null ? r.getEffectiveTo() : "").append("\"");
+        if (r.getRollNo() != null) {
+            sb.append(",\"rollNo\":\"").append(escapeJson(r.getRollNo())).append("\"");
+        }
         if (r.getMembershipSource() != null) {
             sb.append(",\"membershipSource\":\"").append(escapeJson(r.getMembershipSource())).append("\"");
         }
@@ -570,6 +659,49 @@ public class BatchController implements HttpHandler {
         }
         sb.append("}");
         return sb.toString();
+    }
+
+    private String serializeBatchAssignmentEntity(BatchAssignmentEntity a) {
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("\"id\":\"").append(a.getId()).append("\",");
+        sb.append("\"membershipId\":\"").append(a.getId()).append("\",");
+        sb.append("\"tenantId\":\"").append(a.getTenantId()).append("\",");
+        sb.append("\"batchId\":\"").append(a.getBatchId()).append("\",");
+        sb.append("\"studentId\":\"").append(a.getStudentId()).append("\",");
+        sb.append("\"rollNo\":\"").append(a.getRollNo() != null ? escapeJson(a.getRollNo()) : "").append("\",");
+        sb.append("\"status\":\"").append(a.getStatus()).append("\",");
+        sb.append("\"rowVersion\":").append(a.getRowVersion());
+        if (a.getStudentName() != null) {
+            sb.append(",\"studentName\":\"").append(escapeJson(a.getStudentName())).append("\"");
+        }
+        if (a.getEnrollmentNo() != null) {
+            sb.append(",\"enrollmentNo\":\"").append(escapeJson(a.getEnrollmentNo())).append("\"");
+        }
+        if (a.getBatchName() != null) {
+            sb.append(",\"batchName\":\"").append(escapeJson(a.getBatchName())).append("\"");
+        }
+        if (a.getBatchCode() != null) {
+            sb.append(",\"batchCode\":\"").append(escapeJson(a.getBatchCode())).append("\"");
+        }
+        if (a.getCollegeId() != null) {
+            sb.append(",\"collegeId\":\"").append(a.getCollegeId()).append("\"");
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private UUID parseUuidOrNull(String str) {
+        if (str == null || str.trim().isEmpty()) return null;
+        try {
+            return UUID.fromString(str.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private UUID parseUuidOrDefault(String str, UUID def) {
+        UUID u = parseUuidOrNull(str);
+        return u != null ? u : def;
     }
 
     private String serializeOverride(BatchCapacityOverride o) {
@@ -800,15 +932,15 @@ public class BatchController implements HttpHandler {
         }
     }
 
-    private String readRequestBody(HttpExchange exchange) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        InputStream is = exchange.getRequestBody();
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] data = new byte[4096];
+        int nRead;
+        while ((nRead = is.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
         }
-        return sb.toString();
+        return buffer.toByteArray();
     }
 
     private String escapeJson(String s) {

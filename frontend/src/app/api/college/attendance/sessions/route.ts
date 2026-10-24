@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+
+/**
+ * Cutover ACD-06 Attendance Sessions Route.
+ * Routes directly to authoritative CampXSync API Gateway (/api/v1/academics/attendance/sessions)
+ * backed by Java Attendance Management Domain Service.
+ * Direct database access has been removed in compliance with Wave 6 relational persistence cutover.
+ */
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const CreateSessionSchema = z.object({
   timetableEntryId: z.string().uuid('Valid timetable entry ID required').optional(),
@@ -12,6 +20,88 @@ const CreateSessionSchema = z.object({
   startTime: z.string().optional(),
   endTime: z.string().optional(),
 });
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const resolution = await resolveUserRole(supabase);
+
+    if (
+      !resolution.success ||
+      (resolution.session.role !== 'college_admin' && resolution.session.role !== 'faculty')
+    ) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Unauthorized: only instructors and college administrators can view attendance sessions.',
+        },
+        { status: 403 }
+      );
+    }
+
+    const tenantId = resolution.session.tenantId;
+    if (!tenantId) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/bad-request',
+          title: 'Missing Tenant Context',
+          status: 400,
+          detail: 'No active tenant linked to user session.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const gatewayUrl = new URL('/api/v1/academics/attendance/sessions', GATEWAY_BASE_URL);
+    url.searchParams.forEach((value, key) => {
+      gatewayUrl.searchParams.set(key, value);
+    });
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'faculty',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
+
+    const gatewayResponse = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await gatewayResponse.json();
+
+    if (!gatewayResponse.ok) {
+      return NextResponse.json(
+        {
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Gateway Error',
+          status: gatewayResponse.status,
+          detail: data.detail || 'Failed to retrieve attendance sessions from gateway.',
+        },
+        { status: gatewayResponse.status }
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        type: 'https://campxsync.edu/errors/internal-server-error',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: err.message || 'An unexpected error occurred.',
+      },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,160 +150,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let { timetableEntryId, sectionId, employeeId, sessionDate, startTime, endTime } = parseResult.data;
+    const payload = parseResult.data;
 
-    // 1. Backend Enforcement: Verify timetable entry validity within tenant context
-    if (timetableEntryId) {
-      const entryRes = await query(`
-        SELECT tte.id, tte.section_id, tte.employee_id, tte.start_time, tte.end_time
-        FROM acd.timetable_entries tte
-        WHERE tte.id = $1 AND tte.tenant_id = $2 AND tte.deleted_at IS NULL
-        LIMIT 1
-      `, [timetableEntryId, tenantId]);
+    const gatewayPayload = {
+      timetableEntryId: payload.timetableEntryId,
+      sectionId: payload.sectionId,
+      employeeId: payload.employeeId,
+      sessionDate: payload.sessionDate,
+      startTime: payload.startTime || '10:00:00',
+      endTime: payload.endTime || '11:00:00',
+    };
 
-      if (entryRes.rows.length === 0) {
-        return NextResponse.json(
-          {
-            type: 'https://campxsync.edu/errors/not-found',
-            title: 'Timetable Entry Not Found',
-            status: 404,
-            detail: 'The specified timetable slot does not exist or does not belong to your institution.',
-          },
-          { status: 404 }
-        );
-      }
-
-      const validEntry = entryRes.rows[0];
-      if (!sectionId) sectionId = validEntry.section_id;
-      if (!employeeId) employeeId = validEntry.employee_id;
-      if (!startTime) startTime = validEntry.start_time?.slice(0, 8);
-      if (!endTime) endTime = validEntry.end_time?.slice(0, 8);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role || 'faculty',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
     }
 
-    if (!sectionId) {
+    const gatewayResponse = await fetch(`${GATEWAY_BASE_URL}/api/v1/academics/attendance/sessions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(gatewayPayload),
+    });
+
+    const data = await gatewayResponse.json();
+
+    if (!gatewayResponse.ok) {
       return NextResponse.json(
         {
-          type: 'https://campxsync.edu/errors/validation-failed',
-          title: 'Section Required',
-          status: 400,
-          detail: 'Section identifier is required to open an attendance session.',
+          type: data.type || 'https://campxsync.edu/errors/gateway-error',
+          title: data.title || 'Gateway Error',
+          status: gatewayResponse.status,
+          detail: data.detail || 'Failed to create attendance session via API Gateway.',
         },
-        { status: 400 }
+        { status: gatewayResponse.status }
       );
-    }
-
-    // 2. Prevent Duplicate Sessions: Check if session already exists for this entry/section and date
-    let existingQuery = '';
-    let existingParams: any[] = [];
-
-    if (timetableEntryId) {
-      existingQuery = `
-        SELECT id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status, created_at, locked_at
-        FROM acd.attendance_sessions
-        WHERE tenant_id = $1 AND timetable_entry_id = $2 AND session_date = $3 AND deleted_at IS NULL
-        LIMIT 1
-      `;
-      existingParams = [tenantId, timetableEntryId, sessionDate];
-    } else {
-      existingQuery = `
-        SELECT id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status, created_at, locked_at
-        FROM acd.attendance_sessions
-        WHERE tenant_id = $1 AND section_id = $2 AND session_date = $3 AND deleted_at IS NULL
-        LIMIT 1
-      `;
-      existingParams = [tenantId, sectionId, sessionDate];
-    }
-
-    const existingRes = await query(existingQuery, existingParams);
-
-    if (existingRes.rows.length > 0) {
-      const existingSession = existingRes.rows[0];
-      return NextResponse.json(
-        {
-          success: true,
-          message: 'Attendance session already exists for this slot and date. Existing session retrieved.',
-          session: existingSession,
-          isExisting: true,
-        },
-        { status: 200 }
-      );
-    }
-
-    // 3. Fallback employee ID if not assigned to slot
-    if (!employeeId) {
-      const empRes = await query(`
-        SELECT id FROM hrm.employees 
-        WHERE tenant_id = $1 AND deleted_at IS NULL 
-        LIMIT 1
-      `, [tenantId]);
-      if (empRes.rows.length > 0) {
-        employeeId = empRes.rows[0].id;
-      }
-    }
-
-    // 4. Insert new attendance session with OPEN state
-    const insertRes = await query(`
-      INSERT INTO acd.attendance_sessions (
-        tenant_id, 
-        section_id, 
-        timetable_entry_id, 
-        employee_id, 
-        session_date, 
-        start_time, 
-        end_time, 
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN')
-      RETURNING id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status, created_at
-    `, [
-      tenantId,
-      sectionId,
-      timetableEntryId || null,
-      employeeId || null,
-      sessionDate,
-      startTime || '10:00:00',
-      endTime || '11:00:00'
-    ]);
-
-    const session = insertRes.rows[0];
-
-    // 5. Append audit event in audit.events
-    try {
-      await query(`
-        INSERT INTO audit.events (
-          tenant_id,
-          event_time,
-          action,
-          resource_type,
-          resource_id,
-          status,
-          severity,
-          detail,
-          created_at
-        ) VALUES (
-          $1, now(), 'ATTENDANCE_SESSION_OPENED', 'ATTENDANCE_SESSION', $2, 'SUCCESS', 'INFO',
-          $3, now()
-        )
-      `, [
-        tenantId,
-        session.id,
-        JSON.stringify({
-          timetableEntryId,
-          sectionId,
-          sessionDate,
-          openedBy: resolution.session.displayName || 'Faculty Member',
-          role: resolution.session.role,
-        }),
-      ]);
-    } catch (auditErr: any) {
-      console.warn('Failed to record session open audit event:', auditErr.message);
     }
 
     return NextResponse.json(
       {
         success: true,
         message: 'Attendance session opened successfully.',
-        session,
-        isExisting: false,
+        session: data.data || data,
       },
       { status: 201 }
     );

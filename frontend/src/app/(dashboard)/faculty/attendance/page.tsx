@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { FacultyAttendanceView } from './faculty-attendance-view';
-import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 interface PageProps {
   searchParams?: Promise<{
@@ -35,84 +36,72 @@ export default async function FacultyAttendancePage(props: PageProps) {
 
   let slots: any[] = [];
   let students: any[] = [];
-  let employeeId: string | undefined;
+  let employeeId: string | undefined = userId;
 
   try {
-    // 1. Identify employee record for this user
-    const empRes = await query(`
-      SELECT id, employee_no 
-      FROM hrm.employees 
-      WHERE tenant_id = $1 AND person_id = $2 AND deleted_at IS NULL
-      LIMIT 1
-    `, [tenantId, userId]);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role === 'faculty' ? 'FACULTY' : 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
 
-    if (empRes.rows.length > 0) {
-      employeeId = empRes.rows[0].id;
-    } else {
-      // Fallback to first faculty if demo mode
-      const anyEmpRes = await query(`
-        SELECT id, employee_no 
-        FROM hrm.employees 
-        WHERE tenant_id = $1 AND deleted_at IS NULL 
-        LIMIT 1
-      `, [tenantId]);
-      if (anyEmpRes.rows.length > 0) {
-        employeeId = anyEmpRes.rows[0].id;
+    // 1. Fetch faculty timetable slots via ACD-10 Reporting & Analytics Service
+    const scheduleUrl = new URL('/api/v1/academics/analytics/dashboard', GATEWAY_BASE_URL);
+    scheduleUrl.searchParams.set('role', 'FACULTY');
+
+    const scheduleRes = await fetch(scheduleUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (scheduleRes.ok) {
+      const data = await scheduleRes.json();
+      const rawSlots = Array.isArray(data.allSlots)
+        ? data.allSlots
+        : (Array.isArray(data.todaySlots) ? data.todaySlots : []);
+
+      slots = rawSlots.map((s: any) => ({
+        id: s.id,
+        day_of_week: s.dayOfWeek ?? s.day_of_week ?? 1,
+        start_time: s.startTime || s.start_time || '09:00:00',
+        end_time: s.endTime || s.end_time || '10:00:00',
+        subject_name: s.subjectName || s.subject_name || 'Academic Class',
+        subject_code: s.subjectCode || s.subject_code || 'SUBJ',
+        section_id: s.sectionId || s.section_id || '00000000-0000-0000-0000-000000000000',
+        section_code: s.sectionName || s.section_code || 'A',
+        employee_id: s.employeeId || s.employee_id || userId,
+      }));
+
+      if (slots.length > 0 && slots[0].employee_id) {
+        employeeId = slots[0].employee_id;
       }
     }
 
-    // 2. Fetch timetable slots
-    const entryRes = await query(`
-      SELECT 
-        tte.id,
-        tte.day_of_week,
-        tte.start_time,
-        tte.end_time,
-        tte.section_id,
-        tte.employee_id,
-        sub.name as subject_name,
-        sub.code as subject_code,
-        sec.section_code
-      FROM acd.timetable_entries tte
-      LEFT JOIN acd.subjects sub ON sub.id = tte.subject_id
-      LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
-      WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
-      ORDER BY tte.day_of_week ASC, tte.start_time ASC
-    `, [tenantId]);
+    // 2. Fetch student roster via STU-01 Student Domain Service
+    const stuUrl = new URL('/api/v1/students', GATEWAY_BASE_URL);
+    const stuRes = await fetch(stuUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
 
-    slots = entryRes.rows.map((e: any) => ({
-      id: e.id,
-      day_of_week: e.day_of_week,
-      start_time: e.start_time,
-      end_time: e.end_time,
-      subject_name: e.subject_name || 'Academic Class',
-      subject_code: e.subject_code || 'SUBJ',
-      section_id: e.section_id,
-      section_code: e.section_code || 'A',
-      employee_id: e.employee_id || employeeId,
-    }));
-
-    // 3. Query students in tenant
-    const stuRes = await query(`
-      SELECT 
-        s.id,
-        s.enrollment_no,
-        p.display_name,
-        p.primary_email
-      FROM stu.students s
-      LEFT JOIN core.persons p ON p.id = s.person_id
-      WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
-      ORDER BY s.enrollment_no ASC
-    `, [tenantId]);
-
-    students = stuRes.rows.map((s: any) => ({
-      id: s.id,
-      enrollment_no: s.enrollment_no,
-      display_name: s.display_name || s.enrollment_no,
-      primary_email: s.primary_email || '',
-    }));
+    if (stuRes.ok) {
+      const data = await stuRes.json();
+      const items = Array.isArray(data.items) ? data.items : [];
+      students = items.map((s: any) => ({
+        id: s.id,
+        enrollment_no: s.enrollmentNo || s.enrollment_no || 'STU-000',
+        display_name: s.displayName || s.display_name || s.enrollmentNo || 'Unnamed Student',
+        primary_email: s.primaryEmail || s.primary_email || '',
+      }));
+    }
   } catch (err) {
-    console.error('Error fetching faculty timetable slots or students:', err);
+    console.error('Error fetching faculty timetable slots or students via gateway:', err);
   }
 
   return (

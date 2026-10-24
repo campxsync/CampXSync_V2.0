@@ -1,7 +1,13 @@
 package com.campx.academic.attendance.service;
 
 import com.campx.academic.attendance.exception.*;
+import com.campx.academic.attendance.model.AttendanceCorrectionEntity;
 import com.campx.academic.attendance.model.AttendanceModels.*;
+import com.campx.academic.attendance.model.AttendanceRecordEntity;
+import com.campx.academic.attendance.model.AttendanceSessionEntity;
+import com.campx.academic.attendance.repository.AttendanceRepository;
+import com.campx.academic.attendance.repository.InMemoryAttendanceRepository;
+import com.campx.academic.attendance.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.context.LogContext;
@@ -22,6 +28,16 @@ import java.util.stream.Collectors;
 public class AttendanceDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(AttendanceDomainService.class);
+
+    private AttendanceRepository repository = new InMemoryAttendanceRepository();
+
+    public AttendanceRepository getRepository() {
+        return repository;
+    }
+
+    public void setRepository(AttendanceRepository repository) {
+        this.repository = repository;
+    }
 
     // =========================================================================
     // Core Domain State Stores (Thread-Safe Concurrent Storage)
@@ -720,6 +736,13 @@ public class AttendanceDomainService {
                 .collect(Collectors.toList());
     }
 
+    public List<AttendanceRecord> getSessionRecords(String sessionId, String tenantId) {
+        return records.values().stream()
+                .filter(r -> r.getTenantId().equals(tenantId) && r.getSessionId().equals(sessionId))
+                .sorted(Comparator.comparing(AttendanceRecord::getCreatedAt))
+                .collect(Collectors.toList());
+    }
+
     // =========================================================================
     // 6. Reporting & Export (Stories 40-44)
     // =========================================================================
@@ -1110,4 +1133,82 @@ public class AttendanceDomainService {
     }
 
     public void addHoliday(String date) { holidays.add(date); }
+
+    // =========================================================================
+    // Relational Repository Delegations (Wave 6 - PostgreSQL RLS & Outbox)
+    // =========================================================================
+
+    public AttendanceRepository getRepository() {
+        return repository;
+    }
+
+    public AttendanceSessionEntity createRelationalSession(UserSecurityContext ctx, AttendanceSessionEntity session) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.createSession(ctx, session);
+    }
+
+    public List<AttendanceRecordEntity> markRelationalAttendance(UserSecurityContext ctx, UUID sessionId, List<AttendanceRecordEntity> records) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.markAttendance(ctx, sessionId, records);
+    }
+
+    public Optional<AttendanceSessionEntity> findRelationalSessionById(UserSecurityContext ctx, UUID sessionId) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.findSessionById(ctx, sessionId);
+    }
+
+    public List<AttendanceSessionEntity> listRelationalSessions(UserSecurityContext ctx, UUID sectionId, LocalDate fromDate, LocalDate toDate, int limit, int offset) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.listSessions(ctx, sectionId, fromDate, toDate, limit, offset);
+    }
+
+    public List<AttendanceRecordEntity> findRelationalRecordsBySessionId(UserSecurityContext ctx, UUID sessionId) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.findRecordsBySessionId(ctx, sessionId);
+    }
+
+    public AttendanceCorrectionEntity requestRelationalCorrection(UserSecurityContext ctx, AttendanceCorrectionEntity correction) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.requestCorrection(ctx, correction);
+    }
+
+    public AttendanceCorrectionEntity applyRelationalCorrection(UserSecurityContext ctx, UUID correctionId, String decision, UUID approverId) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.applyCorrection(ctx, correctionId, decision, approverId);
+    }
+
+    public Optional<AttendanceCorrectionEntity> getRelationalCorrectionById(UserSecurityContext ctx, UUID correctionId) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.findCorrectionById(ctx, correctionId);
+    }
+
+    public List<AttendanceCorrectionEntity> getRelationalCorrectionsBySessionId(UserSecurityContext ctx, UUID sessionId) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.findCorrectionsBySessionId(ctx, sessionId);
+    }
+
+    public List<AttendanceCorrectionEntity> getRelationalCorrectionsByRecordId(UserSecurityContext ctx, UUID recordId) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.findCorrectionsByRecordId(ctx, recordId);
+    }
 }

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 
 const OnboardTenantSchema = z.object({
   tenantName: z.string().min(3, 'Institute name must be at least 3 characters').max(100),
@@ -66,43 +65,7 @@ export async function POST(req: NextRequest) {
     const { tenantName, tenantCode, collegeName, collegeCode, adminName, adminEmail, plan } = parseResult.data;
     const subdomain = parseResult.data.subdomain || tenantCode.toLowerCase();
 
-    // 3. Pre-flight Saga Check: Duplicate Tenant Code Conflict
-    const existingTenant = await query(`
-      SELECT id, code FROM core.tenants WHERE code = $1 AND deleted_at IS NULL LIMIT 1
-    `, [tenantCode]);
-
-    if (existingTenant.rows.length > 0) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/conflict',
-          title: 'Tenant Code Conflict',
-          status: 409,
-          failedStep: 1,
-          detail: `Institutional tenant code '${tenantCode}' is already registered in the platform registry.`,
-        },
-        { status: 409 }
-      );
-    }
-
-    // 4. Pre-flight Saga Check: Duplicate Administrator Email Conflict
-    const existingAdmin = await query(`
-      SELECT id, email FROM iam.user_profiles WHERE email = $1 AND deleted_at IS NULL LIMIT 1
-    `, [adminEmail]);
-
-    if (existingAdmin.rows.length > 0) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/conflict',
-          title: 'Administrator Identity Conflict',
-          status: 409,
-          failedStep: 3,
-          detail: `User profile with email '${adminEmail}' already exists on the platform.`,
-        },
-        { status: 409 }
-      );
-    }
-
-    // 5. Check Strict Staging Write Boundary
+    // 3. Check Strict Staging Write Boundary
     // Gated database writes require explicit approval phrase: GO PROVISION-TENANT
     const allowStagingProvision =
       req.headers.get('x-provision-approval') === 'GO PROVISION-TENANT';
@@ -137,85 +100,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Execute Live 5-Step ADM Saga with Idempotent Upserts
-    // Step 1: Create institute in ONBOARDING (INACTIVE) status
-    const tenantRes = await query(`
-      INSERT INTO core.tenants (name, code, status)
-      VALUES ($1, $2, 'INACTIVE')
-      ON CONFLICT (code) WHERE deleted_at IS NULL DO UPDATE SET name = EXCLUDED.name
-      RETURNING id, name, code, status, created_at
-    `, [tenantName, tenantCode]);
+    // 4. Forward to Java Institute Admin Domain Service via API Gateway
+    const gatewayBaseUrl = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+    const idempotencyKey = req.headers.get('idempotency-key') || req.headers.get('x-idempotency-key') || `onboard-${tenantCode}-${Date.now()}`;
+    const traceId = req.headers.get('x-trace-id') || crypto.randomUUID();
 
-    const tenant = tenantRes.rows[0];
+    const forwardPayload = {
+      tenantName,
+      tenantCode,
+      collegeName,
+      collegeCode,
+      adminName,
+      adminEmail,
+      subdomain,
+      plan,
+      idempotencyKey
+    };
 
-    // Create primary college in core.colleges
-    const collegeRes = await query(`
-      INSERT INTO core.colleges (tenant_id, name, code, status, provisioning_status)
-      VALUES ($1, $2, $3, 'ACTIVE', 'PROVISIONING')
-      ON CONFLICT (tenant_id, code) WHERE deleted_at IS NULL DO UPDATE SET name = EXCLUDED.name
-      RETURNING id, name, code, status, provisioning_status
-    `, [tenant.id, collegeName, collegeCode]);
+    const res = await fetch(`${gatewayBaseUrl}/api/v1/admin/onboard-tenant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': resolution.session.userId,
+        'X-User-Role': 'PLATFORM_ADMIN',
+        'X-Trace-Id': traceId,
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify(forwardPayload),
+    });
 
-    const college = collegeRes.rows[0];
+    const data = await res.json().catch(() => null);
 
-    // Step 2: Seed tenant configuration from platform defaults (30 system roles)
-    await query(`SELECT iam.seed_system_roles($1)`, [tenant.id]);
-
-    // Step 3: Provision first College Admin in iam.user_profiles
-    const profileRes = await query(`
-      INSERT INTO iam.user_profiles (tenant_id, email, full_name, status, row_version)
-      VALUES ($1, $2, $3, 'ACTIVE', 1)
-      ON CONFLICT (tenant_id, email) WHERE deleted_at IS NULL DO UPDATE SET full_name = EXCLUDED.full_name
-      RETURNING id, email, full_name, status
-    `, [tenant.id, adminEmail, adminName]);
-
-    const adminProfile = profileRes.rows[0];
-
-    // Step 4: Grant default COLLEGE_ADMIN role through IAM path
-    const roleRes = await query(`
-      SELECT id FROM iam.roles WHERE tenant_id = $1 AND code = 'COLLEGE_ADMIN' AND deleted_at IS NULL LIMIT 1
-    `, [tenant.id]);
-
-    if (roleRes.rows.length > 0) {
-      const collegeAdminRoleId = roleRes.rows[0].id;
-      const existingAssignment = await query(`
-        SELECT id FROM iam.role_assignments 
-        WHERE tenant_id = $1 AND user_id = $2 AND role_id = $3 AND deleted_at IS NULL LIMIT 1
-      `, [tenant.id, adminProfile.id, collegeAdminRoleId]);
-
-      if (existingAssignment.rows.length === 0) {
-        await query(`
-          INSERT INTO iam.role_assignments (tenant_id, user_id, role_id, college_id, row_version)
-          VALUES ($1, $2, $3, $4, 1)
-        `, [tenant.id, adminProfile.id, collegeAdminRoleId, college.id]);
-      }
+    if (!res.ok) {
+      return NextResponse.json(
+        data || {
+          type: 'https://campxsync.edu/errors/gateway-error',
+          title: 'Gateway Error',
+          status: res.status,
+          detail: `Onboarding service returned status ${res.status}`,
+        },
+        { status: res.status }
+      );
     }
-
-    // Step 5: Activate the institute after successful provisioning
-    await query(`
-      UPDATE core.tenants SET status = 'ACTIVE' WHERE id = $1
-    `, [tenant.id]);
-
-    await query(`
-      UPDATE core.colleges SET provisioning_status = 'ACTIVE' WHERE id = $1
-    `, [college.id]);
-
-    // Step 6: Immutable Platform Audit Record in audit.events
-    await query(`
-      INSERT INTO audit.events (
-        tenant_id, college_id, event_time, action, principal_type, resource_type, resource_id, status, severity, detail
-      )
-      VALUES (
-        $1, $2, now(), 'TENANT_ONBOARDED', 'PLATFORM_ADMIN', 'TENANT', $1, 'SUCCESS', 'INFO', $3
-      )
-    `, [tenant.id, college.id, JSON.stringify({ tenantCode, tenantName, plan, adminEmail, subdomain })]);
 
     return NextResponse.json(
       {
         success: true,
         gated: false,
         message: `Institutional tenant '${tenantName}' (${tenantCode}) onboarded and activated successfully.`,
-        saga: [
+        saga: data?.sagaSteps || [
           { step: 1, name: 'CREATE_TENANT_ONBOARDING', status: 'COMPLETED', title: 'Institute Initialized in Onboarding Status' },
           { step: 2, name: 'SEED_TENANT_CONFIG', status: 'COMPLETED', title: 'System Role Templates & Default Configuration Seeded' },
           { step: 3, name: 'PROVISION_ADMIN_IDENTITY', status: 'COMPLETED', title: `College Administrator Profile Provisioned (${adminEmail})` },
@@ -223,13 +156,26 @@ export async function POST(req: NextRequest) {
           { step: 5, name: 'ACTIVATE_INSTITUTE', status: 'COMPLETED', title: 'Institutional Tenancy Node Activated (ACTIVE)' }
         ],
         tenant: {
-          ...tenant,
-          status: 'ACTIVE',
-          college,
-          adminProfile
+          id: data?.tenantId,
+          name: data?.tenantName || tenantName,
+          code: data?.tenantCode || tenantCode,
+          status: data?.status || 'ACTIVE',
+          college: {
+            id: data?.collegeId,
+            name: data?.collegeName || collegeName,
+            code: data?.collegeCode || collegeCode,
+            status: 'ACTIVE',
+            provisioning_status: 'ACTIVE'
+          },
+          adminProfile: {
+            id: data?.adminUserId,
+            email: data?.adminEmail || adminEmail,
+            full_name: adminName,
+            status: 'ACTIVE'
+          }
         }
       },
-      { status: 201 }
+      { status: res.status === 200 ? 200 : 201 }
     );
   } catch (err: any) {
     return NextResponse.json(
