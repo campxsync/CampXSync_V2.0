@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CampXSync — Multi-Tenant Institutional ERP & Academic Governance',
-  description: 'Enterprise operations platform for higher education institutions. Timetable-validated attendance, role-isolated workspaces, and audited academic records.',
+  title: 'CampXSync — Higher Education Operating System & Academic Governance',
+  description: 'Enterprise operations platform for universities. Real-time timetable constraint satisfaction, role-isolated academic cockpits, and cryptographic institutional audit trails.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
@@ -12,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-[#F6F8FB] text-[#1B2433] antialiased">
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="min-h-screen bg-[#070B14] text-[#F8FAFC] font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
         {children}
       </body>
     </html>

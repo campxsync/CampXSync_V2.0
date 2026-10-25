@@ -97,6 +97,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(resetUrl);
     }
 
+    // Allow unauthenticated visitors to view the public landing page at '/'
+    if (pathname === '/') {
+      return response;
+    }
+
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('returnTo', pathname);
     return NextResponse.redirect(loginUrl);
