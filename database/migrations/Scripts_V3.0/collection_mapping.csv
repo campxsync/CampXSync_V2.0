@@ -1,0 +1,884 @@
+module,service,mongo_collection,disposition,postgres_target,note
+ACD,ACD01,courses,TABLE,acd.courses,
+ACD,ACD01,course_versions,TABLE,acd.course_versions,
+ACD,ACD01,course_prerequisites,TABLE,acd.course_prerequisites,
+ACD,ACD01,course_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ACD,ACD01,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD01,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD01,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD02,curricula,TABLE,acd.curricula,
+ACD,ACD02,curriculum_versions,TABLE,acd.curriculum_versions,
+ACD,ACD02,curriculum_subjects,TABLE,acd.curriculum_subjects,
+ACD,ACD02,curriculum_outcomes,TABLE,obe.outcomes,
+ACD,ACD02,curriculum_prerequisites,TABLE,acd.subject_prerequisites,
+ACD,ACD02,curriculum_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ACD,ACD02,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD02,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD02,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD03,subjects,TABLE,acd.subjects,
+ACD,ACD03,subject_versions,TABLE,acd.subject_versions,
+ACD,ACD03,subject_metadata,TABLE,acd.subjects,
+ACD,ACD03,subject_prerequisites,TABLE,acd.subject_prerequisites,
+ACD,ACD03,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD03,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD03,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD04,batches,TABLE,acd.batches,
+ACD,ACD04,batch_rosters,TABLE,acd.batch_students,
+ACD,ACD04,batch_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ACD,ACD04,batch_capacity_overrides,TABLE,acd.batch_capacity_overrides,
+ACD,ACD04,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD04,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD04,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD05,timetables,TABLE,acd.timetables,
+ACD,ACD05,timetable_entries,TABLE,acd.timetable_entries,
+ACD,ACD05,timetable_versions,TABLE,acd.timetable_versions,
+ACD,ACD05,conflict_results,TABLE,acd.timetable_conflicts,
+ACD,ACD05,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD05,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD05,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD06,attendance_sessions,TABLE,acd.attendance_sessions,
+ACD,ACD06,attendance_records,TABLE,acd.attendance_records,
+ACD,ACD06,attendance_corrections,TABLE,acd.attendance_corrections,
+ACD,ACD06,attendance_summaries,ABSORBED,,View acd.v_attendance_summary
+ACD,ACD06,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD06,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD06,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD07,academic_calendars,TABLE,core.calendars,
+ACD,ACD07,calendar_terms,TABLE,acd.calendar_terms,
+ACD,ACD07,calendar_events,TABLE,core.calendar_events,
+ACD,ACD07,calendar_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ACD,ACD07,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD07,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD07,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD08,resources,TABLE,lms.resources,
+ACD,ACD08,resource_versions,TABLE,core.entity_versions,
+ACD,ACD08,resource_access,TABLE,lms.access_rules,
+ACD,ACD08,resource_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ACD,ACD08,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD08,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD08,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD09,assessment_structures,TABLE,acd.assessment_structures,
+ACD,ACD09,assessment_components,TABLE,acd.assessment_components,
+ACD,ACD09,outcome_mappings,TABLE,obe.alignments,
+ACD,ACD09,assessment_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ACD,ACD09,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD09,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD09,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD10,analytics_facts,ABSORBED,,"Derived read models -> views (acd.v_attendance_summary, acd.v_batch_strength) + rpt.kpi_values / rpt.snapshots"
+ACD,ACD10,attendance_metrics,ABSORBED,,"Derived read models -> views (acd.v_attendance_summary, acd.v_batch_strength) + rpt.kpi_values / rpt.snapshots"
+ACD,ACD10,academic_metrics,ABSORBED,,"Derived read models -> views (acd.v_attendance_summary, acd.v_batch_strength) + rpt.kpi_values / rpt.snapshots"
+ACD,ACD10,timetable_metrics,ABSORBED,,"Derived read models -> views (acd.v_attendance_summary, acd.v_batch_strength) + rpt.kpi_values / rpt.snapshots"
+ACD,ACD10,audience_metrics,ABSORBED,,"Derived read models -> views (acd.v_attendance_summary, acd.v_batch_strength) + rpt.kpi_values / rpt.snapshots"
+ACD,ACD10,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ACD,ACD10,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ACD,ACD10,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM01,announcement_groups,TABLE,cam.audience_groups,
+CAM,CAM01,group_memberships,TABLE,cam.audience_members,
+CAM,CAM01,group_rules,TABLE,cam.audience_rules,
+CAM,CAM01,group_history,ABSORBED,,audit.change_log
+CAM,CAM02,messages,TABLE,cam.messages,
+CAM,CAM02,message_templates,TABLE,doc.templates,
+CAM,CAM02,message_campaigns,TABLE,cam.campaigns,
+CAM,CAM02,message_recipients,TABLE,cam.message_recipients,
+CAM,CAM02,message_schedules,TABLE,cam.campaigns,
+CAM,CAM02,message_history,ABSORBED,,audit.change_log
+CAM,CAM03,providers,TABLE,cam.providers,
+CAM,CAM03,provider_credentials,TABLE,cam.providers,
+CAM,CAM03,provider_routes,TABLE,cam.provider_routes,
+CAM,CAM03,delivery_requests,TABLE,cam.deliveries,
+CAM,CAM03,delivery_attempts,TABLE,cam.delivery_attempts,
+CAM,CAM03,delivery_callbacks,TABLE,cam.delivery_events,
+CAM,CAM03,normalized_delivery_events,TABLE,cam.delivery_events,
+CAM,CAM03,provider_health,TABLE,cam.provider_health,
+CAM,CAM03,gateway_history,ABSORBED,,audit.change_log
+CAM,CAM03,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+CAM,CAM04,devices,TABLE,cam.devices,
+CAM,CAM04,push_tokens,TABLE,cam.device_tokens,
+CAM,CAM04,push_subscriptions,TABLE,cam.device_tokens,
+CAM,CAM04,push_messages,TABLE,cam.messages,
+CAM,CAM04,push_delivery_status,TABLE,cam.deliveries,
+CAM,CAM04,push_delivery_attempts,TABLE,cam.delivery_attempts,
+CAM,CAM04,push_provider_callbacks,TABLE,cam.delivery_events,
+CAM,CAM04,push_topics,TABLE,cam.audience_groups,
+CAM,CAM04,topic_memberships,TABLE,cam.audience_members,
+CAM,CAM04,push_history,ABSORBED,,audit.change_log
+CAM,CAM04,push_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM04,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+CAM,CAM05,notification_rules,TABLE,cam.notification_rules,
+CAM,CAM05,event_subscriptions,TABLE,cam.notification_rules,
+CAM,CAM05,event_notification_jobs,ABSORBED,,sys.jobs
+CAM,CAM05,event_notification_history,ABSORBED,,audit.change_log
+CAM,CAM05,event_inbox,PLATFORM,sys.inbox_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM05,rule_evaluations,TABLE,cam.rule_evaluations,
+CAM,CAM05,audience_snapshots,TABLE,cam.audience_snapshots,
+CAM,CAM05,notification_dispatches,TABLE,cam.deliveries,
+CAM,CAM05,dispatch_attempts,TABLE,cam.delivery_attempts,
+CAM,CAM05,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+CAM,CAM05,event_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM05,Authentication,ABSORBED,,Not a domain collection (stray name in the Compass script); authentication is handled by Supabase Auth
+CAM,CAM05,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM06,surveys,TABLE,cam.surveys,
+CAM,CAM06,survey_questions,TABLE,cam.survey_questions,
+CAM,CAM06,survey_responses,TABLE,cam.survey_responses,
+CAM,CAM06,survey_answers,TABLE,cam.survey_answers,
+CAM,CAM06,survey_results,ABSORBED,,Derived aggregates — views cam.v_delivery_metrics / cam.v_engagement_metrics over cam.deliveries + cam.delivery_events
+CAM,CAM06,survey_audit,ABSORBED,,audit.change_log
+CAM,CAM06,survey_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM06,response_idempotency,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+CAM,CAM06,audience_snapshots,TABLE,cam.audience_snapshots,
+CAM,CAM06,survey_jobs,ABSORBED,,sys.jobs
+CAM,CAM07,emergency_alerts,TABLE,cam.emergency_alerts,
+CAM,CAM07,emergency_recipients,TABLE,cam.emergency_alerts,
+CAM,CAM07,emergency_dispatches,TABLE,cam.deliveries,
+CAM,CAM07,escalation_rules,TABLE,cam.alert_escalation_rules,
+CAM,CAM07,emergency_history,ABSORBED,,audit.change_log
+CAM,CAM07,dispatch_attempts,TABLE,cam.delivery_attempts,
+CAM,CAM07,alert_acknowledgements,TABLE,cam.alert_acknowledgements,
+CAM,CAM07,alert_idempotency,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+CAM,CAM07,alert_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM07,alert_jobs,ABSORBED,,sys.jobs
+CAM,CAM07,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM08,communication_metrics,ABSORBED,,Derived aggregates — views cam.v_delivery_metrics / cam.v_engagement_metrics over cam.deliveries + cam.delivery_events
+CAM,CAM08,delivery_metrics,ABSORBED,,Derived aggregates — views cam.v_delivery_metrics / cam.v_engagement_metrics over cam.deliveries + cam.delivery_events
+CAM,CAM08,engagement_metrics,ABSORBED,,Derived aggregates — views cam.v_delivery_metrics / cam.v_engagement_metrics over cam.deliveries + cam.delivery_events
+CAM,CAM08,channel_metrics,ABSORBED,,Derived aggregates — views cam.v_delivery_metrics / cam.v_engagement_metrics over cam.deliveries + cam.delivery_events
+CAM,CAM08,audience_metrics,ABSORBED,,Derived aggregates — views cam.v_delivery_metrics / cam.v_engagement_metrics over cam.deliveries + cam.delivery_events
+CAM,CAM08,analytics_events,TABLE,cam.delivery_events,
+CAM,CAM08,metric_definitions,TABLE,rpt.kpi_definitions,
+CAM,CAM08,metric_snapshots,TABLE,rpt.kpi_values,
+CAM,CAM08,analytics_idempotency,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+CAM,CAM08,analytics_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+CAM,CAM08,analytics_dead_letters,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+EXM,EXM01,exam_registrations,TABLE,exm.registrations,
+EXM,EXM01,exam_registration_subjects,TABLE,exm.registration_subjects,
+EXM,EXM01,exam_eligibility_snapshots,TABLE,exm.eligibility_snapshots,
+EXM,EXM01,exam_registration_corrections,TABLE,exm.registration_corrections,
+EXM,EXM01,exam_registration_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM01,exam_registration_locks,ABSORBED,,Replaced by sys.entity_locks (lease locks) / SELECT ... FOR UPDATE
+EXM,EXM01,registration_workflows,TABLE,exm.registrations,
+EXM,EXM01,registration_sequences,TABLE,core.number_sequences; exm.registrations,
+EXM,EXM02,examinations,TABLE,exm.examinations,
+EXM,EXM02,exam_subjects,TABLE,exm.exam_subjects,
+EXM,EXM02,exam_sessions,TABLE,exm.exam_sessions,
+EXM,EXM02,exam_centres,TABLE,exm.exam_centres,
+EXM,EXM02,exam_rooms,TABLE,exm.exam_rooms,
+EXM,EXM02,schedule_entries,TABLE,exm.schedule_entries,
+EXM,EXM02,invigilator_assignments,TABLE,exm.invigilator_assignments,
+EXM,EXM02,schedule_versions,TABLE,exm.schedule_versions,
+EXM,EXM02,scheduling_constraints,TABLE,exm.scheduling_constraints,
+EXM,EXM02,conflict_logs,TABLE,exm.schedule_conflicts,
+EXM,EXM02,publication_records,TABLE,core.publications,
+EXM,EXM02,audit_logs,TABLE,audit.events,
+EXM,EXM03,hall_tickets,TABLE,exm.hall_tickets,
+EXM,EXM03,hall_ticket_subjects,TABLE,exm.hall_ticket_subjects,
+EXM,EXM03,hall_ticket_eligibility,TABLE,exm.hall_ticket_nocs,
+EXM,EXM03,hall_ticket_noc,TABLE,exm.hall_ticket_nocs,
+EXM,EXM03,hall_ticket_versions,TABLE,core.entity_versions,
+EXM,EXM03,hall_ticket_generation_jobs,TABLE,exm.hall_tickets,
+EXM,EXM03,hall_ticket_documents,TABLE,doc.documents; exm.hall_tickets,
+EXM,EXM03,hall_ticket_verification,TABLE,doc.verifications,
+EXM,EXM03,hall_ticket_downloads,TABLE,doc.document_deliveries,
+EXM,EXM03,hall_ticket_prints,TABLE,doc.print_jobs,
+EXM,EXM03,hall_ticket_publications,TABLE,core.publications,
+EXM,EXM03,hall_ticket_templates,TABLE,doc.templates; exm.hall_tickets,
+EXM,EXM03,hall_ticket_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM04,valuation_assignments,TABLE,exm.valuation_assignments,
+EXM,EXM04,valuation_batches,TABLE,exm.valuation_batches,
+EXM,EXM04,valuation_sessions,TABLE,exm.valuation_sessions,
+EXM,EXM04,answer_scripts,TABLE,exm.answer_scripts,
+EXM,EXM04,marks_entries,TABLE,exm.marks_entries,
+EXM,EXM04,question_marks,TABLE,exm.question_marks,
+EXM,EXM04,marks_components,TABLE,exm.question_marks,
+EXM,EXM04,valuation_schemes,TABLE,exm.valuation_schemes,
+EXM,EXM04,moderation_records,TABLE,wf.instances,
+EXM,EXM04,revaluation_requests,TABLE,exm.revaluation_requests,
+EXM,EXM04,retotalling_requests,TABLE,exm.revaluation_requests,
+EXM,EXM04,marks_corrections,TABLE,exm.marks_corrections,
+EXM,EXM04,valuation_locks,ABSORBED,,Replaced by sys.entity_locks (lease locks) / SELECT ... FOR UPDATE
+EXM,EXM04,valuation_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM04,valuation_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM05,approval_workflows,TABLE,wf.definitions,
+EXM,EXM05,approval_instances,TABLE,wf.instances,
+EXM,EXM05,approval_tasks,TABLE,wf.tasks,
+EXM,EXM05,approval_decisions,TABLE,wf.decisions,
+EXM,EXM05,approval_policies,TABLE,wf.policies,
+EXM,EXM05,approval_exceptions,TABLE,wf.exceptions,
+EXM,EXM05,approval_delegations,TABLE,wf.delegations,
+EXM,EXM05,approval_escalations,TABLE,wf.escalations,
+EXM,EXM05,marks_approval_snapshots,TABLE,wf.instances,
+EXM,EXM05,marks_finalizations,TABLE,exm.marks_finalizations,
+EXM,EXM05,approval_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM05,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+EXM,EXM06,document_types,TABLE,doc.document_types,
+EXM,EXM06,document_templates,TABLE,doc.templates,
+EXM,EXM06,document_template_versions,TABLE,doc.template_versions,
+EXM,EXM06,document_requests,ABSORBED,,Generalised into doc.* schema; exam certificates/marksheets are doc.documents rows typed by document_type
+EXM,EXM06,document_instances,TABLE,doc.documents,
+EXM,EXM06,document_snapshots,TABLE,doc.document_versions,
+EXM,EXM06,document_versions,TABLE,doc.document_versions,
+EXM,EXM06,document_subjects,TABLE,doc.document_links,
+EXM,EXM06,document_signatures,TABLE,doc.signatures,
+EXM,EXM06,document_verifications,TABLE,doc.verifications,
+EXM,EXM06,document_print_jobs,TABLE,doc.print_jobs,
+EXM,EXM06,document_print_items,TABLE,doc.print_job_items,
+EXM,EXM06,document_reissues,TABLE,doc.lifecycle_requests,
+EXM,EXM06,document_cancellations,TABLE,doc.lifecycle_requests,
+EXM,EXM06,document_delivery,TABLE,doc.document_deliveries,
+EXM,EXM06,document_audit,ABSORBED,,Generalised into doc.* schema; exam certificates/marksheets are doc.documents rows typed by document_type
+EXM,EXM06,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+EXM,EXM07,scripts,TABLE,exm.answer_scripts,
+EXM,EXM07,script_barcodes,TABLE,exm.answer_scripts,
+EXM,EXM07,script_packets,TABLE,exm.script_packets,
+EXM,EXM07,script_batches,TABLE,exm.script_packets,
+EXM,EXM07,script_movements,TABLE,exm.script_movements,
+EXM,EXM07,script_scans,TABLE,exm.script_movements,
+EXM,EXM07,script_locations,TABLE,exm.script_movements,
+EXM,EXM07,valuation_centres,TABLE,exm.valuation_centres,
+EXM,EXM07,centre_receipts,TABLE,exm.script_movements,
+EXM,EXM07,centre_dispatches,TABLE,exm.script_movements,
+EXM,EXM07,script_reconciliation,TABLE,exm.script_movements,
+EXM,EXM07,script_exceptions,TABLE,exm.script_movements,
+EXM,EXM07,script_seals,TABLE,exm.script_packets,
+EXM,EXM07,script_assignments,TABLE,exm.script_assignments,
+EXM,EXM07,script_archives,TABLE,exm.answer_scripts,
+EXM,EXM07,script_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM07,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+EXM,EXM08,result_rules,TABLE,exm.result_rules,
+EXM,EXM08,grade_rules,TABLE,exm.result_rules,
+EXM,EXM08,pass_rules,TABLE,exm.result_rules,
+EXM,EXM08,grace_rules,TABLE,exm.result_rules,
+EXM,EXM08,moderation_rules,TABLE,exm.result_rules,
+EXM,EXM08,result_processing_jobs,TABLE,exm.results,
+EXM,EXM08,result_inputs,TABLE,exm.results,
+EXM,EXM08,result_snapshots,TABLE,exm.results,
+EXM,EXM08,results,TABLE,exm.results,
+EXM,EXM08,result_subjects,TABLE,exm.result_subjects,
+EXM,EXM08,result_semesters,TABLE,exm.result_semesters,
+EXM,EXM08,result_backlogs,TABLE,exm.result_backlogs,
+EXM,EXM08,result_grace,TABLE,exm.result_subjects,
+EXM,EXM08,result_moderation,TABLE,exm.result_subjects,
+EXM,EXM08,result_approvals,TABLE,exm.results; wf.instances,
+EXM,EXM08,result_publications,TABLE,core.publications; exm.results,
+EXM,EXM08,result_versions,TABLE,core.entity_versions; exm.results,
+EXM,EXM08,result_amendments,TABLE,exm.results,
+EXM,EXM08,result_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM08,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+EXM,EXM09,exam_reports,TABLE,rpt.report_executions,
+EXM,EXM09,student_reports,TABLE,rpt.report_executions,
+EXM,EXM09,subject_reports,TABLE,rpt.report_executions,
+EXM,EXM09,programme_reports,TABLE,rpt.report_executions,
+EXM,EXM09,result_reports,TABLE,rpt.report_executions,
+EXM,EXM09,attendance_reports,TABLE,rpt.report_executions,
+EXM,EXM09,valuation_reports,TABLE,rpt.report_executions,
+EXM,EXM09,script_reports,TABLE,rpt.report_executions,
+EXM,EXM09,document_reports,TABLE,rpt.report_executions,
+EXM,EXM09,dashboard_metrics,TABLE,rpt.snapshots,
+EXM,EXM09,report_templates,TABLE,doc.templates; rpt.report_definitions,
+EXM,EXM09,report_schedules,TABLE,rpt.report_schedules,
+EXM,EXM09,report_executions,TABLE,rpt.report_executions,
+EXM,EXM09,report_exports,TABLE,rpt.report_executions,
+EXM,EXM09,report_filters,TABLE,rpt.report_definitions,
+EXM,EXM09,report_access,TABLE,rpt.report_definitions,
+EXM,EXM09,report_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+EXM,EXM09,event_checkpoints,TABLE,rpt.refresh_status,
+EXM,EXM09,projection_status,TABLE,rpt.refresh_status,
+EXM,EXM09,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN01,fee_structures,TABLE,fin.fee_structures,
+FIN,FIN01,fee_components,TABLE,fin.fee_components,
+FIN,FIN01,fee_installments,TABLE,fin.fee_installments,
+FIN,FIN01,fee_rules,TABLE,fin.fee_rules,
+FIN,FIN01,fee_concessions,TABLE,fin.fee_concessions,
+FIN,FIN01,program_fee_mappings,TABLE,fin.fee_structure_programs,
+FIN,FIN01,fee_versions,TABLE,fin.fee_structure_versions,
+FIN,FIN01,academic_fee_periods,TABLE,fin.fee_periods,
+FIN,FIN01,fee_structure_approvals,TABLE,fin.fee_structures; wf.instances,
+FIN,FIN01,fee_structure_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN01,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN02,fee_obligations,TABLE,fin.fee_obligations,
+FIN,FIN02,fee_obligation_items,TABLE,fin.fee_obligation_items,
+FIN,FIN02,payment_intents,TABLE,fin.payments,
+FIN,FIN02,payment_transactions,TABLE,fin.payments,
+FIN,FIN02,payment_allocations,TABLE,fin.payment_allocations,
+FIN,FIN02,payment_methods,TABLE,fin.payment_methods,
+FIN,FIN02,payment_gateway_transactions,TABLE,fin.gateway_transactions,
+FIN,FIN02,refunds,TABLE,fin.refunds,
+FIN,FIN02,reconciliation_records,TABLE,fin.reconciliations,
+FIN,FIN02,payment_settlements,TABLE,fin.settlements,
+FIN,FIN02,collection_batches,TABLE,fin.collection_batches,
+FIN,FIN02,transaction_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN02,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN02,payment_webhook_events,TABLE,fin.gateway_events,
+FIN,FIN02,collection_adjustments,TABLE,fin.adjustments,
+FIN,FIN04,tax_types,TABLE,tax.tax_types,
+FIN,FIN04,tax_codes,TABLE,tax.tax_codes,
+FIN,FIN04,tax_rates,TABLE,tax.tax_rates,
+FIN,FIN04,tax_components,TABLE,tax.tax_rates,
+FIN,FIN04,tax_rules,TABLE,tax.tax_rules,
+FIN,FIN04,tax_jurisdictions,TABLE,tax.tax_jurisdictions,
+FIN,FIN04,tax_exemptions,TABLE,tax.tax_exemptions,
+FIN,FIN04,tax_transactions,TABLE,tax.tax_transactions,
+FIN,FIN04,tax_transaction_items,TABLE,tax.tax_transactions,
+FIN,FIN04,tax_calculation_snapshots,TABLE,tax.tax_transactions,
+FIN,FIN04,tax_periods,TABLE,tax.tax_periods,
+FIN,FIN04,monthly_tax_sheets,TABLE,tax.tax_periods,
+FIN,FIN04,yearly_tax_sheets,TABLE,tax.tax_periods,
+FIN,FIN04,tax_adjustments,TABLE,fin.adjustments,
+FIN,FIN04,tax_reconciliations,TABLE,fin.reconciliations,
+FIN,FIN04,tax_payments,TABLE,tax.tax_payments,
+FIN,FIN04,tax_filing_records,TABLE,tax.tax_filings,
+FIN,FIN04,tax_documents,TABLE,doc.documents; tax.tax_filings,
+FIN,FIN04,tax_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN04,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN04,tax_audit_snapshots,ABSORBED,,audit.change_log
+FIN,FIN05,receipts,TABLE,fin.receipts,
+FIN,FIN05,receipt_items,TABLE,fin.receipt_items,
+FIN,FIN05,receipt_number_sequences,TABLE,core.number_sequences,
+FIN,FIN05,receipt_templates,TABLE,doc.templates; fin.receipts,
+FIN,FIN05,receipt_template_versions,TABLE,doc.template_versions,
+FIN,FIN05,receipt_documents,TABLE,doc.documents; fin.receipts,
+FIN,FIN05,receipt_verifications,TABLE,doc.verifications,
+FIN,FIN05,receipt_delivery_records,TABLE,doc.document_deliveries,
+FIN,FIN05,receipt_reissue_requests,TABLE,doc.lifecycle_requests,
+FIN,FIN05,receipt_cancellation_requests,TABLE,doc.lifecycle_requests,
+FIN,FIN05,receipt_adjustments,TABLE,fin.adjustments,
+FIN,FIN05,receipt_generation_jobs,TABLE,fin.receipts,
+FIN,FIN05,receipt_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN05,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN05,receipt_audit_snapshots,ABSORBED,,"Generalised: core.number_sequences, doc.template_versions, doc.verifications, doc.document_deliveries, doc.lifecycle_requests, audit.change_log"
+FIN,FIN06,scholarship_programs,TABLE,fin.scholarship_schemes,
+FIN,FIN06,scholarship_schemes,TABLE,fin.scholarship_schemes,
+FIN,FIN06,scholarship_versions,TABLE,core.entity_versions,
+FIN,FIN06,scholarship_criteria,TABLE,fin.scholarship_criteria,
+FIN,FIN06,scholarship_benefits,TABLE,fin.scholarship_benefits,
+FIN,FIN06,scholarship_application_periods,TABLE,fin.scholarship_application_periods,
+FIN,FIN06,scholarship_applications,TABLE,fin.scholarship_applications,
+FIN,FIN06,scholarship_application_documents,TABLE,doc.documents; fin.scholarship_applications,
+FIN,FIN06,eligibility_evaluations,TABLE,fin.scholarship_evaluations,
+FIN,FIN06,scholarship_evaluations,TABLE,fin.scholarship_evaluations,
+FIN,FIN06,scholarship_rankings,TABLE,fin.scholarship_evaluations,
+FIN,FIN06,scholarship_approvals,TABLE,fin.scholarship_applications; wf.instances,
+FIN,FIN06,scholarship_awards,TABLE,fin.scholarship_awards,
+FIN,FIN06,scholarship_award_components,TABLE,fin.scholarship_award_components,
+FIN,FIN06,scholarship_renewals,TABLE,fin.scholarship_award_events,
+FIN,FIN06,scholarship_suspensions,TABLE,fin.scholarship_award_events,
+FIN,FIN06,scholarship_cancellations,TABLE,fin.scholarship_award_events,
+FIN,FIN06,scholarship_adjustments,TABLE,fin.adjustments,
+FIN,FIN06,scholarship_utilizations,TABLE,fin.scholarship_utilizations,
+FIN,FIN06,scholarship_disbursements,TABLE,fin.disbursements,
+FIN,FIN06,scholarship_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN06,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN06,scholarship_audit_snapshots,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+FIN,FIN06,scholarship_comments,TABLE,core.comments,
+FIN,FIN07,payroll_groups,TABLE,pay.payroll_groups,
+FIN,FIN07,salary_structures,TABLE,pay.salary_structures,
+FIN,FIN07,salary_structure_versions,TABLE,pay.salary_structure_versions,
+FIN,FIN07,salary_components,TABLE,pay.salary_components,
+FIN,FIN07,employee_payroll_profiles,TABLE,pay.employee_compensations,
+FIN,FIN07,payroll_periods,TABLE,pay.payroll_periods,
+FIN,FIN07,payroll_runs,TABLE,pay.payroll_runs,
+FIN,FIN07,payroll_inputs,TABLE,pay.payroll_inputs,
+FIN,FIN07,payroll_input_items,TABLE,pay.payroll_inputs,
+FIN,FIN07,payroll_calculations,TABLE,pay.payslips,
+FIN,FIN07,payroll_calculation_items,TABLE,pay.payslip_lines,
+FIN,FIN07,payroll_adjustments,TABLE,pay.run_adjustments,
+FIN,FIN07,payroll_approvals,TABLE,pay.payroll_runs; wf.instances,
+FIN,FIN07,payroll_finalizations,TABLE,pay.payroll_runs,
+FIN,FIN07,payroll_payment_requests,TABLE,fin.payment_requests,
+FIN,FIN07,payroll_payment_records,TABLE,fin.disbursements,
+FIN,FIN07,payslips,TABLE,pay.payslips,
+FIN,FIN07,payslip_documents,TABLE,doc.documents; pay.payslips,
+FIN,FIN07,payroll_reconciliations,TABLE,fin.reconciliations,
+FIN,FIN07,payroll_loans,TABLE,pay.employee_loans,
+FIN,FIN07,payroll_advances,TABLE,pay.employee_loans,
+FIN,FIN07,payroll_arrears,TABLE,pay.run_adjustments,
+FIN,FIN07,payroll_bonuses,TABLE,pay.run_adjustments,
+FIN,FIN07,payroll_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN07,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN07,payroll_audit_snapshots,ABSORBED,,audit.change_log / core.comments
+FIN,FIN07,payroll_comments,TABLE,core.comments,
+FIN,FIN08,report_definitions,TABLE,rpt.report_definitions,
+FIN,FIN08,report_versions,TABLE,core.entity_versions,
+FIN,FIN08,report_parameters,TABLE,rpt.report_definitions,
+FIN,FIN08,report_dimensions,TABLE,rpt.report_definitions,
+FIN,FIN08,report_facts,ABSORBED,,Materialised views over the ledger and sub-ledgers
+FIN,FIN08,finance_daily_snapshots,TABLE,rpt.snapshots,
+FIN,FIN08,finance_monthly_snapshots,TABLE,rpt.snapshots,
+FIN,FIN08,finance_academic_year_snapshots,TABLE,rpt.snapshots,
+FIN,FIN08,collection_fact_daily,ABSORBED,,Materialised views over fin.payments / fin.expenses / pay.payslips / fin.scholarship_utilizations / tax.tax_transactions / bud.commitments (90_views)
+FIN,FIN08,expense_fact_daily,ABSORBED,,Materialised views over fin.payments / fin.expenses / pay.payslips / fin.scholarship_utilizations / tax.tax_transactions / bud.commitments (90_views)
+FIN,FIN08,payroll_fact_daily,ABSORBED,,Materialised views over fin.payments / fin.expenses / pay.payslips / fin.scholarship_utilizations / tax.tax_transactions / bud.commitments (90_views)
+FIN,FIN08,scholarship_fact_daily,ABSORBED,,Materialised views over fin.payments / fin.expenses / pay.payslips / fin.scholarship_utilizations / tax.tax_transactions / bud.commitments (90_views)
+FIN,FIN08,tax_fact_daily,ABSORBED,,Materialised views over fin.payments / fin.expenses / pay.payslips / fin.scholarship_utilizations / tax.tax_transactions / bud.commitments (90_views)
+FIN,FIN08,budget_fact_daily,ABSORBED,,Materialised views over fin.payments / fin.expenses / pay.payslips / fin.scholarship_utilizations / tax.tax_transactions / bud.commitments (90_views)
+FIN,FIN08,ledger_fact_daily,TABLE,fin.ledger_accounts,
+FIN,FIN08,dashboard_definitions,TABLE,rpt.dashboards,
+FIN,FIN08,dashboard_widgets,TABLE,rpt.dashboard_widgets,
+FIN,FIN08,kpi_definitions,TABLE,rpt.kpi_definitions,
+FIN,FIN08,kpi_values,TABLE,rpt.kpi_values,
+FIN,FIN08,report_jobs,TABLE,rpt.report_executions,
+FIN,FIN08,report_exports,TABLE,rpt.report_executions,
+FIN,FIN08,report_schedules,TABLE,rpt.report_schedules,
+FIN,FIN08,report_subscriptions,TABLE,rpt.report_schedules,
+FIN,FIN08,report_deliveries,TABLE,rpt.report_executions,
+FIN,FIN08,report_cache,ABSORBED,,Postgres query/materialised-view caching; audit.change_log; core.comments
+FIN,FIN08,data_refresh_status,TABLE,rpt.refresh_status,
+FIN,FIN08,report_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN08,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN08,report_audit_snapshots,ABSORBED,,Postgres query/materialised-view caching; audit.change_log; core.comments
+FIN,FIN08,report_comments,TABLE,core.comments,
+FIN,FIN09,audit_events,TABLE,audit.events,
+FIN,FIN09,audit_records,TABLE,audit.events,
+FIN,FIN09,audit_event_batches,ABSORBED,,Mongo ingestion batching; audit rows are written synchronously by trigger in Postgres
+FIN,FIN09,audit_event_failures,TABLE,sys.dead_letter_events,
+FIN,FIN09,audit_change_history,ABSORBED,,audit.change_log
+FIN,FIN09,compliance_rules,TABLE,audit.compliance_rules,
+FIN,FIN09,compliance_rule_versions,TABLE,core.entity_versions,
+FIN,FIN09,compliance_evaluations,TABLE,audit.compliance_evaluations,
+FIN,FIN09,compliance_violations,TABLE,audit.compliance_violations,
+FIN,FIN09,compliance_exceptions,TABLE,audit.compliance_exceptions,
+FIN,FIN09,audit_cases,TABLE,audit.cases,
+FIN,FIN09,audit_case_items,TABLE,audit.case_items,
+FIN,FIN09,audit_case_comments,TABLE,core.comments,
+FIN,FIN09,audit_case_actions,TABLE,audit.case_actions,
+FIN,FIN09,audit_evidence,TABLE,audit.evidence,
+FIN,FIN09,evidence_documents,TABLE,doc.documents,
+FIN,FIN09,evidence_references,TABLE,audit.evidence,
+FIN,FIN09,evidence_hashes,TABLE,audit.evidence,
+FIN,FIN09,evidence_access_logs,TABLE,audit.access_events,
+FIN,FIN09,approval_audit_records,TABLE,audit.events,
+FIN,FIN09,segregation_duty_rules,TABLE,audit.sod_rules,
+FIN,FIN09,segregation_duty_violations,TABLE,audit.sod_violations,
+FIN,FIN09,data_access_audit,TABLE,audit.access_events,
+FIN,FIN09,sensitive_access_audit,TABLE,audit.access_events,
+FIN,FIN09,administrative_audit,TABLE,audit.events,
+FIN,FIN09,audit_report_definitions,TABLE,rpt.report_definitions,
+FIN,FIN09,audit_report_jobs,TABLE,rpt.report_executions,
+FIN,FIN09,audit_report_exports,TABLE,rpt.report_executions,
+FIN,FIN09,audit_snapshots,TABLE,audit.events; rpt.snapshots,
+FIN,FIN09,audit_retention_policies,TABLE,audit.retention_policies,
+FIN,FIN09,audit_archives,TABLE,audit.archives,
+FIN,FIN09,audit_integrity_records,TABLE,audit.integrity_records,
+FIN,FIN09,audit_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN09,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN09,audit_comments,TABLE,core.comments,
+FIN,FIN09,audit_configuration,TABLE,audit.retention_policies,
+FIN,FIN10,budgets,TABLE,bud.budgets,
+FIN,FIN10,budget_versions,TABLE,bud.budget_versions,
+FIN,FIN10,budget_periods,TABLE,bud.budget_periods,
+FIN,FIN10,budget_lines,TABLE,bud.budget_lines,
+FIN,FIN10,budget_categories,TABLE,bud.categories,
+FIN,FIN10,budget_dimensions,TABLE,bud.cost_centres,
+FIN,FIN10,budget_allocations,TABLE,bud.budget_lines,
+FIN,FIN10,budget_allocation_versions,TABLE,bud.budget_lines,
+FIN,FIN10,budget_transfers,TABLE,bud.budget_transfers,
+FIN,FIN10,budget_transfer_items,TABLE,bud.budget_transfers,
+FIN,FIN10,budget_controls,TABLE,bud.budget_controls,
+FIN,FIN10,budget_control_results,TABLE,bud.control_results,
+FIN,FIN10,budget_commitments,TABLE,bud.commitments,
+FIN,FIN10,budget_reservations,TABLE,bud.commitments,
+FIN,FIN10,budget_releases,TABLE,bud.commitments,
+FIN,FIN10,budget_approvals,TABLE,wf.instances,
+FIN,FIN10,budget_approval_rules,TABLE,wf.policies,
+FIN,FIN10,budget_approval_history,TABLE,wf.instances,
+FIN,FIN10,forecasts,TABLE,bud.forecasts,
+FIN,FIN10,forecast_versions,TABLE,core.entity_versions,
+FIN,FIN10,forecast_lines,TABLE,bud.forecast_lines,
+FIN,FIN10,forecast_assumptions,TABLE,bud.assumptions,
+FIN,FIN10,budget_scenarios,TABLE,bud.scenarios,
+FIN,FIN10,scenario_versions,TABLE,core.entity_versions,
+FIN,FIN10,scenario_assumptions,TABLE,bud.assumptions,
+FIN,FIN10,scenario_results,TABLE,bud.scenario_results,
+FIN,FIN10,budget_actuals,TABLE,bud.commitments,
+FIN,FIN10,budget_variances,ABSORBED,,"Derived — views (bud.v_variance), rpt.snapshots, sys.jobs, doc.documents and audit.change_log"
+FIN,FIN10,variance_explanations,TABLE,bud.variance_explanations,
+FIN,FIN10,budget_documents,TABLE,doc.documents,
+FIN,FIN10,budget_reports,ABSORBED,,"Derived — views (bud.v_variance), rpt.snapshots, sys.jobs, doc.documents and audit.change_log"
+FIN,FIN10,budget_report_jobs,ABSORBED,,"Derived — views (bud.v_variance), rpt.snapshots, sys.jobs, doc.documents and audit.change_log"
+FIN,FIN10,budget_snapshots,ABSORBED,,"Derived — views (bud.v_variance), rpt.snapshots, sys.jobs, doc.documents and audit.change_log"
+FIN,FIN10,budget_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN10,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN10,budget_audit_snapshots,ABSORBED,,"Derived — views (bud.v_variance), rpt.snapshots, sys.jobs, doc.documents and audit.change_log"
+FIN,FIN10,budget_comments,TABLE,core.comments,
+FIN,FIN10,budget_configuration,TABLE,bud.budgets,
+FIN,FIN03,expenses,TABLE,fin.expenses,
+FIN,FIN03,expense_items,TABLE,fin.expense_items,
+FIN,FIN03,expense_categories,TABLE,fin.expense_categories,
+FIN,FIN03,vendors,TABLE,fin.vendors,
+FIN,FIN03,vendor_bank_accounts,TABLE,fin.vendor_bank_accounts,
+FIN,FIN03,expense_invoices,TABLE,fin.vendor_invoices,
+FIN,FIN03,expense_approvals,TABLE,wf.instances,
+FIN,FIN03,expense_documents,TABLE,doc.documents,
+FIN,FIN03,expense_reimbursements,TABLE,fin.expenses,
+FIN,FIN03,expense_adjustments,TABLE,fin.adjustments,
+FIN,FIN03,expense_payment_requests,TABLE,fin.payment_requests,
+FIN,FIN03,expense_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+FIN,FIN03,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+FIN,FIN03,expense_comments,TABLE,core.comments,
+FIN,FIN03,expense_audit_snapshots,ABSORBED,,doc.document_links / audit.change_log / wf.* / core.comments
+HRM,HRM01,employees,TABLE,hrm.employees,
+HRM,HRM01,employee_contacts,TABLE,core.person_contacts,
+HRM,HRM01,employee_emergency_contacts,TABLE,core.person_emergency_contacts,
+HRM,HRM01,employee_qualifications,TABLE,core.person_qualifications,
+HRM,HRM01,employee_experience,TABLE,core.person_experience,
+HRM,HRM01,employee_assignments,TABLE,hrm.employee_assignments,
+HRM,HRM01,employee_documents,TABLE,doc.documents,
+HRM,HRM01,employee_identifiers,TABLE,core.person_identifiers,
+HRM,HRM01,employee_history,TABLE,hrm.employment_events,
+HRM,HRM01,employee_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM01,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+HRM,HRM02,leave_types,TABLE,hrm.leave_types,
+HRM,HRM02,leave_policies,TABLE,hrm.leave_policies,
+HRM,HRM02,leave_entitlement_rules,TABLE,hrm.leave_policies,
+HRM,HRM02,employee_leave_entitlements,TABLE,hrm.leave_entitlements,
+HRM,HRM02,employee_leave_balances,TABLE,hrm.leave_ledger,
+HRM,HRM02,leave_applications,TABLE,hrm.leave_applications,
+HRM,HRM02,leave_application_days,TABLE,hrm.leave_application_days,
+HRM,HRM02,leave_approvals,TABLE,hrm.leave_applications; wf.instances,
+HRM,HRM02,leave_transactions,TABLE,hrm.leave_ledger,
+HRM,HRM02,leave_cancellations,TABLE,hrm.leave_applications,
+HRM,HRM02,holiday_calendars,TABLE,core.calendars,
+HRM,HRM02,leave_policy_versions,TABLE,hrm.leave_policies,
+HRM,HRM02,leave_history,ABSORBED,,core.calendars(HOLIDAY) / audit.change_log / hrm.leave_policies
+HRM,HRM02,leave_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM02,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+HRM,HRM03,attendance_records,TABLE,hrm.attendance_days,
+HRM,HRM03,attendance_punches,TABLE,hrm.attendance_punches,
+HRM,HRM03,attendance_schedules,TABLE,hrm.shift_assignments,
+HRM,HRM03,attendance_shift_definitions,TABLE,hrm.shifts,
+HRM,HRM03,employee_shift_assignments,TABLE,hrm.shift_assignments,
+HRM,HRM03,attendance_policies,TABLE,hrm.attendance_policies,
+HRM,HRM03,attendance_policy_versions,TABLE,hrm.attendance_policies,
+HRM,HRM03,attendance_calculations,TABLE,hrm.attendance_days,
+HRM,HRM03,attendance_regularizations,TABLE,hrm.attendance_regularizations,
+HRM,HRM03,attendance_regularization_approvals,TABLE,hrm.attendance_regularizations,
+HRM,HRM03,attendance_adjustments,TABLE,hrm.attendance_days,
+HRM,HRM03,attendance_holidays,TABLE,core.calendar_events,
+HRM,HRM03,attendance_daily_summaries,TABLE,hrm.attendance_days,
+HRM,HRM03,attendance_monthly_summaries,ABSORBED,,view hrm.v_attendance_monthly / core.calendar_events / audit.change_log
+HRM,HRM03,attendance_history,ABSORBED,,view hrm.v_attendance_monthly / core.calendar_events / audit.change_log
+HRM,HRM03,attendance_transactions,ABSORBED,,view hrm.v_attendance_monthly / core.calendar_events / audit.change_log
+HRM,HRM03,attendance_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM03,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+HRM,HRM04,performance_cycles,TABLE,hrm.performance_cycles,
+HRM,HRM04,performance_cycle_versions,TABLE,core.entity_versions,
+HRM,HRM04,performance_plans,TABLE,hrm.performance_plans,
+HRM,HRM04,performance_goals,TABLE,hrm.performance_goals,
+HRM,HRM04,performance_kras,TABLE,hrm.performance_goals,
+HRM,HRM04,performance_kpis,TABLE,hrm.goal_metrics,
+HRM,HRM04,performance_milestones,TABLE,hrm.goal_milestones,
+HRM,HRM04,performance_competencies,TABLE,hrm.competencies,
+HRM,HRM04,competency_assessments,TABLE,hrm.competency_assessments,
+HRM,HRM04,performance_rating_scales,TABLE,hrm.rating_scales,
+HRM,HRM04,performance_rating_scale_versions,TABLE,core.entity_versions,
+HRM,HRM04,performance_assessments,TABLE,hrm.performance_reviews,
+HRM,HRM04,performance_reviews,TABLE,hrm.performance_reviews,
+HRM,HRM04,performance_feedback,TABLE,hrm.performance_feedback,
+HRM,HRM04,performance_calibrations,TABLE,hrm.performance_calibrations,
+HRM,HRM04,performance_improvement_plans,TABLE,hrm.improvement_plans,
+HRM,HRM04,performance_development_plans,TABLE,hrm.improvement_plans,
+HRM,HRM04,performance_history,ABSORBED,,audit.change_log
+HRM,HRM04,performance_transactions,ABSORBED,,audit.change_log
+HRM,HRM04,performance_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM04,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+HRM,HRM05,salary_structures,TABLE,pay.salary_structures,
+HRM,HRM05,salary_components,TABLE,pay.salary_components,
+HRM,HRM05,salary_component_versions,TABLE,pay.salary_structure_versions,
+HRM,HRM05,employee_compensations,TABLE,pay.employee_compensations,
+HRM,HRM05,compensation_revisions,TABLE,pay.compensation_revisions,
+HRM,HRM05,payroll_periods,TABLE,pay.payroll_periods,
+HRM,HRM05,payroll_runs,TABLE,pay.payroll_runs,
+HRM,HRM05,payroll_inputs,TABLE,pay.payroll_inputs,
+HRM,HRM05,payroll_earnings,TABLE,pay.payslip_lines,
+HRM,HRM05,payroll_deductions,TABLE,pay.payslip_lines,
+HRM,HRM05,payroll_adjustments,TABLE,pay.run_adjustments,
+HRM,HRM05,payroll_calculations,TABLE,pay.payslips,
+HRM,HRM05,payroll_approvals,TABLE,pay.payroll_runs; wf.instances,
+HRM,HRM05,payslips,TABLE,pay.payslips,
+HRM,HRM05,payroll_transactions,ABSORBED,,audit.change_log / core.comments
+HRM,HRM05,payroll_history,ABSORBED,,audit.change_log / core.comments
+HRM,HRM05,statutory_rules,TABLE,pay.statutory_rules,
+HRM,HRM05,statutory_rule_versions,TABLE,pay.statutory_rules,
+HRM,HRM05,payroll_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM05,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+HRM,HRM06,recruitment_requisitions,TABLE,hrm.requisitions,
+HRM,HRM06,recruitment_requisition_approvals,TABLE,hrm.requisitions; wf.instances,
+HRM,HRM06,job_descriptions,TABLE,hrm.job_descriptions,
+HRM,HRM06,job_postings,TABLE,hrm.job_postings,
+HRM,HRM06,recruitment_channels,TABLE,hrm.recruitment_channels,
+HRM,HRM06,candidates,TABLE,hrm.candidates,
+HRM,HRM06,candidate_documents,TABLE,doc.documents,
+HRM,HRM06,candidate_applications,TABLE,hrm.candidate_applications,
+HRM,HRM06,candidate_screenings,TABLE,hrm.candidate_applications,
+HRM,HRM06,interview_rounds,TABLE,hrm.interview_rounds,
+HRM,HRM06,interview_panels,TABLE,hrm.interview_panelists,
+HRM,HRM06,interview_evaluations,TABLE,hrm.interview_evaluations,
+HRM,HRM06,candidate_selections,TABLE,hrm.candidate_applications,
+HRM,HRM06,candidate_offers,TABLE,hrm.offers,
+HRM,HRM06,offer_approvals,TABLE,hrm.offers; wf.instances,
+HRM,HRM06,onboarding_records,TABLE,hrm.onboardings,
+HRM,HRM06,onboarding_tasks,TABLE,hrm.onboarding_tasks,
+HRM,HRM06,onboarding_documents,TABLE,doc.documents,
+HRM,HRM06,onboarding_history,ABSORBED,,doc.documents/doc.document_links / audit.change_log
+HRM,HRM06,recruitment_history,ABSORBED,,doc.documents/doc.document_links / audit.change_log
+HRM,HRM06,recruitment_transactions,ABSORBED,,doc.documents/doc.document_links / audit.change_log
+HRM,HRM06,recruitment_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM06,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+HRM,HRM08,analytics_dimensions,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,employee_analytics_facts,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,workforce_snapshots,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,headcount_facts,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,attendance_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,leave_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,payroll_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,performance_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,recruitment_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,training_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,attrition_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,department_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,employee_lifecycle_analytics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,kpi_definitions,TABLE,rpt.kpi_definitions,
+HRM,HRM08,kpi_results,TABLE,rpt.kpi_values,
+HRM,HRM08,dashboard_definitions,TABLE,rpt.dashboards,
+HRM,HRM08,report_definitions,TABLE,rpt.report_definitions,
+HRM,HRM08,scheduled_reports,TABLE,rpt.report_schedules,
+HRM,HRM08,analytics_jobs,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,data_quality_metrics,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,analytics_event_log,ABSORBED,,Derived read models. In Postgres these are views/materialised views (90_views) refreshed by pg_cron; snapshots in rpt.snapshots
+HRM,HRM08,analytics_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM09,training_programs,TABLE,hrm.training_programs,
+HRM,HRM09,training_courses,TABLE,hrm.training_courses,
+HRM,HRM09,training_sessions,TABLE,hrm.training_sessions,
+HRM,HRM09,training_trainers,TABLE,hrm.training_trainers,
+HRM,HRM09,training_nominations,TABLE,hrm.training_enrollments,
+HRM,HRM09,training_enrollments,TABLE,hrm.training_enrollments,
+HRM,HRM09,training_attendance,TABLE,hrm.training_attendance,
+HRM,HRM09,training_assessments,TABLE,hrm.training_assessments,
+HRM,HRM09,training_assessment_attempts,TABLE,hrm.training_assessment_attempts,
+HRM,HRM09,training_completions,TABLE,hrm.training_completions,
+HRM,HRM09,training_certificates,TABLE,hrm.training_completions,
+HRM,HRM09,training_learning_paths,TABLE,hrm.learning_paths,
+HRM,HRM09,employee_learning_paths,TABLE,hrm.employee_learning_paths,
+HRM,HRM09,training_resources,TABLE,lms.resource_associations,
+HRM,HRM09,training_feedback,TABLE,hrm.training_completions,
+HRM,HRM09,training_skills,TABLE,hrm.skills,
+HRM,HRM09,employee_skill_progress,TABLE,hrm.employee_skills,
+HRM,HRM09,training_schedules,TABLE,hrm.training_sessions,
+HRM,HRM09,training_approvals,TABLE,hrm.training_programs,
+HRM,HRM09,training_history,ABSORBED,,audit.change_log
+HRM,HRM09,training_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+HRM,HRM09,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+LMS,LMS01,courses,TABLE,acd.courses,
+LMS,LMS01,course_offerings,TABLE,acd.course_offerings,
+LMS,LMS01,course_sections,TABLE,acd.course_sections,
+LMS,LMS01,course_prerequisites,TABLE,acd.course_prerequisites,
+LMS,LMS01,course_faculty,TABLE,acd.section_faculty,
+LMS,LMS01,course_schedules,TABLE,acd.timetable_entries,
+LMS,LMS01,enrollment_rules,TABLE,acd.enrollment_rules,
+LMS,LMS01,course_versions,TABLE,acd.course_versions,
+LMS,LMS01,course_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS01,course_classifications,TABLE,core.lookup_values,
+LMS,LMS01,course_program_mapping,TABLE,acd.course_program_map,
+LMS,LMS02,contents,TABLE,lms.contents,
+LMS,LMS02,content_modules,TABLE,lms.content_modules,
+LMS,LMS02,content_topics,TABLE,lms.content_topics,
+LMS,LMS02,content_versions,TABLE,core.entity_versions,
+LMS,LMS02,content_metadata,TABLE,lms.contents,
+LMS,LMS02,content_access,TABLE,lms.access_rules,
+LMS,LMS02,content_processing,TABLE,doc.document_renditions,
+LMS,LMS02,content_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS02,content_dependencies,TABLE,lms.content_dependencies,
+LMS,LMS02,content_publications,TABLE,core.publications,
+LMS,LMS03,subjects,TABLE,acd.subjects,
+LMS,LMS03,subject_versions,TABLE,acd.subject_versions,
+LMS,LMS03,subject_program_mappings,TABLE,acd.curriculum_subjects,
+LMS,LMS03,subject_course_mappings,TABLE,acd.subject_course_map,
+LMS,LMS03,subject_semester_mappings,TABLE,acd.curriculum_subjects,
+LMS,LMS03,subject_prerequisites,TABLE,acd.subject_prerequisites,
+LMS,LMS03,subject_equivalencies,TABLE,acd.subject_equivalencies,
+LMS,LMS03,subject_classifications,TABLE,core.lookup_values,
+LMS,LMS03,subject_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS03,subject_change_requests,TABLE,acd.subject_change_requests,
+LMS,LMS04,lesson_plans,TABLE,lms.lesson_plans,
+LMS,LMS04,lesson_plan_versions,TABLE,core.entity_versions,
+LMS,LMS04,lesson_plan_modules,TABLE,lms.lesson_plan_modules,
+LMS,LMS04,lesson_plan_topics,TABLE,lms.lesson_plan_topics,
+LMS,LMS04,lesson_sessions,TABLE,lms.lesson_sessions,
+LMS,LMS04,lesson_activities,TABLE,lms.lesson_activities,
+LMS,LMS04,lesson_faculty_assignments,TABLE,lms.lesson_faculty,
+LMS,LMS04,lesson_content_mappings,TABLE,lms.lesson_content_links,
+LMS,LMS04,lesson_outcome_mappings,TABLE,obe.alignments,
+LMS,LMS04,lesson_deliveries,TABLE,lms.lesson_deliveries,
+LMS,LMS04,lesson_variances,ABSORBED,,View lms.v_lesson_variance (planned vs delivered)
+LMS,LMS04,lesson_approvals,TABLE,wf.instances,
+LMS,LMS04,lesson_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS05,assignments,TABLE,lms.assignments,
+LMS,LMS05,assignment_versions,TABLE,core.entity_versions,
+LMS,LMS05,assignment_questions,TABLE,lms.assignment_questions,
+LMS,LMS05,assignment_rubrics,TABLE,lms.rubrics,
+LMS,LMS05,assignment_rubric_criteria,TABLE,lms.rubric_criteria,
+LMS,LMS05,assignment_resources,TABLE,lms.assignment_resources,
+LMS,LMS05,assignment_outcome_mappings,TABLE,obe.alignments,
+LMS,LMS05,assignment_availability,TABLE,lms.assignments,
+LMS,LMS05,assignment_targets,TABLE,lms.access_rules,
+LMS,LMS05,student_assignments,TABLE,lms.student_assignments,
+LMS,LMS05,submissions,TABLE,lms.submissions,
+LMS,LMS05,submission_versions,TABLE,lms.submission_versions,
+LMS,LMS05,submission_files,TABLE,lms.submission_versions,
+LMS,LMS05,evaluations,TABLE,lms.evaluations,
+LMS,LMS05,evaluation_items,TABLE,lms.evaluation_items,
+LMS,LMS05,grades,TABLE,lms.grades,
+LMS,LMS05,feedback,TABLE,lms.submission_feedback,
+LMS,LMS05,resubmissions,TABLE,lms.resubmission_requests,
+LMS,LMS05,assignment_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS05,assignment_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+LMS,LMS06,virtual_classrooms,TABLE,lms.virtual_classrooms,
+LMS,LMS06,virtual_classroom_versions,TABLE,core.entity_versions,
+LMS,LMS06,virtual_sessions,TABLE,lms.virtual_sessions,
+LMS,LMS06,session_participants,TABLE,lms.session_participants,
+LMS,LMS06,participant_sessions,TABLE,lms.session_participants,
+LMS,LMS06,meeting_configurations,TABLE,lms.virtual_classrooms,
+LMS,LMS06,provider_meetings,TABLE,lms.virtual_sessions,
+LMS,LMS06,classroom_access,TABLE,lms.access_rules,
+LMS,LMS06,session_recordings,TABLE,lms.session_recordings,
+LMS,LMS06,session_interactions,TABLE,lms.session_interactions,
+LMS,LMS06,session_polls,TABLE,lms.session_polls,
+LMS,LMS06,breakout_rooms,TABLE,lms.breakout_rooms,
+LMS,LMS06,session_resources,TABLE,lms.session_resources,
+LMS,LMS06,session_attendance_refs,TABLE,lms.virtual_sessions,
+LMS,LMS06,session_analytics,ABSORBED,,View lms.v_session_engagement over lms.session_participants / lms.session_interactions
+LMS,LMS06,classroom_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS06,classroom_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+LMS,LMS07,resources,TABLE,lms.resources,
+LMS,LMS07,resource_versions,TABLE,core.entity_versions,
+LMS,LMS07,resource_metadata,TABLE,lms.resources,
+LMS,LMS07,resource_categories,TABLE,lms.resource_categories,
+LMS,LMS07,resource_tags,TABLE,core.tags,
+LMS,LMS07,resource_associations,TABLE,lms.resource_associations,
+LMS,LMS07,resource_permissions,TABLE,lms.access_rules,
+LMS,LMS07,resource_access_policies,TABLE,lms.access_rules,
+LMS,LMS07,resource_storage,TABLE,lms.resources,
+LMS,LMS07,resource_processing,TABLE,doc.document_renditions,
+LMS,LMS07,resource_previews,TABLE,doc.document_renditions,
+LMS,LMS07,resource_links,TABLE,lms.resource_associations,
+LMS,LMS07,resource_collections,TABLE,lms.resource_collections,
+LMS,LMS07,resource_usage,TABLE,lms.resource_usage_events,
+LMS,LMS07,resource_reviews,TABLE,lms.resource_reviews,
+LMS,LMS07,resource_publications,TABLE,core.publications,
+LMS,LMS07,resource_retention,TABLE,lms.resources,
+LMS,LMS07,resource_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS07,resource_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+LMS,LMS08,progress_records,TABLE,lms.progress,
+LMS,LMS08,activity_progress,TABLE,lms.progress,
+LMS,LMS08,course_progress,TABLE,lms.progress,
+LMS,LMS08,subject_progress,TABLE,lms.progress,
+LMS,LMS08,module_progress,TABLE,lms.progress,
+LMS,LMS08,lesson_progress,TABLE,lms.progress,
+LMS,LMS08,progress_rules,TABLE,lms.progress_rules,
+LMS,LMS08,progress_events,TABLE,lms.progress_events,
+LMS,LMS08,progress_snapshots,TABLE,rpt.snapshots,
+LMS,LMS08,progress_milestones,TABLE,lms.progress_milestones,
+LMS,LMS08,learning_streaks,TABLE,lms.learning_streaks,
+LMS,LMS08,completion_records,TABLE,lms.progress,
+LMS,LMS08,progress_calculations,TABLE,sys.jobs,
+LMS,LMS08,progress_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS08,progress_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+LMS,LMS09,certification_programs,TABLE,lms.certification_programs,
+LMS,LMS09,certification_definitions,TABLE,lms.certifications,
+LMS,LMS09,certification_requirements,TABLE,lms.certification_requirements,
+LMS,LMS09,certification_rules,TABLE,lms.certification_requirements,
+LMS,LMS09,certification_applications,TABLE,lms.certification_applications,
+LMS,LMS09,eligibility_evaluations,TABLE,lms.eligibility_evaluations,
+LMS,LMS09,eligibility_evidence,TABLE,lms.eligibility_evidence,
+LMS,LMS09,certificates,TABLE,lms.credentials,
+LMS,LMS09,certificate_versions,TABLE,lms.credentials,
+LMS,LMS09,certificate_templates,TABLE,doc.templates,
+LMS,LMS09,credentials,TABLE,lms.credentials,
+LMS,LMS09,badges,TABLE,lms.badges,
+LMS,LMS09,badge_rules,TABLE,lms.badge_rules,
+LMS,LMS09,badge_awards,TABLE,lms.badge_awards,
+LMS,LMS09,credential_verifications,TABLE,doc.verifications,
+LMS,LMS09,credential_revocations,TABLE,lms.credential_revocations,
+LMS,LMS09,credential_expiry,TABLE,lms.credentials,
+LMS,LMS09,credential_shares,TABLE,lms.credential_shares,
+LMS,LMS09,credential_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS09,credential_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+LMS,LMS10,program_outcomes,TABLE,obe.outcomes,
+LMS,LMS10,program_specific_outcomes,TABLE,obe.outcomes,
+LMS,LMS10,course_outcomes,TABLE,obe.outcomes,
+LMS,LMS10,teaching_learning_outcomes,TABLE,obe.outcomes,
+LMS,LMS10,outcome_versions,TABLE,core.entity_versions,
+LMS,LMS10,outcome_mappings,TABLE,obe.outcome_mappings,
+LMS,LMS10,co_tlo_mappings,TABLE,obe.outcome_mappings,
+LMS,LMS10,co_po_mappings,TABLE,obe.outcome_mappings,
+LMS,LMS10,co_pso_mappings,TABLE,obe.outcome_mappings,
+LMS,LMS10,activity_outcome_mappings,TABLE,obe.alignments,
+LMS,LMS10,assessment_outcome_mappings,TABLE,obe.alignments,
+LMS,LMS10,question_outcome_mappings,TABLE,obe.alignments,
+LMS,LMS10,attainment_rules,TABLE,obe.attainment_rules,
+LMS,LMS10,attainment_thresholds,TABLE,obe.attainment_thresholds,
+LMS,LMS10,attainment_evidence,TABLE,obe.attainment_evidence,
+LMS,LMS10,co_attainment,TABLE,obe.attainments,
+LMS,LMS10,po_attainment,TABLE,obe.attainments,
+LMS,LMS10,pso_attainment,TABLE,obe.attainments,
+LMS,LMS10,rubrics,TABLE,lms.rubrics,
+LMS,LMS10,rubric_criteria,TABLE,lms.rubric_criteria,
+LMS,LMS10,outcome_assessments,TABLE,obe.attainment_evidence,
+LMS,LMS10,outcome_snapshots,TABLE,obe.attainments,
+LMS,LMS10,obe_reports,TABLE,rpt.report_definitions,
+LMS,LMS10,outcome_audit,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+LMS,LMS10,outcome_outbox,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ADM,ADM01,institutes,TABLE,core.tenants,
+ADM,ADM01,colleges,TABLE,core.colleges,
+ADM,ADM01,tenant_provisioning,TABLE,plat.tenant_provisioning,
+ADM,ADM01,global_settings,TABLE,cfg.setting_definitions,
+ADM,ADM01,feature_flags,TABLE,cfg.feature_flags,
+ADM,ADM01,global_policies,TABLE,cfg.policies,
+ADM,ADM01,admin_users,TABLE,plat.platform_admins,
+ADM,ADM01,roles,TABLE,iam.roles,
+ADM,ADM01,permissions,TABLE,iam.permissions,
+ADM,ADM01,role_bindings,TABLE,iam.role_assignments,
+ADM,ADM01,access_reviews,TABLE,iam.access_reviews,
+ADM,ADM01,subscription_plans,TABLE,plat.subscription_plans,
+ADM,ADM01,subscriptions,TABLE,plat.subscriptions,
+ADM,ADM01,invoices,TABLE,plat.invoices,
+ADM,ADM01,billing_gateway_transactions,TABLE,plat.gateway_transactions,
+ADM,ADM01,usage_metrics,TABLE,plat.usage_metrics,
+ADM,ADM01,platform_health,TABLE,plat.service_health,
+ADM,ADM01,alerts,TABLE,plat.alerts,
+ADM,ADM01,configuration_versions,TABLE,core.entity_versions,
+ADM,ADM01,data_retention_policies,TABLE,cfg.data_retention_policies,
+ADM,ADM01,data_classifications,TABLE,cfg.data_classifications,
+ADM,ADM01,export_requests,TABLE,sys.export_jobs,
+ADM,ADM01,audit_logs,TABLE,audit.events,
+ADM,ADM01,workflow_instances,TABLE,wf.instances,
+ADM,ADM01,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ADM,ADM01,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ADM,ADM01,inbox_events,PLATFORM,sys.inbox_events,Service plumbing replaced by shared sys.* tables
+ADM,ADM01,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
+ADM,ADM02,college_profiles,TABLE,core.colleges,
+ADM,ADM02,departments,TABLE,core.departments,
+ADM,ADM02,programs,TABLE,acd.programs,
+ADM,ADM02,college_calendar_configuration,TABLE,core.calendars,
+ADM,ADM02,college_settings,TABLE,cfg.setting_values,
+ADM,ADM02,feature_overrides,TABLE,cfg.feature_overrides,
+ADM,ADM02,college_users,TABLE,iam.user_profiles,
+ADM,ADM02,college_roles,TABLE,iam.roles,
+ADM,ADM02,role_assignments,TABLE,iam.role_assignments,
+ADM,ADM02,department_access,TABLE,iam.department_access,
+ADM,ADM02,user_import_jobs,TABLE,sys.import_jobs,
+ADM,ADM02,data_import_rows,TABLE,sys.import_rows,
+ADM,ADM02,data_quality_issues,TABLE,sys.data_quality_issues,
+ADM,ADM02,document_metadata,TABLE,doc.documents,
+ADM,ADM02,report_definitions,TABLE,rpt.report_definitions,
+ADM,ADM02,report_runs,TABLE,rpt.report_executions,
+ADM,ADM02,report_schedules,TABLE,rpt.report_schedules,
+ADM,ADM02,dashboard_snapshots,TABLE,rpt.snapshots,
+ADM,ADM02,approval_requests,TABLE,wf.instances,
+ADM,ADM02,workflow_tasks,TABLE,wf.tasks,
+ADM,ADM02,data_export_requests,TABLE,sys.export_jobs,
+ADM,ADM02,configuration_history,ABSORBED,,Per-service audit/history collections -> ONE audit.change_log fed by the audit.capture() trigger
+ADM,ADM02,audit_logs,TABLE,audit.events,
+ADM,ADM02,idempotency_records,PLATFORM,sys.idempotency_keys,Service plumbing replaced by shared sys.* tables
+ADM,ADM02,outbox_events,PLATFORM,sys.outbox_events,Service plumbing replaced by shared sys.* tables
+ADM,ADM02,inbox_events,PLATFORM,sys.inbox_events,Service plumbing replaced by shared sys.* tables
+ADM,ADM02,dead_letter_events,PLATFORM,sys.dead_letter_events,Service plumbing replaced by shared sys.* tables
