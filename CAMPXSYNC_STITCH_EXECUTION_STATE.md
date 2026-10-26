@@ -138,3 +138,39 @@ Every demonstration placeholder on the landing page is centralized and cataloged
 | **Impact Metrics** | Attendance Relay Fidelity (99%) | `frontend/src/content/placeholders.ts` -> `PLACEHOLDERS.impactMetrics[3]` | Update `target`, `label`, `description`, and set `isSample: false`. |
 | **Walkthrough Video Slot** | Overview Video Placeholder | `frontend/src/components/landing/campx-landing-page.tsx` (Line ~550) | Replace `<div className="aspect-video">` placeholder with an embedded `<video>` or YouTube/Vimeo player iframe. |
 | **Testimonials** | Quotes & Attribution | `frontend/src/content/placeholders.ts` -> `PLACEHOLDERS.placeholderTestimonials` | Update array with real client quotes, photos, and institutional titles. |
+
+---
+
+## 8. Git & Vercel Preview Deployment Record
+
+- **Source Branch & HEAD**: `feature/java-backend-integration` at `87b85c1`
+- **Target Feature Branch**: `feature/landing-page-redesign` (tracked at `origin/feature/landing-page-redesign`)
+- **Feature Commit Hash**: `be936e297fa146ada61ec22884cd9320d91d086d`
+- **Commit Message**: `feat(landing): visual identity reset and high-energy motion pass`
+- **Files Committed (12 files)**:
+  1. `CAMPXSYNC_STITCH_EXECUTION_STATE.md`
+  2. `frontend/package-lock.json`
+  3. `frontend/package.json`
+  4. `frontend/src/app/globals.css`
+  5. `frontend/src/app/layout.tsx`
+  6. `frontend/src/app/page.tsx`
+  7. `frontend/src/components/landing/campx-landing-page.tsx`
+  8. `frontend/src/components/landing/illustrations.tsx`
+  9. `frontend/src/components/landing/logo.tsx`
+  10. `frontend/src/content/placeholders.ts`
+  11. `frontend/src/middleware.ts`
+  12. `frontend/tailwind.config.ts`
+- **Build & Quality Verifications**:
+  - `npx tsc --noEmit`: Code 0 (clean, 0 errors).
+  - `npm run build`: Code 0 (optimized production build, 72.4 kB landing route).
+  - `git diff --cached --check`: Code 0 (clean, 0 trailing whitespaces).
+- **Push Execution**: Clean normal push to `origin/feature/landing-page-redesign` (Exit Code 0).
+- **Vercel Project & Team**: Project `campxsync-web-dev`, Team `camp-x-java-integration`, Root `frontend`
+- **Vercel Deployment ID**: `dpl_CNcH8WQXsnBEyeTPsE8YgDpKuqn3`
+- **Vercel Target & Status**: `preview` — `● Ready` (Duration: 1m 8s)
+- **Vercel Preview URL**: `https://campxsync-web-r2r32tmgf-camp-x-java-integration.vercel.app`
+- **Vercel Branch Alias**: `https://campxsync-web-dev-git-feature-la-5faa03-camp-x-java-integration.vercel.app`
+- **Preview Access Note**: Vercel Authentication / Deployment Protection is active on team preview deployments.
+- **Supabase Target Verification**: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are configured on Vercel project environment.
+- **Production Status**: Explicitly NOT promoted to production. Zero merges into `feature/java-backend-integration` or `main`.
+
