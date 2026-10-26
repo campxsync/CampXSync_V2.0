@@ -1,0 +1,138 @@
+schemaname,viewname,viewowner,definition
+acd,v_attendance_summary,postgres," SELECT r.tenant_id,
+    s.section_id,
+    r.student_id,
+    count(*) AS sessions_recorded,
+    count(*) FILTER (WHERE (r.status = ANY (ARRAY['PRESENT'::text, 'LATE'::text, 'ON_DUTY'::text]))) AS attended,
+    round(((100.0 * (count(*) FILTER (WHERE (r.status = ANY (ARRAY['PRESENT'::text, 'LATE'::text, 'ON_DUTY'::text]))))::numeric) / (NULLIF(count(*), 0))::numeric), 2) AS attendance_pct
+   FROM (acd.attendance_records r
+     JOIN acd.attendance_sessions s ON (((s.id = r.session_id) AND (s.tenant_id = r.tenant_id))))
+  GROUP BY r.tenant_id, s.section_id, r.student_id;"
+audit,v_change_log,postgres," SELECT id,
+    tenant_id,
+    table_schema,
+    table_name,
+    record_id,
+    action,
+    changed_fields,
+    actor_id,
+    request_id,
+    created_at
+   FROM audit.change_log c
+  WHERE ((tenant_id = core.current_tenant_id()) AND (iam.has_permission('audit.read'::text) OR (iam.has_permission('audit.read.own'::text) AND (actor_id = auth.uid()))));"
+bud,v_variance,postgres," SELECT tenant_id,
+    id AS budget_line_id,
+    budget_version_id,
+    department_id,
+    category_id,
+    planned_amount,
+    allocated_amount,
+    committed_amount,
+    actual_amount,
+    ((allocated_amount - committed_amount) - actual_amount) AS available,
+    (planned_amount - actual_amount) AS variance,
+    round(((100.0 * actual_amount) / NULLIF(planned_amount, (0)::numeric)), 2) AS utilisation_pct
+   FROM bud.budget_lines l;"
+cam,v_delivery_metrics,postgres," SELECT tenant_id,
+    channel,
+    (date_trunc('day'::text, created_at))::date AS day,
+    count(*) AS total,
+    count(*) FILTER (WHERE (status = ANY (ARRAY['SENT'::text, 'DELIVERED'::text, 'READ'::text]))) AS sent,
+    count(*) FILTER (WHERE (status = ANY (ARRAY['DELIVERED'::text, 'READ'::text]))) AS delivered,
+    count(*) FILTER (WHERE (status = 'READ'::text)) AS read,
+    count(*) FILTER (WHERE (status = ANY (ARRAY['FAILED'::text, 'BOUNCED'::text]))) AS failed
+   FROM cam.deliveries d
+  GROUP BY tenant_id, channel, (date_trunc('day'::text, created_at));"
+cam,v_survey_results,postgres," SELECT a.tenant_id,
+    r.survey_id,
+    a.question_id,
+    count(*) AS responses,
+    avg(a.answer_value) AS avg_value
+   FROM (cam.survey_answers a
+     JOIN cam.survey_responses r ON (((r.id = a.response_id) AND (r.tenant_id = a.tenant_id))))
+  WHERE (r.status = 'SUBMITTED'::text)
+  GROUP BY a.tenant_id, r.survey_id, a.question_id;"
+cfg,v_setting_history,postgres," SELECT tenant_id,
+    record_id,
+    action,
+    changed_fields,
+    old_data,
+    new_data,
+    actor_id,
+    created_at
+   FROM audit.change_log c
+  WHERE ((table_schema = 'cfg'::text) AND (table_name = 'setting_values'::text));"
+core,v_person_directory,postgres," SELECT id,
+    tenant_id,
+    display_name,
+    status
+   FROM core.persons p
+  WHERE ((tenant_id = core.current_tenant_id()) AND (deleted_at IS NULL) AND (iam.has_permission('core.directory.view'::text) OR iam.has_permission('core.pii.read'::text)));"
+fin,v_student_balance,postgres," SELECT tenant_id,
+    student_id,
+    sum(net_amount) AS total_due,
+    sum(paid_amount) AS total_paid,
+    sum((net_amount - paid_amount)) AS balance,
+    sum((net_amount - paid_amount)) FILTER (WHERE (status = 'OVERDUE'::text)) AS overdue
+   FROM fin.fee_obligations o
+  WHERE (status <> ALL (ARRAY['CANCELLED'::text, 'WAIVED'::text]))
+  GROUP BY tenant_id, student_id;"
+fin,v_student_lookup,postgres," SELECT s.id AS student_id,
+    s.enrollment_no,
+    p.display_name,
+    s.program_id,
+    s.college_id,
+    s.status
+   FROM (stu.students s
+     JOIN core.persons p ON (((p.id = s.person_id) AND (p.tenant_id = s.tenant_id))))
+  WHERE ((s.tenant_id = core.current_tenant_id()) AND (s.deleted_at IS NULL) AND iam.has_permission('fin02.view'::text) AND ((s.college_id IS NULL) OR core.can_access_college(s.college_id)));"
+hrm,v_attendance_monthly,postgres," SELECT tenant_id,
+    employee_id,
+    (date_trunc('month'::text, (attendance_date)::timestamp with time zone))::date AS month,
+    count(*) FILTER (WHERE (status = ANY (ARRAY['PRESENT'::text, 'ON_DUTY'::text]))) AS present_days,
+    count(*) FILTER (WHERE (status = 'HALF_DAY'::text)) AS half_days,
+    count(*) FILTER (WHERE (status = 'ABSENT'::text)) AS absent_days,
+    count(*) FILTER (WHERE (status = 'LEAVE'::text)) AS leave_days,
+    count(*) FILTER (WHERE (status = 'LOP'::text)) AS lop_days,
+    count(*) FILTER (WHERE is_late) AS late_marks,
+    COALESCE(sum(overtime_minutes), (0)::bigint) AS overtime_minutes
+   FROM hrm.attendance_days d
+  GROUP BY tenant_id, employee_id, (date_trunc('month'::text, (attendance_date)::timestamp with time zone));"
+hrm,v_leave_balance,postgres," SELECT tenant_id,
+    employee_id,
+    leave_type_id,
+    (EXTRACT(year FROM effective_date))::integer AS calendar_year,
+    sum(days) AS balance_days
+   FROM hrm.leave_ledger l
+  GROUP BY tenant_id, employee_id, leave_type_id, (EXTRACT(year FROM effective_date));"
+lms,v_lesson_variance,postgres," SELECT p.tenant_id,
+    p.id AS plan_id,
+    p.employee_id,
+    count(ls.id) AS planned_sessions,
+    count(ls.id) FILTER (WHERE (ls.status = 'DELIVERED'::text)) AS delivered_sessions,
+    count(ls.id) FILTER (WHERE (ls.status = ANY (ARRAY['MISSED'::text, 'RESCHEDULED'::text]))) AS slipped_sessions,
+    round(avg(d.coverage_pct), 2) AS avg_coverage_pct
+   FROM ((lms.lesson_plans p
+     LEFT JOIN lms.lesson_sessions ls ON (((ls.plan_id = p.id) AND (ls.tenant_id = p.tenant_id))))
+     LEFT JOIN lms.lesson_deliveries d ON (((d.session_id = ls.id) AND (d.tenant_id = ls.tenant_id))))
+  GROUP BY p.tenant_id, p.id, p.employee_id;"
+stu,v_roster,postgres," SELECT s.id AS student_id,
+    s.enrollment_no,
+    p.display_name,
+    s.program_id,
+    s.status,
+    se.section_id
+   FROM ((acd.section_enrollments se
+     JOIN stu.students s ON (((s.id = se.student_id) AND (s.tenant_id = se.tenant_id))))
+     JOIN core.persons p ON (((p.id = s.person_id) AND (p.tenant_id = s.tenant_id))))
+  WHERE ((se.tenant_id = core.current_tenant_id()) AND (se.deleted_at IS NULL) AND (se.status = 'ENROLLED'::text) AND iam.has_permission('acd06.view.own'::text) AND (se.student_id IN ( SELECT core.faculty_student_ids() AS faculty_student_ids)));"
+tax,v_monthly_tax_sheet,postgres," SELECT t.tenant_id,
+    p.id AS period_id,
+    (date_trunc('month'::text, (t.txn_date)::timestamp with time zone))::date AS month,
+    t.tax_code_id,
+    t.direction,
+    sum(t.taxable_amount) AS taxable_amount,
+    sum(t.tax_amount) AS tax_amount
+   FROM (tax.tax_transactions t
+     LEFT JOIN tax.tax_periods p ON (((p.id = t.period_id) AND (p.tenant_id = t.tenant_id))))
+  GROUP BY t.tenant_id, p.id, (date_trunc('month'::text, (t.txn_date)::timestamp with time zone)), t.tax_code_id, t.direction;"

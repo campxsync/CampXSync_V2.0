@@ -1,0 +1,8 @@
+rolname,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,rolconnlimit,rolbypassrls,memberof
+anon,False,True,False,False,False,-1,False,{}
+authenticated,False,True,False,False,False,-1,False,{}
+campx_app_server,False,True,False,False,True,25,False,{authenticated}
+postgres,False,True,True,True,True,-1,True,"{pg_monitor,pg_signal_backend,pg_read_all_data,pg_create_subscription,anon,authenticated,service_role,authenticator,supabase_privileged_role,campx_app_server}"
+service_role,False,True,False,False,False,-1,True,{}
+supabase_admin,True,True,True,True,True,-1,True,{}
+supabase_read_only_user,False,True,False,False,True,-1,True,"{pg_monitor,pg_read_all_data}"
