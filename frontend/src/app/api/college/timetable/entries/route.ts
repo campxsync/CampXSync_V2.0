@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
+import { crossesCollege } from '@/lib/auth/college-scope';
 
 const CreateTimetableEntrySchema = z.object({
   timetableVersionId: z.string().uuid('Valid timetable version ID required'),
   sectionId: z.string().uuid('Valid section ID required'),
   subjectId: z.string().uuid('Valid subject ID required'),
   employeeId: z.string().uuid('Valid faculty employee ID required'),
-  dayOfWeek: z.number().int().min(0).max(6),
+  dayOfWeek: z.number().int().min(1).max(6),
   startTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time format must be HH:MM or HH:MM:SS'),
   endTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time format must be HH:MM or HH:MM:SS'),
   entryType: z.enum(['LECTURE', 'LAB', 'TUTORIAL', 'SEMINAR']).default('LECTURE'),
@@ -60,68 +61,111 @@ export async function POST(req: NextRequest) {
     }
 
     const { timetableVersionId, sectionId, subjectId, employeeId, dayOfWeek, startTime, endTime, entryType } = parseResult.data;
+    const start = startTime.length === 5 ? `${startTime}:00` : startTime;
+    const end = endTime.length === 5 ? `${endTime}:00` : endTime;
+    if (start >= end) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/validation-failed',
+          title: 'Validation Failed',
+          status: 400,
+          detail: 'The class end time must be after the start time.',
+        },
+        { status: 400 }
+      );
+    }
 
-    // 1. Verify tenant ownership of subject
-    const subRes = await query(`
-      SELECT id FROM acd.subjects
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+    const graphRes = await query(`
+      SELECT
+        b.college_id AS section_college_id,
+        emp.college_id AS employee_college_id,
+        tt.college_id AS timetable_college_id
+      FROM acd.subjects sub
+      JOIN acd.course_sections sec
+        ON sec.id = $3 AND sec.tenant_id = sub.tenant_id AND sec.deleted_at IS NULL
+      JOIN acd.batches b
+        ON b.id = sec.batch_id AND b.tenant_id = sub.tenant_id AND b.deleted_at IS NULL
+      JOIN hrm.employees emp
+        ON emp.id = $4 AND emp.tenant_id = sub.tenant_id AND emp.deleted_at IS NULL
+      JOIN acd.timetable_versions tv
+        ON tv.id = $5 AND tv.tenant_id = sub.tenant_id AND tv.deleted_at IS NULL
+      JOIN acd.timetables tt
+        ON tt.id = tv.timetable_id AND tt.tenant_id = sub.tenant_id AND tt.deleted_at IS NULL
+      WHERE sub.id = $1 AND sub.tenant_id = $2 AND sub.deleted_at IS NULL
       LIMIT 1
-    `, [subjectId, tenantId]);
+    `, [subjectId, tenantId, sectionId, employeeId, timetableVersionId]);
 
-    if (subRes.rows.length === 0) {
+    const graph = graphRes.rows[0];
+    if (!graph) {
       return NextResponse.json(
         {
           type: 'https://campxsync.edu/errors/not-found',
-          title: 'Subject Not Found',
+          title: 'Timetable Reference Not Found',
           status: 404,
-          detail: 'Subject does not exist in your tenant workspace.',
+          detail: 'The subject, section, faculty member, or timetable version is not in this institute.',
         },
         { status: 404 }
       );
     }
 
-    // 2. Safeguard trigger acd.guard_timetable_entry: ensure section_faculty assignment exists
-    await query(`
-      INSERT INTO acd.section_faculty (tenant_id, section_id, employee_id, role)
-      VALUES ($1, $2, $3, 'PRIMARY')
-      ON CONFLICT DO NOTHING
-    `, [tenantId, sectionId, employeeId]);
+    const assignedCollegeId = resolution.session.assignedCollegeId;
+    if (
+      crossesCollege(assignedCollegeId, graph.section_college_id) ||
+      crossesCollege(assignedCollegeId, graph.employee_college_id) ||
+      crossesCollege(assignedCollegeId, graph.timetable_college_id)
+    ) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Timetable references must belong to your assigned college.',
+        },
+        { status: 403 }
+      );
+    }
 
-    // 3. Insert timetable entry
-    const entryRes = await query(`
-      INSERT INTO acd.timetable_entries (
-        tenant_id, timetable_version_id, section_id, subject_id, employee_id,
-        day_of_week, start_time, end_time, entry_type, valid_from
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id, day_of_week, start_time, end_time, entry_type, created_at
-    `, [
-      tenantId,
-      timetableVersionId,
-      sectionId,
-      subjectId,
-      employeeId,
-      dayOfWeek,
-      startTime,
-      endTime,
-      entryType,
-      new Date().toISOString().split('T')[0],
-    ]);
+    const entry = await withTransaction(async (client) => {
+      await client.query(`
+        INSERT INTO acd.section_faculty (tenant_id, section_id, employee_id, role)
+        VALUES ($1, $2, $3, 'PRIMARY')
+        ON CONFLICT DO NOTHING
+      `, [tenantId, sectionId, employeeId]);
 
-    const entry = entryRes.rows[0];
+      const entryRes = await client.query(`
+        INSERT INTO acd.timetable_entries (
+          tenant_id, timetable_version_id, section_id, subject_id, employee_id,
+          day_of_week, start_time, end_time, entry_type, valid_from
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id, day_of_week, start_time, end_time, entry_type, created_at
+      `, [
+        tenantId,
+        timetableVersionId,
+        sectionId,
+        subjectId,
+        employeeId,
+        dayOfWeek,
+        start,
+        end,
+        entryType,
+        new Date().toISOString().split('T')[0],
+      ]);
 
-    // 4. Record Audit Event in audit.events
-    await query(`
-      INSERT INTO audit.events (
-        tenant_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
-      )
-      VALUES ($1, now(), 'TIMETABLE_ENTRY_CREATED', 'COLLEGE_ADMIN', $2, 'TIMETABLE_ENTRY', $3, 'SUCCESS', 'INFO', $4)
-    `, [
-      tenantId,
-      resolution.session.userId || null,
-      entry.id,
-      JSON.stringify({ timetableVersionId, sectionId, subjectId, employeeId, dayOfWeek, startTime, endTime, entryType }),
-    ]);
+      const created = entryRes.rows[0];
+      await client.query(`
+        INSERT INTO audit.events (
+          tenant_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
+        )
+        VALUES ($1, now(), 'TIMETABLE_ENTRY_CREATED', 'COLLEGE_ADMIN', $2, 'TIMETABLE_ENTRY', $3, 'SUCCESS', 'INFO', $4)
+      `, [
+        tenantId,
+        resolution.session.userId || null,
+        created.id,
+        JSON.stringify({ timetableVersionId, sectionId, subjectId, employeeId, dayOfWeek, startTime: start, endTime: end, entryType }),
+      ]);
+      return created;
+    });
 
     return NextResponse.json(
       {

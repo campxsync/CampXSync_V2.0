@@ -122,9 +122,9 @@ export function FacultyDashboardView({
                       }`}
                     >
                       <CardHeader className="py-3 px-4 border-b border-[#E3E8EF] bg-[#F6F8FB]/50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono font-bold text-[#1D4ED8]">
-                            {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="whitespace-nowrap text-xs font-mono font-bold text-[#1D4ED8]">
+                            {String(slot.start_time).slice(0, 5)} - {String(slot.end_time).slice(0, 5)}
                           </span>
                           <Badge
                             status={isSubmitted ? 'SUBMITTED' : isOpen ? 'OPEN' : 'DRAFT'}
@@ -284,7 +284,7 @@ export function FacultyDashboardView({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             Faculty Teaching Workspace
@@ -321,16 +321,16 @@ export function FacultyDashboardView({
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           title="Today's Scheduled Slots"
-          value={`${todaySlots.length} Slots`}
+          value={`${todaySlots.length} ${todaySlots.length === 1 ? 'Slot' : 'Slots'}`}
           icon={Calendar}
           description={`${dayName}, ${formatDate(todayDateStr)}`}
         />
         <StatCard
           title="Total Assigned Slots"
-          value={`${allAssignedSlots.length} Slots`}
+          value={`${allAssignedSlots.length} ${allAssignedSlots.length === 1 ? 'Slot' : 'Slots'}`}
           icon={Clock}
           description="Institutional curriculum entries"
         />

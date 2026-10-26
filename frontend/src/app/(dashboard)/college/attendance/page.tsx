@@ -14,7 +14,7 @@ export default async function CollegeAttendancePage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const tenantId = resolution.session.tenantId;
+  const { tenantId, assignedCollegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -42,8 +42,14 @@ export default async function CollegeAttendancePage() {
       LEFT JOIN hrm.employees emp ON emp.id = s.employee_id
       LEFT JOIN core.persons p ON p.id = emp.person_id
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = s.section_id AND b.college_id = $2
+        ))
       ORDER BY s.session_date DESC
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     sessions = res.rows.map((s: any) => ({
       id: s.id,

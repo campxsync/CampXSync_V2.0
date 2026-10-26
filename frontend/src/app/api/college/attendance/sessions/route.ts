@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
+import { resolveEmployeeId } from '@/lib/auth/employee-link';
 
 const CreateSessionSchema = z.object({
   timetableEntryId: z.string().uuid('Valid timetable entry ID required').optional(),
@@ -86,6 +87,17 @@ export async function POST(req: NextRequest) {
       const validEntry = entryRes.rows[0];
       if (!sectionId) sectionId = validEntry.section_id;
       if (!employeeId) employeeId = validEntry.employee_id;
+      if (resolution.session.role === 'faculty' && validEntry.employee_id && employeeId !== validEntry.employee_id) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'Faculty can open attendance only for their own timetable slot.',
+          },
+          { status: 403 }
+        );
+      }
       if (!startTime) startTime = validEntry.start_time?.slice(0, 8);
       if (!endTime) endTime = validEntry.end_time?.slice(0, 8);
     }
@@ -126,8 +138,54 @@ export async function POST(req: NextRequest) {
 
     const existingRes = await query(existingQuery, existingParams);
 
+    if (resolution.session.role === 'faculty') {
+      const ownEmployeeId = await resolveEmployeeId(
+        tenantId,
+        resolution.session.userId,
+        resolution.session.email
+      );
+      if (!ownEmployeeId) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'No faculty employment record is linked to this login.',
+          },
+          { status: 403 }
+        );
+      }
+      if (employeeId && employeeId !== ownEmployeeId) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'Faculty can open attendance only for their own assignment.',
+          },
+          { status: 403 }
+        );
+      }
+      employeeId = ownEmployeeId;
+    }
+
     if (existingRes.rows.length > 0) {
       const existingSession = existingRes.rows[0];
+      if (
+        resolution.session.role === 'faculty' &&
+        existingSession.employee_id &&
+        existingSession.employee_id !== employeeId
+      ) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'An attendance session for this slot is assigned to another faculty member.',
+          },
+          { status: 403 }
+        );
+      }
       return NextResponse.json(
         {
           success: true,
@@ -139,74 +197,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Fallback employee ID if not assigned to slot
     if (!employeeId) {
-      const empRes = await query(`
-        SELECT id FROM hrm.employees 
-        WHERE tenant_id = $1 AND deleted_at IS NULL 
-        LIMIT 1
-      `, [tenantId]);
-      if (empRes.rows.length > 0) {
-        employeeId = empRes.rows[0].id;
-      }
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/validation-failed',
+          title: 'Faculty Required',
+          status: 400,
+          detail: 'An assigned faculty member is required to open an attendance session.',
+        },
+        { status: 400 }
+      );
     }
 
-    // 4. Insert new attendance session with OPEN state
-    const insertRes = await query(`
-      INSERT INTO acd.attendance_sessions (
-        tenant_id, 
-        section_id, 
-        timetable_entry_id, 
-        employee_id, 
-        session_date, 
-        start_time, 
-        end_time, 
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN')
-      RETURNING id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status, created_at
-    `, [
-      tenantId,
-      sectionId,
-      timetableEntryId || null,
-      employeeId || null,
-      sessionDate,
-      startTime || '10:00:00',
-      endTime || '11:00:00'
-    ]);
-
-    const session = insertRes.rows[0];
-
-    // 5. Append audit event in audit.events
-    try {
-      await query(`
-        INSERT INTO audit.events (
-          tenant_id,
-          event_time,
-          action,
-          resource_type,
-          resource_id,
-          status,
-          severity,
-          detail,
-          created_at
-        ) VALUES (
-          $1, now(), 'ATTENDANCE_SESSION_OPENED', 'ATTENDANCE_SESSION', $2, 'SUCCESS', 'INFO',
-          $3, now()
-        )
-      `, [
-        tenantId,
-        session.id,
-        JSON.stringify({
-          timetableEntryId,
+    const session = await withTransaction(async (client) => {
+      const insertRes = await client.query(
+        `INSERT INTO acd.attendance_sessions (
+           tenant_id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN')
+         RETURNING id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status, created_at`,
+        [
+          tenantId,
           sectionId,
+          timetableEntryId || null,
+          employeeId,
           sessionDate,
-          openedBy: resolution.session.displayName || 'Faculty Member',
-          role: resolution.session.role,
-        }),
-      ]);
-    } catch (auditErr: any) {
-      console.warn('Failed to record session open audit event:', auditErr.message);
-    }
+          startTime || '10:00:00',
+          endTime || '11:00:00',
+        ]
+      );
+      const created = insertRes.rows[0];
+      await client.query(
+        `INSERT INTO audit.events (
+           tenant_id, event_time, action, resource_type, resource_id, status, severity, detail, created_at
+         ) VALUES (
+           $1, now(), 'ATTENDANCE_SESSION_OPENED', 'ATTENDANCE_SESSION', $2, 'SUCCESS', 'INFO', $3, now()
+         )`,
+        [
+          tenantId,
+          created.id,
+          JSON.stringify({
+            timetableEntryId,
+            sectionId,
+            sessionDate,
+            openedBy: resolution.session.displayName || 'Faculty Member',
+            role: resolution.session.role,
+          }),
+        ]
+      );
+      return created;
+    });
 
     return NextResponse.json(
       {

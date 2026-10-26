@@ -17,7 +17,8 @@ export type LifecycleState =
   | 'ARCHIVED'
   | 'PENDING'
   | 'APPROVED'
-  | 'REJECTED';
+  | 'REJECTED'
+  | 'PUBLISHED';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: LifecycleState | string;
@@ -55,6 +56,7 @@ export function Badge({
     PENDING: 'bg-[#FEF7EA] text-[#B45309] border-[#FCE2B3]',
     APPROVED: 'bg-[#EAF8F1] text-[#15803D] border-[#B2E6CE]',
     REJECTED: 'bg-[#FDECEC] text-[#B91C1C] border-[#F8BDBD]',
+    PUBLISHED: 'bg-[#EAF8F1] text-[#15803D] border-[#B2E6CE]',
   };
 
   const roleStyles = {
@@ -74,7 +76,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2 py-0.5 rounded-[6px] text-xs font-semibold border tracking-wide uppercase',
+        'inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-[6px] text-xs font-semibold border tracking-wide uppercase',
         computedStyle,
         className
       )}

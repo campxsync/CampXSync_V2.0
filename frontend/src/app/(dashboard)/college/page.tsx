@@ -15,7 +15,7 @@ export default async function CollegeAdminDashboardPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, tenantName, userId } = resolution.session;
+  const { tenantId, tenantName, userId, assignedCollegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -41,13 +41,22 @@ export default async function CollegeAdminDashboardPage() {
     const statsRes = await query(
       `
       SELECT 
-        (SELECT count(*)::int FROM stu.students WHERE tenant_id = $1 AND deleted_at IS NULL) as student_count,
-        (SELECT count(*)::int FROM hrm.employees WHERE tenant_id = $1 AND deleted_at IS NULL) as faculty_count,
-        (SELECT count(*)::int FROM acd.attendance_sessions WHERE tenant_id = $1 AND deleted_at IS NULL) as session_count,
-        (SELECT count(*)::int FROM acd.attendance_records WHERE tenant_id = $1 AND deleted_at IS NULL) as total_records,
-        (SELECT count(*)::int FROM acd.attendance_records WHERE tenant_id = $1 AND status = 'PRESENT' AND deleted_at IS NULL) as present_records
+        (SELECT count(*)::int FROM stu.students WHERE tenant_id = $1 AND deleted_at IS NULL AND ($2::uuid IS NULL OR college_id = $2)) as student_count,
+        (SELECT count(*)::int FROM hrm.employees WHERE tenant_id = $1 AND deleted_at IS NULL AND ($2::uuid IS NULL OR college_id = $2)) as faculty_count,
+        (SELECT count(*)::int FROM acd.attendance_sessions s WHERE s.tenant_id = $1 AND s.deleted_at IS NULL AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = s.section_id AND b.college_id = $2
+        ))) as session_count,
+        (SELECT count(*)::int FROM acd.attendance_records r WHERE r.tenant_id = $1 AND r.deleted_at IS NULL AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1 FROM stu.students stu WHERE stu.id = r.student_id AND stu.college_id = $2
+        ))) as total_records,
+        (SELECT count(*)::int FROM acd.attendance_records r WHERE r.tenant_id = $1 AND r.status = 'PRESENT' AND r.deleted_at IS NULL AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1 FROM stu.students stu WHERE stu.id = r.student_id AND stu.college_id = $2
+        ))) as present_records
       `,
-      [tenantId]
+      [tenantId, assignedCollegeId]
     );
 
     if (statsRes.rows.length > 0) {
@@ -75,11 +84,12 @@ export default async function CollegeAdminDashboardPage() {
       JOIN core.persons p ON p.id = s.person_id
       JOIN acd.attendance_records r ON r.student_id = s.id AND r.deleted_at IS NULL
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR s.college_id = $2)
       GROUP BY s.id, s.enrollment_no, p.display_name
       HAVING (count(CASE WHEN r.status = 'PRESENT' THEN 1 END)::numeric / NULLIF(count(r.id), 0)) < 0.75
       ORDER BY percentage ASC;
       `,
-      [tenantId]
+      [tenantId, assignedCollegeId]
     );
 
     shortageStudents = shortageRes.rows.map((r: any) => ({
@@ -104,11 +114,17 @@ export default async function CollegeAdminDashboardPage() {
       FROM acd.attendance_sessions s
       JOIN acd.attendance_records r ON r.session_id = s.id AND r.deleted_at IS NULL
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = s.section_id AND b.college_id = $2
+        ))
       GROUP BY s.session_date
       ORDER BY s.session_date ASC
       LIMIT 14;
       `,
-      [tenantId]
+      [tenantId, assignedCollegeId]
     );
 
     trend = trendRes.rows.map((r: any) => ({
@@ -136,10 +152,16 @@ export default async function CollegeAdminDashboardPage() {
       JOIN acd.course_sections sec ON sec.id = tte.section_id
       LEFT JOIN acd.attendance_records r ON r.session_id = s.id AND r.deleted_at IS NULL
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = s.section_id AND b.college_id = $2
+        ))
       GROUP BY sec.section_code, sub.code, sub.name
       ORDER BY sec.section_code, sub.code;
       `,
-      [tenantId]
+      [tenantId, assignedCollegeId]
     );
 
     batchBreakdown = batchRes.rows.map((r: any) => ({
@@ -172,9 +194,15 @@ export default async function CollegeAdminDashboardPage() {
       JOIN hrm.employees emp ON emp.id = s.employee_id
       JOIN core.persons p ON p.id = emp.person_id
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL AND s.status = 'OPEN'
+        AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = s.section_id AND b.college_id = $2
+        ))
       ORDER BY s.session_date ASC;
       `,
-      [tenantId]
+      [tenantId, assignedCollegeId]
     );
 
     missedSessions = missedRes.rows.map((r: any) => ({
@@ -211,10 +239,16 @@ export default async function CollegeAdminDashboardPage() {
       JOIN hrm.employees emp ON emp.id = s.employee_id
       JOIN core.persons p ON p.id = emp.person_id
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR EXISTS (
+          SELECT 1
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = s.section_id AND b.college_id = $2
+        ))
       ORDER BY s.session_date DESC
       LIMIT 6;
       `,
-      [tenantId]
+      [tenantId, assignedCollegeId]
     );
 
     recentSessions = recentRes.rows.map((r: any) => ({

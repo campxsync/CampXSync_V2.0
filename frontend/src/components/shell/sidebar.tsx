@@ -25,6 +25,17 @@ export interface SidebarProps {
   onCloseMobile?: () => void;
 }
 
+function isNavItemActive(pathname: string, href: string, hrefs: string[]): boolean {
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  return !hrefs.some(
+    (other) =>
+      other !== href &&
+      other.length > href.length &&
+      (pathname === other || pathname.startsWith(`${other}/`))
+  );
+}
+
 export function Sidebar({
   role,
   tenantName,
@@ -35,6 +46,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const items: NavItem[] = navConfigs[role] || [];
+  const hrefs = items.map((item) => item.href);
 
   const getRoleIcon = () => {
     switch (role) {
@@ -115,7 +127,7 @@ export function Sidebar({
         <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1" aria-label="Main Navigation">
           {items.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== `/${role}` && pathname.startsWith(item.href));
+            const isActive = isNavItemActive(pathname, item.href, hrefs);
 
             return (
               <Link

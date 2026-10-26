@@ -127,53 +127,41 @@ export function PlatformDashboardView({
               </div>
             </CardHeader>
             <CardContent className="pt-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-[8px] border border-[#B2E6CE] bg-[#EAF8F1]/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] font-semibold text-[#15803D] uppercase tracking-wider block">
-                      Active
-                    </span>
-                    <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
-                      {statusCounts.ACTIVE}
-                    </span>
-                  </div>
-                  <Badge status="ACTIVE" />
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div className="p-3 rounded-[8px] border border-[#B2E6CE] bg-[#EAF8F1]/40">
+                  <span className="text-[11px] font-semibold text-[#15803D] uppercase tracking-wider block">
+                    Active
+                  </span>
+                  <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
+                    {statusCounts.ACTIVE}
+                  </span>
                 </div>
 
-                <div className="p-3 rounded-[8px] border border-[#FCE2B3] bg-[#FEF7EA]/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] font-semibold text-[#B45309] uppercase tracking-wider block">
-                      Onboarding
-                    </span>
-                    <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
-                      {statusCounts.ONBOARDING}
-                    </span>
-                  </div>
-                  <Badge status="ONBOARDING" />
+                <div className="p-3 rounded-[8px] border border-[#FCE2B3] bg-[#FEF7EA]/40">
+                  <span className="text-[11px] font-semibold text-[#B45309] uppercase tracking-wider block">
+                    Onboarding
+                  </span>
+                  <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
+                    {statusCounts.ONBOARDING}
+                  </span>
                 </div>
 
-                <div className="p-3 rounded-[8px] border border-[#F8BDBD] bg-[#FDECEC]/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] font-semibold text-[#B91C1C] uppercase tracking-wider block">
-                      Suspended
-                    </span>
-                    <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
-                      {statusCounts.SUSPENDED}
-                    </span>
-                  </div>
-                  <Badge status="SUSPENDED" />
+                <div className="p-3 rounded-[8px] border border-[#F8BDBD] bg-[#FDECEC]/40">
+                  <span className="text-[11px] font-semibold text-[#B91C1C] uppercase tracking-wider block">
+                    Suspended
+                  </span>
+                  <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
+                    {statusCounts.SUSPENDED}
+                  </span>
                 </div>
 
-                <div className="p-3 rounded-[8px] border border-[#E3E8EF] bg-[#F0F2F5]/40 flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] font-semibold text-[#374151] uppercase tracking-wider block">
-                      Offboarded
-                    </span>
-                    <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
-                      {statusCounts.OFFBOARDED}
-                    </span>
-                  </div>
-                  <Badge status="OFFBOARDED" />
+                <div className="p-3 rounded-[8px] border border-[#E3E8EF] bg-[#F0F2F5]/40">
+                  <span className="text-[11px] font-semibold text-[#374151] uppercase tracking-wider block">
+                    Offboarded
+                  </span>
+                  <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
+                    {statusCounts.OFFBOARDED}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -338,7 +326,7 @@ export function PlatformDashboardView({
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             Platform Operator Dashboard

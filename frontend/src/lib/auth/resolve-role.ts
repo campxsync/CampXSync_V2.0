@@ -4,6 +4,14 @@ import { query } from '@/lib/db';
 
 export type UserRole = 'platform_admin' | 'college_admin' | 'faculty' | 'student';
 
+function chosenName(...values: Array<string | null | undefined>): string {
+  for (const value of values) {
+    const name = value?.trim();
+    if (name) return name;
+  }
+  return 'Account';
+}
+
 export interface ResolvedUserSession {
   userId: string;
   email: string;
@@ -12,6 +20,8 @@ export interface ResolvedUserSession {
   tenantName: string | null;
   tenantStatus: string | null;
   collegeId: string | null;
+  /** Set only when the winning role assignment names a college. Null means institute-wide. */
+  assignedCollegeId: string | null;
   departmentId: string | null;
   displayName: string;
   isPlatformAdmin: boolean;
@@ -68,7 +78,7 @@ export async function resolveUserRole(
   let platAdmin: any = null;
   try {
     const paRes = await query(
-      'SELECT id, status, role_code FROM plat.platform_admins WHERE user_id = $1 AND role_code = $2 AND status = $3 AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, status, role_code, full_name FROM plat.platform_admins WHERE user_id = $1 AND role_code = $2 AND status = $3 AND deleted_at IS NULL LIMIT 1',
       [userId, 'SUPER_ADMIN', 'ACTIVE']
     );
     if (paRes.rows.length > 0) {
@@ -87,8 +97,9 @@ export async function resolveUserRole(
         tenantName: 'CampSync Platform',
         tenantStatus: 'ACTIVE',
         collegeId: null,
+        assignedCollegeId: null,
         departmentId: null,
-        displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
+        displayName: chosenName(platAdmin.full_name, user.user_metadata?.full_name, userEmail.split('@')[0]),
         isPlatformAdmin: true,
       },
     };
@@ -106,6 +117,7 @@ export async function resolveUserRole(
         tenantName: 'CampSync Platform',
         tenantStatus: 'ACTIVE',
         collegeId: null,
+        assignedCollegeId: null,
         departmentId: null,
         displayName: user.user_metadata?.full_name || 'Platform Admin',
         isPlatformAdmin: true,
@@ -120,7 +132,7 @@ export async function resolveUserRole(
   try {
     const [pRes, aRes] = await Promise.all([
       query(
-        'SELECT id, tenant_id, status, deleted_at FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
+        'SELECT id, tenant_id, status, deleted_at, full_name FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1',
         [userId]
       ),
       query(
@@ -182,6 +194,7 @@ export async function resolveUserRole(
           tenantName,
           tenantStatus: 'ACTIVE',
           collegeId,
+          assignedCollegeId: null,
           departmentId: null,
           displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
           isPlatformAdmin: false,
@@ -244,14 +257,12 @@ export async function resolveUserRole(
   // Extract highest role code
   let resolvedRole: UserRole | null = null;
   let matchedCollegeId: string | null = null;
+  let assignedCollegeId: string | null = null;
   let matchedDeptId: string | null = null;
 
   for (const assign of activeAssignments) {
     const roleObj = Array.isArray(assign.roles) ? assign.roles[0] : assign.roles;
     const code = (roleObj?.code || '').toUpperCase();
-
-    matchedCollegeId = assign.college_id || matchedCollegeId;
-    matchedDeptId = assign.department_id || matchedDeptId;
 
     if (
       code === 'COLLEGE_ADMIN' ||
@@ -261,19 +272,27 @@ export async function resolveUserRole(
       code === 'ACADEMIC_ADMIN'
     ) {
       resolvedRole = 'college_admin';
+      assignedCollegeId = assign.college_id ?? null;
+      matchedCollegeId = assign.college_id || matchedCollegeId;
+      matchedDeptId = assign.department_id || matchedDeptId;
       break;
     } else if (
-      code === 'FACULTY' ||
-      code === 'HOD' ||
-      code === 'DEAN' ||
-      code === 'TEACHER' ||
-      code === 'SECTION_COORDINATOR'
+      resolvedRole !== 'faculty' &&
+      (code === 'FACULTY' ||
+        code === 'HOD' ||
+        code === 'DEAN' ||
+        code === 'TEACHER' ||
+        code === 'SECTION_COORDINATOR')
     ) {
       resolvedRole = 'faculty';
-    } else if (code === 'STUDENT') {
-      if (!resolvedRole) {
-        resolvedRole = 'student';
-      }
+      assignedCollegeId = assign.college_id ?? null;
+      matchedCollegeId = assign.college_id || matchedCollegeId;
+      matchedDeptId = assign.department_id || matchedDeptId;
+    } else if (code === 'STUDENT' && !resolvedRole) {
+      resolvedRole = 'student';
+      assignedCollegeId = assign.college_id ?? null;
+      matchedCollegeId = assign.college_id || matchedCollegeId;
+      matchedDeptId = assign.department_id || matchedDeptId;
     }
   }
 
@@ -303,8 +322,9 @@ export async function resolveUserRole(
       tenantName,
       tenantStatus: tenant?.status || 'ACTIVE',
       collegeId: matchedCollegeId,
+      assignedCollegeId,
       departmentId: matchedDeptId,
-      displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
+      displayName: chosenName(profile.full_name, user.user_metadata?.full_name, userEmail.split('@')[0]),
       isPlatformAdmin: false,
     },
   };

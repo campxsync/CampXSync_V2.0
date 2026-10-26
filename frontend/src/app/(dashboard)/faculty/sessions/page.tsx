@@ -3,6 +3,7 @@ import { History, CalendarCheck2, CheckCircle2, Clock, Users, ArrowRight } from 
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { resolveEmployeeId } from '@/lib/auth/employee-link';
 import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -20,40 +21,48 @@ export default async function FacultySessionsPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, displayName } = resolution.session;
+  const { tenantId, displayName, userId, email, role } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
 
+  const isFaculty = role === 'faculty';
   let sessions: any[] = [];
   try {
-    const res = await query(`
-      SELECT 
-        sess.id,
-        sess.session_date,
-        sess.start_time,
-        sess.end_time,
-        sess.status,
-        sess.created_at,
-        sess.locked_at,
-        te.id as timetable_entry_id,
-        sub.code as subject_code,
-        sub.name as subject_name,
-        sec.section_code as section_name,
-        count(ar.id)::int as total_students_marked,
-        count(CASE WHEN ar.status = 'PRESENT' THEN 1 END)::int as present_count,
-        count(CASE WHEN ar.status = 'ABSENT' THEN 1 END)::int as absent_count
-      FROM acd.attendance_sessions sess
-      LEFT JOIN acd.timetable_entries te ON te.id = sess.timetable_entry_id
-      LEFT JOIN acd.subjects sub ON sub.id = te.subject_id
-      LEFT JOIN acd.course_sections sec ON sec.id = sess.section_id
-      LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id
-      WHERE sess.tenant_id = $1 AND sess.deleted_at IS NULL
-      GROUP BY sess.id, sess.session_date, sess.start_time, sess.end_time, sess.status, sess.created_at, sess.locked_at, te.id, sub.code, sub.name, sec.section_code
-      ORDER BY sess.session_date DESC, sess.start_time DESC
-    `, [tenantId]);
+    const employeeId = isFaculty
+      ? await resolveEmployeeId(tenantId, userId, email)
+      : null;
 
-    sessions = res.rows;
+    if (!isFaculty || employeeId) {
+      const res = await query(`
+        SELECT 
+          sess.id,
+          sess.session_date,
+          sess.start_time,
+          sess.end_time,
+          sess.status,
+          sess.created_at,
+          sess.locked_at,
+          te.id as timetable_entry_id,
+          sub.code as subject_code,
+          sub.name as subject_name,
+          sec.section_code as section_name,
+          count(ar.id)::int as total_students_marked,
+          count(CASE WHEN ar.status = 'PRESENT' THEN 1 END)::int as present_count,
+          count(CASE WHEN ar.status = 'ABSENT' THEN 1 END)::int as absent_count
+        FROM acd.attendance_sessions sess
+        LEFT JOIN acd.timetable_entries te ON te.id = sess.timetable_entry_id
+        LEFT JOIN acd.subjects sub ON sub.id = te.subject_id
+        LEFT JOIN acd.course_sections sec ON sec.id = sess.section_id
+        LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id
+        WHERE sess.tenant_id = $1 AND sess.deleted_at IS NULL
+          ${isFaculty ? 'AND sess.employee_id = $2' : ''}
+        GROUP BY sess.id, sess.session_date, sess.start_time, sess.end_time, sess.status, sess.created_at, sess.locked_at, te.id, sub.code, sub.name, sec.section_code
+        ORDER BY sess.session_date DESC, sess.start_time DESC
+      `, isFaculty ? [tenantId, employeeId] : [tenantId]);
+
+      sessions = res.rows;
+    }
   } catch (err) {
     console.error('Failed to query faculty sessions:', err);
   }

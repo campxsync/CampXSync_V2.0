@@ -15,6 +15,7 @@ export default async function CollegeTimetablePage() {
   }
 
   const tenantId = resolution.session.tenantId;
+  const assignedCollegeId = resolution.session.assignedCollegeId;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -30,9 +31,10 @@ export default async function CollegeTimetablePage() {
     const ttRes = await query(`
       SELECT id, name, status 
       FROM acd.timetables 
-      WHERE tenant_id = $1 AND deleted_at IS NULL 
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR college_id = $2)
       LIMIT 1
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     if (ttRes.rows.length > 0) {
       timetableId = ttRes.rows[0].id;
@@ -87,9 +89,16 @@ export default async function CollegeTimetablePage() {
     const subRes = await query(`
       SELECT id, name, code 
       FROM acd.subjects 
-      WHERE tenant_id = $1 AND deleted_at IS NULL 
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND (
+          $2::uuid IS NULL
+          OR department_id IN (
+            SELECT id FROM core.departments
+            WHERE tenant_id = $1 AND college_id = $2 AND deleted_at IS NULL
+          )
+        )
       ORDER BY name
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     subjects = subRes.rows;
 
     // 4. Query faculty
@@ -98,8 +107,9 @@ export default async function CollegeTimetablePage() {
       FROM hrm.employees emp
       LEFT JOIN core.persons p ON p.id = emp.person_id
       WHERE emp.tenant_id = $1 AND emp.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR emp.college_id = $2)
       ORDER BY emp.created_at
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     faculty = facRes.rows.map((f: any) => ({
       id: f.id,
       employee_no: f.employee_no,
@@ -112,7 +122,8 @@ export default async function CollegeTimetablePage() {
       FROM acd.course_sections sec
       LEFT JOIN acd.batches b ON b.id = sec.batch_id
       WHERE sec.tenant_id = $1 AND sec.deleted_at IS NULL
-    `, [tenantId]);
+        AND ($2::uuid IS NULL OR b.college_id = $2)
+    `, [tenantId, assignedCollegeId]);
     sections = secRes.rows.map((s: any) => ({
       id: s.id,
       section_code: s.section_code,

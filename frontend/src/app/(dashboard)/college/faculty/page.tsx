@@ -16,6 +16,7 @@ export default async function CollegeFacultyPage() {
   }
 
   const tenantId = resolution.session.tenantId;
+  const assignedCollegeId = resolution.session.assignedCollegeId;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -27,8 +28,9 @@ export default async function CollegeFacultyPage() {
       SELECT id, name, code
       FROM core.departments
       WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR college_id = $2)
       ORDER BY name
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     departments = deptRes.rows;
 
     const empRes = await query(`
@@ -46,8 +48,9 @@ export default async function CollegeFacultyPage() {
       LEFT JOIN core.persons p ON p.id = e.person_id
       LEFT JOIN core.departments d ON d.id = e.department_id
       WHERE e.tenant_id = $1 AND e.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR e.college_id = $2)
       ORDER BY e.created_at DESC
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     facultyList = empRes.rows.map((e: any) => ({
       id: e.id,

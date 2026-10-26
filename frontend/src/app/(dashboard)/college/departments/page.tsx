@@ -16,6 +16,7 @@ export default async function CollegeDepartmentsPage() {
   }
 
   const tenantId = resolution.session.tenantId;
+  const assignedCollegeId = resolution.session.assignedCollegeId;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -27,16 +28,18 @@ export default async function CollegeDepartmentsPage() {
       SELECT id, name, code, status, created_at
       FROM core.departments
       WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR college_id = $2)
       ORDER BY name
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     departments = deptRes.rows;
 
     const progRes = await query(`
       SELECT id, department_id, name, code, level, duration_years, total_terms, status
       FROM acd.programs
       WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR college_id = $2)
       ORDER BY name
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     programs = progRes.rows;
   } catch (err) {
     console.error('Error querying departments or programs:', err);

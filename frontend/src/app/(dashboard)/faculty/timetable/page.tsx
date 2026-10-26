@@ -3,6 +3,7 @@ import { Calendar, Clock, MapPin, BookOpen, Users, CalendarCheck2 } from 'lucide
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { resolveEmployeeId } from '@/lib/auth/employee-link';
 import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -19,30 +20,38 @@ export default async function FacultyTimetablePage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, displayName } = resolution.session;
+  const { tenantId, displayName, userId, email, role } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
 
+  const isFaculty = role === 'faculty';
   let entries: any[] = [];
   try {
-    const res = await query(`
-      SELECT 
-        tte.id,
-        tte.day_of_week,
-        tte.start_time,
-        tte.end_time,
-        sub.name as subject_name,
-        sub.code as subject_code,
-        sec.section_code as section_name
-      FROM acd.timetable_entries tte
-      JOIN acd.subjects sub ON sub.id = tte.subject_id
-      LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
-      WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
-      ORDER BY tte.day_of_week ASC, tte.start_time ASC
-    `, [tenantId]);
+    const employeeId = isFaculty
+      ? await resolveEmployeeId(tenantId, userId, email)
+      : null;
 
-    entries = res.rows;
+    if (!isFaculty || employeeId) {
+      const res = await query(`
+        SELECT 
+          tte.id,
+          tte.day_of_week,
+          tte.start_time,
+          tte.end_time,
+          sub.name as subject_name,
+          sub.code as subject_code,
+          sec.section_code as section_name
+        FROM acd.timetable_entries tte
+        JOIN acd.subjects sub ON sub.id = tte.subject_id
+        LEFT JOIN acd.course_sections sec ON sec.id = tte.section_id
+        WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
+          ${isFaculty ? 'AND tte.employee_id = $2' : ''}
+        ORDER BY tte.day_of_week ASC, tte.start_time ASC
+      `, isFaculty ? [tenantId, employeeId] : [tenantId]);
+
+      entries = res.rows;
+    }
   } catch (err) {
     console.error('Failed to query faculty timetable:', err);
   }

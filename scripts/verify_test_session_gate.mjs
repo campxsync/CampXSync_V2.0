@@ -16,9 +16,9 @@ const cases = [
     expected: false,
   },
   {
-    name: 'local NODE_ENV=production with ENABLE_TEST_SESSION allows impersonation',
+    name: 'generic production with ENABLE_TEST_SESSION denies impersonation',
     env: { NODE_ENV: 'production', ENABLE_TEST_SESSION: 'true' },
-    expected: true,
+    expected: false,
   },
   {
     name: 'Vercel Preview with ENABLE_TEST_SESSION allows impersonation',

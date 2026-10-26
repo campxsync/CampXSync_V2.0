@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
+import { resolveEmployeeId } from '@/lib/auth/employee-link';
 
 const AttendanceRecordSchema = z.object({
   studentId: z.string().uuid('Valid student ID required'),
@@ -76,15 +77,18 @@ export async function GET(req: NextRequest) {
         s.start_time,
         s.end_time,
         s.status,
+        s.employee_id,
         s.locked_at,
         sub.name as subject_name,
         sub.code as subject_code,
         sec.section_code,
-        p.display_name as faculty_name
+        p.display_name as faculty_name,
+        b.college_id as section_college_id
       FROM acd.attendance_sessions s
       LEFT JOIN acd.timetable_entries tte ON tte.id = s.timetable_entry_id
       LEFT JOIN acd.subjects sub ON sub.id = tte.subject_id
       LEFT JOIN acd.course_sections sec ON sec.id = s.section_id
+      LEFT JOIN acd.batches b ON b.id = sec.batch_id
       LEFT JOIN hrm.employees emp ON emp.id = s.employee_id
       LEFT JOIN core.persons p ON p.id = emp.person_id
       WHERE s.id = $1 AND s.tenant_id = $2 AND s.deleted_at IS NULL
@@ -102,6 +106,41 @@ export async function GET(req: NextRequest) {
         },
         { status: 404 }
       );
+    }
+
+    if (
+      resolution.session.role === 'college_admin' &&
+      resolution.session.assignedCollegeId &&
+      session.section_college_id !== resolution.session.assignedCollegeId
+    ) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'That attendance session belongs to another college.',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (resolution.session.role === 'faculty') {
+      const employeeId = await resolveEmployeeId(
+        tenantId,
+        resolution.session.userId,
+        resolution.session.email
+      );
+      if (!employeeId || session.employee_id !== employeeId) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'This session is assigned to another faculty member.',
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // 2. Fetch Persisted Student Attendance Records
@@ -343,7 +382,13 @@ export async function POST(req: NextRequest) {
 
     // 1. Verify session exists and belongs to tenant
     const sessionRes = await query(`
-      SELECT id, status, section_id, employee_id, timetable_entry_id
+      SELECT id, status, section_id, employee_id, timetable_entry_id,
+        (
+          SELECT b.college_id
+          FROM acd.course_sections cs
+          JOIN acd.batches b ON b.id = cs.batch_id
+          WHERE cs.id = acd.attendance_sessions.section_id
+        ) AS section_college_id
       FROM acd.attendance_sessions
       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
       LIMIT 1
@@ -363,6 +408,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (
+      resolution.session.role === 'college_admin' &&
+      resolution.session.assignedCollegeId &&
+      session.section_college_id !== resolution.session.assignedCollegeId
+    ) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'That attendance session belongs to another college.',
+        },
+        { status: 403 }
+      );
+    }
+
     // 2. Lifecycle Enforcement: Once closed, faculty cannot modify attendance sheet
     if (session.status === 'CLOSED' || session.status === 'LOCKED') {
       return NextResponse.json(
@@ -376,12 +437,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Roster Membership Validation: Ensure submitted students belong to tenant student body
+    if (resolution.session.role === 'faculty') {
+      const employeeId = await resolveEmployeeId(
+        tenantId,
+        resolution.session.userId,
+        resolution.session.email
+      );
+      if (!employeeId || session.employee_id !== employeeId) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'This session is assigned to another faculty member.',
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 3. Roster membership: students must belong to the section batch, not merely the tenant
     const studentIds = records.map((r) => r.studentId);
     const validStudentsRes = await query(`
-      SELECT id FROM stu.students
-      WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND deleted_at IS NULL
-    `, [tenantId, studentIds]);
+      SELECT s.id
+      FROM stu.students s
+      JOIN acd.batch_students bs
+        ON bs.student_id = s.id
+       AND bs.tenant_id = s.tenant_id
+       AND bs.status = 'ACTIVE'
+      JOIN acd.course_sections sec
+        ON sec.batch_id = bs.batch_id
+       AND sec.tenant_id = s.tenant_id
+       AND sec.deleted_at IS NULL
+      WHERE s.tenant_id = $1
+        AND sec.id = $2
+        AND s.id = ANY($3::uuid[])
+        AND s.deleted_at IS NULL
+    `, [tenantId, session.section_id, studentIds]);
 
     const validStudentIdSet = new Set(validStudentsRes.rows.map((r: any) => r.id));
     for (const sid of studentIds) {
@@ -398,77 +490,73 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Idempotent Upsert of student attendance marks
     const now = new Date().toISOString();
-    const markedByUserId = resolution.session.userId;
-
-    for (const r of records) {
-      await query(`
-        INSERT INTO acd.attendance_records (
-          tenant_id, 
-          session_id, 
-          student_id, 
-          status, 
-          method, 
-          marked_at, 
-          remarks, 
-          row_version
-        ) VALUES ($1, $2, $3, $4, 'MANUAL', $5, $6, 1)
-        ON CONFLICT (tenant_id, session_id, student_id) WHERE (deleted_at IS NULL)
-        DO UPDATE SET 
-          status = EXCLUDED.status, 
-          marked_at = EXCLUDED.marked_at, 
-          remarks = EXCLUDED.remarks,
-          updated_at = now()
-      `, [tenantId, sessionId, r.studentId, r.status, now, r.remarks || null]);
-    }
-
-    // 5. Lifecycle Transition: If closeSession is true, lock the session
-    if (closeSession) {
-      await query(`
-        UPDATE acd.attendance_sessions
-        SET status = 'CLOSED', locked_at = $1, updated_at = $1
-        WHERE id = $2 AND tenant_id = $3
-      `, [now, sessionId, tenantId]);
-    }
-
-    // 6. Record Audit Event
-    try {
-      await query(`
-        INSERT INTO audit.events (
-          tenant_id,
-          event_time,
-          action,
-          resource_type,
-          resource_id,
-          status,
-          severity,
-          detail,
-          created_at
-        ) VALUES (
-          $1, now(), 'ATTENDANCE_SUBMITTED', 'ATTENDANCE_SESSION', $2, 'SUCCESS', 'INFO',
-          $3, now()
-        )
-      `, [
-        tenantId,
-        sessionId,
-        JSON.stringify({
-          totalRecords: records.length,
-          presentCount: records.filter((r) => r.status === 'PRESENT').length,
-          absentCount: records.filter((r) => r.status === 'ABSENT').length,
-          leaveCount: records.filter((r) => r.status === 'LEAVE').length,
-          submittedBy: resolution.session.displayName || 'Faculty Member',
-          role: resolution.session.role,
-          locked: closeSession,
-        }),
-      ]);
-    } catch (auditErr: any) {
-      console.warn('Failed to insert attendance submitted audit event:', auditErr.message);
-    }
-
     const presentCount = records.filter((r) => r.status === 'PRESENT').length;
     const absentCount = records.filter((r) => r.status === 'ABSENT').length;
     const leaveCount = records.filter((r) => r.status === 'LEAVE').length;
+
+    await withTransaction(async (client) => {
+      const locked = await client.query(
+        `SELECT id, status, employee_id
+         FROM acd.attendance_sessions
+         WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+         FOR UPDATE`,
+        [sessionId, tenantId]
+      );
+      const lockedSession = locked.rows[0];
+      if (!lockedSession || lockedSession.status === 'CLOSED' || lockedSession.status === 'LOCKED') {
+        throw new Error('SESSION_LOCKED');
+      }
+      if (resolution.session.role === 'faculty' && lockedSession.employee_id !== session.employee_id) {
+        throw new Error('SESSION_FORBIDDEN');
+      }
+
+      for (const r of records) {
+        await client.query(
+          `INSERT INTO acd.attendance_records (
+             tenant_id, session_id, student_id, status, method, marked_at, remarks, row_version
+           ) VALUES ($1, $2, $3, $4, 'MANUAL', $5, $6, 1)
+           ON CONFLICT (tenant_id, session_id, student_id) WHERE (deleted_at IS NULL)
+           DO UPDATE SET
+             status = EXCLUDED.status,
+             marked_at = EXCLUDED.marked_at,
+             remarks = EXCLUDED.remarks,
+             updated_at = now()`,
+          [tenantId, sessionId, r.studentId, r.status, now, r.remarks || null]
+        );
+      }
+
+      if (closeSession) {
+        await client.query(
+          `UPDATE acd.attendance_sessions
+           SET status = 'CLOSED', locked_at = $1, updated_at = $1
+           WHERE id = $2 AND tenant_id = $3`,
+          [now, sessionId, tenantId]
+        );
+      }
+
+      await client.query(
+        `INSERT INTO audit.events (
+           tenant_id, event_time, action, resource_type, resource_id, status, severity, detail, created_at
+         ) VALUES (
+           $1, now(), 'ATTENDANCE_SUBMITTED', 'ATTENDANCE_SESSION', $2, 'SUCCESS', 'INFO', $3, now()
+         )`,
+        [
+          tenantId,
+          sessionId,
+          JSON.stringify({
+            totalRecords: records.length,
+            presentCount,
+            absentCount,
+            leaveCount,
+            submittedBy: resolution.session.displayName || 'Faculty Member',
+            role: resolution.session.role,
+            locked: closeSession,
+          }),
+        ]
+      );
+    });
+
     const lateCount = records.filter((r) => r.status === 'LATE').length;
     const onDutyCount = records.filter((r) => r.status === 'ON_DUTY').length;
 
@@ -489,6 +577,28 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
+    if (err?.message === 'SESSION_LOCKED') {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/conflict',
+          title: 'Session Locked',
+          status: 409,
+          detail: 'This attendance session was locked before the sheet could be saved.',
+        },
+        { status: 409 }
+      );
+    }
+    if (err?.message === 'SESSION_FORBIDDEN') {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'This session is assigned to another faculty member.',
+        },
+        { status: 403 }
+      );
+    }
     return NextResponse.json(
       {
         type: 'https://campxsync.edu/errors/internal-server-error',

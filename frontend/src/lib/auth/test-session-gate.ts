@@ -1,7 +1,7 @@
 /**
- * Trial impersonation (`campx_test_session`) is allowed only on local/dev
- * and Vercel Preview. Vercel Production must never honor ENABLE_TEST_SESSION,
- * even if that flag was copied into Production project settings.
+ * Trial impersonation (`campx_test_session`) is a local and Vercel Preview
+ * tool. A production Node process, including `next start` on a public host,
+ * must not honor ENABLE_TEST_SESSION. Vercel Production never honors it.
  */
 export function isTestSessionAllowed(
   env: NodeJS.ProcessEnv = process.env
@@ -12,5 +12,5 @@ export function isTestSessionAllowed(
   if (env.NODE_ENV !== 'production') {
     return true;
   }
-  return env.ENABLE_TEST_SESSION === 'true';
+  return env.VERCEL_ENV === 'preview' && env.ENABLE_TEST_SESSION === 'true';
 }

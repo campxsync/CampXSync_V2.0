@@ -65,7 +65,7 @@ export function Topbar({
   return (
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-[#E3E8EF] bg-white px-4 sm:px-6 shadow-xs">
       {/* Left: Mobile Toggle & Tenant / Institutional Context */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         {onToggleMobileMenu && (
           <button
             type="button"
@@ -77,9 +77,12 @@ export function Topbar({
           </button>
         )}
 
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Building className="h-4 w-4 text-[#1F6FEB] shrink-0" />
-          <span className="text-sm font-semibold text-[#0B1F3A] truncate max-w-[130px] sm:max-w-[220px] md:max-w-none">
+          <span
+            className="min-w-0 truncate text-sm font-semibold text-[#0B1F3A]"
+            title={tenantName || 'CampSync Enterprise Platform'}
+          >
             {tenantName || 'CampSync Enterprise Platform'}
           </span>
         </div>
@@ -116,7 +119,7 @@ export function Topbar({
               <span className="text-xs font-semibold text-[#0B1F3A] leading-tight">
                 {displayName}
               </span>
-              <span className="text-[10px] text-[#475569] leading-tight truncate max-w-[120px]">
+              <span className="hidden max-w-[180px] truncate text-[10px] leading-tight text-[#475569] xl:block">
                 {email}
               </span>
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
@@ -133,6 +134,9 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md rounded-[12px] border border-[#E3E8EF] bg-white p-8 shadow-sm">
       <div className="mb-6">
+        <Link href="/" className="mb-4 inline-flex text-xs font-semibold text-[#1F6FEB] hover:underline">
+          Back to home
+        </Link>
         <h2 className="text-xl font-bold text-[#0B1F3A]">Sign In</h2>
         <p className="mt-1 text-xs text-[#6B7688]">
           Enter your institutional credentials to access your workspace.
@@ -253,7 +257,7 @@ function LoginForm() {
             onClick={() => handleSelectDemoAccount('faculty')}
             disabled={isLoading}
             className={`flex flex-col items-center justify-center p-2.5 rounded-[6px] border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px] ${
-              email === 'prof.p5.616747@institution.edu'
+              email === 'faculty.campx@gmail.com'
                 ? 'border-[#0D9488] bg-[#F0FAF9] text-[#0D9488]'
                 : 'border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#0D9488] text-[#0B1F3A]'
             }`}
@@ -362,7 +366,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen w-full flex-col lg:flex-row bg-[#F6F8FB]">
+    <main className="flex min-h-screen w-full flex-col-reverse lg:flex-row bg-[#F6F8FB]">
       {/* Early client-side recovery routing before React hydration */}
       <script
         dangerouslySetInnerHTML={{
@@ -372,12 +376,12 @@ export default function LoginPage() {
       {/* Left: Navy Brand Panel */}
       <section className="flex flex-col justify-between bg-[#0B1F3A] p-8 lg:p-14 text-white lg:w-1/2" aria-label="Platform Overview">
         <div>
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex w-fit items-center gap-3 rounded-[8px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
             <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#1F6FEB] text-white shadow-md">
               <ShieldCheck className="h-6 w-6" />
             </div>
             <span className="text-2xl font-bold tracking-tight">CampXSync</span>
-          </div>
+          </Link>
 
           <div className="mt-12 max-w-lg">
             <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight text-white">

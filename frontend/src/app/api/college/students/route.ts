@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { inviteCollegeAdmin } from '@/lib/supabase/admin';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
+import { crossesCollege } from '@/lib/auth/college-scope';
 
 const CreateStudentSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50),
@@ -68,8 +70,9 @@ export async function GET(req: NextRequest) {
       LEFT JOIN acd.batch_students bs ON bs.student_id = s.id AND bs.status = 'ACTIVE' AND bs.deleted_at IS NULL
       LEFT JOIN acd.batches b ON b.id = bs.batch_id
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR s.college_id = $2)
       ORDER BY s.enrollment_no ASC
-    `, [tenantId]);
+    `, [tenantId, resolution.session.assignedCollegeId]);
 
     return NextResponse.json({
       success: true,
@@ -167,11 +170,22 @@ export async function POST(req: NextRequest) {
       );
     }
     const program = progRes.rows[0];
+    if (crossesCollege(resolution.session.assignedCollegeId, program.college_id)) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'That program belongs to another college.',
+        },
+        { status: 403 }
+      );
+    }
 
     // 2. If batchId provided, verify it belongs to tenant and matches program
     if (batchId) {
       const batchRes = await query(`
-        SELECT id FROM acd.batches
+        SELECT id, college_id, program_id FROM acd.batches
         WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
         LIMIT 1
       `, [batchId, tenantId]);
@@ -185,6 +199,21 @@ export async function POST(req: NextRequest) {
             detail: 'The specified batch does not exist in your tenant workspace.',
           },
           { status: 404 }
+        );
+      }
+      const batch = batchRes.rows[0];
+      if (
+        batch.program_id !== programId ||
+        crossesCollege(resolution.session.assignedCollegeId, batch.college_id)
+      ) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'That batch does not belong to the selected program and college.',
+          },
+          { status: 403 }
         );
       }
     }
@@ -227,61 +256,120 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Create person in core.persons
+    // 5. Invite before any insert. A failed or unconfigured invite still enrolls the student.
+    const authInviteResult = await inviteCollegeAdmin(email);
+
+    // 6. Person, student, batch, profile, role, and audit share one transaction.
     const displayName = `${firstName} ${lastName}`.trim();
-    const personRes = await query(`
-      INSERT INTO core.persons (tenant_id, first_name, last_name, display_name, primary_email, status)
-      VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
-      RETURNING id
-    `, [tenantId, firstName, lastName, displayName, email]);
+    const enrolled = await withTransaction(async (client) => {
+      const personRes = await client.query(`
+        INSERT INTO core.persons (tenant_id, first_name, last_name, display_name, primary_email, status)
+        VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
+        RETURNING id
+      `, [tenantId, firstName, lastName, displayName, email]);
 
-    const person = personRes.rows[0];
+      const person = personRes.rows[0];
 
-    // 6. Create student in stu.students
-    const stuRes = await query(`
-      INSERT INTO stu.students (tenant_id, person_id, college_id, program_id, enrollment_no, status)
-      VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
-      RETURNING id, enrollment_no, status, created_at
-    `, [tenantId, person.id, program.college_id, programId, enrollmentNo]);
+      const stuRes = await client.query(`
+        INSERT INTO stu.students (tenant_id, person_id, college_id, program_id, enrollment_no, status)
+        VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
+        RETURNING id, enrollment_no, status, created_at
+      `, [tenantId, person.id, program.college_id, programId, enrollmentNo]);
 
-    const student = stuRes.rows[0];
+      const student = stuRes.rows[0];
 
-    // 7. If batchId provided, assign student to batch in acd.batch_students
-    let batchAssigned = false;
-    if (batchId) {
-      await query(`
-        INSERT INTO acd.batch_students (
-          tenant_id, batch_id, student_id, roll_no, joined_on, status, row_version
+      let batchAssigned = false;
+      if (batchId) {
+        await client.query(`
+          INSERT INTO acd.batch_students (
+            tenant_id, batch_id, student_id, roll_no, joined_on, status, row_version
+          )
+          VALUES ($1, $2, $3, $4, CURRENT_DATE, 'ACTIVE', 1)
+          ON CONFLICT (tenant_id, batch_id, student_id) WHERE deleted_at IS NULL DO NOTHING
+        `, [tenantId, batchId, student.id, enrollmentNo]);
+        batchAssigned = true;
+      }
+
+      const profileRes = authInviteResult.authInvite === 'INVITED'
+        ? await client.query(`
+            INSERT INTO iam.user_profiles (id, tenant_id, person_id, email, full_name, status, row_version)
+            VALUES ($1, $2, $3, $4, $5, 'ACTIVE', 1)
+            ON CONFLICT (tenant_id, email) WHERE deleted_at IS NULL
+            DO UPDATE SET full_name = EXCLUDED.full_name, person_id = EXCLUDED.person_id
+            RETURNING id
+          `, [authInviteResult.userId, tenantId, person.id, email, displayName])
+        : await client.query(`
+            INSERT INTO iam.user_profiles (tenant_id, person_id, email, full_name, status, row_version)
+            VALUES ($1, $2, $3, $4, 'ACTIVE', 1)
+            ON CONFLICT (tenant_id, email) WHERE deleted_at IS NULL
+            DO UPDATE SET full_name = EXCLUDED.full_name, person_id = EXCLUDED.person_id
+            RETURNING id
+          `, [tenantId, person.id, email, displayName]);
+
+      const profileId = profileRes.rows[0].id;
+
+      const roleRes = await client.query(`
+        SELECT id FROM iam.roles
+        WHERE tenant_id = $1 AND code = 'STUDENT' AND deleted_at IS NULL
+        LIMIT 1
+      `, [tenantId]);
+
+      let roleAssignment: 'MISSING' | null = null;
+      if (roleRes.rows.length === 0) {
+        roleAssignment = 'MISSING';
+      } else {
+        const studentRoleId = roleRes.rows[0].id;
+        const existingAssignment = await client.query(`
+          SELECT id FROM iam.role_assignments
+          WHERE tenant_id = $1 AND user_id = $2 AND role_id = $3 AND deleted_at IS NULL
+          LIMIT 1
+        `, [tenantId, profileId, studentRoleId]);
+
+        if (existingAssignment.rows.length === 0) {
+          await client.query(`
+            INSERT INTO iam.role_assignments (tenant_id, user_id, role_id, college_id, row_version)
+            VALUES ($1, $2, $3, $4, 1)
+          `, [tenantId, profileId, studentRoleId, program.college_id]);
+        }
+      }
+
+      await client.query(`
+        INSERT INTO audit.events (
+          tenant_id, college_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
         )
-        VALUES ($1, $2, $3, $4, CURRENT_DATE, 'ACTIVE', 1)
-        ON CONFLICT (tenant_id, batch_id, student_id) WHERE deleted_at IS NULL DO NOTHING
-      `, [tenantId, batchId, student.id, enrollmentNo]);
-      batchAssigned = true;
-    }
+        VALUES ($1, $2, now(), 'STUDENT_ENROLLED', 'COLLEGE_ADMIN', $3, 'STUDENT', $4, 'SUCCESS', 'INFO', $5)
+      `, [
+        tenantId,
+        program.college_id,
+        resolution.session.userId || null,
+        student.id,
+        JSON.stringify({
+          enrollmentNo,
+          displayName,
+          email,
+          programId,
+          batchId,
+          batchAssigned,
+          authInvite: authInviteResult.authInvite,
+        }),
+      ]);
 
-    // 8. Record Consequential Event in audit.events
-    await query(`
-      INSERT INTO audit.events (
-        tenant_id, college_id, event_time, action, principal_type, principal_id, resource_type, resource_id, status, severity, detail
-      )
-      VALUES ($1, $2, now(), 'STUDENT_ENROLLED', 'COLLEGE_ADMIN', $3, 'STUDENT', $4, 'SUCCESS', 'INFO', $5)
-    `, [
-      tenantId,
-      program.college_id,
-      resolution.session.userId || null,
-      student.id,
-      JSON.stringify({ enrollmentNo, displayName, email, programId, batchId, batchAssigned }),
-    ]);
+      return { student, batchAssigned, roleAssignment };
+    });
 
     return NextResponse.json(
       {
         success: true,
-        message: `Student '${displayName}' (${enrollmentNo}) enrolled successfully${batchAssigned ? ' and assigned to batch' : ''}.`,
+        ...(authInviteResult.authInvite === 'INVITED'
+          ? { authInvite: 'INVITED' as const }
+          : authInviteResult),
+        ...(enrolled.roleAssignment === 'MISSING' ? { roleAssignment: 'MISSING' as const } : {}),
+        message: `Student '${displayName}' (${enrollmentNo}) enrolled successfully${enrolled.batchAssigned ? ' and assigned to batch' : ''}.`,
         student: {
-          ...student,
+          ...enrolled.student,
           display_name: displayName,
           email,
-          batch_assigned: batchAssigned,
+          batch_assigned: enrolled.batchAssigned,
         },
       },
       { status: 201 }

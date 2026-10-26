@@ -17,7 +17,7 @@ export default async function CollegeBatchesPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, tenantName } = resolution.session;
+  const { tenantId, tenantName, assignedCollegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -37,8 +37,9 @@ export default async function CollegeBatchesPage() {
       FROM acd.batches b
       LEFT JOIN acd.programs p ON p.id = b.program_id
       WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR b.college_id = $2)
       ORDER BY b.code ASC
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     batches = batchesRes.rows;
 
@@ -55,8 +56,9 @@ export default async function CollegeBatchesPage() {
       FROM acd.subjects sub
       LEFT JOIN core.departments d ON d.id = sub.department_id
       WHERE sub.tenant_id = $1 AND sub.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR d.college_id = $2)
       ORDER BY sub.code ASC
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     subjects = subjectsRes.rows;
   } catch (err) {

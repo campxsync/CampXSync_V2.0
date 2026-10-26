@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { resolveEmployeeId } from '@/lib/auth/employee-link';
 import { query } from '@/lib/db';
 import { FacultyDashboardView } from './faculty-dashboard-view';
 import { sanitizePreferences, PRODUCT_DEFAULTS } from '@/lib/preferences/preference-model';
@@ -18,7 +19,7 @@ export default async function FacultyDashboardPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, displayName, userId } = resolution.session;
+  const { tenantId, displayName, userId, email, role } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -38,8 +39,15 @@ export default async function FacultyDashboardPage() {
   let openCount = 0;
   let userPreferences = PRODUCT_DEFAULTS;
 
+  const isFaculty = role === 'faculty';
+
   try {
-    // 1. Fetch all assigned timetable slots with today's session status joined
+    const employeeId = isFaculty
+      ? await resolveEmployeeId(tenantId, userId, email)
+      : null;
+
+    if (!isFaculty || employeeId) {
+    const scopeParams = isFaculty ? [tenantId, employeeId] : [tenantId];
     const slotsRes = await query(
       `
       SELECT 
@@ -60,9 +68,10 @@ export default async function FacultyDashboardPage() {
         AND today_sess.session_date = CURRENT_DATE 
         AND today_sess.deleted_at IS NULL
       WHERE tte.tenant_id = $1 AND tte.deleted_at IS NULL
+        ${isFaculty ? 'AND tte.employee_id = $2' : ''}
       ORDER BY tte.day_of_week ASC, tte.start_time ASC
       `,
-      [tenantId]
+      scopeParams
     );
 
     allAssignedSlots = slotsRes.rows.map((slot) => {
@@ -79,19 +88,11 @@ export default async function FacultyDashboardPage() {
       };
     });
 
-    // Partition today's slots vs upcoming slots
-    todaySlots = allAssignedSlots.filter((s) => s.day_of_week === currentIsoDay);
+    // Partition today's slots vs later days. Day numbers from Postgres may arrive as strings.
+    todaySlots = allAssignedSlots.filter((s) => Number(s.day_of_week) === currentIsoDay);
 
-    // If today has no slots (e.g. weekend or testing), use first available slots for schedule evaluation
-    if (todaySlots.length === 0 && allAssignedSlots.length > 0) {
-      todaySlots = allAssignedSlots.slice(0, 2);
-    }
-
-    // Upcoming slots: scheduled slots on subsequent days or later slots
     upcomingSlots = allAssignedSlots.filter(
-      (s) =>
-        s.day_of_week > currentIsoDay ||
-        (todaySlots.length === 0 ? false : !todaySlots.some((ts) => ts.id === s.id))
+      (s) => Number(s.day_of_week) > currentIsoDay
     );
 
     // 2. Fetch aggregate session counts
@@ -100,10 +101,11 @@ export default async function FacultyDashboardPage() {
       SELECT 
         count(CASE WHEN status = 'CLOSED' THEN 1 END)::int as closed_count,
         count(CASE WHEN status = 'OPEN' THEN 1 END)::int as open_count
-      FROM acd.attendance_sessions
-      WHERE tenant_id = $1 AND deleted_at IS NULL
+      FROM acd.attendance_sessions sess
+      WHERE sess.tenant_id = $1 AND sess.deleted_at IS NULL
+        ${isFaculty ? 'AND sess.employee_id = $2' : ''}
       `,
-      [tenantId]
+      scopeParams
     );
 
     if (sessionStatsRes.rows.length > 0) {
@@ -132,15 +134,17 @@ export default async function FacultyDashboardPage() {
         AND sess.session_date < CURRENT_DATE 
         AND sess.status = 'OPEN' 
         AND sess.deleted_at IS NULL
+        ${isFaculty ? 'AND sess.employee_id = $2' : ''}
       ORDER BY sess.session_date DESC
       LIMIT 5
       `,
-      [tenantId]
+      scopeParams
     );
 
     missedSessions = missedRes.rows;
+    }
 
-    // 4. Fetch User Preferences from iam.user_profiles
+    // Fetch User Preferences from iam.user_profiles
     const prefRes = await query(
       `SELECT preferences FROM iam.user_profiles WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
       [userId]

@@ -18,7 +18,6 @@ import {
   ArrowRight,
   Search,
   Keyboard,
-  Edit3,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -44,6 +43,7 @@ interface StudentItem {
   enrollment_no: string;
   display_name: string;
   primary_email: string;
+  section_id?: string;
 }
 
 interface Props {
@@ -103,6 +103,11 @@ export function FacultyAttendanceView({
   } | null>(null);
 
   const activeSlot = slots.find((s) => s.id === selectedSlotId);
+  const sectionRoster = activeSlot
+    ? rosterStudents.filter(
+        (student) => !student.section_id || student.section_id === activeSlot.section_id
+      )
+    : rosterStudents;
 
   // 1. Guard against navigating away with unsaved marks
   useEffect(() => {
@@ -167,6 +172,15 @@ export function FacultyAttendanceView({
       loadSessionRecords(initialSessionId);
     }
   }, [initialSessionId, loadSessionRecords]);
+
+  // A timetable link from Today should open that sheet without a second click.
+  const openedFromSlotLink = React.useRef(false);
+  useEffect(() => {
+    if (openedFromSlotLink.current || initialSessionId || !initialSlotId) return;
+    if (!slots.some((s) => s.id === initialSlotId)) return;
+    openedFromSlotLink.current = true;
+    void handleOpenSession();
+  }, [initialSlotId, initialSessionId, slots]);
 
   // 3. Open session (or retrieve existing session)
   const handleOpenSession = async () => {
@@ -239,7 +253,7 @@ export function FacultyAttendanceView({
   const handleMarkAll = (status: 'PRESENT' | 'ABSENT') => {
     if (isSessionLocked) return;
     const updated: Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE' | 'LATE' | 'ON_DUTY'> = {};
-    rosterStudents.forEach((s) => {
+    sectionRoster.forEach((s) => {
       updated[s.id] = status;
     });
     setAttendanceMarks(updated);
@@ -253,7 +267,7 @@ export function FacultyAttendanceView({
     setStatusMessage(null);
     setShowSubmitModal(false);
 
-    const recordPayload = rosterStudents.map((s) => ({
+    const recordPayload = sectionRoster.map((s) => ({
       studentId: s.id,
       status: attendanceMarks[s.id] || 'PRESENT',
     }));
@@ -296,13 +310,13 @@ export function FacultyAttendanceView({
   const leaveCount = Object.values(attendanceMarks).filter((s) => s === 'LEAVE').length;
   const lateCount = Object.values(attendanceMarks).filter((s) => s === 'LATE').length;
   const onDutyCount = Object.values(attendanceMarks).filter((s) => s === 'ON_DUTY').length;
-  const totalRoster = rosterStudents.length;
+  const totalRoster = sectionRoster.length;
   const attendedCount = presentCount + lateCount + onDutyCount;
   const runningPercentage = totalRoster > 0 ? Math.round((attendedCount / totalRoster) * 100) : 0;
-  const unmarkedCount = rosterStudents.filter((s) => !attendanceMarks[s.id]).length;
+  const unmarkedCount = sectionRoster.filter((s) => !attendanceMarks[s.id]).length;
 
   // Filtered students based on search and status filter
-  const filteredStudents = rosterStudents.filter((student) => {
+  const filteredStudents = sectionRoster.filter((student) => {
     const matchesSearch =
       student.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.enrollment_no.toLowerCase().includes(searchQuery.toLowerCase());
@@ -376,7 +390,7 @@ export function FacultyAttendanceView({
               </CardDescription>
             </div>
             <Link href="/faculty/sessions">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="whitespace-nowrap shrink-0">
                 <History className="mr-1.5 h-4 w-4" />
                 My Sessions
               </Button>
@@ -384,8 +398,8 @@ export function FacultyAttendanceView({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
+            <div className="min-w-0 flex-1">
               <label htmlFor="class-slot-select" className="block text-xs font-semibold text-[#0B1F3A] mb-1">
                 Class Slot <span className="text-[#D64545]">*</span>
               </label>
@@ -402,6 +416,8 @@ export function FacultyAttendanceView({
                     if (!confirmChange) return;
                   }
                   setSelectedSlotId(e.target.value);
+                  setRosterStudents(initialTenantStudents);
+                  setAttendanceMarks({});
                   setActiveSessionId(null);
                   setIsSessionLocked(false);
                   setHasUnsavedChanges(false);
@@ -415,7 +431,7 @@ export function FacultyAttendanceView({
               </select>
             </div>
 
-            <div>
+            <div className="w-full xl:w-44">
               <Input
                 id="session-date-input"
                 label="Session Date"
@@ -436,13 +452,13 @@ export function FacultyAttendanceView({
               />
             </div>
 
-            <div className="flex items-end">
+            <div className="xl:pb-px">
               <Button
                 variant="primary"
                 onClick={handleOpenSession}
                 isLoading={isLoading}
                 disabled={!selectedSlotId}
-                className="w-full"
+                className="w-full whitespace-nowrap xl:w-auto"
               >
                 <Clock className="mr-1.5 h-4 w-4" />
                 {activeSessionId ? 'Reload Attendance Sheet' : 'Open Attendance Session'}
@@ -499,12 +515,12 @@ export function FacultyAttendanceView({
         <Card className={isSessionLocked ? 'border-[#E3E8EF]' : 'border-[#1F6FEB]/40'}>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base text-[#0B1F3A]">
-                  Class Roster ({rosterStudents.length} Students)
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="whitespace-nowrap text-base text-[#0B1F3A]">
+                  Class Roster ({sectionRoster.length} Students)
                 </CardTitle>
                 {isSessionLocked ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#0D6535] bg-[#DFF6DD] px-2.5 py-0.5 rounded-full border border-[#107C41]/30">
+                  <span className="flex items-center gap-1 whitespace-nowrap text-[11px] font-bold text-[#0D6535] bg-[#DFF6DD] px-2.5 py-0.5 rounded-full border border-[#107C41]/30">
                     <Lock className="h-3 w-3" /> Submitted & Read-Only
                   </span>
                 ) : (
@@ -566,7 +582,7 @@ export function FacultyAttendanceView({
             ) : (
               <div className="flex items-center gap-2">
                 <Link href="/faculty/sessions">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="whitespace-nowrap">
                     <History className="mr-1.5 h-4 w-4" />
                     View Session History
                   </Button>
@@ -638,7 +654,7 @@ export function FacultyAttendanceView({
                       : 'bg-white text-[#475569] border-[#E3E8EF] hover:border-[#B8D3FC]'
                   )}
                 >
-                  All ({rosterStudents.length})
+                  All ({sectionRoster.length})
                 </button>
                 <button
                   type="button"
@@ -691,7 +707,7 @@ export function FacultyAttendanceView({
               </div>
             </div>
 
-            {rosterStudents.length === 0 ? (
+            {sectionRoster.length === 0 ? (
               <p className="text-xs text-[#475569] text-center py-8">
                 No students enrolled in this section roster. Enroll students from the College Admin Student Roster.
               </p>
@@ -743,11 +759,6 @@ export function FacultyAttendanceView({
                           </td>
                           <td className="py-3.5 px-4 font-medium text-[#0B1F3A]">
                             <span>{student.display_name}</span>
-                            {isFocused && (
-                              <span className="ml-2 text-[10px] text-[#0A4ABF] font-semibold">
-                                (Active)
-                              </span>
-                            )}
                           </td>
                           <td className="py-3.5 px-4 text-[#475569] hidden sm:table-cell">
                             {student.primary_email}
@@ -843,7 +854,7 @@ export function FacultyAttendanceView({
             )}
 
             {/* Sticky Running Counts & Action Bar */}
-            <div className="sticky bottom-0 z-20 flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white/95 backdrop-blur-xs border-t border-[#E3E8EF] shadow-lg rounded-b-[12px]">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white border-t border-[#E3E8EF] rounded-b-[12px]">
               <div className="flex flex-wrap items-center gap-2 text-xs text-[#0B1F3A]">
                 <span className="font-bold">Live Ledger:</span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#EAF8F1] text-[#0D6535] font-bold">
@@ -876,15 +887,9 @@ export function FacultyAttendanceView({
                     Submit Attendance
                   </Button>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#475569] hidden sm:inline">Locked record</span>
-                    <Link href={`/college/attendance?sessionId=${activeSessionId}`}>
-                      <Button variant="outline" size="sm" className="min-h-[38px]">
-                        <Edit3 className="mr-1.5 h-4 w-4 text-[#1F6FEB]" />
-                        Request / Review Correction
-                      </Button>
-                    </Link>
-                  </div>
+                  <span className="text-xs text-[#475569]">
+                    Locked record. Corrections are filed by the college office.
+                  </span>
                 )}
               </div>
             </div>

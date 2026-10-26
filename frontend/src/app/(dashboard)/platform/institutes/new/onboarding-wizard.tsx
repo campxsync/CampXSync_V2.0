@@ -39,7 +39,7 @@ interface SagaStepState {
   step: number;
   name: string;
   title: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'GATED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'VALIDATED' | 'FAILED' | 'GATED';
   detail?: string;
 }
 
@@ -182,12 +182,31 @@ export function OnboardingWizard() {
         return;
       }
 
-      // Mark saga steps completed per backend report
+      // Use the reported status. Dry-run steps are VALIDATED simulation checks;
+      // only a live write is COMPLETED. Step 5 stays GATED until approval.
       setSagaSteps((prev) =>
-        prev.map((s) => ({
-          ...s,
-          status: data.gated && s.step === 5 ? 'GATED' : 'COMPLETED',
-        }))
+        prev.map((s) => {
+          const reported = Array.isArray(data.saga)
+            ? data.saga.find(
+                (item: { step: number; status?: SagaStepState['status'] }) => item.step === s.step
+              )
+            : undefined;
+          const reportedStatus = reported?.status;
+          if (
+            reportedStatus === 'VALIDATED' ||
+            reportedStatus === 'COMPLETED' ||
+            reportedStatus === 'GATED' ||
+            reportedStatus === 'FAILED' ||
+            reportedStatus === 'IN_PROGRESS' ||
+            reportedStatus === 'PENDING'
+          ) {
+            return { ...s, status: reportedStatus };
+          }
+          return {
+            ...s,
+            status: data.gated ? (s.step === 5 ? 'GATED' : 'VALIDATED') : 'COMPLETED',
+          };
+        })
       );
 
       setSuccessData(data);
@@ -582,6 +601,7 @@ export function OnboardingWizard() {
             <div className="space-y-3">
               {sagaSteps.map((s) => {
                 const isComplete = s.status === 'COMPLETED';
+                const isValidated = s.status === 'VALIDATED';
                 const isFailed = s.status === 'FAILED';
                 const isGated = s.status === 'GATED';
                 const inProgress = s.status === 'IN_PROGRESS';
@@ -592,6 +612,8 @@ export function OnboardingWizard() {
                     className={`flex items-center justify-between p-3.5 rounded-[8px] border transition-all ${
                       isComplete
                         ? 'border-[#B2E6CE] bg-[#EAF8F1]/40'
+                        : isValidated
+                        ? 'border-[#C9D6EA] bg-[#F3F6FB]'
                         : isFailed
                         ? 'border-[#F8BDBD] bg-[#FDECEC]/50'
                         : isGated
@@ -606,6 +628,8 @@ export function OnboardingWizard() {
                         className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
                           isComplete
                             ? 'bg-[#1E9E6A] text-white'
+                            : isValidated
+                            ? 'bg-[#4C6A92] text-white'
                             : isFailed
                             ? 'bg-[#D64545] text-white'
                             : isGated
@@ -615,7 +639,7 @@ export function OnboardingWizard() {
                             : 'bg-[#E3E8EF] text-[#6B7688]'
                         }`}
                       >
-                        {isComplete ? '✓' : isFailed ? '✕' : inProgress ? (
+                        {isComplete || isValidated ? '✓' : isFailed ? '✕' : inProgress ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           s.step
@@ -626,6 +650,8 @@ export function OnboardingWizard() {
                         <p className="text-[11px] text-[#6B7688] mt-0.5">
                           {isComplete
                             ? 'Milestone verified and locked in audit trail.'
+                            : isValidated
+                            ? 'Simulation check only. No database write was persisted.'
                             : isFailed
                             ? 'Saga stopped. Error preserved; retry available.'
                             : isGated
@@ -641,6 +667,8 @@ export function OnboardingWizard() {
                       className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full ${
                         isComplete
                           ? 'bg-[#1E9E6A]/10 text-[#1E9E6A]'
+                          : isValidated
+                          ? 'bg-[#4C6A92]/10 text-[#4C6A92]'
                           : isFailed
                           ? 'bg-[#D64545]/10 text-[#D64545]'
                           : isGated
@@ -678,6 +706,21 @@ export function OnboardingWizard() {
                 <p className="text-[11px] text-[#6B7688]">
                   {successData.message}
                 </p>
+                {successData.authInvite === 'INVITED' && (
+                  <p className="text-[11px] text-[#6B7688]">
+                    A sign-in invite was sent to the college administrator.
+                  </p>
+                )}
+                {successData.authInvite === 'NOT_CONFIGURED' && (
+                  <p className="text-[11px] text-[#6B7688]">
+                    The institute was saved. No sign-in invite was sent because the server auth key is not configured.
+                  </p>
+                )}
+                {successData.authInvite === 'FAILED' && (
+                  <p className="text-[11px] text-[#9A3412]">
+                    The institute was saved, but the sign-in invite failed{successData.authInviteError ? `: ${successData.authInviteError}` : '.'}
+                  </p>
+                )}
               </div>
             )}
           </CardContent>

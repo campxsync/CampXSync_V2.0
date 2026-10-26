@@ -18,7 +18,7 @@ export default async function CollegeAuditLogPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  const { tenantId, tenantName } = resolution.session;
+  const { tenantId, tenantName, assignedCollegeId } = resolution.session;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -38,9 +38,10 @@ export default async function CollegeAuditLogPage() {
         created_at
       FROM audit.events
       WHERE tenant_id = $1
+        AND ($2::uuid IS NULL OR college_id = $2)
       ORDER BY event_time DESC
       LIMIT 100
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     auditEvents = res.rows;
   } catch (err) {
@@ -65,13 +66,13 @@ export default async function CollegeAuditLogPage() {
           title="Recorded Audit Entries"
           value={auditEvents.length.toString()}
           icon={History}
-          description="Tenant-scoped ledger events"
+          description={assignedCollegeId ? 'College-scoped ledger events' : 'Institute-wide ledger events'}
         />
         <StatCard
           title="Partition RLS Integrity"
-          value="Enforced (24/24)"
+          value="Enabled"
           icon={ShieldCheck}
-          description="All monthly partition tables secured"
+          description="Partition child tables use row-level security"
         />
         <StatCard
           title="Audit Ledger State"

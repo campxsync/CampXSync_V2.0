@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { query } from '@/lib/db';
+import { crossesCollege } from '@/lib/auth/college-scope';
 
 const CreateFacultySchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50),
@@ -63,8 +64,9 @@ export async function GET(req: NextRequest) {
       LEFT JOIN core.persons p ON p.id = e.person_id
       LEFT JOIN core.departments d ON d.id = e.department_id
       WHERE e.tenant_id = $1 AND e.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR e.college_id = $2)
       ORDER BY e.created_at DESC
-    `, [tenantId]);
+    `, [tenantId, resolution.session.assignedCollegeId]);
 
     return NextResponse.json({
       success: true,
@@ -159,6 +161,17 @@ export async function POST(req: NextRequest) {
       );
     }
     const dept = deptRes.rows[0];
+    if (crossesCollege(resolution.session.assignedCollegeId, dept.college_id)) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/forbidden',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'That department belongs to another college.',
+        },
+        { status: 403 }
+      );
+    }
 
     // 2. Check duplicate employeeNo in tenant
     const existingEmpRes = await query(`

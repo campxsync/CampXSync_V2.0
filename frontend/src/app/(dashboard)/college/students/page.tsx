@@ -16,6 +16,7 @@ export default async function CollegeStudentsPage() {
   }
 
   const tenantId = resolution.session.tenantId;
+  const assignedCollegeId = resolution.session.assignedCollegeId;
   if (!tenantId) {
     redirect('/access-denied?reason=forbidden');
   }
@@ -28,16 +29,18 @@ export default async function CollegeStudentsPage() {
       SELECT id, name, code
       FROM acd.programs
       WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR college_id = $2)
       ORDER BY name
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     programs = progRes.rows;
 
     const batchRes = await query(`
       SELECT id, name, code, program_id
       FROM acd.batches
       WHERE tenant_id = $1 AND deleted_at IS NULL
+        AND ($2::uuid IS NULL OR college_id = $2)
       ORDER BY name
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
     batches = batchRes.rows;
 
     const stuRes = await query(`
@@ -60,8 +63,9 @@ export default async function CollegeStudentsPage() {
       LEFT JOIN acd.batch_students bs ON bs.student_id = s.id AND bs.status = 'ACTIVE' AND bs.deleted_at IS NULL
       LEFT JOIN acd.batches b ON b.id = bs.batch_id
       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+        AND ($2::uuid IS NULL OR s.college_id = $2)
       ORDER BY s.enrollment_no ASC
-    `, [tenantId]);
+    `, [tenantId, assignedCollegeId]);
 
     studentsList = stuRes.rows.map((s: any) => ({
       id: s.id,

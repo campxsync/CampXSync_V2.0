@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const { name, code } = parseResult.data;
 
     // 2. Fetch primary college id for tenant if available
-    let collegeId = resolution.session.collegeId;
+    let collegeId = resolution.session.assignedCollegeId || resolution.session.collegeId;
     if (!collegeId) {
       const colRes = await query(`
         SELECT id FROM core.colleges WHERE tenant_id = $1 AND deleted_at IS NULL LIMIT 1

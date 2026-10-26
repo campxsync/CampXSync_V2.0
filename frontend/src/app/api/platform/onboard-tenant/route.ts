@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { inviteCollegeAdmin } from '@/lib/supabase/admin';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { query } from '@/lib/db';
 
@@ -115,10 +116,10 @@ export async function POST(req: NextRequest) {
           gated: true,
           message: "Pre-provisioning saga validated. Live staging write is safely gated awaiting user approval phrase 'GO PROVISION-TENANT'.",
           saga: [
-            { step: 1, name: 'CREATE_TENANT_ONBOARDING', status: 'COMPLETED', title: 'Institute Initialized in Onboarding Status' },
-            { step: 2, name: 'SEED_TENANT_CONFIG', status: 'COMPLETED', title: 'System Role Templates & Default Configuration Seeded' },
-            { step: 3, name: 'PROVISION_ADMIN_IDENTITY', status: 'COMPLETED', title: `College Administrator Profile Validated (${adminEmail})` },
-            { step: 4, name: 'GRANT_COLLEGE_ADMIN_ROLE', status: 'COMPLETED', title: 'IAM COLLEGE_ADMIN Role Assignment Staged' },
+            { step: 1, name: 'CREATE_TENANT_ONBOARDING', status: 'VALIDATED', title: 'Institute Initialized in Onboarding Status' },
+            { step: 2, name: 'SEED_TENANT_CONFIG', status: 'VALIDATED', title: 'System Role Templates & Default Configuration Seeded' },
+            { step: 3, name: 'PROVISION_ADMIN_IDENTITY', status: 'VALIDATED', title: `College Administrator Profile Validated (${adminEmail})` },
+            { step: 4, name: 'GRANT_COLLEGE_ADMIN_ROLE', status: 'VALIDATED', title: 'IAM COLLEGE_ADMIN Role Assignment Staged' },
             { step: 5, name: 'ACTIVATE_INSTITUTE', status: 'GATED', title: "Awaiting Explicit Approval 'GO PROVISION-TENANT'" }
           ],
           tenant: {
@@ -161,13 +162,26 @@ export async function POST(req: NextRequest) {
     // Step 2: Seed tenant configuration from platform defaults (30 system roles)
     await query(`SELECT iam.seed_system_roles($1)`, [tenant.id]);
 
+    // Invite before the profile insert so the profile id can be the Auth user id.
+    // Role resolution looks up iam.user_profiles.id and iam.role_assignments.user_id
+    // by the authenticated user id. Invite failure does not roll back the tenant.
+    const authInviteResult = await inviteCollegeAdmin(adminEmail);
+    const authUserId = authInviteResult.authInvite === 'INVITED' ? authInviteResult.userId : null;
+
     // Step 3: Provision first College Admin in iam.user_profiles
-    const profileRes = await query(`
-      INSERT INTO iam.user_profiles (tenant_id, email, full_name, status, row_version)
-      VALUES ($1, $2, $3, 'ACTIVE', 1)
-      ON CONFLICT (tenant_id, email) WHERE deleted_at IS NULL DO UPDATE SET full_name = EXCLUDED.full_name
-      RETURNING id, email, full_name, status
-    `, [tenant.id, adminEmail, adminName]);
+    const profileRes = authUserId
+      ? await query(`
+          INSERT INTO iam.user_profiles (id, tenant_id, email, full_name, status, row_version)
+          VALUES ($1, $2, $3, $4, 'ACTIVE', 1)
+          ON CONFLICT (tenant_id, email) WHERE deleted_at IS NULL DO UPDATE SET full_name = EXCLUDED.full_name
+          RETURNING id, email, full_name, status
+        `, [authUserId, tenant.id, adminEmail, adminName])
+      : await query(`
+          INSERT INTO iam.user_profiles (tenant_id, email, full_name, status, row_version)
+          VALUES ($1, $2, $3, 'ACTIVE', 1)
+          ON CONFLICT (tenant_id, email) WHERE deleted_at IS NULL DO UPDATE SET full_name = EXCLUDED.full_name
+          RETURNING id, email, full_name, status
+        `, [tenant.id, adminEmail, adminName]);
 
     const adminProfile = profileRes.rows[0];
 
@@ -214,6 +228,9 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         gated: false,
+        ...(authInviteResult.authInvite === 'INVITED'
+          ? { authInvite: 'INVITED' as const }
+          : authInviteResult),
         message: `Institutional tenant '${tenantName}' (${tenantCode}) onboarded and activated successfully.`,
         saga: [
           { step: 1, name: 'CREATE_TENANT_ONBOARDING', status: 'COMPLETED', title: 'Institute Initialized in Onboarding Status' },

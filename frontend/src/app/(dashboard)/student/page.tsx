@@ -65,13 +65,15 @@ export default async function StudentDashboardPage() {
           sub.code as subject_code,
           sub.name as subject_name,
           count(DISTINCT sess.id)::int as total_conducted,
-          count(DISTINCT CASE WHEN ar.status = 'PRESENT' OR ar.status = 'ON_DUTY' THEN sess.id END)::int as attended_count,
+          count(DISTINCT CASE WHEN ar.status = 'PRESENT' OR ar.status = 'ON_DUTY' OR ar.status = 'LATE' THEN sess.id END)::int as attended_count,
           count(DISTINCT CASE WHEN ar.status = 'ABSENT' THEN sess.id END)::int as absent_count
-        FROM acd.subjects sub
-        JOIN acd.timetable_entries te ON te.subject_id = sub.id AND te.deleted_at IS NULL
+        FROM acd.batch_students bs
+        JOIN acd.course_sections cs ON cs.batch_id = bs.batch_id AND cs.tenant_id = bs.tenant_id AND cs.deleted_at IS NULL
+        JOIN acd.timetable_entries te ON te.section_id = cs.id AND te.tenant_id = bs.tenant_id AND te.deleted_at IS NULL
+        JOIN acd.subjects sub ON sub.id = te.subject_id AND sub.tenant_id = bs.tenant_id AND sub.deleted_at IS NULL
         LEFT JOIN acd.attendance_sessions sess ON sess.timetable_entry_id = te.id AND sess.status = 'CLOSED' AND sess.deleted_at IS NULL
-        LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id AND ar.student_id = $1
-        WHERE sub.tenant_id = $2 AND sub.deleted_at IS NULL
+        LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id AND ar.student_id = bs.student_id
+        WHERE bs.student_id = $1 AND bs.tenant_id = $2 AND bs.status = 'ACTIVE'
         GROUP BY sub.id, sub.code, sub.name
         ORDER BY sub.code ASC
       `, [student.id, tenantId]);

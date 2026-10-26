@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
 
 const CorrectAttendanceSchema = z.object({
   recordId: z.string().uuid('Valid attendance record ID required'),
@@ -83,6 +83,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (resolution.session.assignedCollegeId) {
+      const collegeRes = await query(
+        `
+        SELECT b.college_id
+        FROM acd.attendance_sessions s
+        JOIN acd.course_sections cs ON cs.id = s.section_id
+        JOIN acd.batches b ON b.id = cs.batch_id
+        WHERE s.id = $1 AND s.tenant_id = $2 AND s.deleted_at IS NULL
+        LIMIT 1
+        `,
+        [sessionId, tenantId]
+      );
+      if (collegeRes.rows[0]?.college_id !== resolution.session.assignedCollegeId) {
+        return NextResponse.json(
+          {
+            type: 'https://campxsync.edu/errors/forbidden',
+            title: 'Forbidden',
+            status: 403,
+            detail: 'That attendance session belongs to another college.',
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // 2. Concurrency Check: Assert expected version matches current database version
     if (existingRecord.row_version !== expectedVersion) {
       return NextResponse.json(
@@ -114,35 +139,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Update acd.attendance_records atomically with version increment
-    const updateRes = await query(`
-      UPDATE acd.attendance_records
-      SET 
-        status = $1,
-        remarks = $2,
-        row_version = $3,
-        updated_at = now()
-      WHERE id = $4 AND tenant_id = $5 AND COALESCE(row_version, 1) = $6
-      RETURNING id, session_id, student_id, status, remarks, row_version, updated_at
-    `, [newStatus, reason, newVersion, recordId, tenantId, expectedVersion]);
+    // 3–7. Update the record and write correction history, change log, audit, and outbox together.
+    // A failure after the update rolls the version change back.
+    const updatedRecord = await withTransaction(async (client) => {
+      const updateRes = await client.query(`
+        UPDATE acd.attendance_records
+        SET 
+          status = $1,
+          remarks = $2,
+          row_version = $3,
+          updated_at = now()
+        WHERE id = $4 AND tenant_id = $5 AND COALESCE(row_version, 1) = $6
+        RETURNING id, session_id, student_id, status, remarks, row_version, updated_at
+      `, [newStatus, reason, newVersion, recordId, tenantId, expectedVersion]);
 
-    if (updateRes.rowCount === 0) {
-      return NextResponse.json(
-        {
-          type: 'https://campxsync.edu/errors/conflict',
-          title: 'Optimistic Concurrency Conflict',
-          status: 409,
-          detail: 'Concurrent mutation detected during record update. Please reload.',
-        },
-        { status: 409 }
-      );
-    }
+      if (updateRes.rowCount === 0) {
+        throw new Error('OPTIMISTIC_CONFLICT');
+      }
 
-    const updatedRecord = updateRes.rows[0];
+      const updated = updateRes.rows[0];
 
-    // 4. Insert into domain contract table: acd.attendance_corrections
-    try {
-      await query(`
+      await client.query(`
         INSERT INTO acd.attendance_corrections (
           tenant_id,
           record_id,
@@ -167,13 +184,8 @@ export async function POST(req: NextRequest) {
         validUserProfileId,
         validUserProfileId,
       ]);
-    } catch (domainErr: any) {
-      console.warn('Failed to insert acd.attendance_corrections entry:', domainErr.message);
-    }
 
-    // 5. Append immutable change log in audit.change_log
-    try {
-      await query(`
+      await client.query(`
         INSERT INTO audit.change_log (
           tenant_id,
           table_schema,
@@ -196,13 +208,8 @@ export async function POST(req: NextRequest) {
         JSON.stringify({ status: newStatus, row_version: newVersion, reason }),
         reason,
       ]);
-    } catch (changeLogErr: any) {
-      console.warn('Failed to insert audit.change_log entry:', changeLogErr.message);
-    }
 
-    // 6. Append immutable audit event in audit.events
-    try {
-      await query(`
+      await client.query(`
         INSERT INTO audit.events (
           tenant_id,
           event_time,
@@ -230,13 +237,8 @@ export async function POST(req: NextRequest) {
           correctedBy: resolution.session.displayName || 'College Administrator',
         }),
       ]);
-    } catch (auditErr: any) {
-      console.warn('Failed to insert audit.events entry:', auditErr.message);
-    }
 
-    // 7. Emit AttendanceCorrected event via existing outbox: sys.outbox_events
-    try {
-      await query(`
+      await client.query(`
         INSERT INTO sys.outbox_events (
           tenant_id,
           service,
@@ -273,9 +275,9 @@ export async function POST(req: NextRequest) {
           timestamp: new Date().toISOString(),
         }),
       ]);
-    } catch (outboxErr: any) {
-      console.warn('Failed to emit to sys.outbox_events:', outboxErr.message);
-    }
+
+      return updated;
+    });
 
     // 8. Recalculate session summary
     const summaryRes = await query(`
@@ -322,6 +324,17 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: any) {
+    if (err?.message === 'OPTIMISTIC_CONFLICT') {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/conflict',
+          title: 'Optimistic Concurrency Conflict',
+          status: 409,
+          detail: 'Concurrent mutation detected during record update. Please reload.',
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       {
         type: 'https://campxsync.edu/errors/internal-server-error',

@@ -60,8 +60,13 @@ export async function GET(req: NextRequest) {
     const format = url.searchParams.get('format') || 'json';
 
     // Build parameterized query for sessions/records join
-    const params: any[] = [tenantId];
-    let sessionFilters = 's.tenant_id = $1 AND s.deleted_at IS NULL';
+    const params: any[] = [tenantId, resolution.session.assignedCollegeId ?? null];
+    let sessionFilters = `s.tenant_id = $1 AND s.deleted_at IS NULL AND ($2::uuid IS NULL OR EXISTS (
+      SELECT 1
+      FROM acd.course_sections cs
+      JOIN acd.batches b ON b.id = cs.batch_id
+      WHERE cs.id = s.section_id AND b.college_id = $2
+    ))`;
 
     if (sectionId) {
       params.push(sectionId);
@@ -83,7 +88,7 @@ export async function GET(req: NextRequest) {
       sessionFilters += ` AND s.session_date <= $${params.length}`;
     }
 
-    let studentWhereClause = 'st.tenant_id = $1 AND st.deleted_at IS NULL';
+    let studentWhereClause = 'st.tenant_id = $1 AND st.deleted_at IS NULL AND ($2::uuid IS NULL OR st.college_id = $2)';
     if (studentId) {
       params.push(studentId);
       studentWhereClause += ` AND st.id = $${params.length}`;

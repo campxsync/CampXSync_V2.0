@@ -205,12 +205,14 @@ export function CollegeDashboardView({
               ) : mounted ? (
                 <div className="h-[260px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trend} margin={{ top: 10, right: 30, left: -20, bottom: 5 }}>
+                    <LineChart data={trend} margin={{ top: 10, right: 16, left: -12, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E3E8EF" />
                       <XAxis
                         dataKey="displayDate"
                         tick={{ fill: '#6B7688', fontSize: 11 }}
                         tickLine={false}
+                        minTickGap={28}
+                        interval="preserveStartEnd"
                       />
                       <YAxis
                         domain={[0, 100]}
@@ -542,7 +544,7 @@ export function CollegeDashboardView({
   return (
     <div className="space-y-6">
       {/* Dashboard Header & Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             College Operations Dashboard
