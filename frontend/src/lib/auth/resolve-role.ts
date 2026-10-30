@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 import { query } from '@/lib/db';
@@ -31,7 +32,7 @@ export type RoleResolutionResult =
   | { success: true; session: ResolvedUserSession }
   | { success: false; reason: 'unauthenticated' | 'no_profile' | 'inactive_membership' | 'tenant_suspended' | 'no_role_assigned' };
 
-export async function resolveUserRole(
+async function resolveUserRoleUncached(
   supabase: SupabaseClient
 ): Promise<RoleResolutionResult> {
   // 1. Get authenticated user from session or test session cookie
@@ -159,7 +160,9 @@ export async function resolveUserRole(
         roles: { code: r.role_code, name: r.role_name },
       }));
     }
-  } catch {}
+  } catch (err) {
+    console.error('Role profile lookup failed:', err instanceof Error ? err.message : err);
+  }
 
   if (!profile || profile.deleted_at !== null) {
     // Only in gated test session mode: allow mock session with test cookie
@@ -329,3 +332,5 @@ export async function resolveUserRole(
     },
   };
 }
+
+export const resolveUserRole = cache(resolveUserRoleUncached);

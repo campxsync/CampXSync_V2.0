@@ -1,7 +1,8 @@
+import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-export async function createClient() {
+async function createClientUncached() {
   const cookieStore = await cookies();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kpwdvvcschankgggitnj.supabase.co';
@@ -25,3 +26,6 @@ export async function createClient() {
     },
   });
 }
+
+/** One client per request so the layout and the page share the same session lookup. */
+export const createClient = cache(createClientUncached);

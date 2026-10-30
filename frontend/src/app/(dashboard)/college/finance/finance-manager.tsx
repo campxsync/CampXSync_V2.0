@@ -94,6 +94,7 @@ export function FinanceManager(props: {
             <Field name="referenceNo" label="Office reference" placeholder="CASH-2026-001" />
             <Button type="submit" variant="primary" isLoading={saving}>Record and issue receipt</Button>
           </form>
+          <Button type="button" variant="outline" isLoading={saving} onClick={() => run(() => post('/api/college/finance/reconcile', {}))}>Match receipt to office payment</Button>
           <List rows={props.receipts.map((item) => ({ id: item.receipt_no, title: item.receipt_no, meta: `${item.enrollment_no || ''} · INR ${item.total_amount}`, status: item.status }))} />
         </Block>
       )}

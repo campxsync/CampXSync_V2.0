@@ -34,8 +34,10 @@ export function getDbPool(): Pool {
       connectionString: urlObj.toString(),
       ssl: resolveDbSsl(process.env),
       ...(roleOptions !== undefined ? { options: roleOptions } : {}),
-      max: 10,
-      idleTimeoutMillis: 30000,
+      max: 4,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000,
+      keepAlive: true,
     });
 
     pool.on('error', (err) => {
@@ -63,17 +65,47 @@ async function prepareClient(client: PoolClient): Promise<void> {
   prepared.__campxRole = role;
 }
 
+function isDeadConnection(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /ECONNRESET|EMAXCONNSESSION|ETIMEDOUT|ENOTFOUND|socket disconnected|Connection terminated|Client has encountered a connection error/i.test(message);
+}
+
+async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const client = await getDbPool().connect();
+    try {
+      await prepareClient(client);
+      const result = await fn(client);
+      client.release();
+      return result;
+    } catch (err) {
+      lastError = err;
+      client.release(err as Error);
+      if (!isDeadConnection(err) || attempt === 1) throw err;
+    }
+  }
+  throw lastError;
+}
+
 export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
-  const client = await getDbPool().connect();
-  try {
-    await prepareClient(client);
-    return await client.query<T>(text, params);
-  } finally {
-    client.release();
-  }
+  return withClient((client) => client.query<T>(text, params));
+}
+
+/** Runs every statement on one pooled connection. Pages use this instead of opening one session per query. */
+export async function queryAll(
+  jobs: Array<{ text: string; params?: any[] }>
+): Promise<QueryResult[]> {
+  return withClient(async (client) => {
+    const results: QueryResult[] = [];
+    for (const job of jobs) {
+      results.push(await client.query(job.text, job.params));
+    }
+    return results;
+  });
 }
 
 export async function withTransaction<T>(

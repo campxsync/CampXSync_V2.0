@@ -14,6 +14,10 @@ import {
   ListChecks,
   Presentation,
   Wallet,
+  FileCheck,
+  Briefcase,
+  Megaphone,
+  MapPin,
   LucideIcon,
 } from 'lucide-react';
 import { UserRole } from './auth/resolve-role';
@@ -35,6 +39,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },
     { title: 'Departments & Programs', href: '/college/departments', icon: Building2 },
+    { title: 'Campuses', href: '/college/campuses', icon: MapPin },
     { title: 'Faculty Roster', href: '/college/faculty', icon: Users },
     { title: 'Student Roster', href: '/college/students', icon: GraduationCap },
     { title: 'Academic Calendar', href: '/college/calendar', icon: CalendarDays },
@@ -45,6 +50,9 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Assessment', href: '/college/assessment', icon: ListChecks },
     { title: 'Learning', href: '/college/learning', icon: Presentation },
     { title: 'Finance', href: '/college/finance', icon: Wallet },
+    { title: 'Examinations', href: '/college/examinations', icon: FileCheck },
+    { title: 'Staff', href: '/college/staff', icon: Briefcase },
+    { title: 'Communications', href: '/college/communications', icon: Megaphone },
     { title: 'Attendance', href: '/college/attendance', icon: ClipboardCheck },
     { title: 'Audit Log', href: '/college/audit', icon: History },
   ],

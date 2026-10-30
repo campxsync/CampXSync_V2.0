@@ -598,6 +598,20 @@ These issues are visible from the supplied specifications and must be resolved e
 
 This is a dependency-based sequence, not a claim that any item is complete.
 
+### Recorded status — 30 October 2026
+
+Verified on localhost against staging. These are first operational records, not a finished release.
+
+| Phase | Done and verified | Still open |
+|---|---|---|
+| 0–2 | Staging is separate from production. College admin and faculty can sign in. Attendance is a real locked workflow. | Student sign-in. The architecture register was not rewritten in this pass. |
+| 3 | Curriculum, calendar, readings, assessment, and the learning records (course, content, lesson, assignment, classroom label, progress, draft badge, draft certificate, outcome mapping). | File upload, a live video call, and credential issuance. |
+| 4 | Odd-semester exam through a published CS301 result (PASS 72/100, no SGPA). Office receipt RCP-25607217 matched to its INR 5000 payment. Expenses, tax code, scholarship, and operating budget exist as drafts or recorded rows. | Hall-ticket file, scanner, SGPA, payment gateway, and bank settlement. |
+| 5 | Leave, staff day, appraisal cycle, salary structure, payslip PS-2026-10-001 calculated from an entered basic pay of INR 45000, vacancy, onboarding, training nomination, and the odd-semester notice delivered in the app to one faculty member. | Email, SMS, WhatsApp, bank payment of salary, and a governed assistant. Attendance risk is not a model; it was not added. |
+| 6 | Primary campus DIT-MAIN, with the affiliating university stored on the college. | Load test, restore drill, and recovery-time evidence. Those were deliberately not run against staging. |
+
+Suggested next work, in this order: student sign-in, a real restore drill on a copy of staging, then gateway or bank payment only with a signed provider contract. Do not treat a draft row as a completed payout or a sent message on an external channel.
+
 ### Phase 0 — Establish a trustworthy baseline
 
 - Inventory repository, migrations, environment configuration, existing tests, module specs and checkpoint documents.
