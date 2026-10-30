@@ -593,4 +593,145 @@ public class CourseDomainServiceTest {
         assertTrue(attached2.isCurrent());
         assertFalse(attached1.isCurrent()); // v1 should now be superseded
     }
+
+    // =========================================================================
+    // MVP-ACD01-02: Course Offering Lifecycle State Machine Tests
+    // =========================================================================
+
+    @Test
+    public void testOfferingLifecycleValidTransitions() {
+        Course c = new Course();
+        c.setCourseCode("CS_OFF_01");
+        c.setCourseName("Distributed Algorithms");
+        c.setDepartmentId("DEP_CS");
+        c.setTotalCredits(4.0);
+        domainService.createDraftCourse(c);
+
+        // 1. Create in UPCOMING status
+        CourseBatchOffering offering = domainService.addBatchOffering(c.getId(), "BATCH_2026_CS", "FALL_2026", "UPCOMING");
+        assertNotNull(offering.getId());
+        assertEquals("UPCOMING", offering.getStatus());
+
+        // 2. UPCOMING -> ACTIVE (commenced)
+        CourseBatchOffering active = domainService.activateOffering(offering.getId());
+        assertEquals("ACTIVE", active.getStatus());
+
+        // 3. ACTIVE -> COMPLETED (finished)
+        CourseBatchOffering completed = domainService.completeOffering(active.getId());
+        assertEquals("COMPLETED", completed.getStatus());
+
+        // Verify outbox events
+        List<OutboxEvent> outbox = domainService.getOutboxEvents();
+        assertTrue(outbox.stream().anyMatch(e -> "CourseOfferingCreated".equals(e.getEventType())));
+        assertTrue(outbox.stream().anyMatch(e -> "CourseOfferingStatusChanged".equals(e.getEventType())));
+    }
+
+    @Test
+    public void testOfferingLifecycleCancellationTransitions() {
+        Course c = new Course();
+        c.setCourseCode("CS_OFF_02");
+        c.setCourseName("Quantum Computing");
+        c.setDepartmentId("DEP_CS");
+        c.setTotalCredits(3.0);
+        domainService.createDraftCourse(c);
+
+        // 1. UPCOMING -> CANCELLED
+        CourseBatchOffering off1 = domainService.addBatchOffering(c.getId(), "BATCH_2026_QC1", "SPRING_2027", "UPCOMING");
+        CourseBatchOffering cancelled1 = domainService.cancelOffering(off1.getId());
+        assertEquals("CANCELLED", cancelled1.getStatus());
+
+        // 2. ACTIVE -> CANCELLED
+        CourseBatchOffering off2 = domainService.addBatchOffering(c.getId(), "BATCH_2026_QC2", "SPRING_2027", "ACTIVE");
+        CourseBatchOffering cancelled2 = domainService.cancelOffering(off2.getId());
+        assertEquals("CANCELLED", cancelled2.getStatus());
+    }
+
+    @Test
+    public void testOfferingLifecycleIllegalTransitionsRejected() {
+        Course c = new Course();
+        c.setCourseCode("CS_OFF_03");
+        c.setCourseName("Compiler Design");
+        c.setDepartmentId("DEP_CS");
+        c.setTotalCredits(4.0);
+        domainService.createDraftCourse(c);
+
+        // 1. UPCOMING -> COMPLETED must be rejected
+        CourseBatchOffering upcoming = domainService.addBatchOffering(c.getId(), "BATCH_2026_CD", "FALL_2026", "UPCOMING");
+        try {
+            domainService.completeOffering(upcoming.getId());
+            fail("Expected InvalidCourseStateException on UPCOMING -> COMPLETED");
+        } catch (InvalidCourseStateException e) {
+            assertTrue(e.getMessage().contains("UPCOMING -> COMPLETED"));
+        }
+
+        // 2. Transition to ACTIVE, then ACTIVE -> UPCOMING must be rejected
+        domainService.activateOffering(upcoming.getId());
+        assertEquals("ACTIVE", upcoming.getStatus());
+        try {
+            domainService.updateOfferingStatus(upcoming.getId(), "UPCOMING");
+            fail("Expected InvalidCourseStateException on ACTIVE -> UPCOMING");
+        } catch (InvalidCourseStateException e) {
+            assertTrue(e.getMessage().contains("ACTIVE -> UPCOMING"));
+        }
+
+        // 3. Transition to COMPLETED, then COMPLETED -> ANY must be rejected (terminal)
+        domainService.completeOffering(upcoming.getId());
+        assertEquals("COMPLETED", upcoming.getStatus());
+
+        for (String target : Arrays.asList("UPCOMING", "ACTIVE", "CANCELLED")) {
+            try {
+                domainService.updateOfferingStatus(upcoming.getId(), target);
+                fail("Expected InvalidCourseStateException transitioning from terminal COMPLETED to " + target);
+            } catch (InvalidCourseStateException e) {
+                assertTrue(e.getMessage().contains("terminal state COMPLETED"));
+            }
+        }
+    }
+
+    @Test
+    public void testOfferingLifecycleCancelledTerminalStateRejected() {
+        Course c = new Course();
+        c.setCourseCode("CS_OFF_04");
+        c.setCourseName("Cybersecurity Principles");
+        c.setDepartmentId("DEP_CS");
+        c.setTotalCredits(4.0);
+        domainService.createDraftCourse(c);
+
+        CourseBatchOffering off = domainService.addBatchOffering(c.getId(), "BATCH_2026_SEC", "FALL_2026", "UPCOMING");
+        domainService.cancelOffering(off.getId());
+        assertEquals("CANCELLED", off.getStatus());
+
+        for (String target : Arrays.asList("UPCOMING", "ACTIVE", "COMPLETED")) {
+            try {
+                domainService.updateOfferingStatus(off.getId(), target);
+                fail("Expected InvalidCourseStateException transitioning from terminal CANCELLED to " + target);
+            } catch (InvalidCourseStateException e) {
+                assertTrue(e.getMessage().contains("terminal state CANCELLED"));
+            }
+        }
+    }
+
+    @Test
+    public void testOfferingInitialStatusValidation() {
+        Course c = new Course();
+        c.setCourseCode("CS_OFF_05");
+        c.setCourseName("Cloud Native Systems");
+        c.setDepartmentId("DEP_CS");
+        c.setTotalCredits(4.0);
+        domainService.createDraftCourse(c);
+
+        try {
+            domainService.addBatchOffering(c.getId(), "BATCH_2026_CN", "FALL_2026", "COMPLETED");
+            fail("Expected InvalidCourseStateException on initial status COMPLETED");
+        } catch (InvalidCourseStateException e) {
+            assertTrue(e.getMessage().contains("must be UPCOMING or ACTIVE"));
+        }
+
+        try {
+            domainService.addBatchOffering(c.getId(), "BATCH_2026_CN", "FALL_2026", "INVALID_STATUS");
+            fail("Expected InvalidCourseStateException on unknown initial status");
+        } catch (InvalidCourseStateException e) {
+            assertTrue(e.getMessage().contains("must be UPCOMING or ACTIVE"));
+        }
+    }
 }

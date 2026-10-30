@@ -34,6 +34,7 @@ public class PostgresPlatformAdminRepositoryTest {
     @BeforeClass
     public static void setUpClass() throws Exception {
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
         repository = new PostgresPlatformAdminRepository(connectionManager);
         platformAdminContext = UserSecurityContext.forPlatformAdmin(SUPER_ADMIN_UUID);
     }

@@ -36,23 +36,10 @@ public class PostgresUsageMetricRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require SUPABASE_JDBC_URL or CAMPX_JDBC_URL", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
-        repository = new PostgresUsageMetricRepository(connectionManager);
+        tenantId = com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
 
-        try (Connection conn = connectionManager.getConnection()) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tenantId = (UUID) rs.getObject("id");
-                    }
-                }
-            }
-        }
-        assumeNotNull("Requires an active tenant in core.tenants", tenantId);
+        repository = new PostgresUsageMetricRepository(connectionManager);
 
         otherTenantId = UUID.randomUUID();
         UUID adminUserId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
@@ -62,7 +49,7 @@ public class PostgresUsageMetricRepositoryTest {
 
     @After
     public void tearDown() throws Exception {
-        if (connectionManager == null) return;
+        if (tenantId == null || connectionManager == null || connectionManager.isClosed()) return;
         try (Connection conn = connectionManager.getConnection()) {
             if (testMetricId != null) {
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM plat.usage_metrics WHERE id = ?")) {

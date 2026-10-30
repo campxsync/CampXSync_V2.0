@@ -56,7 +56,16 @@ public interface CourseRepository {
     void updateCourse(UserSecurityContext context, Course course);
 
     /**
-     * Deletes a course (for test teardown).
+     * Updates only the lifecycle status of an existing course.
+     *
+     * @param context  authenticated caller security context
+     * @param courseId course UUID
+     * @param status   new lifecycle status (e.g. "ACTIVE", "APPROVED")
+     */
+    void updateStatus(UserSecurityContext context, String courseId, String status);
+
+    /**
+     * Deletes a course (soft-deletes in PostgreSQL).
      *
      * @param context authenticated caller security context
      * @param id      course UUID

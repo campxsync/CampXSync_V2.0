@@ -37,24 +37,11 @@ public class PostgresDepartmentRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require SUPABASE_JDBC_URL or CAMPX_JDBC_URL", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        tenantId = com.campx.admin.college.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
         repository = new PostgresDepartmentRepository(connectionManager);
 
-        // Discover active tenant in core.tenants
         try (Connection conn = connectionManager.getConnection()) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tenantId = (UUID) rs.getObject("id");
-                    }
-                }
-            }
-
-            assumeNotNull("Requires at least one active tenant in core.tenants", tenantId);
 
             // Discover or create an active college under this tenant
             try (PreparedStatement ps = conn.prepareStatement(
@@ -78,19 +65,7 @@ public class PostgresDepartmentRepositoryTest {
                 }
             }
 
-            UUID adminUserId = null;
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT user_id FROM iam.role_assignments WHERE tenant_id = ? AND deleted_at IS NULL LIMIT 1")) {
-                ps.setObject(1, tenantId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        adminUserId = (UUID) rs.getObject("user_id");
-                    }
-                }
-            }
-            if (adminUserId == null) {
-                adminUserId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
-            }
+            UUID adminUserId = com.campx.admin.college.config.TestEnvironmentGuard.resolveSafeTestUserId(conn, tenantId);
             tenantContext = new UserSecurityContext(adminUserId, tenantId);
         }
 

@@ -24,7 +24,7 @@ public class PostgresTenantProvisioningRepositoryTest {
     public void setUp() {
         repository = new InMemoryTenantProvisioningRepository();
         tenantId = UUID.randomUUID();
-        context = new UserSecurityContext(UUID.randomUUID(), tenantId);
+        context = UserSecurityContext.forPlatformAdmin(UUID.randomUUID()).withTenant(tenantId);
     }
 
     @Test
@@ -68,7 +68,11 @@ public class PostgresTenantProvisioningRepositoryTest {
         TenantProvisioning created = repository.createProvisioningJob(context, job);
 
         UUID jobId = UUID.fromString(created.getProvisioningId());
+        TenantProvisioning inProgress = repository.updateProvisioningStatus(context, jobId, "IN_PROGRESS", "RUNNING");
+        assertEquals("IN_PROGRESS", inProgress.getProvisioningStatus());
+
         TenantProvisioning updated = repository.updateProvisioningStatus(context, jobId, "COMPLETED", "FINISHED");
         assertEquals("COMPLETED", updated.getProvisioningStatus());
     }
 }
+

@@ -3,6 +3,7 @@ package com.campx.admin.institute.repository;
 import com.campx.admin.institute.exception.MalformedPayloadException;
 import com.campx.admin.institute.exception.ResourceNotFoundException;
 import com.campx.admin.institute.exception.SecurityViolationException;
+import com.campx.admin.institute.exception.UserProfileAccessDeniedException;
 import com.campx.admin.institute.model.InstituteModels.RoleTemplate;
 import com.campx.admin.institute.model.InstituteModels.RoleTemplatePermission;
 import com.campx.admin.institute.security.UserSecurityContext;
@@ -17,6 +18,22 @@ public class InMemoryRoleTemplateRepository implements RoleTemplateRepository {
 
     private final Map<String, RoleTemplate> templates = new ConcurrentHashMap<>();
     private final Map<String, RoleTemplatePermission> permissions = new ConcurrentHashMap<>();
+    private final Set<UUID> platformAdmins = Collections.synchronizedSet(new HashSet<>());
+
+    public InMemoryRoleTemplateRepository() {
+    }
+
+    public InMemoryRoleTemplateRepository(Collection<UUID> initialPlatformAdmins) {
+        if (initialPlatformAdmins != null) {
+            platformAdmins.addAll(initialPlatformAdmins);
+        }
+    }
+
+    public void addPlatformAdmin(UUID userId) {
+        if (userId != null) {
+            platformAdmins.add(userId);
+        }
+    }
 
     private void checkContext(UserSecurityContext context) {
         if (context == null || context.getUserId() == null) {
@@ -24,9 +41,19 @@ public class InMemoryRoleTemplateRepository implements RoleTemplateRepository {
         }
     }
 
+    private void checkPlatformAdminContext(UserSecurityContext context) {
+        checkContext(context);
+        if (!context.isPlatformScope()) {
+            throw new UserProfileAccessDeniedException("Platform administrator privileges required for role template mutations");
+        }
+        if (!platformAdmins.isEmpty() && !platformAdmins.contains(context.getUserId())) {
+            throw new UserProfileAccessDeniedException("Caller '" + context.getUserId() + "' lacks required platform administrator privilege");
+        }
+    }
+
     @Override
     public RoleTemplate createRoleTemplate(UserSecurityContext context, RoleTemplate template) {
-        checkContext(context);
+        checkPlatformAdminContext(context);
         if (template == null) {
             throw new MalformedPayloadException("RoleTemplate payload cannot be null");
         }
@@ -105,7 +132,7 @@ public class InMemoryRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public RoleTemplate updateRoleTemplate(UserSecurityContext context, RoleTemplate template) {
-        checkContext(context);
+        checkPlatformAdminContext(context);
         if (template == null || template.getId() == null || template.getId().trim().isEmpty()) {
             throw new MalformedPayloadException("Template ID is required for update");
         }
@@ -137,7 +164,7 @@ public class InMemoryRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public void deleteRoleTemplate(UserSecurityContext context, String id) {
-        checkContext(context);
+        checkPlatformAdminContext(context);
         if (id == null || id.trim().isEmpty()) {
             throw new MalformedPayloadException("Template ID is required for deletion");
         }
@@ -152,7 +179,7 @@ public class InMemoryRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public RoleTemplatePermission addPermission(UserSecurityContext context, String roleCode, String permissionCode) {
-        checkContext(context);
+        checkPlatformAdminContext(context);
         if (roleCode == null || roleCode.trim().isEmpty()) {
             throw new MalformedPayloadException("roleCode is required");
         }
@@ -200,7 +227,7 @@ public class InMemoryRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public void removePermission(UserSecurityContext context, String roleCode, String permissionCode) {
-        checkContext(context);
+        checkPlatformAdminContext(context);
         if (roleCode == null || permissionCode == null) return;
 
         String rc = roleCode.trim().toUpperCase(Locale.ROOT);
