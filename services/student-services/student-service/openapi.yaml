@@ -1,0 +1,976 @@
+openapi: 3.0.3
+info:
+  title: CampXSync STM-01 Student Identity & Profile Service API
+  description: >
+    Authoritative REST API specification for STM-01 Student Identity & Profile Domain Service.
+    Enforces canonical student matriculation, profile governance, protected-field correction workflows,
+    institutional identifiers with cryptographic duplicate detection, verification lifecycle, address and
+    guardian consent records, document metadata, IAM account linkage, structured intelligence projections,
+    transactional outbox publishing, and multi-tenant isolation.
+  version: 2.0.0
+  contact:
+    name: CampX Platform Engineering Team
+    email: platform-eng@campx.edu
+servers:
+  - url: http://localhost:8093
+    description: Direct STM-01 Student Domain Service Local Loopback
+  - url: http://localhost:8080/api/v1/students
+    description: CampXSync API Gateway Ingress Route
+paths:
+  /actuator/health:
+    get:
+      summary: Service Health Check
+      description: Returns liveness and readiness status, database connectivity mode, and active tenant context.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  service:
+                    type: string
+                    example: student-service
+                  databaseMode:
+                    type: string
+                    example: RELATIONAL_POSTGRES
+  /metrics:
+    get:
+      summary: Service Telemetry & Diagnostics
+      description: Returns JVM runtime diagnostics, active threads, and memory usage.
+      responses:
+        '200':
+          description: Operational diagnostics returned
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/v1/students/me:
+    get:
+      summary: Get Authenticated Student Profile (Self-Service)
+      description: >
+        Returns the profile of the currently authenticated student user resolved via
+        X-User-Id and X-Tenant-Id trusted headers. Sensitive fields are masked.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      responses:
+        '200':
+          description: Student profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/students:
+    get:
+      summary: List Student Roster
+      description: >
+        Retrieves a paginated list of students within the caller's tenant.
+        Staff roles with student:read permission can filter by programId, collegeId, status, and search query.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-College-Id'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+        - name: programId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: collegeId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, SUSPENDED, WITHDRAWN, GRADUATED, ALUMNI]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Roster retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      summary: Enroll / Matriculate Student
+      description: >
+        Authoritative student matriculation endpoint. Creates canonical person record,
+        links student entity, generates institutional enrollment number, and publishes
+        StudentEnrolled event to transactional outbox.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollStudentRequest'
+      responses:
+        '201':
+          description: Student enrolled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/X-Tenant-Id'
+      - $ref: '#/components/parameters/X-User-Id'
+      - $ref: '#/components/parameters/X-User-Role'
+      - $ref: '#/components/parameters/X-Correlation-Id'
+    get:
+      summary: Get Student Profile by ID
+      description: Retrieves complete student profile. Self-service students may only access their own record.
+      responses:
+        '200':
+          description: Profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update Permitted Profile Fields
+      description: >
+        Updates non-protected student profile fields (e.g. emergency contact, phone, personal email).
+        Protected core identity fields (name, date of birth, gender) require a formal correction workflow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStudentProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      summary: Soft Delete Student Record
+      description: Marks student as deleted in compliance with data retention policies. Requires administrative privilege.
+      responses:
+        '200':
+          description: Record soft deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/status:
+    patch:
+      summary: Update Student Lifecycle Status
+      description: Transitions student lifecycle status (e.g., ACTIVE -> SUSPENDED, GRADUATED).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE, SUSPENDED, WITHDRAWN, GRADUATED, ALUMNI]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Status updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/identifiers:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/X-Tenant-Id'
+      - $ref: '#/components/parameters/X-User-Role'
+      - $ref: '#/components/parameters/X-Correlation-Id'
+    get:
+      summary: List Institutional and National Identifiers
+      description: Returns student identifiers with cryptographic masking (e.g. Aadhaar, PAN, Passport).
+      responses:
+        '200':
+          description: Identifiers listed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PersonIdentifierDto'
+    post:
+      summary: Add Person Identifier
+      description: Adds an identifier with duplicate detection via SHA-256 hash.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonIdentifierDto'
+      responses:
+        '201':
+          description: Identifier added
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/students/{id}/corrections:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/X-Tenant-Id'
+      - $ref: '#/components/parameters/X-User-Id'
+      - $ref: '#/components/parameters/X-User-Role'
+      - $ref: '#/components/parameters/X-Correlation-Id'
+    get:
+      summary: List Correction Requests
+      description: Returns history of profile correction requests.
+      responses:
+        '200':
+          description: Requests retrieved
+    post:
+      summary: Submit Profile Correction Request
+      description: Submits a request to alter protected fields (legal name, DOB, gender) along with document justification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitCorrectionRequest'
+      responses:
+        '201':
+          description: Correction request submitted
+
+  /api/v1/students/{id}/corrections/{reqId}:
+    patch:
+      summary: Decide Correction Request
+      description: >
+        Approves or rejects a correction request. Segregation of duties is strictly enforced:
+        the submitter cannot approve their own request.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reqId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideCorrectionRequest'
+      responses:
+        '200':
+          description: Correction decided and applied if approved
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/verifications:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/X-Tenant-Id'
+      - $ref: '#/components/parameters/X-User-Role'
+      - $ref: '#/components/parameters/X-Correlation-Id'
+    post:
+      summary: Initiate Verification Workflow
+      description: Initiates formal document or identity verification lifecycle.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitiateVerificationRequest'
+      responses:
+        '201':
+          description: Verification initiated
+
+  /api/v1/students/{id}/verifications/{vId}:
+    patch:
+      summary: Decide Verification
+      description: Records verification decision (VERIFIED / REJECTED) with verification notes.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: vId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideVerificationRequest'
+      responses:
+        '200':
+          description: Verification decided
+
+  /api/v1/students/{id}/address:
+    put:
+      summary: Upsert Student Address
+      description: Updates or inserts residential, permanent, or correspondence address.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentAddressRequest'
+      responses:
+        '200':
+          description: Address saved
+
+  /api/v1/students/{id}/guardians:
+    post:
+      summary: Add Guardian and Consent Record
+      description: Records guardian relationship, contact details, emergency flag, and consent.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddGuardianRequest'
+      responses:
+        '201':
+          description: Guardian linked
+
+  /api/v1/students/{id}/documents:
+    post:
+      summary: Attach Document Metadata
+      description: Attaches document verification metadata and reference to doc.documents.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachDocumentRequest'
+      responses:
+        '201':
+          description: Document metadata attached
+
+  /api/v1/students/{id}/iam-link:
+    post:
+      summary: Link IAM Account
+      description: Links Supabase Auth / IAM identity ID to the canonical student record.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IamLinkageRequest'
+      responses:
+        '200':
+          description: IAM account linked
+
+  /api/v1/students/{id}/provision-iam:
+    post:
+      summary: Request IAM Account Provisioning
+      description: Emits an IAM provisioning event to create authentication credentials.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      responses:
+        '202':
+          description: IAM provisioning requested
+
+  /api/v1/students/{id}/history:
+    get:
+      summary: View Profile Change History
+      description: >
+        Returns permission-scoped immutable profile change history (STM01-US-025).
+        Students can access only their own history. Staff can view student history within their tenant.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      responses:
+        '200':
+          description: History records retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProfileChangeHistoryDto'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/students/{id}/export:
+    get:
+      summary: Governed Student Profile Export / Downstream Projection
+      description: >
+        Exposes a minimized, authorized student profile projection for approved downstream integration
+        without bypassing access controls (STM01-US-044, STM01-US-049). Rate-limited.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      responses:
+        '200':
+          description: Minimized profile projection returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProjectionResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/v1/students/{id}/preferences:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/X-Tenant-Id'
+      - $ref: '#/components/parameters/X-User-Id'
+      - $ref: '#/components/parameters/X-User-Role'
+      - $ref: '#/components/parameters/X-Correlation-Id'
+    get:
+      summary: Get Student Preferences
+      description: Retrieves locale, timezone, communication, and accessibility settings (STM01-US-045).
+      responses:
+        '200':
+          description: Preferences retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentPreferencesDto'
+    put:
+      summary: Update Student Preferences
+      description: Updates locale, timezone, communication channels, and accessibility options (STM01-US-045).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentPreferencesDto'
+      responses:
+        '200':
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileResponse'
+
+components:
+  parameters:
+    X-Tenant-Id:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Trusted tenant UUID propagated by the API Gateway
+    X-User-Id:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Authenticated user UUID propagated by the API Gateway
+    X-User-Role:
+      name: X-User-Role
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [platform_admin, institute_admin, college_admin, department_head, teacher, student, guardian]
+      description: Verified RBAC role propagated by the API Gateway
+    X-College-Id:
+      name: X-College-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Institutional college UUID for college-scoped actors
+    X-Correlation-Id:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Request tracing correlation identifier propagated across service boundaries
+
+  schemas:
+    EnrollStudentRequest:
+      type: object
+      required: [collegeId, firstName, lastName, primaryEmail, enrollmentNo]
+      properties:
+        collegeId:
+          type: string
+          format: uuid
+        programId:
+          type: string
+          format: uuid
+        batchId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        primaryEmail:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY]
+        enrollmentNo:
+          type: string
+          maxLength: 64
+
+    UpdateStudentProfileRequest:
+      type: object
+      properties:
+        personalEmail:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactPhone:
+          type: string
+        bloodGroup:
+          type: string
+        preferences:
+          $ref: '#/components/schemas/StudentPreferencesDto'
+
+    StudentProfileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        collegeId:
+          type: string
+          format: uuid
+        personId:
+          type: string
+          format: uuid
+        enrollmentNo:
+          type: string
+        status:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        primaryEmail:
+          type: string
+        phoneNumber:
+          type: string
+        maskedPhone:
+          type: string
+        gender:
+          type: string
+        dateOfBirth:
+          type: string
+        programId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    PersonIdentifierDto:
+      type: object
+      required: [identifierType, identifierValue]
+      properties:
+        identifierType:
+          type: string
+          enum: [AADHAAR, PAN, PASSPORT, VOTER_ID, DRIVING_LICENSE, STUDENT_ID]
+        identifierValue:
+          type: string
+        maskedValue:
+          type: string
+          readOnly: true
+        isPrimary:
+          type: boolean
+          default: false
+
+    SubmitCorrectionRequest:
+      type: object
+      required: [fieldName, requestedValue, reason]
+      properties:
+        fieldName:
+          type: string
+          enum: [first_name, last_name, date_of_birth, gender]
+        requestedValue:
+          type: string
+        reason:
+          type: string
+        supportingDocumentId:
+          type: string
+          format: uuid
+
+    DecideCorrectionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVED, REJECTED]
+        reviewerNotes:
+          type: string
+
+    InitiateVerificationRequest:
+      type: object
+      required: [verificationType]
+      properties:
+        verificationType:
+          type: string
+          enum: [DOCUMENT, IDENTITY, ADDRESS, ACADEMIC]
+        notes:
+          type: string
+
+    DecideVerificationRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [VERIFIED, REJECTED]
+        notes:
+          type: string
+
+    StudentAddressRequest:
+      type: object
+      required: [addressLine1, city, state, postalCode, country]
+      properties:
+        addressType:
+          type: string
+          enum: [PERMANENT, CURRENT, CORRESPONDENCE]
+          default: PERMANENT
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+          default: IND
+
+    AddGuardianRequest:
+      type: object
+      required: [relationship, fullName, phoneNumber]
+      properties:
+        relationship:
+          type: string
+          enum: [FATHER, MOTHER, LEGAL_GUARDIAN, SPOUSE, OTHER]
+        fullName:
+          type: string
+        phoneNumber:
+          type: string
+        email:
+          type: string
+          format: email
+        isEmergencyContact:
+          type: boolean
+          default: true
+        hasConsent:
+          type: boolean
+          default: true
+
+    AttachDocumentRequest:
+      type: object
+      required: [documentType, title, storagePath, fileSizeBytes, mimeType]
+      properties:
+        documentType:
+          type: string
+          enum: [AADHAAR_CARD, PASSPORT, BIRTH_CERTIFICATE, PREVIOUS_MARKSHEET, TRANSFER_CERTIFICATE, CASTE_CERTIFICATE]
+        title:
+          type: string
+        storagePath:
+          type: string
+        fileSizeBytes:
+          type: integer
+        mimeType:
+          type: string
+
+    IamLinkageRequest:
+      type: object
+      required: [iamUserId]
+      properties:
+        iamUserId:
+          type: string
+          format: uuid
+
+    StudentPreferencesDto:
+      type: object
+      properties:
+        language:
+          type: string
+          default: en
+        theme:
+          type: string
+          enum: [light, dark, system]
+          default: system
+        notifyEmail:
+          type: boolean
+          default: true
+        notifySms:
+          type: boolean
+          default: false
+        notifyPush:
+          type: boolean
+          default: true
+
+    ProblemDetails:
+      type: object
+      description: RFC 7807 standard problem details format
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errorCode:
+          type: string
+        traceId:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad Request (Invalid parameters or schema validation failure)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Insufficient RBAC privileges or cross-tenant access violation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Resource conflict (e.g. duplicate enrollment number, duplicate identity hash, optimistic lock failure)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    TooManyRequests:
+      description: Rate limit exceeded on search or export endpoints (STM01-US-038)
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
