@@ -125,3 +125,69 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const resolution = await resolveUserRole(supabase);
+
+    if (!resolution.success) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/unauthorized',
+          title: 'Unauthorized',
+          status: 401,
+          detail: 'Authentication required to retrieve academic programs.',
+        },
+        { status: 401 }
+      );
+    }
+
+    const tenantId = resolution.session.tenantId;
+    if (!tenantId) {
+      return NextResponse.json(
+        {
+          type: 'https://campxsync.edu/errors/bad-request',
+          title: 'Missing Tenant Context',
+          status: 400,
+          detail: 'No active tenant linked to user session.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const gatewayUrl = new URL('/api/v1/college-admin/programs', GATEWAY_BASE_URL);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': resolution.session.userId || '00000000-0000-0000-0000-000000000001',
+      'X-Tenant-Id': tenantId,
+      'X-User-Role': resolution.session.role?.toUpperCase() || 'COLLEGE_ADMIN',
+    };
+    if (resolution.session.collegeId) {
+      headers['X-College-Id'] = resolution.session.collegeId;
+    }
+
+    const gatewayRes = await fetch(gatewayUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    const data = await gatewayRes.json();
+    if (!gatewayRes.ok) {
+      return NextResponse.json(data, { status: gatewayRes.status });
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        type: 'https://campxsync.edu/errors/internal-server-error',
+        title: 'Internal Server Error',
+        status: 500,
+        detail: err.message || 'An unexpected error occurred.',
+      },
+      { status: 500 }
+    );
+  }
+}

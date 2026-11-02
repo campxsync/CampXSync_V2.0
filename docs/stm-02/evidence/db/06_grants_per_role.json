@@ -1,0 +1,712 @@
+{
+  "tableGrants": [
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "DELETE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "INSERT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "SELECT",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "authenticated",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "UPDATE",
+      "is_grantable": "NO"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_decisions",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_eligibility_rules",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_handovers",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_intakes",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "admission_offers",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_documents",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_reviews",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "application_status_history",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "DELETE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "INSERT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "REFERENCES",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "SELECT",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "TRIGGER",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "TRUNCATE",
+      "is_grantable": "YES"
+    },
+    {
+      "grantee": "postgres",
+      "table_schema": "stu",
+      "table_name": "applications",
+      "privilege_type": "UPDATE",
+      "is_grantable": "YES"
+    }
+  ],
+  "schemaGrants": [
+    {
+      "nspname": "stu",
+      "auth_usage": true,
+      "anon_usage": false,
+      "service_usage": true,
+      "app_usage": true
+    }
+  ],
+  "roleMembership": [
+    {
+      "rolname": "campx_app_server",
+      "member_of": "authenticated"
+    }
+  ]
+}

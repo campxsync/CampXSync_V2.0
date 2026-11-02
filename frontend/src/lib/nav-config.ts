@@ -9,6 +9,7 @@ import {
   Clock,
   Layers,
   BookOpen,
+  FileText,
   LucideIcon,
 } from 'lucide-react';
 import { UserRole } from './auth/resolve-role';
@@ -29,6 +30,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   ],
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },
+    { title: 'Admissions & Applications', href: '/college/admissions', icon: FileText, badge: 'STM-02' },
     { title: 'Departments & Programs', href: '/college/departments', icon: Building2 },
     { title: 'Faculty Roster', href: '/college/faculty', icon: Users },
     { title: 'Student Roster', href: '/college/students', icon: GraduationCap },
@@ -45,5 +47,6 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   ],
   student: [
     { title: 'My Attendance', href: '/student', icon: ClipboardCheck },
+    { title: 'Admissions & Applications', href: '/student/admissions', icon: FileText },
   ],
 };

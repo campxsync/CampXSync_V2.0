@@ -1,0 +1,26 @@
+{
+  "evidence_description": "PostgreSQL Migration History and Catalog Status on dev project azulbaxszsqxymqmlwfe",
+  "timestamp": "2026-11-02T07:16:42.600Z",
+  "target_project_ref": "azulbaxszsqxymqmlwfe",
+  "target_project_url": "https://azulbaxszsqxymqmlwfe.supabase.co",
+  "supabase_migrations_table_exists": false,
+  "note": "No public or supabase_migrations table is utilized. Migrations are executed via raw SQL / MCP execute_sql.",
+  "system_migrations_tables": [
+    {
+      "schema": "auth",
+      "table": "schema_migrations",
+      "count": 82,
+      "latest_version": "20260831180000"
+    },
+    {
+      "schema": "storage",
+      "table": "migrations",
+      "count": 74
+    },
+    {
+      "schema": "realtime",
+      "table": "schema_migrations",
+      "count": 91
+    }
+  ]
+}

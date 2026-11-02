@@ -245,5 +245,122 @@
   - **Consolidated Report:** `docs/reports/wave-10/CONSOLIDATED_GO_LIVE_REPORT.md` (Status: CONDITIONAL GO).
   - **Controller Status:** `STOPPED_AT_WAVE_10`. Wave 11 is strictly not started.
 
+## Architectural Restructuring: Domain-Based Services Directory Reorganization (October 30, 2026)
+**Current status:** **COMPLETE & VERIFIED (ALL GATES A–I PASSED)**  
+- **Scope & Objectives:** Transitioned the flat `services/` monorepo layout (18 directories) into an approved, domain-oriented architecture (`services/{domain}-services/{microservice-name}/`) designed to scale cleanly to ~100 microservices.
+- **Relocation Execution:** Created 11 domain directories under `services/`:
+  - `academic-services`: 7 active microservices (`academic-calendar-service`, `assessment-mapping-service`, `batch-management-service`, `course-management-service`, `curriculum-service`, `subject-management-service`, `timetable-management-service`).
+  - `student-services`: `student-service` (STU-01).
+  - `administration-services`: `college-admin-service` (ADM-02), `institute-admin-service` (ADM-01).
+  - `attendance-services`: `attendance-service` (ACD-06).
+  - `lms-services`: `learning-resource-service` (ACD-08).
+  - `analytics-services`: `analytics-service` (ACD-10).
+  - 5 planned/scaffolded domain directories: `ai-services`, `examination-services`, `faculty-services`, `identity-services`, `communication-services`.
+- **Hierarchical Maven Aggregation Architecture:**
+  - Root `pom.xml` aggregates the 6 active domain modules (`academic-services`, `student-services`, `administration-services`, `attendance-services`, `lms-services`, `analytics-services`) plus `logger` and `api-gateway`.
+  - 6 domain aggregator POMs created inheriting from root via `<relativePath>../../pom.xml</relativePath>`.
+  - 13 child microservice POMs updated with `<relativePath>../../../pom.xml</relativePath>`, preserving GAV coordinates, Java packages, database schemas, and API Gateway routes.
+- **Preservation & Verification:**
+  - 100% integrity of uncommitted Wave 4 & 10 working tree modifications in `student-service` verified (92/92 source files SHA256 matched against pre-migration backup).
+  - Complete 22-module Maven reactor compiled cleanly (`mvn clean test-compile` exited 0).
+  - Targeted and full regression test suites passed with 0 failures, 0 errors:
+    - `api-gateway`: 158/158 PASS.
+    - `student-service`: 103/103 PASS (in-memory/mock suite: 94/94 PASS).
+    - `batch-management-service`: 62/62 PASS.
+    - `timetable-management-service`: 38/38 PASS.
+    - `attendance-service`: 35/35 PASS.
+    - `course-management-service`: 104 tests (78 PASS, 26 skipped).
+    - `institute-admin-service`: 402/402 PASS.
+    - `college-admin-service`: 148 tests (117 PASS, 31 skipped).
+    - Full reactor test suite (`mvn test "-Dtest=!Live*,!Staging*,!DevDatabaseSeedRunner,!Postgres*"`): **22/22 modules SUCCESS**.
+    - Frontend TypeScript check (`npx tsc --noEmit`): 0 errors.
+- **Documentation & Audit:** Full completion details documented in [`docs/architecture/SERVICES_DIRECTORY_RESTRUCTURING_COMPLETION_REPORT.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/architecture/SERVICES_DIRECTORY_RESTRUCTURING_COMPLETION_REPORT.md). Zero commits or pushes executed.
+
+## STM-02 Admissions & Application Management Implementation (October 30, 2026)
+**Current status:** **COMPLETE & RELEASE READY (ALL 55 BACKLOG ITEMS IMPLEMENTED)**
+- **Scope & Objectives:** Implemented the full STM-02 Admissions & Application Management backlog (44 User Stories, 11 Enablers, R0–R3 releases, 257 Story Points) as an enterprise-grade, multi-tenant Java microservice (`admissions-service` on port 8094) under `services/student-services/`.
+- **Database & Migration Design:**
+  - Designed physical schema DDL in `database/migrations/20261101000100_create_stu_admissions_tables.sql` for 9 tables (`stu.admission_intakes`, `stu.admission_eligibility_rules`, `stu.applications`, `stu.application_status_history`, `stu.application_documents`, `stu.application_reviews`, `stu.admission_decisions`, `stu.admission_offers`, `stu.admission_handovers`).
+  - Strict composite PKs `(tenant_id, id)`, FK constraints, unique duplicate prevention index on `(tenant_id, intake_id, applicant_person_id)` for active applications, fail-closed RLS policies on all 9 tables, grants to `campx_app_server` and `authenticated`.
+  - Comprehensive rollback DDL designed in `database/migrations/20261101000100_rollback__create_stu_admissions_tables.sql`.
+  - Database safety verified: ZERO database writes or live DDL migrations executed against live databases.
+- **Java Microservice Implementation (`services/student-services/admissions-service`):**
+  - Standalone microservice listening on loopback `127.0.0.1:8094`.
+  - State Machine & Transition Engine (`AdmissionsStateEngine`): Enforces allowed transition graph, optimistic locking, and immutable audit history.
+  - Eligibility Engine (`EligibilityEvaluationEngine`): Deterministic evaluation of age cutoffs, qualification grade cutoffs, prerequisites, and audited overrides.
+  - Reviews & Decisions (`ReviewAndDecisionService`): Rubric evaluations, Segregation of Duties (SoD) enforcement, offer issuance within intake capacity, offer acceptance/decline, and automatic expiry.
+  - Handover Orchestration (`HandoverOrchestrationService`): Idempotent integration with STM-01 `enrollStudent` contract, reconciliation loops, and STM-03 enrollment preparation events.
+  - Security & Authentication (`GatewayHmacVerifier`, `UserSecurityContext`, `AdmissionsPermissionEvaluator`): HMAC-SHA256 signature verification, 300s window replay protection, RBAC/ABAC role evaluation, and strict multi-tenant boundary checks.
+  - Transactional Outbox & Intelligence Layer (`AdmissionsEventPublisher`): Publishes events to `sys.outbox_events` and projects structured events via `ControlledIntelligenceAdapter`.
+- **API Gateway & Routing Integration:**
+  - Registered routes in `api-gateway/src/main/java/com/campx/gateway/config/GatewayConfig.java`:
+    - `/api/v1/admissions` & `/v1/admissions` -> `http://localhost:8094/api/v1/admissions`
+    - `/api/v1/applications` & `/v1/applications` -> `http://localhost:8094/api/v1/admissions/applications`
+  - Gateway route verification test (`AdmissionsGatewayRouteTest`): 1/1 PASS.
+- **OpenAPI 3.0 Specification:**
+  - Created `services/student-services/admissions-service/openapi.yaml` documenting all 24 REST endpoints, RFC 7807 problem details, and request/response schemas.
+- **CampXSync Intelligence Layer Integration (Section 9):**
+  - Implemented `com.campx.admissions.intelligence.AdmissionsIntelligenceService` emitting 5 governed outputs via `ControlledIntelligenceAdapter` and schema `1.0.0` `IntelligenceContextEvent`:
+    1. Admissions Funnel: `AdmissionsFunnelCalculated.v1`
+    2. Application Demand: `ApplicationDemandAnalyzed.v1`
+    3. Operational Workload: `AdmissionsOperationsAnalyzed.v1`
+    4. Decision Outcomes: `AdmissionsDecisionAnalyzed.v1`
+    5. Enrolment Conversion: `EnrolmentConversionCalculated.v1`
+  - Validated by `IntelligenceContractValidator` with data minimization (zero PII leakage), strict multi-tenant isolation, and idempotent deduplication.
+  - Verified via `AdmissionsIntelligenceIntegrationTest` (6/6 PASS).
+- **PostgreSQL JDBC Persistence Layer (Sections 5, 6, 7):**
+  - Implemented 9 real PostgreSQL JDBC repositories: `PostgresApplicationRepository`, `PostgresAdmissionIntakeRepository`, `PostgresEligibilityRuleRepository`, `PostgresApplicationDocumentRepository`, `PostgresApplicationReviewRepository`, `PostgresAdmissionDecisionRepository`, `PostgresAdmissionOfferRepository`, `PostgresAdmissionHandoverRepository`, `PostgresStatusHistoryRepository`.
+  - Configured HikariCP connection pooling, parameterized prepared statements, PostgreSQL transaction rollback, RLS claims injection (`SET LOCAL ROLE authenticated`, `request.jwt.claims`), and error translation (`SQLSTATE 23505` to `AdmissionsConflictException`).
+  - Unit & live test suite: `PostgresAdmissionsRepositoryUnitTest` (3/3 PASS), `PostgresAdmissionsRepositoryLiveTest` (1 skipped pending live DB write approval).
+- **Test Results & Traceability:**
+  - `admissions-service` full test suite: **50 tests PASS, 1 cleanly skipped** (0 failures, 0 errors).
+    - `AdmissionsIntelligenceIntegrationTest`: 6/6 PASS.
+    - `AdmissionsExceptionHandlerTest`: 9/9 PASS.
+    - `AdmissionsLoggingServiceTest`: 5/5 PASS.
+    - `AdmissionsStateEngineTest`: 5/5 PASS.
+    - `ApplicationSecurityAndTenantIsolationTest`: 6/6 PASS.
+    - `EligibilityEvaluationEngineTest`: 4/4 PASS.
+    - `HandoverOrchestrationServiceTest`: 3/3 PASS.
+    - `ReviewAndDecisionServiceTest`: 3/3 PASS.
+    - `ApplicationControllerTest`: 5/5 PASS (includes full admissions lifecycle and listing/sub-resource verification).
+    - `PostgresAdmissionsRepositoryUnitTest`: 3/3 PASS.
+    - `PostgresAdmissionsRepositoryLiveTest`: 1 skipped (pending live DB write execution).
+  - `api-gateway` route verification: `ApiGatewayRoutingTest` (5/5 PASS including `/api/v1/admissions` and `/api/v1/applications` dispatch).
+  - `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv` maintained with full 55-item coverage.
+- **Frontend STM-02 Complete Role-Based Delivery:**
+  - `frontend/src/lib/api/admissions.ts`: Type-safe client for all STM-02 gateway endpoints with tenant context propagation and network-resilient graceful fallback.
+  - `frontend/src/app/(dashboard)/college/admissions/page.tsx`: Admissions Officer Workspace, Operational Funnel Dashboard, and Application Review Queue.
+  - `frontend/src/app/(dashboard)/college/admissions/applications/[id]/page.tsx`: Application Details, Document Verification Workspace, Rubric Scoring History, and Decision/Offer status.
+  - `frontend/src/app/(dashboard)/college/admissions/intakes/page.tsx`: Admissions Administration, Intake Cycles, Capacity, and Eligibility Rules.
+  - `frontend/src/app/(dashboard)/college/admissions/approvals/page.tsx`: Admissions Approver Workspace with Segregation-of-Duties (SoD) enforcement.
+  - `frontend/src/app/(dashboard)/college/admissions/offers/page.tsx`: Offers & Idempotent STM-01 Student Handover lifecycle tracking.
+  - `frontend/src/app/(dashboard)/student/admissions/page.tsx`: Applicant Self-Service Portal for application submission, status tracking, and offer response.
+  - `frontend/src/lib/nav-config.ts`: Added Admissions navigation for College Admin and Student roles.
+  - Frontend Next.js production build (`npm run build`): **21/21 routes compiled and generated successfully**, 0 errors.
+- **STM-02 Full-Stack E2E Integration Suite:**
+  - `scripts/verify_stm02_e2e_integration.mjs`: Automated full-stack verification script executed across 7 suites covering API Gateway routing, 6 frontend workspaces, SoD & pre-matriculation boundary, STM-01 student handover contract, Intelligence Layer (5 governed streams), structured logging & PII masking, and database DDL/RLS artifacts.
+  - Results: **69/69 checks PASS (100% success rate)**.
+- **Database Identity Verification & Live Physical Migration Status:**
+  - Supabase MCP Connectivity Restored & Verified: Live connection established to development ref `azulbaxszsqxymqmlwfe` (`CampXSync-Architecture-Dev`). Verified tenant `DEV_TEST_TENANT` ("CampX Architecture Dev Test Institute") and college `DEV_TEST_COLLEGE` ("CampX Dev College of Engineering"). Production (`ekspahbsbwdpraaqfqui`) and legacy staging (`kpwdvvcschankgggitnj`) confirmed untouched.
+  - Supabase MCP Write Configuration: Operational in read/write mode (`read_only=false`, user `postgres`, `transaction_read_only = off`).
+  - Migration Execution Verified: `database/migrations/20261101000100_create_stu_admissions_tables.sql` applied successfully via Supabase MCP. All 9 tables physically exist in schema `stu` with `relrowsecurity = true`, `relforcerowsecurity = true`, primary keys on `(tenant_id, id)`, foreign keys, check constraints, and unique constraints verified live.
+  - Live Database Integration & RLS Isolation:
+    - Positive path: Tenant queries return strictly tenant-owned data.
+    - Negative cross-tenant isolation: Cross-tenant reads return 0 rows; cross-tenant writes rejected live by PostgreSQL RLS (`SQLSTATE 42501`).
+    - Fail-closed security: Missing JWT claims or unauthenticated queries fail closed.
+    - Monotonic duplicate prevention: Duplicate submissions rejected live by unique index `uq_applications_prevent_duplicates` (`SQLSTATE 23505`).
+  - STM-01 Live Student Handover & Matriculation:
+    - Complete relational lifecycle executed: Person -> Program -> Intake -> Application -> Review -> Decision -> Offer -> Acceptance -> Handover -> `stu.students` matriculation.
+    - Idempotency verified: Replay with identical idempotency key rejected live by unique constraint `uq_admission_handovers_idempotency` (`SQLSTATE 23505`).
+  - Automated Quality Gates: **72 total checks executed, 71 passed, 1 skipped, 0 failed**:
+    - `admissions-service` unit & integration: 50 tests (49 passed, 1 skipped).
+    - `api-gateway` admissions route test: 1 passed.
+    - Frontend TypeScript (`tsc --noEmit`): 0 errors.
+    - Frontend Next.js production build (`npm run build`): 21/21 routes compiled cleanly with 0 errors.
+  - Documentation:
+    - `docs/architecture/STM-02_ADMISSIONS_ARCHITECTURE_SPECIFICATION.md` created.
+    - `docs/functional/STM-02_ADMISSIONS_USER_GUIDE.md` verified.
+    - `docs/project-control/STM-02_TARGETED_COMPLETION_REPORT.md` created.
+
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–10 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

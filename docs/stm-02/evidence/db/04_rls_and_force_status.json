@@ -1,0 +1,56 @@
+[
+  {
+    "schema_name": "stu",
+    "table_name": "admission_decisions",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "admission_eligibility_rules",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "admission_handovers",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "admission_intakes",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "admission_offers",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "application_documents",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "application_reviews",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "application_status_history",
+    "rls_enabled": true,
+    "rls_forced": true
+  },
+  {
+    "schema_name": "stu",
+    "table_name": "applications",
+    "rls_enabled": true,
+    "rls_forced": true
+  }
+]

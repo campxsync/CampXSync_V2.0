@@ -1,0 +1,507 @@
+{
+  "constraints": [
+    {
+      "constraint_name": "admission_decisions_decision_type_check",
+      "constraint_type": "c",
+      "table_name": "admission_decisions",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (decision_type::text = ANY (ARRAY['OFFER_APPROVED'::character varying, 'REJECTED'::character varying, 'DEFERRED'::character varying, 'WAITLISTED'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "admission_decisions_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "admission_decisions",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_decisions_application",
+      "constraint_type": "f",
+      "table_name": "admission_decisions",
+      "foreign_table_name": "applications",
+      "constraint_definition": "FOREIGN KEY (tenant_id, application_id) REFERENCES stu.applications(tenant_id, id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "pk_admission_decisions",
+      "constraint_type": "p",
+      "table_name": "admission_decisions",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "admission_eligibility_rules_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "admission_eligibility_rules",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_eligibility_intake",
+      "constraint_type": "f",
+      "table_name": "admission_eligibility_rules",
+      "foreign_table_name": "admission_intakes",
+      "constraint_definition": "FOREIGN KEY (tenant_id, intake_id) REFERENCES stu.admission_intakes(tenant_id, id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "pk_admission_eligibility_rules",
+      "constraint_type": "p",
+      "table_name": "admission_eligibility_rules",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "uq_eligibility_rules_version",
+      "constraint_type": "u",
+      "table_name": "admission_eligibility_rules",
+      "foreign_table_name": null,
+      "constraint_definition": "UNIQUE (tenant_id, intake_id, version)"
+    },
+    {
+      "constraint_name": "admission_handovers_enrolment_status_check",
+      "constraint_type": "c",
+      "table_name": "admission_handovers",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (enrolment_status::text = ANY (ARRAY['PENDING'::character varying, 'STUDENT_CREATED'::character varying, 'ENROLMENT_COMPLETED'::character varying, 'FAILED'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "admission_handovers_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "admission_handovers",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_handovers_application",
+      "constraint_type": "f",
+      "table_name": "admission_handovers",
+      "foreign_table_name": "applications",
+      "constraint_definition": "FOREIGN KEY (tenant_id, application_id) REFERENCES stu.applications(tenant_id, id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_handovers_offer",
+      "constraint_type": "f",
+      "table_name": "admission_handovers",
+      "foreign_table_name": "admission_offers",
+      "constraint_definition": "FOREIGN KEY (tenant_id, offer_id) REFERENCES stu.admission_offers(tenant_id, id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "pk_admission_handovers",
+      "constraint_type": "p",
+      "table_name": "admission_handovers",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "uq_admission_handovers_idempotency",
+      "constraint_type": "u",
+      "table_name": "admission_handovers",
+      "foreign_table_name": null,
+      "constraint_definition": "UNIQUE (tenant_id, idempotency_key)"
+    },
+    {
+      "constraint_name": "admission_intakes_admitted_count_check",
+      "constraint_type": "c",
+      "table_name": "admission_intakes",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (admitted_count >= 0)"
+    },
+    {
+      "constraint_name": "admission_intakes_capacity_check",
+      "constraint_type": "c",
+      "table_name": "admission_intakes",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (capacity > 0)"
+    },
+    {
+      "constraint_name": "admission_intakes_fee_amount_check",
+      "constraint_type": "c",
+      "table_name": "admission_intakes",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (fee_amount >= 0.00)"
+    },
+    {
+      "constraint_name": "admission_intakes_fee_timing_check",
+      "constraint_type": "c",
+      "table_name": "admission_intakes",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (fee_timing::text = ANY (ARRAY['AT_SUBMISSION'::character varying, 'POST_ELIGIBILITY'::character varying, 'UPON_OFFER_ACCEPTANCE'::character varying, 'NONE'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "admission_intakes_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "admission_intakes",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "pk_admission_intakes",
+      "constraint_type": "p",
+      "table_name": "admission_intakes",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "uq_admission_intakes_code",
+      "constraint_type": "u",
+      "table_name": "admission_intakes",
+      "foreign_table_name": null,
+      "constraint_definition": "UNIQUE (tenant_id, academic_year_id, intake_code)"
+    },
+    {
+      "constraint_name": "admission_offers_status_check",
+      "constraint_type": "c",
+      "table_name": "admission_offers",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (status::text = ANY (ARRAY['ISSUED'::character varying, 'ACCEPTED'::character varying, 'DECLINED'::character varying, 'EXPIRED'::character varying, 'REVOKED'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "admission_offers_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "admission_offers",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_offers_application",
+      "constraint_type": "f",
+      "table_name": "admission_offers",
+      "foreign_table_name": "applications",
+      "constraint_definition": "FOREIGN KEY (tenant_id, application_id) REFERENCES stu.applications(tenant_id, id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_offers_decision",
+      "constraint_type": "f",
+      "table_name": "admission_offers",
+      "foreign_table_name": "admission_decisions",
+      "constraint_definition": "FOREIGN KEY (tenant_id, decision_id) REFERENCES stu.admission_decisions(tenant_id, id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "pk_admission_offers",
+      "constraint_type": "p",
+      "table_name": "admission_offers",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "uq_admission_offers_code",
+      "constraint_type": "u",
+      "table_name": "admission_offers",
+      "foreign_table_name": null,
+      "constraint_definition": "UNIQUE (tenant_id, offer_code)"
+    },
+    {
+      "constraint_name": "application_documents_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "application_documents",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "application_documents_verification_status_check",
+      "constraint_type": "c",
+      "table_name": "application_documents",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (verification_status::text = ANY (ARRAY['PENDING'::character varying, 'VERIFIED'::character varying, 'REJECTED'::character varying, 'WAIVED'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "fk_app_documents_application",
+      "constraint_type": "f",
+      "table_name": "application_documents",
+      "foreign_table_name": "applications",
+      "constraint_definition": "FOREIGN KEY (tenant_id, application_id) REFERENCES stu.applications(tenant_id, id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "pk_application_documents",
+      "constraint_type": "p",
+      "table_name": "application_documents",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "application_reviews_recommendation_check",
+      "constraint_type": "c",
+      "table_name": "application_reviews",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (recommendation::text = ANY (ARRAY['RECOMMEND_OFFER'::character varying, 'RECOMMEND_REJECT'::character varying, 'WAITLIST'::character varying, 'REQUEST_INFORMATION'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "application_reviews_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "application_reviews",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_reviews_application",
+      "constraint_type": "f",
+      "table_name": "application_reviews",
+      "foreign_table_name": "applications",
+      "constraint_definition": "FOREIGN KEY (tenant_id, application_id) REFERENCES stu.applications(tenant_id, id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "pk_application_reviews",
+      "constraint_type": "p",
+      "table_name": "application_reviews",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "application_status_history_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "application_status_history",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_status_history_application",
+      "constraint_type": "f",
+      "table_name": "application_status_history",
+      "foreign_table_name": "applications",
+      "constraint_definition": "FOREIGN KEY (tenant_id, application_id) REFERENCES stu.applications(tenant_id, id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "pk_application_status_history",
+      "constraint_type": "p",
+      "table_name": "application_status_history",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "applications_document_verification_status_check",
+      "constraint_type": "c",
+      "table_name": "applications",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (document_verification_status::text = ANY (ARRAY['PENDING'::character varying, 'IN_PROGRESS'::character varying, 'VERIFIED'::character varying, 'REJECTED'::character varying, 'WAIVED'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "applications_payment_status_check",
+      "constraint_type": "c",
+      "table_name": "applications",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (payment_status::text = ANY (ARRAY['PENDING'::character varying, 'PAID'::character varying, 'WAIVED'::character varying, 'EXEMPT'::character varying, 'FAILED'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "applications_status_check",
+      "constraint_type": "c",
+      "table_name": "applications",
+      "foreign_table_name": null,
+      "constraint_definition": "CHECK (status::text = ANY (ARRAY['DRAFT'::character varying, 'SUBMITTED'::character varying, 'RETURNED_FOR_INFORMATION'::character varying, 'ELIGIBLE'::character varying, 'UNDER_REVIEW'::character varying, 'OFFERED'::character varying, 'ACCEPTED'::character varying, 'DECLINED'::character varying, 'EXPIRED'::character varying, 'REJECTED'::character varying, 'WITHDRAWN'::character varying, 'HANDOVER_PENDING'::character varying, 'HANDED_OVER'::character varying]::text[]))"
+    },
+    {
+      "constraint_name": "applications_tenant_id_fkey",
+      "constraint_type": "f",
+      "table_name": "applications",
+      "foreign_table_name": "tenants",
+      "constraint_definition": "FOREIGN KEY (tenant_id) REFERENCES core.tenants(id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "fk_application_intake",
+      "constraint_type": "f",
+      "table_name": "applications",
+      "foreign_table_name": "admission_intakes",
+      "constraint_definition": "FOREIGN KEY (tenant_id, intake_id) REFERENCES stu.admission_intakes(tenant_id, id) ON DELETE RESTRICT"
+    },
+    {
+      "constraint_name": "pk_applications",
+      "constraint_type": "p",
+      "table_name": "applications",
+      "foreign_table_name": null,
+      "constraint_definition": "PRIMARY KEY (tenant_id, id)"
+    },
+    {
+      "constraint_name": "uq_applications_number",
+      "constraint_type": "u",
+      "table_name": "applications",
+      "foreign_table_name": null,
+      "constraint_definition": "UNIQUE (tenant_id, intake_id, application_number)"
+    }
+  ],
+  "indexes": [
+    {
+      "schemaname": "stu",
+      "tablename": "admission_decisions",
+      "indexname": "ix_admission_decisions_app",
+      "indexdef": "CREATE INDEX ix_admission_decisions_app ON stu.admission_decisions USING btree (tenant_id, application_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_decisions",
+      "indexname": "pk_admission_decisions",
+      "indexdef": "CREATE UNIQUE INDEX pk_admission_decisions ON stu.admission_decisions USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_eligibility_rules",
+      "indexname": "ix_admission_eligibility_intake",
+      "indexdef": "CREATE INDEX ix_admission_eligibility_intake ON stu.admission_eligibility_rules USING btree (tenant_id, intake_id, is_active)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_eligibility_rules",
+      "indexname": "pk_admission_eligibility_rules",
+      "indexdef": "CREATE UNIQUE INDEX pk_admission_eligibility_rules ON stu.admission_eligibility_rules USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_eligibility_rules",
+      "indexname": "uq_eligibility_rules_version",
+      "indexdef": "CREATE UNIQUE INDEX uq_eligibility_rules_version ON stu.admission_eligibility_rules USING btree (tenant_id, intake_id, version)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_handovers",
+      "indexname": "ix_admission_handovers_status",
+      "indexdef": "CREATE INDEX ix_admission_handovers_status ON stu.admission_handovers USING btree (tenant_id, enrolment_status) WHERE ((enrolment_status)::text = ANY ((ARRAY['PENDING'::character varying, 'FAILED'::character varying])::text[]))"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_handovers",
+      "indexname": "pk_admission_handovers",
+      "indexdef": "CREATE UNIQUE INDEX pk_admission_handovers ON stu.admission_handovers USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_handovers",
+      "indexname": "uq_admission_handovers_idempotency",
+      "indexdef": "CREATE UNIQUE INDEX uq_admission_handovers_idempotency ON stu.admission_handovers USING btree (tenant_id, idempotency_key)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_intakes",
+      "indexname": "ix_admission_intakes_tenant_prog_year",
+      "indexdef": "CREATE INDEX ix_admission_intakes_tenant_prog_year ON stu.admission_intakes USING btree (tenant_id, program_id, academic_year_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_intakes",
+      "indexname": "ix_admission_intakes_window",
+      "indexdef": "CREATE INDEX ix_admission_intakes_window ON stu.admission_intakes USING btree (tenant_id, application_window_start, application_window_end) WHERE ((is_active = true) AND (deleted_at IS NULL))"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_intakes",
+      "indexname": "pk_admission_intakes",
+      "indexdef": "CREATE UNIQUE INDEX pk_admission_intakes ON stu.admission_intakes USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_intakes",
+      "indexname": "uq_admission_intakes_code",
+      "indexdef": "CREATE UNIQUE INDEX uq_admission_intakes_code ON stu.admission_intakes USING btree (tenant_id, academic_year_id, intake_code)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_offers",
+      "indexname": "ix_admission_offers_app",
+      "indexdef": "CREATE INDEX ix_admission_offers_app ON stu.admission_offers USING btree (tenant_id, application_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_offers",
+      "indexname": "ix_admission_offers_expiry",
+      "indexdef": "CREATE INDEX ix_admission_offers_expiry ON stu.admission_offers USING btree (tenant_id, status, valid_to) WHERE ((status)::text = 'ISSUED'::text)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_offers",
+      "indexname": "pk_admission_offers",
+      "indexdef": "CREATE UNIQUE INDEX pk_admission_offers ON stu.admission_offers USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "admission_offers",
+      "indexname": "uq_admission_offers_code",
+      "indexdef": "CREATE UNIQUE INDEX uq_admission_offers_code ON stu.admission_offers USING btree (tenant_id, offer_code)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_documents",
+      "indexname": "ix_app_documents_app",
+      "indexdef": "CREATE INDEX ix_app_documents_app ON stu.application_documents USING btree (tenant_id, application_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_documents",
+      "indexname": "ix_app_documents_doc",
+      "indexdef": "CREATE INDEX ix_app_documents_doc ON stu.application_documents USING btree (tenant_id, document_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_documents",
+      "indexname": "pk_application_documents",
+      "indexdef": "CREATE UNIQUE INDEX pk_application_documents ON stu.application_documents USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_reviews",
+      "indexname": "ix_app_reviews_app",
+      "indexdef": "CREATE INDEX ix_app_reviews_app ON stu.application_reviews USING btree (tenant_id, application_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_reviews",
+      "indexname": "ix_app_reviews_reviewer",
+      "indexdef": "CREATE INDEX ix_app_reviews_reviewer ON stu.application_reviews USING btree (tenant_id, reviewer_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_reviews",
+      "indexname": "pk_application_reviews",
+      "indexdef": "CREATE UNIQUE INDEX pk_application_reviews ON stu.application_reviews USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_status_history",
+      "indexname": "ix_app_status_history_app",
+      "indexdef": "CREATE INDEX ix_app_status_history_app ON stu.application_status_history USING btree (tenant_id, application_id, created_at DESC)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "application_status_history",
+      "indexname": "pk_application_status_history",
+      "indexdef": "CREATE UNIQUE INDEX pk_application_status_history ON stu.application_status_history USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "ix_applications_dept",
+      "indexdef": "CREATE INDEX ix_applications_dept ON stu.applications USING btree (tenant_id, assigned_department_id) WHERE (assigned_department_id IS NOT NULL)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "ix_applications_reviewer",
+      "indexdef": "CREATE INDEX ix_applications_reviewer ON stu.applications USING btree (tenant_id, assigned_reviewer_id) WHERE (assigned_reviewer_id IS NOT NULL)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "ix_applications_tenant_applicant",
+      "indexdef": "CREATE INDEX ix_applications_tenant_applicant ON stu.applications USING btree (tenant_id, applicant_person_id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "ix_applications_tenant_status",
+      "indexdef": "CREATE INDEX ix_applications_tenant_status ON stu.applications USING btree (tenant_id, status)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "pk_applications",
+      "indexdef": "CREATE UNIQUE INDEX pk_applications ON stu.applications USING btree (tenant_id, id)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "uq_applications_number",
+      "indexdef": "CREATE UNIQUE INDEX uq_applications_number ON stu.applications USING btree (tenant_id, intake_id, application_number)"
+    },
+    {
+      "schemaname": "stu",
+      "tablename": "applications",
+      "indexname": "uq_applications_prevent_duplicates",
+      "indexdef": "CREATE UNIQUE INDEX uq_applications_prevent_duplicates ON stu.applications USING btree (tenant_id, intake_id, applicant_person_id) WHERE ((deleted_at IS NULL) AND ((status)::text <> ALL ((ARRAY['WITHDRAWN'::character varying, 'REJECTED'::character varying])::text[])))"
+    }
+  ]
+}

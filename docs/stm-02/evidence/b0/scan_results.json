@@ -1,0 +1,12 @@
+{
+  "deleteFrom": [
+    {
+      "file": "services/student-services/admissions-service/src/main/java/com/campx/admissions/repository/PostgresApplicationDocumentRepository.java",
+      "line": 116,
+      "text": "DELETE FROM stu.application_documents WHERE tenant_id = ? AN"
+    }
+  ],
+  "dotDelete": [],
+  "truncate": [],
+  "statusHistoryUpdateOrDelete": []
+}

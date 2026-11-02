@@ -1,0 +1,424 @@
+CAMPXSYNC
+Enterprise RBAC Role Matrix
+Role-Based Access Control & Authorization Architecture
+Scope: Complete CampXSync Microservice Landscape
+Academic • LMS • Examination • Finance • HRM • Communication • Administration • Shared Services
+1. Purpose and Scope
+This document defines the enterprise-wide role and permission model for CampXSync. It maps organizational roles to microservices and operational permissions while preserving tenant, institution, campus, department, course, section, resource-ownership and workflow boundaries.
+The recommended model is hybrid RBAC + ABAC: RBAC establishes what a role may do, while attribute- and policy-based controls determine the data scope in which that action is valid.
+2. Enterprise Role Catalogue
+3. Standard Permission Vocabulary
+4. Master Microservice Ownership Matrix
+Legend: M = Manage, W = Create/Update operational data, V = View, RV = Review/Verify, A = Approve, P = Publish, X = Execute, E = Export, — = No direct access.
+5. Academic Microservices — ACD-01 to ACD-10
+Scope rule: Faculty access should normally resolve to assigned course/subject/section rather than institution-wide academic administration.
+6. LMS Microservices — LMS-01 to LMS-10
+7. Examination Microservices — EXM-01 to EXM-09
+Segregation of Duties: Valuator ≠ Marks Approver ≠ Result Publisher. These boundaries should be enforced by policy and authorization services.
+8. Finance & Accounts — FIN-01 to FIN-10
+Financial SoD: Create Expense → Approve Expense → Execute Payment should not be performed by one unauthorized identity.
+9. HRM Microservices — HRM-01 to HRM-09
+10. Communication & Announcement — CAM-01 to CAM-08
+11. CampXSync Admin
+12. College Admin
+13. Shared Services & Intelligence Layer
+* Limited to the administrator's permitted tenant/institution scope.
+14. Student & Parent Access Boundary
+* Subject to permitted profile fields and privacy policy.
+15. API Client / External ERP
+API clients are machine identities, not human roles. Recommended flow: API Key → Client Identity → Policy → Scope → Permission → Resource.
+16. Effective Permission Model
+A user's final permission should be evaluated as:
+Effective Access = Role Permission + Role Hierarchy + Tenant Scope + Institution Scope + Campus Scope + Department Scope + Course Scope + Section Scope + Resource Ownership + ABAC Policy + Time/Validity Constraints + Delegation
+Example — Faculty:
+Faculty → LMS-05 Assignments → Create/Update → Assigned Subject → Assigned Section.
+The same faculty member should not automatically receive institution-wide assignment administration.
+17. Role Hierarchy
+SUPER ADMIN
+    │
+    ├── SYSTEM ADMIN
+    │
+    └── TENANT ADMIN
+             │
+       INSTITUTION ADMIN
+             │
+        COLLEGE ADMIN
+             │
+          PRINCIPAL
+             │
+      ┌──────┴─────────┐
+      │                │
+    DEAN          VICE PRINCIPAL
+      │
+     HOD
+      │
+  ┌───┴─────────────┐
+  │                 │
+PROGRAM COORD.    FACULTY
+                      │
+                   STUDENT
+                      │
+                    PARENT
+Specialized roles operate alongside this hierarchy: Controller of Examinations, Exam Cell, Valuator, Finance Manager, Accountant, HR Manager, HR Officer, Communication Manager, Placement Officer, Librarian, Hostel Warden, Transport Manager, Facility Manager, Auditor, API Client and Reporting User.
+18. Four Levels of Authorization
+19. Recommended RBAC Data Model
+Core entities:
+users • roles • permissions • role_permissions • user_roles • role_hierarchy • resources • resource_actions • policies • policy_rules • data_scopes • user_scopes • role_scopes • groups • group_roles • delegations • approval_rules • api_clients • api_client_permissions • authorization_events • audit_logs
+20. Authorization Flow
+USER / API CLIENT
+       ↓
+API GATEWAY
+       ↓
+AUTHENTICATION
+       ↓
+AUTHORIZATION SERVICE
+       ↓
+   ┌───┴────┐
+   │        │
+  RBAC     ABAC
+   │        │
+   └───┬────┘
+       ↓
+DATA SCOPE CHECK
+       ↓
+SERVICE ENDPOINT
+       ↓
+DOMAIN DATA
+       ↓
+AUDIT LOG
+21. Architectural Principles to Lock
+Roles do not directly grant unrestricted access to microservices.
+Roles grant permissions to perform specific actions on resources.
+ABAC determines the data scope within which those actions are valid.
+High-risk workflows must enforce Segregation of Duties.
+Valuator, Marks Approver and Result Publisher must be independently controlled.
+Financial creation, approval and payment execution must be separated where applicable.
+API clients are machine identities and must receive explicit scopes.
+Sensitive data should additionally use field-level authorization where required.
+Authorization decisions and high-risk administrative actions should be auditable.
+Tenant and institution boundaries must be enforced at the authorization and data-access layers, not only in the UI.
+22. Summary
+The CampXSync authorization architecture should therefore operate as a centralized policy-driven authorization layer spanning all business microservices. The model combines RBAC for role semantics with ABAC/data scopes for contextual access, while workflow permissions such as Review, Approve and Publish provide the separation needed for academic, examination, financial and administrative integrity.
+Student Module — Integrated RBAC Permissions (STM-01 to STM-10)
+This section extends the existing enterprise RBAC matrix in this same document. It is not a separate role catalogue or a separate architecture document. The STM services are added to the master ownership matrix above and the following rows specify their action-level permission posture. All access remains subject to the existing enterprise RBAC + ABAC model and tenant/resource scope.
+Unified action-level permissions
+Cross-service controls applied to every STM permission
+Tenant, institution/campus, department, programme, course, section and resource ownership are evaluated in addition to role permissions.
+Guardian access requires a verified relationship and any applicable purpose/data-category consent; revocation must take effect.
+Student self-service never grants permission to verify, approve, publish official results, assign roles, or modify audit records.
+Official academic structures are owned by ACD; official examination results by EXM; financial state by FIN; identity and roles by existing IAM.
+The portal aggregates authorized downstream data and must not become an authorization bypass or a duplicate source of truth.
+All high-risk decisions, role assignments, document verifications, lifecycle transitions, exports and consent changes are auditable.
+API clients are machine identities and require explicit service scopes, tenant scope, purpose and resource policy.
+Policy items requiring confirmation
+Change summary
+Updated the original enterprise document in place as a single combined RBAC matrix deliverable.
+Inserted STM-01 through STM-10 into the existing Master Microservice Ownership Matrix.
+Added action-level STM permissions and constraints inside the same enterprise RBAC document.
+Preserved the existing R01–R30 enterprise role catalogue and original domain matrices.
+Did not include or embed the Student Module overview or STM-01 through STM-10 architecture diagrams.
+No database, migration, repository or application changes were performed.
+
+--- TABLES ---
+
+--- TABLE 1 ---
+Code | Role | Primary Scope
+R01 | Super Admin | Platform
+R02 | System Admin | Platform
+R03 | Institution Admin | Institution
+R04 | College Admin | College/Campus
+R05 | Principal | Institution
+R06 | Vice Principal | Institution
+R07 | Dean | Academic/Institution
+R08 | HOD | Department
+R09 | Program Coordinator | Program/Course
+R10 | Faculty | Assigned Subjects/Courses
+R11 | Class/Section Coordinator | Assigned Section
+R12 | Controller of Examinations | Examination
+R13 | Exam Cell Officer | Examination
+R14 | Valuator/Examiner | Assigned Evaluation
+R15 | Finance Manager | Finance
+R16 | Finance Officer/Accountant | Finance
+R17 | HR Manager | HR
+R18 | HR Officer | HR
+R19 | Communication Manager | Communication
+R20 | Placement Officer | Placement
+R21 | Librarian | Library
+R22 | Hostel Warden | Hostel
+R23 | Transport Manager | Transport
+R24 | Facility Manager | Facilities
+R25 | Student | Own Academic/Financial Data
+R26 | Parent/Guardian | Linked Student
+R27 | API Client | External Integration
+R28 | Auditor | Read/Audit
+R29 | Reporting/Analytics User | Reports
+R30 | Guest | Restricted Read
+
+--- TABLE 2 ---
+Code | Permission | Meaning
+V | View | Read permitted data
+C | Create | Create records
+U | Update | Modify records
+D | Delete | Delete/void records where permitted
+A | Approve | Approve workflow
+R | Reject | Reject workflow
+P | Publish | Make information officially available
+X | Execute | Execute an operational action
+E | Export | Export permitted data
+I | Import | Import data
+AS | Assign | Assign users/resources
+RV | Review | Review/verify before approval
+AU | Audit | View audit information
+CFG | Configure | Configure service
+ADM | Administer | Full service administration
+
+--- TABLE 3 ---
+Service Group | Domain | Primary Administrative Roles | Operational Roles
+ACD-01–10 | Academic Services | Academic Admin / College Admin | Principal / HOD / Coordinator / Faculty / Student
+LMS-01–10 | Learning Management | Academic Admin | HOD / Coordinator / Faculty / Student
+EXM-01–09 | Examination | Controller of Examinations | Exam Cell / Valuator / HOD / Faculty / Student
+FIN-01–10 | Finance & Accounts | Finance Manager | Accountant / Principal / Student / Parent
+HRM-01–09 | Human Resources | HR Manager | HR Officer / Principal / HOD / Employee
+CAM-01–08 | Communication & Announcements | Communication Manager | Principal / HOD / Faculty / Student / Parent
+CampXSync Admin | Platform Administration | Super Admin / System Admin | Institution Admin
+College Admin | College Administration | College Admin | Principal / HOD
+Shared Services | Identity, RBAC, Audit, Gateway, Reporting, Analytics | Super/System Admin | Scoped business roles
+STM-01 | Student Identity & Profile | Registrar / Admissions; College Admin (scoped) | Student; authorized staff; Faculty/Advisor (assigned students); Guardian (linked/consented)
+STM-02 | Admissions & Application Management | Registrar / Admissions; authorized admission approver | Applicant/Student; assigned Department Reviewer; Faculty/Advisor (review only); Guardian (limited)
+STM-03 | Student Enrolment & Registration | Registrar / authorized enrolment approver | Student; Department Staff; HOD/Dean (scoped); Faculty/Advisor (assigned roster)
+STM-04 | Student Lifecycle | Registrar; delegated Principal/Dean/HOD approver | Student (requests/status); assigned staff; Faculty/Advisor (limited status); Guardian (limited)
+STM-05 | Guardian & Relationships | Registrar / authorized relationship verifier | Student; verified Parent/Guardian; emergency contact (contact-only unless separately authorized)
+STM-06 | Student Documents | Authorized document verifier / Registrar | Student; assigned staff; explicitly assigned External Verification Agency; Auditor (audit scope)
+STM-07 | Student Account Provisioning | Existing IAM / delegated College Admin or Registrar | Student (own link status/request); provisioning service; authorized IAM operators
+STM-08 | Academic History | Authorized academic records staff; source-system approvers | Student; Faculty (assigned scope); Exam Cell/Controller; Academic Dean; Guardian (limited)
+STM-09 | Student Service Requests | Request-type-specific delegated approver | Student; permitted Guardian; assigned reviewer; Registrar/Department Staff
+STM-10 | Student Portal & Experience | Scoped College Admin / portal configuration owner | Student; Guardian (linked views); Faculty/staff (role-scoped); Communication Manager
+
+--- TABLE 4 ---
+Microservice | Principal | HOD | Coordinator | Faculty | Student | College Admin | Academic Admin
+ACD-01 Academic Structure | M | W | V | V | V | M | M
+ACD-02 Program Management | A | M | W | V | V | M | M
+ACD-03 Course/Curriculum | A | M | W | W | V | V | M
+ACD-04 Subject Management | V | M | W | W | V | V | M
+ACD-05 Faculty Allocation | A | W | W | V | — | M | M
+ACD-06 Student Academic Profile | V | W | W | W | V | M | M
+ACD-07 Section/Batch Management | V | M | M | W | V | M | M
+ACD-08 Attendance Management | V | RV | W | W | V | V | M
+ACD-09 Academic Planning | A | M | W | W | V | V | M
+ACD-10 Academic Monitoring & Analytics | V | RV | RV | V | V | V | M
+
+--- TABLE 5 ---
+Microservice | Faculty | HOD | Coordinator | Student | Parent | Principal | Academic Admin
+LMS-01 Course Management | W | M | M | V | V | V | M
+LMS-02 Course Content | M | RV | RV | V | V | V | M
+LMS-03 Subject Management | W | M | M | V | V | V | M
+LMS-04 Lesson Planning | M | RV | RV | V | V | V | M
+LMS-05 Assignments | M | RV | RV | W/X | V | V | M
+LMS-06 Virtual Classroom | M | V | V | X | V | V | M
+LMS-07 Resources Management | W | M | M | V | V | V | M
+LMS-08 Progress Tracking | W | RV | RV | V | V | V | M
+LMS-09 Certification & Badges | RV | A | A | V | V | V | M
+LMS-10 CO-TLO-PO | W | RV | M | V | — | A | M
+
+--- TABLE 6 ---
+Microservice | Exam Controller | Exam Cell | Faculty | Valuator | HOD | Student | Principal
+EXM-01 Student Exam Registration | M | W | V | — | RV | W | V
+EXM-02 Exam Scheduling | A | W | V | V | V | V | A
+EXM-03 Hall Ticket | A | W/P | V | — | V | V | V
+EXM-04 Valuation Management | M | W | — | X/W | RV | — | —
+EXM-05 Marks Approval | A | RV | W | W | RV | — | V
+EXM-06 Mark Cards | A | W/P | V | — | V | V | V
+EXM-07 Script Valuation | M | W | — | X/W | RV | — | —
+EXM-08 Results Management | A | W | V | — | RV | V | A
+EXM-09 Examination Reporting | M/E | E | E | V | E | V | E
+
+--- TABLE 7 ---
+Microservice | Finance Manager | Accountant | Principal | College Admin | HOD | Student | Parent
+FIN-01 Fee Structure | M | W | A | V | V | V | V
+FIN-02 Fee Collection | M | W/X | V | V | — | X/V | X/V
+FIN-03 Expense Management | M | W | A | W | W | — | —
+FIN-04 Tax Management | M | W | A | V | — | — | —
+FIN-05 Scholarship Management | A | W | A | W | RV | W | V
+FIN-06 Payroll | M | W/X | A | V | — | — | —
+FIN-07 Finance Reports | M/E | E | E | E | V | V | V
+FIN-08 Audit & Compliance | M | W | V | V | — | — | —
+FIN-09 Budget Management | M | W | A | W | RV | — | —
+FIN-10 Financial Analytics | M/E | E | E | E | V | V | —
+
+--- TABLE 8 ---
+Microservice | HR Manager | HR Officer | Principal | HOD | Employee/Faculty | College Admin
+HRM-01 Employee Information | M | W | V | V | V | M
+HRM-02 Leave Management | M | W/X | A | A | W | V
+HRM-03 Attendance & Timesheet | M | W | V | RV | W | V
+HRM-04 Performance Management | M | W | A | RV | W | V
+HRM-05 Payroll Fixation | M | W | A | — | V | V
+HRM-06 Recruitment & Onboarding | M | W/X | A | RV | — | V
+HRM-07 Exit Management | M | W | A | RV | W | V
+HRM-08 HR Analytics & Reports | M/E | E | E | E | V | E
+HRM-09 Training & Development | M | W | A | RV | W/V | V
+
+--- TABLE 9 ---
+Microservice | Communication Manager | Principal | HOD | Faculty | Student | Parent | College Admin
+CAM-01 Announcement Groups | M | A | W | V | V | V | M
+CAM-02 Targeted Messaging | M | A | W | W | V | V | M
+CAM-03 Email/SMS Gateway | M | A | W | W | V | V | M
+CAM-04 Push Notification | M | A | W | W | V | V | M
+CAM-05 Event Notification | M | A | W | W | V | V | M
+CAM-06 Survey & Feedback | M | A | W | W | X | X | M
+CAM-07 Emergency Alerts | M | A | A | X | V | V | M
+CAM-08 Communication Analytics | M/E | E | E | V | V | V | E
+
+--- TABLE 10 ---
+Capability | Super Admin | System Admin | Institution Admin | College Admin | Auditor
+Tenant Management | M | M | — | — | V
+Institution Management | M | W | M | V | V
+Campus Management | M | W | M | M | V
+Global Configuration | M | M | — | — | V
+Service Configuration | M | M | — | — | V
+API Gateway Configuration | M | M | — | — | V
+Integration Management | M | M | W | W | V
+Platform Monitoring | M | M | V | V | V
+Global RBAC | M | M | — | — | V
+Audit Management | M | M | V | V | M/V
+Security Policies | M | M | W | W | V
+System Health | M | M | V | V | V
+
+--- TABLE 11 ---
+Capability | College Admin | Principal | HOD | Faculty | Auditor
+College Configuration | M | V | — | — | V
+Department Management | M | A | W | V | V
+User Management | M | V | V | — | V
+Role Assignment | M | A | — | — | V
+Academic Configuration | M | A | W | V | V
+Faculty Assignment | M | A | W | V | V
+Student Management | M | V | W | W | V
+Communication Configuration | M | A | W | W | V
+Reports | M | M | E | E | E
+Audit | V | V | V | V | M
+
+--- TABLE 12 ---
+Service | Super Admin | System Admin | Institution Admin | College Admin | Auditor | Business Roles
+Identity/Auth Service | M | M | W | W | V | V
+RBAC/Authorization Service | M | M | M* | M* | V | —
+Audit Service | M | M | V | V | M | V*
+Notification Service | M | M | M | M | V | X
+API Gateway | M | M | CFG | CFG | V | —
+Service Discovery | M | M | — | — | V | —
+Configuration Service | M | M | — | — | V | —
+Event/Messaging Platform | M | M | V | V | V | X
+Reporting Service | M | M | M | M | V | E/V
+Analytics/BI Service | M | M | M | M | V | E/V
+Observability | M | M | V | V | V | —
+
+--- TABLE 13 ---
+Domain/Resource | Student | Parent
+Own Profile | V/U* | V
+Academic Structure | V | V
+Own Courses | V | V
+Own Attendance | V | V
+Own Assignments | V/W/X | V
+Own LMS Progress | V | V
+Own Examination Registration | W/X | V
+Own Hall Ticket | V | V
+Own Results | V | V
+Own Mark Card | V | V
+Own Fees | V/X | V/X
+Own Scholarship | V/W | V
+Announcements | V | V
+Surveys | X | X
+Notifications | V | V
+Other Students' Data | — | —
+Other Students' Marks | — | —
+Faculty Data | — | —
+Financial Reports | — | —
+HR Data | — | —
+Administration | — | —
+
+--- TABLE 14 ---
+Capability | API Client
+Authentication | ✓
+Service-to-Service Access | ✓
+Read Academic Data | Scoped
+Write Academic Data | Scoped
+Read Student Data | Scoped
+Examination Integration | Scoped
+Finance Integration | Scoped
+HR Integration | Scoped
+Bulk Import | Scoped
+Bulk Export | Scoped
+Administrative Configuration | — by default
+RBAC Administration | —
+Audit Logs | Scoped
+Platform Configuration | —
+
+--- TABLE 15 ---
+Level | Authorization Question
+Level 1 — Service | Can this role access the LMS or a given microservice?
+Level 2 — Operation | Can the role CREATE an assignment, APPROVE marks, or PUBLISH results?
+Level 3 — Data Scope | Which department, course, section, student or resource can the role access?
+Level 4 — Field | Which individual fields are visible or editable, especially for sensitive academic, financial and HR data?
+
+--- TABLE 16 ---
+Code | Meaning
+V | View/read permitted data
+C | Create
+U | Update permitted fields
+D | Delete/deactivate where policy allows
+RV | Review/verify
+A | Approve
+R | Reject/return
+P | Publish/activate
+X | Execute workflow action
+E/I | Export / Import within explicit scope
+AS | Assign users/resources within delegated scope
+AU | Audit read access
+CFG/ADM | Configure / administer within authorized scope
+— | No default permission
+
+--- TABLE 17 ---
+Service / capability | Role | Permission posture | Admin capability | Mandatory constraint
+STM-01 Identity/Profile | Student | V own; U permitted fields | — | No self-verification or duplicate merge
+STM-01 Identity/Profile | Registrar / Admissions | C, U, RV; A verification if delegated | — | Sensitive fields and merges require explicit policy/audit
+STM-01 Identity/Profile | Faculty / Advisor | V limited assigned advisees | — | No institution-wide student browsing by default
+STM-01 Identity/Profile | College Admin | V/U scoped administration | CFG/ADM scoped | No tenant-boundary bypass
+STM-02 Admissions | Applicant / Student | C/U draft; X submit; V own status | — | Cannot approve own application
+STM-02 Admissions | Registrar / Admissions Staff | C/U/RV; A/R when assigned | — | Separate verification and decision when workflow requires
+STM-02 Admissions | Department reviewer / Faculty | RV assigned applications | — | Recommendation is not automatically final admission approval
+STM-02 Admissions | Parent / Guardian | V limited status if linked and allowed | — | Relationship and consent policy applies
+STM-03 Enrolment | Student | V own; X request/select courses | — | Eligibility, prerequisites, capacity and duplicate checks required
+STM-03 Enrolment | Registrar / Department Staff | C/U/RV; A when delegated | — | Approval scope and term/programme constraints enforced
+STM-03 Enrolment | Faculty / Advisor | V assigned roster and relevant status | — | Assigned course/section scope
+STM-04 Lifecycle | Student | V own status; X permitted request | — | Cannot directly approve status transition
+STM-04 Lifecycle | Registrar / delegated approver | C/U/RV; A/R per workflow | — | Effective-dated transitions; retain history; no deletion of graduated records
+STM-04 Lifecycle | Parent / Guardian | V limited linked status | — | Consent and relationship restrictions
+STM-05 Guardian/Relationships | Student / Guardian | V permitted relationship; C request changes | — | No self-granting of consent or access rights
+STM-05 Guardian/Relationships | Authorized Registrar / verifier | C/U/RV; A verification when delegated | — | Emergency contact is not automatically a guardian login
+STM-05 Guardian/Relationships | Consent/access policy owner | V; grant/revoke only within delegated scope | CFG scoped | Purpose, data category, validity and revocation must be enforced
+STM-06 Documents | Student | C upload; V own status; X re-verification request | — | Private object storage; authorized short-lived access
+STM-06 Documents | Assigned verifier / Registrar | V/RV; A/R verification when authorized | — | Uploader is not automatically verifier
+STM-06 Documents | External Verification Agency | RV assigned documents only | — | No broad search, export, or cross-tenant access
+STM-06 Documents | Auditor | AU scoped | — | Audit read-only by default
+STM-07 Account Provisioning | Student | V own link status; X request if enabled | — | No self-assignment of roles
+STM-07 Account Provisioning | Provisioning service / IAM operator | X link/unlink; AS approved tenant roles | ADM scoped | Use existing IAM; verify tenant and eligibility; log role changes
+STM-07 Account Provisioning | College Admin / Registrar | Request or trigger only when delegated | AS scoped | No parallel identity authority
+STM-08 Academic History | Student | V own verified history; X correction request | — | Official results remain owned by examination service
+STM-08 Academic History | Faculty / Department Staff | V assigned records; RV only if assigned | — | No unauthorized result changes or publication
+STM-08 Academic History | Exam Cell / Controller / Academic Dean | RV/A/I only under assigned source workflow | — | Preserve provenance; STM-08 is a composed/read model
+STM-08 Academic History | Parent / Guardian | V limited linked history if permitted | — | Consent and relationship scope
+STM-09 Service Requests | Student | C/U draft; X submit; V own; cancel if allowed | — | Requester cannot approve own request where approval is required
+STM-09 Service Requests | Assigned reviewer / approver | RV; A/R by request type | — | Approval chain and SLA must be configured per request type
+STM-09 Service Requests | Registrar / Department Staff | Process assigned request types | — | Generated documents link to approved request and STM-06 storage
+STM-10 Portal/Experience | Student | V own dashboard; U preferences; X allowed self-service | — | Portal is not a source of truth
+STM-10 Portal/Experience | Parent / Guardian | V permitted linked views | — | No unrelated student data; downstream services re-authorize
+STM-10 Portal/Experience | Faculty / staff | V role-scoped portal data | — | Assigned course/section/department scope
+STM-10 Portal/Experience | College Admin / Communication Manager | CFG/ADM portal settings; publish via communication service | — | Announcements respect audience, tenant and validity window
+
+--- TABLE 18 ---
+Policy item | Open decision
+Guardian access | Confirm consent defaults, eligible data categories, validity and revocation behavior.
+Admissions workflow | Confirm which roles verify, recommend, approve, reject and publish each admission outcome.
+Profile field editing | Approve field-level rules for editable, verified/immutable and restricted identity fields.
+Provisioning | Approve student-status-to-IAM-role mapping and suspension/deprovisioning triggers.
+Academic corrections | Define authoritative correction workflow for results, transcripts, credits and imported records.
+Service request approvals | Define approver chains, delegation, cancellation and SLA escalation by request type.
+Support role | If required, approve a least-privilege, time-bound support role before adding it to the canonical role catalogue.

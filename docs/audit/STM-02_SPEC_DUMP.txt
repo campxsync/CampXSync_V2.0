@@ -1,0 +1,373 @@
+CampXSync
+STM-02 — Admissions & Application Management Service
+Technical Design Specification
+SQL-first • Multi-tenant • Workflow-driven • Integration-ready
+No repository changes, database writes, migrations, commits, or pushes are authorized by this document.
+Document Control
+Critical Gate — Audit Before Implementation
+Do not create tables or change APIs yet. First inspect the active branch and current `stu`, `core`, `iam`, `acd`, finance/payment and existing admissions-related schemas; foreign keys, constraints, indexes, RLS, grants and migration history; Java controllers/services/repositories/DTOs; and tests. Reuse existing structures and contracts where possible. The current design work did not verify the active-branch implementation, so the entities, routes, events and workflows below are candidates rather than verified facts.
+Preserve the current repository, branch, uncommitted work, checkpoints, schemas and project execution rules.
+Do not connect to or modify production. Use read-only inspection until environment identity and approval gates are satisfied.
+Do not duplicate STM-01 student identity, IAM user identity, academic programmes/years, finance transactions, shared document storage, workflow engine, audit trail or notification service.
+Treat the architecture image as design intent only; the active repository and database are the source of truth for current implementation.
+1. Executive Summary
+STM-02 manages the admissions application lifecycle from application creation through completeness checks, eligibility validation, document review, departmental evaluation, admission decision, offer, acceptance/decline/expiry and handover to student enrolment. It coordinates these steps while relying on existing platform capabilities for identity, academic reference data, payment processing, notifications, document storage, audit and downstream student creation.
+The proposed implementation is a Spring Boot REST microservice behind the existing shared API Gateway, using PostgreSQL/Supabase for transactional records. Admission rules should be configurable and versioned by tenant/programme/intake. External integrations must be idempotent, auditable and fail safely. STM-02 must not become a second source of truth for student profile, programme catalogues, payment ledger, IAM credentials or enrolment.
+1.1 Goals
+Provide applicants with an accessible, resumable, multi-step application process.
+Allow authorized admissions staff and reviewers to validate eligibility, inspect documents, record assessments and make auditable decisions.
+Support institution/programme/intake-specific application windows, eligibility rules, required documents, fees and review workflows.
+Prevent duplicate applications and duplicate student creation under concurrent requests and retries.
+Integrate securely with STM-01, ACD, Finance/payment gateway, document storage/verification, notification, audit and STM-03 enrolment.
+Support tenant isolation, field-level permissions, configurable workflow and analytics without leaking personal data.
+1.2 Non-goals
+Canonical student identity/profile ownership — STM-01.
+Programme, department, academic year and course catalogue ownership — existing ACD/core reference domains.
+Payment ledger, refunds and reconciliation source of truth — Finance; STM-02 stores only application payment reference/status summary where required.
+Authentication, credentials and roles — IAM.
+Enrolment records and academic status after acceptance — STM-03 or the existing designated enrolment service.
+Document binaries, general-purpose notifications, generic workflow engine or audit platform — shared services, if available.
+Creating proposed tables before schema ownership and duplication checks.
+2. Service Overview
+3. High-Level Architecture
+4. Internal Components and Responsibilities
+5. Application Lifecycle / State Machine
+This is a proposed workflow, not an assertion that these states already exist. Institutions may configure different steps, but each transition must be explicit, permission-checked, timestamped and auditable. Payment status is a separate dimension and must not be confused with application status.
+5.1 State-transition requirements
+Every transition has an authorized actor or system principal, a reason code where required, timestamp, tenant, correlation ID and rule/workflow version.
+Reject client attempts to patch status directly; use explicit action endpoints and server-side transition validation.
+Use optimistic concurrency or equivalent to prevent two reviewers overwriting each other.
+Notifications are triggered after the state change commits, not before.
+Payment state and document-verification state are independent sub-workflows.
+Retries and repeated webhooks must be idempotent.
+6. Logical PostgreSQL/Supabase Data Model
+Candidate entities only. Do not create these names as physical tables until the existing admissions and student schemas have been audited. Names below are illustrative and should be reconciled with current naming conventions.
+6.1 Relationship model (logical)
+Applicant identity design is a key open decision: an applicant may not yet be an enrolled student. Do not force every draft application into a student profile unless that is the existing approved model. Determine whether the system uses a pre-admission person identity, an STM-01 profile created at submission/offer/acceptance, or a controlled link to an existing profile.
+7. Data Field Requirements
+8. Proposed REST API Contract
+These endpoints are illustrative candidates, not verified routes. Compare with existing controllers, gateway mappings and API conventions before adding or changing endpoints.
+8.1 Example: Create application
+8.2 Example: Submit application
+The exact response and nextAction are policy-dependent. Do not leak internal reviewer notes, fraud signals or other applicants' information to the applicant.
+8.3 Error handling
+9. SQL Constraints, Indexes and Transactions
+10. API Gateway, Tenant Isolation and RLS
+Use the existing shared API Gateway and IAM; no second gateway or parallel auth implementation.
+Resolve tenant context from trusted claims/platform context; reject absent or conflicting tenant context.
+Enforce route permission at gateway and application/action permission in STM-02; database RLS and grants provide defense in depth.
+Applicants may access only their own application and safe applicant-facing status/document views.
+Reviewers may access only assigned applications and permitted fields; department/programme scope must be checked on every request.
+Never trust client-supplied reviewer ID, tenant ID, decision actor, payment success, verification status or offer status.
+Payment success must be confirmed through a trusted provider/Finance callback or status API with signature/authorization checks and replay protection.
+RLS policies must fail closed without tenant context and must not allow cross-tenant joins or caller-controlled tenant impersonation.
+Test SELECT/INSERT/UPDATE and all relevant relationship joins using real non-production roles across at least two tenants.
+11. Role and Permission Matrix (Proposed)
+Map these proposed roles to existing IAM permissions, tenant/department scoping and permission helper functions after code inspection. Do not add a parallel role table or bypass established authorization rules.
+12. Integrations
+13. Domain Events (Proposed)
+Events must follow existing versioning and delivery guarantees. Consumers must tolerate duplicate/out-of-order events; publish only after transaction commit and use an existing outbox mechanism if available. Keep PII, payment credentials, identity-document content and private reviewer comments out of broadly consumed event payloads.
+14. Sequence Flows
+14.1 Applicant submits an application
+Applicant authenticates and opens an application for an available ACD programme/intake.
+Gateway validates identity, tenant context and route access; STM-02 checks applicant ownership and application window.
+STM-02 validates required fields and the applicable versioned eligibility/completeness rules.
+Document adapter verifies required metadata/references; binary upload is handled by approved storage.
+STM-02 commits application state and status history atomically, then publishes an event through the approved reliable mechanism.
+Notification service sends confirmation after commit; applicant receives application number and safe status.
+Review/eligibility workflow proceeds asynchronously where required.
+14.2 Reviewer decides and offer is accepted
+Authorized reviewer retrieves only assigned application data and records an assessment against the configured rubric.
+Decision workflow verifies permissions, required approvals, current state and version before committing the decision.
+Offer is created with versioned terms and validity window; applicant is notified.
+Applicant accepts only while the offer is valid; a transaction prevents duplicate acceptance.
+STM-02 requests STM-01 identity linkage/creation according to the agreed lifecycle policy and waits for an idempotent result.
+STM-02 sends enrolment handover to STM-03; retries and reconciliation handle downstream failures without duplicating the student or enrolment.
+Application is marked as handed over only when the downstream confirmation contract is satisfied.
+15. Security, Privacy and Compliance
+Collect only admissions data needed for a stated institutional purpose and configured programme criteria.
+Limit applicant visibility to their own application, uploaded documents and safe decision/status information.
+Restrict reviewer comments, scores, identity documents, financial details and verification signals to authorized roles.
+Use TLS, approved secrets management, least-privilege database grants and safe object-storage access.
+Redact tokens, OTPs, document contents, payment details and unnecessary PII from logs and events.
+Audit application submission, document verification, review changes, decisions, offer issuance/acceptance, payment status changes and identity/enrolment handover.
+Validate document MIME/type/size, malware scanning where available, private access and expiry/retention.
+Protect callbacks with signature validation, timestamp/replay checks, idempotency and reconciliation.
+Apply retention, correction, appeal and deletion policies according to institution and legal requirements.
+16. Validation and Error Rules
+17. Testing Strategy and Acceptance Criteria
+17.1 Unit and component tests
+Application state machine permits only configured transitions and rejects direct status patches.
+Eligibility rules are versioned, deterministic for fixed inputs and produce safe reason codes.
+Submission validates application window, required fields, required documents and declarations.
+Offer expiry and concurrent acceptance cannot produce two successful acceptances.
+Duplicate create/submit/payment callback/event retries remain idempotent.
+Review permission, assignment scope and separation-of-duties rules are enforced.
+Payment adapter never trusts client status and handles provider retries/timeouts.
+Identity creation/linkage and enrolment handover retries do not create duplicate records.
+Event payloads redact sensitive fields and include correlation/tenant identifiers.
+17.2 Integration and security tests
+Cross-tenant application reads, updates, document references, searches and reviewer queues are denied.
+Missing tenant context fails closed at service and RLS layers.
+Applicants cannot view another applicant's application, reviewer comments or restricted document metadata.
+Unauthorized roles cannot verify documents, score, approve, reject, issue offers or alter payment status.
+RLS and grants are tested with the actual non-production application role, not only privileged admin credentials.
+Payment callback signature/replay protection and reconciliation paths are tested.
+Duplicate/out-of-order events and downstream outage recovery are tested.
+Migration/rollback tests run only in approved non-production staging after explicit environment verification and write approval.
+17.3 Acceptance criteria
+Read-only audit identifies existing admissions tables, APIs, services, constraints, RLS and reusable workflow/payment/document capabilities.
+No duplicate student identity, programme catalogue, Finance ledger, IAM, notification, audit or document binary store is introduced.
+Applicant can create, resume, submit and track only their own application.
+Staff can review and decide only within assigned tenant/programme/department scope.
+State changes, eligibility results, review decisions, offer lifecycle and payment references are auditable.
+Offer acceptance triggers idempotent STM-01 and STM-03 integration with recoverable failure handling.
+All tenant-isolation and authorization tests pass against non-production data and roles.
+Physical schema/API changes follow existing CampXSync conventions and are reviewed before execution.
+No production database is accessed or modified during design.
+18. Implementation and Migration Safety Gates
+19. Open Decisions
+20. Recommended Next Task
+Run a read-only, active-branch STM-02 ownership audit and produce a mapping matrix: candidate capability/entity/API; existing table or code artifact; owner; constraints and RLS; existing tests/evidence; reuse/extend/gap decision; risk; and unresolved question. Review that matrix before producing executable DDL or implementation prompts.
+Final status: STM-02 design specification drafted. The physical schema, endpoints, gateway configuration, event bus and current implementation are not verified here. No database writes, migrations, repository edits, commits or pushes were performed to create this document.
+
+--- TABLES ---
+
+--- TABLE 1 ---
+Document status | Version | Prepared | Scope
+PROPOSED DESIGN — READ-ONLY AUDIT REQUIRED | 0.1 | 21 October 2026 | Applicants, admissions staff, reviewers and college administrators
+
+--- TABLE 2 ---
+Item | Details
+Purpose | Define the proposed architecture and implementation contract for STM-02 Admissions & Application Management.
+Audience | Product owner, backend/frontend engineers, database architect, security reviewer, QA and operations.
+Status | Design proposal; not an implementation report and not proof that proposed tables or routes exist.
+References | User-provided CampXSync STM-02 architecture infographic and LMS-02 technical architecture poster.
+Database | PostgreSQL / Supabase SQL; MongoDB is not proposed.
+Platform integration | Existing shared API Gateway, IAM, notifications, audit, payment and storage services where available.
+Change control | Physical schema changes require ownership audit, non-production target verification, migration review and explicit approval under existing project rules.
+
+--- TABLE 3 ---
+Attribute | Proposed definition
+Service ID | STM-02
+Service name | Admissions & Application Management Service
+Domain | Student Module
+Primary responsibility | Application intake, eligibility, document completeness, review, decision, offer and acceptance workflow.
+Runtime | Spring Boot REST microservice, subject to existing repository conventions.
+Database | PostgreSQL / Supabase; exact schema and existing tables must be audited.
+Gateway | Existing shared API Gateway and IAM integration; do not deploy a duplicate gateway.
+Tenant context | Trusted auth context and canonical `core` tenant identity.
+Integrations | STM-01, ACD reference data, Finance/payment gateway, document storage/verification, notifications, audit, workflow/event bus, STM-03.
+Status | Proposed design; current implementation not verified.
+
+--- TABLE 4 ---
+Applicant Portal / Staff Portal / Reviewer Portal / Mobile                          |                          v Existing Shared API Gateway & IAM   Authentication | Tenant Context | Route Authorization   Rate Limits | Request Validation | Correlation/Tracing                          |                          v STM-02 REST API (Controllers / DTO Validation)                          |                          v Application / Use-Case Layer   Application Intake & Drafts   Eligibility Rules & Completeness   Document Review / Verification Adapter   Review & Scoring Workflow   Decision / Offer / Acceptance   Payment Orchestration Adapter   Communications / Integration Orchestration                          |                          v Repository / DAO Layer (tenant-aware parameterized SQL)                          |                          v Existing PostgreSQL / Supabase structures (RLS + grants)           |             |               |           v             v               v   Document storage  Shared audit   Event bus/outbox           |                             |           +--> notifications / STM-01 / Finance / STM-03
+
+--- TABLE 5 ---
+Component | Responsibility | Boundary
+Application API | Create, resume, submit and retrieve application data. | Does not expose unfiltered internal tables.
+Eligibility & validation | Evaluate configured criteria and required fields/documents. | Rule version and evaluation result must be traceable.
+Document adapter | Store metadata/reference, receive verification status and review evidence. | Binary content remains in approved object storage.
+Review & evaluation | Assign reviewers, capture scores/comments and resolve conflicts. | Use existing workflow engine if available.
+Decision & offer | Record approval/rejection/defer/waitlist and offer terms/status. | Role-restricted and immutable history retained.
+Payment adapter | Initiate/confirm application fee, handle retries and reconciliation references. | Finance/payment gateway owns money movement and ledger.
+Communication adapter | Request email/SMS/push templates and delivery. | Shared notification service owns delivery.
+Integration orchestrator | Coordinate STM-01 identity creation/linkage and STM-03 enrolment handover. | Use idempotency, retries and compensating workflow where needed.
+Repository/DAO | Tenant-scoped SQL and transaction boundary. | RLS defense in depth; no cross-tenant queries.
+Analytics adapter | Expose aggregated application funnel metrics. | Avoid unnecessary PII in analytical datasets.
+
+--- TABLE 6 ---
+Component | Core capabilities | Key design controls
+Application Management | Draft, create, resume, submit, withdraw and retrieve applications. | Idempotency, ownership checks, intake window validation, concurrency control.
+Eligibility Rules | Programme/intake criteria, age/qualification checks, prerequisites, configurable rules. | Versioned rules, effective dates, explainable evaluation result, no silent rule edits.
+Document Management Adapter | Required document list, upload references, categorization, verification status, expiry. | Private object references, file safety, reviewer permissions, retention.
+Review & Evaluation | Reviewer assignment, rubric, scores, comments, interview/test status. | Separation of duties, conflict-of-interest controls, audit of edits.
+Decision Service | Approve, reject, defer, waitlist, reasons, decision approval. | Explicit state transitions and authorized decision makers.
+Offer Service | Offer generation/reference, programme/intake, validity window, acceptance/decline/expiry. | Versioned offer terms; no acceptance after expiry without authorized exception.
+Application Fee Adapter | Fee requirement, payment intent/reference, status, refunds/waivers via Finance. | No card data or payment secrets in STM-02; verified provider callbacks.
+Communication Service Adapter | Application received, missing docs, interview, decision, offer reminders. | Template IDs and delivery status; avoid sensitive payloads.
+Integration Adapter | STM-01 identity linking, ACD reference validation, STM-03 handover. | Idempotency keys, retry policy, dead-letter/reconciliation procedures.
+Reporting | Counts, conversion funnel, backlog, processing times, programme demand. | Tenant-scoped aggregates and least-privilege access.
+
+--- TABLE 7 ---
+DRAFT   | submit   v SUBMITTED --> RETURNED_FOR_INFORMATION --> SUBMITTED   |   v COMPLETENESS / DOCUMENT CHECK   | incomplete                    | complete   v                               v RETURNED_FOR_INFORMATION        ELIGIBLE / READY_FOR_REVIEW                                   |                                   v                              DEPARTMENT_REVIEW                              /      |       \                         DEFERRED  WAITLIST  DECISION                                            /   |   \                                       REJECTED OFFERED                                                   |                                       +-----------+-----------+                                       |           |           |                                   ACCEPTED     DECLINED      EXPIRED                                       |                                       v                           STM-01 identity link/create                                       |                                       v                           STM-03 enrolment handover
+
+--- TABLE 8 ---
+State | Meaning / entry criteria | Allowed next states (illustrative)
+DRAFT | Applicant started an application; not yet formally submitted. | SUBMITTED, WITHDRAWN
+SUBMITTED | Applicant confirms submission; server validates required minimum fields and intake window. | RETURNED_FOR_INFORMATION, ELIGIBILITY_CHECK, WITHDRAWN
+RETURNED_FOR_INFORMATION | Applicant must correct missing/invalid data or documents. | SUBMITTED, WITHDRAWN
+ELIGIBILITY_CHECK | Rules and required documents evaluated against a versioned rule set. | ELIGIBLE, RETURNED_FOR_INFORMATION, REJECTED
+ELIGIBLE / READY_FOR_REVIEW | Required checks passed; waiting for reviewer allocation. | DEPARTMENT_REVIEW
+DEPARTMENT_REVIEW | Authorized reviewers evaluate according to rubric and policy. | DEFERRED, WAITLIST, OFFERED, REJECTED, RETURNED_FOR_INFORMATION
+DEFERRED | Decision postponed pending capacity or further review. | DEPARTMENT_REVIEW, OFFERED, REJECTED, WITHDRAWN
+WAITLIST | Eligible but no immediate offer; rank and policy controlled. | OFFERED, REJECTED, EXPIRED
+OFFERED | Offer issued with terms and expiry. | ACCEPTED, DECLINED, EXPIRED
+ACCEPTED | Applicant accepts a valid offer; identity/enrolment handover initiated. | HANDOVER_PENDING, ENROLMENT_CONFIRMED, exception workflow
+DECLINED / EXPIRED | Offer not accepted or expired. | Reopen only via audited exception/policy
+REJECTED / WITHDRAWN | Terminal decision/status subject to retention policy. | No ordinary transitions; appeal/reopen via explicit workflow
+HANDOVER_PENDING | Accepted offer is being linked to STM-01 and sent to STM-03. | ENROLMENT_CONFIRMED, HANDOVER_RETRY/EXCEPTION
+
+--- TABLE 9 ---
+Logical entity | Candidate fields | Ownership / audit question
+Application | id, tenant_id, application_number, applicant/student reference, programme_id, academic_year_id/intake_id, application_type, source, status, rule_version, timestamps, version | Check existing `stu` admissions/application structures and whether applicant identity is a pre-admission identity or STM-01 identity.
+Applicant details | application_id, legal/preferred name snapshot if needed, contact snapshot, qualification summary | Avoid duplicate canonical profile. Decide whether snapshot is legally/operationally required or use STM-01 reference.
+Application documents | id, application_id, document_type, object_ref, filename metadata, verification status, verifier, expiry | Reuse existing document metadata and storage services.
+Application status history | application_id, from_status, to_status, actor, reason, timestamp, correlation_id | Prefer existing workflow/audit infrastructure if it captures domain transitions.
+Application reviews | application_id, reviewer_ref, review_type, rubric_version, score, decision, comments, reviewed_at | Confirm review workflow/rubric ownership and sensitive-comment access.
+Application payments | application_id, finance/payment reference, amount/currency snapshot, status summary, timestamps | Finance owns ledger; do not duplicate transaction details or provider secrets.
+Admission offers | application_id, offer_number, programme/intake reference, terms version, valid_from/to, status, accepted_at | Define source of offer terms and whether a separate offer entity exists.
+Application communication references | application_id, channel, template ID, delivery reference/status | Prefer shared notification service records.
+Admissions configuration | tenant_id, programme/intake reference, application window, rule-set reference/version, required documents, fee reference | Use ACD for programme/year; config should not duplicate reference data.
+Integration/handover record | application_id, STM-01 student ref, STM-03 enrolment ref, idempotency key, handover status | Use existing outbox/workflow mechanism if available.
+
+--- TABLE 10 ---
+core.tenants (existing canonical tenant)        1 ─── N applications (candidate logical entity)  ACD programme / academic year / intake reference (existing owner)        1 ─── N applications  application        1 ─── N document references        1 ─── N review records        1 ─── N status transitions        0..N ─── payment references (Finance remains ledger owner)        0..N ─── offer records or offer revisions        0..N ─── communication references  accepted application        ─── idempotent link/create with STM-01 student identity        ─── handover request to STM-03 enrolment
+
+--- TABLE 11 ---
+Field group | Requirements | Mutability / owner
+Application ID | Stable UUID or existing primary key convention. | Server-assigned; immutable.
+Application number | Readable identifier unique according to institution/intake policy. | Server-generated; uniqueness enforced in SQL after audit.
+Tenant ID | Canonical tenant reference; derived from trusted context. | Never accepted as authoritative from request body.
+Programme / academic year / intake | References to ACD-owned entities. | Validate existence, availability and tenant scope; do not duplicate catalogue records.
+Applicant identity reference | Pre-admission identity or STM-01 student reference, based on audited lifecycle design. | Controlled linkage; duplicate detection and privacy policy apply.
+Application status | Explicit state machine value. | Only transition commands may change it.
+Eligibility result | Rule-set version, result, safe reason codes, evaluated timestamp. | System-generated; reevaluate under explicit policy/version.
+Document metadata | Document type, private object reference, verification state, expiry. | Binary is stored outside SQL.
+Review result | Reviewer reference, rubric version, scores and comments. | Restricted to authorized reviewers; edits audited.
+Offer terms | Offer identifier, terms version, validity, programme/intake reference. | Controlled decision workflow; accepted terms preserved.
+Payment status/reference | Provider/Finance reference and status summary only. | Finance/payment adapter is authoritative for transaction state.
+Audit metadata | Actor, timestamps, version, correlation reference. | Server/system generated; follow platform conventions.
+
+--- TABLE 12 ---
+Method | Candidate route | Purpose / restrictions
+POST | /api/v1/admissions/applications | Create a draft application; idempotent where appropriate.
+GET | /api/v1/admissions/applications | List/search only applications visible to caller; paginated and tenant-scoped.
+GET | /api/v1/admissions/applications/{applicationId} | Get authorized application projection.
+PATCH | /api/v1/admissions/applications/{applicationId} | Update allowlisted draft fields only; reject edits after relevant state cutoff.
+POST | /api/v1/admissions/applications/{applicationId}/submit | Validate window, completeness and acknowledgement; transition to SUBMITTED.
+GET | /api/v1/admissions/applications/{applicationId}/status | Return safe state/timeline projection.
+POST | /api/v1/admissions/applications/{applicationId}/documents | Register uploaded document reference; upload URL comes from approved storage adapter.
+GET | /api/v1/admissions/applications/{applicationId}/documents | List authorized document metadata, not public file URLs.
+POST | /api/v1/admissions/applications/{applicationId}/documents/{documentId}/verify | Record authorized verification decision.
+POST | /api/v1/admissions/applications/{applicationId}/review | Submit review/assessment through permission-controlled workflow.
+POST | /api/v1/admissions/applications/{applicationId}/decision | Record authorized decision or invoke decision workflow.
+POST | /api/v1/admissions/applications/{applicationId}/offer | Create/issue an offer after required approval.
+POST | /api/v1/admissions/applications/{applicationId}/accept-offer | Accept a valid offer with concurrency and expiry checks.
+POST | /api/v1/admissions/applications/{applicationId}/decline-offer | Record applicant decline.
+POST | /api/v1/admissions/applications/{applicationId}/withdraw | Withdraw according to policy.
+POST | /api/v1/admissions/applications/{applicationId}/payment-intent | Request payment intent from Finance/payment provider adapter.
+GET | /api/v1/admissions/applications/{applicationId}/payment-status | Read verified payment status projection.
+GET | /api/v1/admissions/config/programmes | Return programmes/intakes available to the caller; sourced from ACD.
+GET | /api/v1/admissions/applications/{applicationId}/reviews | List reviews only to authorized reviewers/staff.
+
+--- TABLE 13 ---
+POST /api/v1/admissions/applications Authorization: Bearer <token> Idempotency-Key: <client-generated-key> Content-Type: application/json  {   "programmeId": "ACD-owned-programme-reference",   "academicYearId": "ACD-owned-year-reference",   "applicationType": "UNDERGRADUATE",   "source": "PORTAL" }  201 Created {   "applicationId": "generated-uuid",   "applicationNumber": "assigned-by-institutional-rule",   "status": "DRAFT",   "version": 1 }
+
+--- TABLE 14 ---
+POST /api/v1/admissions/applications/{applicationId}/submit If-Match: "<version-or-etag>"  {   "declarationAccepted": true }  200 OK {   "applicationId": "existing-uuid",   "status": "SUBMITTED",   "submittedAt": "server-generated-timestamp",   "nextAction": "DOCUMENT_REVIEW" }
+
+--- TABLE 15 ---
+HTTP status | Typical use
+400 | Malformed input, invalid pagination, missing required fields.
+401 | Missing or invalid authentication.
+403 | Caller is not authorized for the requested action.
+404 | Application does not exist or is not visible to caller.
+409 | Duplicate application, invalid state transition, idempotency conflict, offer already consumed.
+412 | Stale version/ETag.
+422 | Eligibility/business rule failure, if supported by existing error conventions.
+429 | Rate limit exceeded.
+502/503 | Payment, document verification or downstream dependency unavailable; preserve retry-safe state.
+
+--- TABLE 16 ---
+Concern | Design requirement
+Tenant integrity | Every tenant-owned row must be associated with canonical tenant identity or inherit scope through an enforced parent relationship.
+Application number | Unique within the approved tenant/intake scope; exact uniqueness rule must be confirmed.
+Duplicate applications | Define a business key from applicant identity, programme, intake and application type; do not rely on fuzzy name matching alone.
+Foreign keys | Reference existing `core` tenant and ACD-owned programme/year/intake IDs; avoid unconstrained references.
+Status constraints | Use explicit enum/check/reference conventions consistent with current migrations and state machine.
+Indexes | Tenant-leading list/search indexes; targeted indexes for application number, status, programme/intake, applicant reference and submission date.
+Partial/unique indexes | Only after reviewing historical/reapplication/withdrawal policy and existing data.
+Transactions | Create/update/status transition and status history must be atomic.
+Payment integration | Never hold a database transaction open while waiting for external payment provider; use idempotent asynchronous confirmation.
+Reliable events | Use existing outbox/event convention if available; do not assume Kafka is configured solely from the diagram.
+Retention | Keep records according to admissions/legal retention policy; avoid destructive cascades into student/finance data.
+
+--- TABLE 17 ---
+Role | Create/edit draft | Submit | Verify docs | Review | Decision/offer | View payment
+Applicant | Own draft only | Own application | Upload/replace own docs per policy; no verification decision | No | Accept/decline own valid offer only | Own status only
+Admissions staff | Assigned tenant/scope | May assist only if policy permits | Assigned verification scope | May coordinate/assign | According to assigned permission | Status summary only
+Department reviewer | No by default | No | Only if assigned | Assigned applications/programmes only | Recommend/score; final decision only if explicitly authorized | No by default
+Admissions decision-maker | Limited corrections | No | May review result | Read authorized evaluations | Approve/reject/defer/offer within scope | Status summary if required
+Finance staff/service | No application edits by default | No | No | No | No | Authoritative payment operations in Finance
+College administrator | Within tenant and explicit permission | Policy-based | Only if assigned | Within assigned scope | Only with explicit permission | Limited summary
+Platform administrator | Exceptional, audited | Exceptional | Exceptional | Exceptional | Exceptional | No default finance authority
+Service-to-service identity | Specific API scopes only | Workflow-specific | Callback-specific | Specific integration action | Specific integration action | Only through approved adapter
+
+--- TABLE 18 ---
+System / module | Purpose | Boundary
+STM-01 Student Identity & Profile | Link or create canonical student identity at the agreed admissions milestone. | STM-01 owns identity/profile; STM-02 keeps a reference and admission snapshot only where justified.
+STM-03 Enrolment & Registration | Handover after offer acceptance and required checks. | STM-03 owns enrolment records and confirms result asynchronously/idempotently.
+ACD | Validate programmes, departments, academic years, intake and eligibility reference data. | ACD is the source of truth for academic structures.
+IAM / API Gateway | Authenticate applicant/staff and enforce platform access controls. | No credentials or duplicate roles in STM-02.
+Finance / Payment Gateway | Application fee, payment confirmation, waiver/refund workflow. | Finance owns ledger and reconciliation; STM-02 stores references/status projection only.
+Document storage / verification provider | Upload documents, store private object references, optional OCR/KYC verification. | No document binaries in SQL; provider callbacks must be authenticated and replay-safe.
+Notification service | Email/SMS/push updates and templates. | Shared service owns delivery; STM-02 requests messages.
+Audit / workflow engine | Approval history, policy decisions, traceability. | Reuse existing platform services if available.
+Event bus | Publish application lifecycle changes and coordinate asynchronous consumers. | Use existing infrastructure and schema conventions; Kafka is not assumed verified.
+
+--- TABLE 19 ---
+Event | When emitted | Safe payload essentials
+admissions.application.created | Draft creation commits. | eventId, tenantId, applicationId, programme/intake refs, occurredAt, correlationId
+admissions.application.submitted | Submission transition commits. | applicationId, status, submittedAt, ruleVersion, tenantId
+admissions.documents.uploaded | Document metadata/reference accepted. | applicationId, documentRef, type, tenantId; no binary or public URL
+admissions.document.verified | Verification decision commits. | applicationId, documentRef, result code, verifier ref, timestamp
+admissions.application.eligible | Eligibility evaluation succeeds. | applicationId, ruleset/version, result, safe reason codes
+admissions.application.reviewed | Review is recorded. | applicationId, reviewer ref, rubric version, review status; restrict score/comment distribution
+admissions.offer.issued | Offer creation commits. | applicationId, offerRef, expiry, terms version
+admissions.offer.accepted | Valid offer acceptance commits. | applicationId, offerRef, acceptedAt, tenantId
+admissions.application.rejected | Authorized rejection commits. | applicationId, reason code suitable for consumer, timestamp
+admissions.payment.status_changed | Verified payment status changes. | applicationId, Finance reference, status, amount/currency if needed; no payment credentials
+admissions.enrolment.handover_requested | Accepted application requests enrolment. | applicationId, studentRef, offerRef, idempotencyKey, correlationId
+admissions.enrolment.handover_completed | STM-03 confirms handover. | applicationId, enrolmentRef, status, timestamp
+
+--- TABLE 20 ---
+Area | Requirement
+Intake window | Use server time and configured timezone/policy; reject new submission outside allowed window unless an explicit exception is authorized.
+Programme/year | Validate against ACD-owned references and tenant scope; do not trust client labels.
+Eligibility | Evaluate a versioned rule set and record result/reason codes; rule changes must not silently rewrite prior decisions.
+Documents | Validate required types and verification status; treat OCR as assistive, not authoritative without policy.
+Application duplicates | Use agreed business keys and constraints; avoid automatic merge based on fuzzy identity.
+Submission | Validate required fields, declaration, outstanding blocks and optimistic version.
+Reviews | Check reviewer assignment, separation of duties, rubric version and conflict policy.
+Offers | Validate status, terms version, validity and one-time acceptance semantics.
+Payment | Trust only Finance/provider-confirmed status; do not accept a client-provided `paid=true`.
+Integration failures | Retry idempotently, record pending/error state and expose safe status; provide reconciliation path.
+Partial updates | Omitted fields remain unchanged; explicit null behavior must be documented.
+Time and currency | Use timestamptz for instants and explicit currency codes; never infer currency or timezone from client locale alone.
+
+--- TABLE 21 ---
+Gate | Evidence required | Allowed activity
+0 — Repository baseline | Exact branch/commit, clean/dirty status, checkpoint and master rules inspected without overwriting work. | Read-only
+1 — Schema ownership audit | Existing `stu`, `core`, `iam`, `acd`, finance and admissions structures; keys, FKs, indexes, RLS, grants, migration history. | Read-only
+2 — Code/API audit | Controllers, services, repositories, DTOs, gateway routes, permission functions, tests and integration contracts. | Read-only
+3 — Gap analysis | Map each candidate entity/route to existing artifact, owner, tests and genuine gap. | Design only
+4 — Migration review | DDL, backfill, index/locking plan, RLS, rollback and tenant-safety evidence. | No writes yet
+5 — Staging approval | Exact non-production target verified; existing project-specific approval phrase received for the step. | Only explicitly approved staging step
+6 — Staging verification | Schema, policies, integration tests, tenant tests, event replay and rollback evidence. | Approved staging only
+7 — Production release | Separate approved release procedure and production safeguards. | Not authorized by this document
+
+--- TABLE 22 ---
+Decision | Why it matters | Evidence required
+Applicant identity before student creation | Applicants may not yet have an STM-01 student profile; avoid forcing premature student creation. | Existing applicant/student tables, product lifecycle and STM-01 contract.
+Canonical admissions schema/table names | Avoid duplicate tables and broken migrations. | Read-only DDL, FK map, migration history and Java mapping.
+Programme/intake reference model | Avoid duplicating ACD structures. | ACD schema/API and tenant scoping.
+Application number format and uniqueness | Determines safe generation and indexing. | Current institutional policy and existing constraints.
+Eligibility rule engine | Configurable criteria vs custom code; reproducibility. | Existing rule/config/workflow infrastructure.
+Document verification owner | Avoid parallel KYC/document workflow. | Existing storage, verification adapters and document metadata.
+Payment status contract | Prevent a second ledger or untrusted success status. | Finance APIs, payment callbacks and reconciliation design.
+Final decision and offer authority | Separation of duties and institution policy. | Existing IAM permissions, workflow and approval rules.
+Offer acceptance and expiry semantics | Race conditions and reopening/appeal policy. | Product rules and state machine approval.
+STM-01/STM-03 handover timing | Avoid duplicate identities/enrolments and orphaned records. | Existing service APIs, idempotency and event conventions.
+Event bus/outbox implementation | Reliable asynchronous integration. | Current infrastructure and existing event patterns.
+Direct Supabase vs Java-only access | Shapes RLS and grants boundary. | Current app architecture and database roles.

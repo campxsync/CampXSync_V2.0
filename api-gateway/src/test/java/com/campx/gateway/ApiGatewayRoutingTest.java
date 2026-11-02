@@ -176,6 +176,15 @@ public class ApiGatewayRoutingTest {
         assertTrue(resp.contains("\"error\":\"Service Unavailable\""));
     }
 
+    @Test
+    public void testAdmissionsRoutesRegistered() {
+        GatewayConfig config = new GatewayConfig();
+        assertEquals("http://localhost:8094/api/v1/admissions", config.getRouteTable().get("/api/v1/admissions"));
+        assertEquals("http://localhost:8094/api/v1/admissions/applications", config.getRouteTable().get("/api/v1/applications"));
+        assertEquals("http://localhost:8094/api/v1/admissions", config.getRouteTable().get("/v1/admissions"));
+        assertEquals("http://localhost:8094/api/v1/admissions/applications", config.getRouteTable().get("/v1/applications"));
+    }
+
     private String readResponse(HttpURLConnection conn) throws Exception {
         java.io.InputStream stream = conn.getResponseCode() >= 400 ? conn.getErrorStream() : conn.getInputStream();
         if (stream == null) return "";

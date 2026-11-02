@@ -1,0 +1,938 @@
+openapi: 3.0.3
+info:
+  title: CampXSync STM-02 Admissions & Application Management Service API
+  description: >
+    Authoritative REST API specification for STM-02 Admissions & Application Management Domain Service.
+    Enforces the complete applicant lifecycle from intake configuration, eligibility validation,
+    application draft/submission, document attachment and verification, reviewer assignment with scoring rubrics,
+    admissions decisions with segregation of duties (SoD), offer issuance with capacity and expiry management,
+    pre-matriculation fee payment reconciliation, and transactional handover to STM-01 Student Identity and
+    STM-03 Academic Enrollment services. Features multi-tenant isolation, gateway HMAC cryptographic trust,
+    and structured intelligence event streaming.
+  version: 2.0.0
+  contact:
+    name: CampX Platform Engineering Team
+    email: platform-eng@campx.edu
+servers:
+  - url: http://localhost:8094
+    description: Direct STM-02 Admissions Domain Service Local Loopback
+  - url: http://localhost:8080/api/v1/admissions
+    description: CampXSync API Gateway Ingress Route
+paths:
+  /actuator/health:
+    get:
+      summary: Service Health Check
+      description: Returns liveness and readiness status, database connectivity mode, and active tenant context.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  service:
+                    type: string
+                    example: admissions-service
+                  port:
+                    type: integer
+                    example: 8094
+
+  /metrics:
+    get:
+      summary: Service Telemetry & Diagnostics
+      description: Returns JVM runtime diagnostics, active threads, and memory usage.
+      responses:
+        '200':
+          description: Operational diagnostics returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: admissions-service
+                  jvmMemoryUsedBytes:
+                    type: integer
+                  activeThreads:
+                    type: integer
+
+  /api/v1/admissions/intakes:
+    post:
+      summary: Configure Admission Intake (STM02-US-001)
+      description: Creates a new admission intake cohort with capacity, application windows, and fee timing policies.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigureIntakeRequest'
+      responses:
+        '201':
+          description: Intake successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      summary: List Admission Intakes
+      description: Lists all configured intakes for the tenant.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+      responses:
+        '200':
+          description: List of intakes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntakeResponse'
+
+  /api/v1/admissions/intakes/{id}:
+    get:
+      summary: Get Admission Intake Details
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Intake details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admissions/eligibility-rules:
+    post:
+      summary: Configure Program Eligibility Rule (STM02-US-003)
+      description: Creates criteria for program qualification cutoffs, age limits, and prerequisite subjects.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigureEligibilityRuleRequest'
+      responses:
+        '201':
+          description: Eligibility rule configured
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      summary: List Eligibility Rules
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: programId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of rules
+
+  /api/v1/admissions/applications:
+    post:
+      summary: Create Application Draft (STM02-US-005)
+      description: Initializes an application in DRAFT status for an applicant.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Application draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      summary: List / Search Applications
+      description: Returns paginated applications filtered by status, intake, program, or applicant.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: intakeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: applicantId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Application list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplicationResponse'
+
+  /api/v1/admissions/applications/{id}:
+    get:
+      summary: Get Application by ID
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Application found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update Application Draft (STM02-US-006)
+      description: Updates fields of a DRAFT application before final submission.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationRequest'
+      responses:
+        '200':
+          description: Application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/admissions/applications/{id}/submit:
+    post:
+      summary: Submit Application (STM02-US-009)
+      description: Transitions application from DRAFT to SUBMITTED, runs automated eligibility validation, and generates application number.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitApplicationRequest'
+      responses:
+        '200':
+          description: Application submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/admissions/applications/{id}/withdraw:
+    post:
+      summary: Withdraw Application (STM02-US-010)
+      description: Permits applicant or officer to withdraw an in-flight application with reason recording.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawApplicationRequest'
+      responses:
+        '200':
+          description: Application withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+
+  /api/v1/admissions/applications/{id}/documents:
+    post:
+      summary: Attach Supporting Document (STM02-US-012)
+      description: Uploads document metadata with virus scan status and SHA-256 fingerprint.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachDocumentRequest'
+      responses:
+        '201':
+          description: Document attached
+    get:
+      summary: List Application Documents
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document list
+
+  /api/v1/admissions/applications/{id}/documents/{docId}/verify:
+    post:
+      summary: Verify Document (STM02-US-014)
+      description: Admissions officer verifies or rejects an attached document with comments.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyDocumentRequest'
+      responses:
+        '200':
+          description: Document verification recorded
+
+  /api/v1/admissions/applications/{id}/reviews/assign:
+    post:
+      summary: Assign Faculty / Committee Reviewer (STM02-US-017)
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignReviewerRequest'
+      responses:
+        '200':
+          description: Reviewer assigned
+
+  /api/v1/admissions/applications/{id}/reviews:
+    post:
+      summary: Submit Evaluation Review & Score (STM02-US-018)
+      description: Submits academic rubric evaluation scores and recommendation.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitReviewRequest'
+      responses:
+        '201':
+          description: Review recorded
+    get:
+      summary: Get Application Reviews
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Review list
+
+  /api/v1/admissions/applications/{id}/decisions:
+    post:
+      summary: Record Admission Decision (STM02-US-020)
+      description: Approver records committee or dean decision (ACCEPT, REJECT, WAITLIST) with Segregation of Duties (SoD) verification.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordDecisionRequest'
+      responses:
+        '201':
+          description: Decision recorded
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/admissions/applications/{id}/offers:
+    post:
+      summary: Issue Admission Offer (STM02-US-022)
+      description: Generates an official admission offer with capacity reservation, expiry date, and fee requirements.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueOfferRequest'
+      responses:
+        '201':
+          description: Offer generated
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/admissions/applications/{id}/offers/accept:
+    post:
+      summary: Accept Offer (STM02-US-024)
+      description: Applicant accepts the offer. If fee is paid or deferred, initiates automated handover to STM-01.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptOfferRequest'
+      responses:
+        '200':
+          description: Offer accepted and handover triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+
+  /api/v1/admissions/applications/{id}/offers/decline:
+    post:
+      summary: Decline Offer (STM02-US-025)
+      description: Applicant declines the offer, releasing intake seat capacity.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeclineOfferRequest'
+      responses:
+        '200':
+          description: Offer declined
+
+  /api/v1/admissions/applications/{id}/handover:
+    post:
+      summary: Trigger or Reconcile STM-01 Handover (STM02-US-028)
+      description: Triggers synchronous/asynchronous student matriculation call into STM-01 Student Identity Service.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Handover status returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverStatusResponse'
+
+  /api/v1/admissions/payments/webhook:
+    post:
+      summary: Process Payment Webhook Notification (STM02-US-030)
+      description: Idempotent webhook handler reconciling application fee or seat deposit payments from payment provider.
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentWebhookRequest'
+      responses:
+        '200':
+          description: Payment event processed idempotently
+
+  /api/v1/admissions/reports/funnel:
+    get:
+      summary: Admissions Conversion Funnel Report (STM02-US-040)
+      description: Aggregates real-time conversion metrics across intake stages (Draft -> Submitted -> Reviewed -> Offered -> Enrolled).
+      parameters:
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - name: intakeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Funnel metrics returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdmissionsFunnelReport'
+
+components:
+  parameters:
+    X-Tenant-Id:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: a0000000-0000-0000-0000-000000000001
+    X-User-Id:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: u0000000-0000-0000-0000-000000000001
+    X-User-Role:
+      name: X-User-Role
+      in: header
+      required: false
+      schema:
+        type: string
+      example: ADMISSIONS_OFFICER
+
+  schemas:
+    ConfigureIntakeRequest:
+      type: object
+      required: [code, title, academicYear, openDate, closeDate, capacity]
+      properties:
+        code:
+          type: string
+          example: FALL-2026
+        title:
+          type: string
+          example: Fall 2026 Undergraduate Admissions
+        academicYear:
+          type: string
+          example: "2026-2027"
+        openDate:
+          type: string
+          format: date
+          example: "2026-01-01"
+        closeDate:
+          type: string
+          format: date
+          example: "2026-08-31"
+        capacity:
+          type: integer
+          example: 500
+        applicationFeeAmount:
+          type: number
+          example: 50.00
+        currency:
+          type: string
+          example: USD
+        feeTiming:
+          type: string
+          enum: [PAYMENT_BEFORE_SUBMISSION, PAYMENT_AFTER_SUBMISSION, FEE_WAIVED]
+          default: PAYMENT_BEFORE_SUBMISSION
+
+    IntakeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        title:
+          type: string
+        academicYear:
+          type: string
+        capacity:
+          type: integer
+        enrolledCount:
+          type: integer
+        status:
+          type: string
+
+    ConfigureEligibilityRuleRequest:
+      type: object
+      required: [programId, minPercentage, minAgeYears]
+      properties:
+        programId:
+          type: string
+          format: uuid
+        minPercentage:
+          type: number
+          example: 60.0
+        minAgeYears:
+          type: integer
+          example: 17
+        maxAgeYears:
+          type: integer
+          example: 35
+
+    CreateApplicationRequest:
+      type: object
+      required: [intakeId, programId, applicantId, personalDetails]
+      properties:
+        intakeId:
+          type: string
+          format: uuid
+        programId:
+          type: string
+          format: uuid
+        applicantId:
+          type: string
+          format: uuid
+        personalDetails:
+          type: object
+          properties:
+            firstName:
+              type: string
+              example: John
+            lastName:
+              type: string
+              example: Doe
+            email:
+              type: string
+              format: email
+              example: john.doe@example.com
+            phone:
+              type: string
+              example: "+1234567890"
+            dateOfBirth:
+              type: string
+              format: date
+              example: "2005-06-15"
+
+    UpdateApplicationRequest:
+      type: object
+      properties:
+        personalDetails:
+          type: object
+        academicHistory:
+          type: object
+        addressDetails:
+          type: object
+
+    SubmitApplicationRequest:
+      type: object
+      properties:
+        acknowledgement:
+          type: boolean
+          example: true
+
+    AttachDocumentRequest:
+      type: object
+      required: [documentType, title, storageKey, fileSizeBytes, mimeType]
+      properties:
+        documentType:
+          type: string
+          example: TRANSCRIPT
+        title:
+          type: string
+          example: High School Transcript
+        storageKey:
+          type: string
+          example: /docs/app123/transcript.pdf
+        fileSizeBytes:
+          type: integer
+          example: 1048576
+        mimeType:
+          type: string
+          example: application/pdf
+        sha256Checksum:
+          type: string
+
+    VerifyDocumentRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [VERIFIED, REJECTED, REQUIRES_REUPLOAD]
+        rejectionReason:
+          type: string
+
+    AssignReviewerRequest:
+      type: object
+      required: [reviewerId, rubricId]
+      properties:
+        reviewerId:
+          type: string
+          format: uuid
+        rubricId:
+          type: string
+
+    SubmitReviewRequest:
+      type: object
+      required: [score, recommendation]
+      properties:
+        score:
+          type: number
+          example: 85.5
+        recommendation:
+          type: string
+          enum: [RECOMMEND_ACCEPT, RECOMMEND_WAITLIST, RECOMMEND_REJECT, CONDITIONAL]
+        comments:
+          type: string
+
+    RecordDecisionRequest:
+      type: object
+      required: [decisionType]
+      properties:
+        decisionType:
+          type: string
+          enum: [ACCEPT, REJECT, WAITLIST, CONDITIONAL_ACCEPT]
+        remarks:
+          type: string
+
+    IssueOfferRequest:
+      type: object
+      required: [expiryDate, depositAmountRequired]
+      properties:
+        expiryDate:
+          type: string
+          format: date
+          example: "2026-07-31"
+        depositAmountRequired:
+          type: number
+          example: 500.00
+        specialConditions:
+          type: string
+
+    AcceptOfferRequest:
+      type: object
+      properties:
+        paymentConfirmationId:
+          type: string
+        acceptedTerms:
+          type: boolean
+          example: true
+
+    DeclineOfferRequest:
+      type: object
+      properties:
+        declineReason:
+          type: string
+
+    WithdrawApplicationRequest:
+      type: object
+      required: [withdrawalReason]
+      properties:
+        withdrawalReason:
+          type: string
+
+    PaymentWebhookRequest:
+      type: object
+      required: [transactionId, applicationNumber, status, amount]
+      properties:
+        transactionId:
+          type: string
+        applicationNumber:
+          type: string
+        status:
+          type: string
+          enum: [SUCCESS, FAILED, PENDING]
+        amount:
+          type: number
+        currency:
+          type: string
+
+    ApplicationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        applicationNumber:
+          type: string
+        status:
+          type: string
+        applicantId:
+          type: string
+          format: uuid
+        intakeId:
+          type: string
+          format: uuid
+        programId:
+          type: string
+          format: uuid
+        eligibilityPassed:
+          type: boolean
+        paymentStatus:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+
+    HandoverStatusResponse:
+      type: object
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED]
+        studentId:
+          type: string
+          format: uuid
+        matriculationNumber:
+          type: string
+        errorDetails:
+          type: string
+
+    AdmissionsFunnelReport:
+      type: object
+      properties:
+        intakeId:
+          type: string
+          format: uuid
+        totalDrafts:
+          type: integer
+        totalSubmitted:
+          type: integer
+        totalUnderReview:
+          type: integer
+        totalDecided:
+          type: integer
+        totalOffered:
+          type: integer
+        totalAccepted:
+          type: integer
+        totalEnrolled:
+          type: integer
+        totalRejected:
+          type: integer
+        totalWithdrawn:
+          type: integer
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or payload
+    Unauthorized:
+      description: Authentication failed or invalid HMAC signature
+    Forbidden:
+      description: Access denied due to RBAC/ABAC role or Segregation of Duties policy
+    NotFound:
+      description: Resource not found for the given tenant
+    Conflict:
+      description: Duplicate application or resource conflict
+    UnprocessableEntity:
+      description: Illegal state transition or validation failure
+

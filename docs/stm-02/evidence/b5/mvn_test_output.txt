@@ -1,0 +1,240 @@
+Command exited with code 0.
+
+Command output:
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.campx:admissions-service >--------------------
+[INFO] Building CampXSync Admissions Domain Service (STM-02) 2.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ admissions-service ---
+[INFO] skip non existing resourceDirectory D:\CampXSync\CampXSync_V2.0\services\student-services\admissions-service\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ admissions-service ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ admissions-service ---
+[INFO] skip non existing resourceDirectory D:\CampXSync\CampXSync_V2.0\services\student-services\admissions-service\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ admissions-service ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:3.1.2:test (default-test) @ admissions-service ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junit4.JUnit4Provider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.campx.admissions.AdmissionsExceptionHandlerTest
+[LogManager] CampXSync Logger API Server listening on port 9898
+[2026-11-02 13:15:15.730] ERROR [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [ERROR] operation='GET /api/v1/admissions/intakes' correlationId=corr-009 error='PostgreSQL connection pool exhausted: jdbc:postgresql://10.0.0.1:5432/db'
+java.lang.RuntimeException: PostgreSQL connection pool exhausted: jdbc:postgresql://10.0.0.1:5432/db
+	at com.campx.admissions.AdmissionsExceptionHandlerTest.testUnhandledRuntimeExceptionSanitizesMessageTo500(AdmissionsExceptionHandlerTest.java:117)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.execute(JUnit4Provider.java:316)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeWithRerun(JUnit4Provider.java:240)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeTestSet(JUnit4Provider.java:214)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.invoke(JUnit4Provider.java:155)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.385 s -- in com.campx.admissions.AdmissionsExceptionHandlerTest
+[INFO] Running com.campx.admissions.AdmissionsIntelligenceIntegrationTest
+[2026-11-02 13:15:15.777] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [764d6996-eab4-4dd4-9396-f162f84091bd] type=ApplicationDemandAnalyzed.v1 tenant=11111111-1111-1111-1111-111111111111 liveEndpoint=false
+[2026-11-02 13:15:15.778] INFO  [main] [] com.campx.admissions.intelligence.AdmissionsIntelligenceService - [INTELLIGENCE_INGEST] Ingested event [feedb628-c2c4-427a-81ac-d4710db8d785] type=ApplicationSubmitted.v1 aggregate=9247637d-0c53-45e1-9535-9775adad0404
+[2026-11-02 13:15:15.779] INFO  [main] [] com.campx.admissions.intelligence.AdmissionsIntelligenceService - [INTELLIGENCE_DEDUPLICATION] Event already processed; skipping duplicate: idem-event-100
+[2026-11-02 13:15:15.782] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [e1250c0d-a3f7-49ed-914d-b96a9b5d7f71] type=AdmissionsOperationsAnalyzed.v1 tenant=11111111-1111-1111-1111-111111111111 liveEndpoint=false
+[2026-11-02 13:15:15.784] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [5eb5696a-8071-4bf4-8793-e632c59be66a] type=AdmissionsDecisionAnalyzed.v1 tenant=11111111-1111-1111-1111-111111111111 liveEndpoint=false
+[2026-11-02 13:15:15.787] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [1ab54070-d7aa-4de4-8dec-ffcbba415816] type=AdmissionsFunnelCalculated.v1 tenant=11111111-1111-1111-1111-111111111111 liveEndpoint=false
+[2026-11-02 13:15:15.792] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [96bae487-3af7-4629-a155-01ec16a9f74d] type=EnrolmentConversionCalculated.v1 tenant=11111111-1111-1111-1111-111111111111 liveEndpoint=false
+[2026-11-02 13:15:15.793] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [1e331612-a3ac-4a9d-88b5-ac4849c51ce9] type=AdmissionsFunnelCalculated.v1 tenant=11111111-1111-1111-1111-111111111111 liveEndpoint=false
+[2026-11-02 13:15:15.794] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [95663d0f-37ac-4f9b-9c9e-c4fc00cf14ee] type=AdmissionsFunnelCalculated.v1 tenant=22222222-2222-2222-2222-222222222222 liveEndpoint=false
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in com.campx.admissions.AdmissionsIntelligenceIntegrationTest
+[INFO] Running com.campx.admissions.AdmissionsLoggingServiceTest
+[2026-11-02 13:15:15.798] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications correlationId=corr-12345 tenantId=8d4684a1-0b38-473e-b99e-cc7f74c41a60 userId=6668ec4d-11b6-4ae6-a8b6-738aab0f2ddf role=APPLICANT
+[2026-11-02 13:15:15.798] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications status=201 durationMs=15ms correlationId=corr-12345
+[2026-11-02 13:15:15.798] WARN  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications/invalid status=404 durationMs=5ms correlationId=corr-12345
+[2026-11-02 13:15:15.798] ERROR [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/crash status=500 durationMs=25ms correlationId=corr-12345
+[2026-11-02 13:15:15.798] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [LIFECYCLE_TRANSITION] tenant=8d4684a1-0b38-473e-b99e-cc7f74c41a60 app=436b8277-e11e-4cae-adfe-02febb783f35 transition='DRAFT -> SUBMITTED' action='SUBMIT' actor=6668ec4d-11b6-4ae6-a8b6-738aab0f2ddf
+[2026-11-02 13:15:15.800] WARN  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [SECURITY_VIOLATION] action='APPROVE_DECISION' reason='Applicant cannot approve decision' actor=6668ec4d-11b6-4ae6-a8b6-738aab0f2ddf tenant=8d4684a1-0b38-473e-b99e-cc7f74c41a60 role=APPLICANT correlationId=corr-12345
+[2026-11-02 13:15:15.800] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [AUDIT] eventType='SUBMIT_REVIEW' target='436b8277-e11e-4cae-adfe-02febb783f35' actor=6668ec4d-11b6-4ae6-a8b6-738aab0f2ddf tenant=8d4684a1-0b38-473e-b99e-cc7f74c41a60 metadata={score=95}
+[2026-11-02 13:15:15.800] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HANDOVER] tenant=8d4684a1-0b38-473e-b99e-cc7f74c41a60 app=436b8277-e11e-4cae-adfe-02febb783f35 student=ada8348f-a659-410d-b537-a5c81bf25a8b status=STUDENT_CREATED durationMs=120ms
+[2026-11-02 13:15:15.800] ERROR [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [ERROR] operation='Downstream call' correlationId=corr-12345 error='Simulated connection timeout'
+java.lang.RuntimeException: Simulated connection timeout
+	at com.campx.admissions.AdmissionsLoggingServiceTest.testLoggingMethodsExecuteWithoutExceptions(AdmissionsLoggingServiceTest.java:79)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.execute(JUnit4Provider.java:316)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeWithRerun(JUnit4Provider.java:240)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeTestSet(JUnit4Provider.java:214)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.invoke(JUnit4Provider.java:155)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.campx.admissions.AdmissionsLoggingServiceTest
+[INFO] Running com.campx.admissions.AdmissionsStateEngineTest
+[2026-11-02 13:15:15.808] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application null transitioned from SUBMITTED to WITHDRAWN by 7260946f-3854-4979-8271-81c1faba2c47
+[2026-11-02 13:15:15.808] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-0001 transitioned from DRAFT to SUBMITTED by 05ae7333-c49a-489e-98f9-8f51445f953e
+[2026-11-02 13:15:15.809] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-0001 transitioned from SUBMITTED to ELIGIBLE by 05ae7333-c49a-489e-98f9-8f51445f953e
+[2026-11-02 13:15:15.809] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-0001 transitioned from ELIGIBLE to UNDER_REVIEW by 05ae7333-c49a-489e-98f9-8f51445f953e
+[2026-11-02 13:15:15.809] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-0001 transitioned from UNDER_REVIEW to OFFERED by 05ae7333-c49a-489e-98f9-8f51445f953e
+[2026-11-02 13:15:15.809] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-0001 transitioned from OFFERED to ACCEPTED by 05ae7333-c49a-489e-98f9-8f51445f953e
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.campx.admissions.AdmissionsStateEngineTest
+[INFO] Running com.campx.admissions.ApplicationControllerTest
+[2026-11-02 13:15:15.809] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-0001 transitioned from ACCEPTED to HANDED_OVER by 05ae7333-c49a-489e-98f9-8f51445f953e
+[2026-11-02 13:15:15.855] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/intakes correlationId=14d92cb1-f314-4483-adcd-e82ceb0a65d6 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=30edc185-8c6b-4b52-854d-f838130a3105 role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.879] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/intakes status=201 durationMs=24ms correlationId=14d92cb1-f314-4483-adcd-e82ceb0a65d6
+[2026-11-02 13:15:15.881] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications correlationId=1a002b10-4119-4fa8-9791-3d4741a70d93 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=f69e07b7-739e-4cd6-86fa-0ada0411fd83 role=APPLICANT
+[2026-11-02 13:15:15.887] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [aa6959e4-fe99-4015-bdae-7af9783ba251] type=admissions.application.created.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.889] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications status=201 durationMs=8ms correlationId=1a002b10-4119-4fa8-9791-3d4741a70d93
+[2026-11-02 13:15:15.889] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=PATCH path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4 correlationId=c37d83bd-5478-4d6b-8d57-50ef4843a8c9 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=f69e07b7-739e-4cd6-86fa-0ada0411fd83 role=APPLICANT
+[2026-11-02 13:15:15.890] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=PATCH path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4 status=200 durationMs=1ms correlationId=c37d83bd-5478-4d6b-8d57-50ef4843a8c9
+[2026-11-02 13:15:15.891] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/submit correlationId=730c93f4-14e6-41f2-80c3-65fbf2c1d102 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=f69e07b7-739e-4cd6-86fa-0ada0411fd83 role=APPLICANT
+[2026-11-02 13:15:15.892] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [17de305c-9ae0-4206-ba59-c58be78a3795] type=admissions.application.submitted.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.892] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-9A1A9470 transitioned from DRAFT to SUBMITTED by f69e07b7-739e-4cd6-86fa-0ada0411fd83
+[2026-11-02 13:15:15.895] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [e82013ca-6031-48d7-b99b-aca2aa4b1ad8] type=admissions.application.status_changed.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.895] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-9A1A9470 transitioned from SUBMITTED to ELIGIBLE by f69e07b7-739e-4cd6-86fa-0ada0411fd83
+[2026-11-02 13:15:15.895] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/submit status=200 durationMs=4ms correlationId=730c93f4-14e6-41f2-80c3-65fbf2c1d102
+[2026-11-02 13:15:15.896] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/documents correlationId=be60c190-700a-48a3-93fc-3490d526beec tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=f69e07b7-739e-4cd6-86fa-0ada0411fd83 role=APPLICANT
+[2026-11-02 13:15:15.899] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/documents status=201 durationMs=3ms correlationId=be60c190-700a-48a3-93fc-3490d526beec
+[2026-11-02 13:15:15.902] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/documents/8a4eee29-04b1-4db1-af11-461dcbbf6c2c/verify correlationId=23b9c966-f98a-475d-8042-61c65044104e tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=30edc185-8c6b-4b52-854d-f838130a3105 role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.905] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/documents/8a4eee29-04b1-4db1-af11-461dcbbf6c2c/verify status=200 durationMs=3ms correlationId=23b9c966-f98a-475d-8042-61c65044104e
+[2026-11-02 13:15:15.906] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/assign correlationId=0e92d4da-abb5-4cc7-9ff7-558bdbf4b9d3 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=30edc185-8c6b-4b52-854d-f838130a3105 role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.907] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [3dbaa5a0-2577-4ba1-851c-40ae3bba63b2] type=admissions.application.status_changed.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.907] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-9A1A9470 transitioned from ELIGIBLE to UNDER_REVIEW by 30edc185-8c6b-4b52-854d-f838130a3105
+[2026-11-02 13:15:15.907] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/assign status=200 durationMs=1ms correlationId=0e92d4da-abb5-4cc7-9ff7-558bdbf4b9d3
+[2026-11-02 13:15:15.909] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/reviews correlationId=d62b59bf-11d0-4859-a35d-798586939d1a tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=f535d634-7b3c-469d-af42-ec4c659222c1 role=FACULTY_REVIEWER
+[2026-11-02 13:15:15.913] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [94a19e80-bf57-4c1d-b09b-d15e11ea86fb] type=admissions.application.reviewed.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.914] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/reviews status=200 durationMs=5ms correlationId=d62b59bf-11d0-4859-a35d-798586939d1a
+[2026-11-02 13:15:15.916] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/decision correlationId=b0402dcc-70e9-40df-b3d4-9ce248e94596 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=6f5fa0bd-77c3-48b9-8b85-ddf8ab999cdc role=ADMISSIONS_APPROVER
+[2026-11-02 13:15:15.917] INFO  [main] [] com.campx.admissions.service.ReviewAndDecisionService - Application 8f785e4f-9b37-42d9-b04e-1f76662b28e4 approved for admission offer
+[2026-11-02 13:15:15.918] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/decision status=200 durationMs=2ms correlationId=b0402dcc-70e9-40df-b3d4-9ce248e94596
+[2026-11-02 13:15:15.919] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/offers correlationId=a744b3a6-67fe-42be-876a-cbef7ac8ca67 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=6f5fa0bd-77c3-48b9-8b85-ddf8ab999cdc role=ADMISSIONS_APPROVER
+[2026-11-02 13:15:15.920] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [ada12d1a-8cf4-472c-bc35-5662e71b84c2] type=admissions.offer.issued.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.920] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-9A1A9470 transitioned from UNDER_REVIEW to OFFERED by 6f5fa0bd-77c3-48b9-8b85-ddf8ab999cdc
+[2026-11-02 13:15:15.921] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/offers status=201 durationMs=2ms correlationId=a744b3a6-67fe-42be-876a-cbef7ac8ca67
+[2026-11-02 13:15:15.922] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/offers/accept correlationId=9dac1c6f-35b5-4a40-a6e9-e5322ff37653 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=f69e07b7-739e-4cd6-86fa-0ada0411fd83 role=APPLICANT
+[2026-11-02 13:15:15.923] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [6736902e-3e68-4d74-ac6d-8eadf45030cf] type=admissions.offer.accepted.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.923] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-9A1A9470 transitioned from OFFERED to ACCEPTED by f69e07b7-739e-4cd6-86fa-0ada0411fd83
+[2026-11-02 13:15:15.925] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [a5bee0ef-88d1-4be0-9e36-d512b5c36b91] type=admissions.enrolment.handover_completed.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.925] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-9A1A9470 transitioned from ACCEPTED to HANDED_OVER by f69e07b7-739e-4cd6-86fa-0ada0411fd83
+[2026-11-02 13:15:15.925] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [1ce03e72-6fd3-4758-8ed0-2bdaaf6458e7] type=admissions.enrolment.handover_requested.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.925] INFO  [main] [] com.campx.admissions.service.HandoverOrchestrationService - Application 8f785e4f-9b37-42d9-b04e-1f76662b28e4 successfully handed over to STM-01 student 423b30b7-7374-3354-a7fd-2bc7a32e64c3
+[2026-11-02 13:15:15.926] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/offers/accept status=200 durationMs=4ms correlationId=9dac1c6f-35b5-4a40-a6e9-e5322ff37653
+[2026-11-02 13:15:15.926] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/handover correlationId=86dd2751-7bdd-4a10-bb61-2efee523d489 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=30edc185-8c6b-4b52-854d-f838130a3105 role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.926] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [2d0f2880-cda8-4fed-9072-bfd353a446b8] type=admissions.enrolment.handover_requested.v1 tenant=6565ac8a-32dc-4a92-90fa-c0a775aa5297 liveEndpoint=false
+[2026-11-02 13:15:15.926] INFO  [main] [] com.campx.admissions.service.HandoverOrchestrationService - Application 8f785e4f-9b37-42d9-b04e-1f76662b28e4 successfully handed over to STM-01 student ad7aa2df-7abe-31ba-a759-d9736ea47cee
+[2026-11-02 13:15:15.927] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/8f785e4f-9b37-42d9-b04e-1f76662b28e4/handover status=200 durationMs=1ms correlationId=86dd2751-7bdd-4a10-bb61-2efee523d489
+[2026-11-02 13:15:15.927] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/reports/funnel correlationId=c0d04a24-fa0f-4954-ac3e-66809f127e33 tenantId=6565ac8a-32dc-4a92-90fa-c0a775aa5297 userId=30edc185-8c6b-4b52-854d-f838130a3105 role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.928] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/reports/funnel status=200 durationMs=1ms correlationId=c0d04a24-fa0f-4954-ac3e-66809f127e33
+[2026-11-02 13:15:15.929] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/applications/9315d1aa-8627-46e5-9092-54d9bd0620e9 correlationId=d7c230f9-1015-4d20-9d56-8ed2568d0720 tenantId=null userId=ac2c73da-be3b-4996-ac48-fc94a9e81fc0 role=null
+[2026-11-02 13:15:15.930] WARN  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications/9315d1aa-8627-46e5-9092-54d9bd0620e9 status=403 durationMs=0ms correlationId=d7c230f9-1015-4d20-9d56-8ed2568d0720
+[2026-11-02 13:15:15.930] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/c2cc32b7-04d6-419a-9531-8c2e9f2b65da/submit correlationId=e7ac0643-1a72-4b84-9267-bfc6e41e5832 tenantId=fcf0895b-cf92-4ac9-83ba-9f1edb8bab0c userId=0a86eb8d-fb26-4156-b415-5083612406de role=APPLICANT
+[2026-11-02 13:15:15.931] WARN  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/c2cc32b7-04d6-419a-9531-8c2e9f2b65da/submit status=404 durationMs=1ms correlationId=e7ac0643-1a72-4b84-9267-bfc6e41e5832
+[2026-11-02 13:15:15.936] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/intakes correlationId=56e08ead-9685-4da9-bb7d-fecdaa6ab4dd tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=1466496b-9436-43ed-a105-6f71bbc4e08a role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.940] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/intakes status=201 durationMs=4ms correlationId=56e08ead-9685-4da9-bb7d-fecdaa6ab4dd
+[2026-11-02 13:15:15.940] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications correlationId=603f2734-001c-4dcb-8e6a-39e55cfde6d4 tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=79557b74-babc-48b8-a679-a7eb2b13c408 role=APPLICANT
+[2026-11-02 13:15:15.942] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [1b27cd53-0c11-4a60-a75f-b4e1ec137664] type=admissions.application.created.v1 tenant=01bd9aae-227d-48e1-91f1-6d5a3345d146 liveEndpoint=false
+[2026-11-02 13:15:15.943] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications status=201 durationMs=3ms correlationId=603f2734-001c-4dcb-8e6a-39e55cfde6d4
+[2026-11-02 13:15:15.943] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/applications correlationId=14827e5f-d775-4c0a-a3c5-295dbaebb5bc tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=1466496b-9436-43ed-a105-6f71bbc4e08a role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.944] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications status=200 durationMs=1ms correlationId=14827e5f-d775-4c0a-a3c5-295dbaebb5bc
+[2026-11-02 13:15:15.945] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/submit correlationId=c0456097-3025-4d3c-addf-db76e57cf04b tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=79557b74-babc-48b8-a679-a7eb2b13c408 role=APPLICANT
+[2026-11-02 13:15:15.946] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [a44e997f-1006-4578-8cc7-91f3613d4bff] type=admissions.application.submitted.v1 tenant=01bd9aae-227d-48e1-91f1-6d5a3345d146 liveEndpoint=false
+[2026-11-02 13:15:15.946] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-FAB68A53 transitioned from DRAFT to SUBMITTED by 79557b74-babc-48b8-a679-a7eb2b13c408
+[2026-11-02 13:15:15.946] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [00533574-e8d1-4e3e-81f8-4b86af142164] type=admissions.application.status_changed.v1 tenant=01bd9aae-227d-48e1-91f1-6d5a3345d146 liveEndpoint=false
+[2026-11-02 13:15:15.946] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-FAB68A53 transitioned from SUBMITTED to ELIGIBLE by 79557b74-babc-48b8-a679-a7eb2b13c408
+[2026-11-02 13:15:15.946] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/submit status=200 durationMs=1ms correlationId=c0456097-3025-4d3c-addf-db76e57cf04b
+[2026-11-02 13:15:15.946] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/assign correlationId=f017a8c1-1d8d-40f6-bec3-a935406ca590 tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=1466496b-9436-43ed-a105-6f71bbc4e08a role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.947] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [e96a0c3f-2d94-4556-b4ff-c86e904eedd9] type=admissions.application.status_changed.v1 tenant=01bd9aae-227d-48e1-91f1-6d5a3345d146 liveEndpoint=false
+[2026-11-02 13:15:15.947] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-FAB68A53 transitioned from ELIGIBLE to UNDER_REVIEW by 1466496b-9436-43ed-a105-6f71bbc4e08a
+[2026-11-02 13:15:15.947] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/assign status=200 durationMs=1ms correlationId=f017a8c1-1d8d-40f6-bec3-a935406ca590
+[2026-11-02 13:15:15.947] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/reviews correlationId=dfb3ce17-6694-48f8-a9a9-2689ed0462a7 tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=83a11ee2-f4db-4f1e-be09-d25cac794d67 role=FACULTY_REVIEWER
+[2026-11-02 13:15:15.948] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [49f69f63-1abb-41f5-b8ec-f2a75f7d7112] type=admissions.application.reviewed.v1 tenant=01bd9aae-227d-48e1-91f1-6d5a3345d146 liveEndpoint=false
+[2026-11-02 13:15:15.948] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/reviews status=200 durationMs=1ms correlationId=dfb3ce17-6694-48f8-a9a9-2689ed0462a7
+[2026-11-02 13:15:15.948] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/reviews correlationId=42923f76-052b-4df2-a545-22f1493e426a tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=1466496b-9436-43ed-a105-6f71bbc4e08a role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.949] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/reviews status=200 durationMs=1ms correlationId=42923f76-052b-4df2-a545-22f1493e426a
+[2026-11-02 13:15:15.950] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/decision correlationId=b999ebeb-d8cd-40d0-b000-552b20a460f2 tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=562108dd-8358-45ce-8300-5398a7fb914f role=ADMISSIONS_APPROVER
+[2026-11-02 13:15:15.950] INFO  [main] [] com.campx.admissions.service.ReviewAndDecisionService - Application edc80457-5b32-403a-b502-a8e32909646a approved for admission offer
+[2026-11-02 13:15:15.951] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/decision status=200 durationMs=1ms correlationId=b999ebeb-d8cd-40d0-b000-552b20a460f2
+[2026-11-02 13:15:15.951] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/decision correlationId=bd49fb23-4f01-43eb-9438-a31ab9dcb9cb tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=1466496b-9436-43ed-a105-6f71bbc4e08a role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.951] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/decision status=200 durationMs=0ms correlationId=bd49fb23-4f01-43eb-9438-a31ab9dcb9cb
+[2026-11-02 13:15:15.952] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/offers correlationId=e9905544-c371-49cb-a8d9-cc5ded545bb1 tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=562108dd-8358-45ce-8300-5398a7fb914f role=ADMISSIONS_APPROVER
+[2026-11-02 13:15:15.952] INFO  [main] [] com.campx.platform.intelligence.ControlledIntelligenceAdapter - [INTELLIGENCE_LAYER_EMIT] Published event [e7b0c135-e18f-495e-ba0d-63167d568ad7] type=admissions.offer.issued.v1 tenant=01bd9aae-227d-48e1-91f1-6d5a3345d146 liveEndpoint=false
+[2026-11-02 13:15:15.952] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-FAB68A53 transitioned from UNDER_REVIEW to OFFERED by 562108dd-8358-45ce-8300-5398a7fb914f
+[2026-11-02 13:15:15.953] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=POST path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/offers status=201 durationMs=1ms correlationId=e9905544-c371-49cb-a8d9-cc5ded545bb1
+[2026-11-02 13:15:15.953] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/offer correlationId=4293052d-dc49-4354-b3e2-335dce73e8e2 tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=79557b74-babc-48b8-a679-a7eb2b13c408 role=APPLICANT
+[2026-11-02 13:15:15.953] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/offer status=200 durationMs=0ms correlationId=4293052d-dc49-4354-b3e2-335dce73e8e2
+[2026-11-02 13:15:15.954] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_IN] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/history correlationId=1eb7f829-0f69-4817-acb1-07ffd536d91c tenantId=01bd9aae-227d-48e1-91f1-6d5a3345d146 userId=1466496b-9436-43ed-a105-6f71bbc4e08a role=ADMISSIONS_OFFICER
+[2026-11-02 13:15:15.954] INFO  [main] [] com.campx.admissions.logging.AdmissionsLoggingService - [HTTP_OUT] method=GET path=/api/v1/admissions/applications/edc80457-5b32-403a-b502-a8e32909646a/history status=200 durationMs=0ms correlationId=1eb7f829-0f69-4817-acb1-07ffd536d91c
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.campx.admissions.ApplicationControllerTest
+[INFO] Running com.campx.admissions.ApplicationSecurityAndTenantIsolationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.146 s -- in com.campx.admissions.ApplicationSecurityAndTenantIsolationTest
+[INFO] Running com.campx.admissions.EligibilityEvaluationEngineTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.campx.admissions.EligibilityEvaluationEngineTest
+[INFO] Running com.campx.admissions.HandoverOrchestrationServiceTest
+[2026-11-02 13:15:16.171] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-ENG-099 transitioned from ACCEPTED to HANDED_OVER by 75ea6602-61b9-41f6-90ea-ff9e2b5238f7
+[2026-11-02 13:15:16.171] INFO  [main] [] com.campx.admissions.service.HandoverOrchestrationService - Application 10273878-5912-4e76-b163-7f0c97765cea successfully handed over to STM-01 student 8506f134-5407-4c43-8ec7-4e931cdcd683
+[2026-11-02 13:15:16.173] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-2026-ENG-099 transitioned from ACCEPTED to HANDED_OVER by 29a420d6-93f3-4d9b-885e-9812920bd979
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.campx.admissions.HandoverOrchestrationServiceTest
+[2026-11-02 13:15:16.173] INFO  [main] [] com.campx.admissions.service.HandoverOrchestrationService - Application fbaadb5b-7048-46c0-9141-bd1eadbd08eb successfully handed over to STM-01 student 87f84c7d-5f8f-4090-92ef-18434c4dc8b1
+[INFO] Running com.campx.admissions.PostgresAdmissionsRepositoryUnitTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s -- in com.campx.admissions.PostgresAdmissionsRepositoryUnitTest
+[INFO] Running com.campx.admissions.ReviewAndDecisionServiceTest
+[2026-11-02 13:15:16.183] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-CS-001 transitioned from SUBMITTED to UNDER_REVIEW by eda5b433-002d-435c-9035-7abf9354b5a2
+[2026-11-02 13:15:16.183] INFO  [main] [] com.campx.admissions.service.ReviewAndDecisionService - Application ca499e51-d9e5-48eb-af05-3e5de7deb8ec approved for admission offer
+[2026-11-02 13:15:16.184] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-CS-001 transitioned from UNDER_REVIEW to OFFERED by 913d7236-caa4-4665-8602-7ee7cb8e657c
+[2026-11-02 13:15:16.184] INFO  [main] [] com.campx.admissions.service.AdmissionsStateEngine - Application APP-CS-001 transitioned from OFFERED to ACCEPTED by 926babec-1d0b-4185-8b5d-0eac1c64f795
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.campx.admissions.ReviewAndDecisionServiceTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 49, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.564 s
+[INFO] Finished at: 2026-11-02T13:15:16+05:30
+[INFO] ------------------------------------------------------------------------

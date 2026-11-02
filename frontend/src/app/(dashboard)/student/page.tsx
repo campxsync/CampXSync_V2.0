@@ -24,40 +24,80 @@ export default async function StudentDashboardPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
-  // 1. Fetch current student record in this tenant matching the authenticated user
+  // 1. Fetch current student record in this tenant matching the authenticated user via API Gateway
   let student: any = null;
   let subjectAttendance: any[] = [];
   let recentSessions: any[] = [];
 
+  const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
+
   try {
-    const studentRes = await query(`
-      SELECT 
-        s.id, 
-        p.first_name, 
-        p.last_name, 
-        s.enrollment_no as enrollment_number, 
-        p.primary_email as email,
-        s.status,
-        c.name as college_name,
-        prog.name as program_name,
-        prog.code as program_code,
-        b.name as section_name
-      FROM stu.students s
-      LEFT JOIN core.persons p ON p.id = s.person_id
-      LEFT JOIN core.colleges c ON c.id = s.college_id
-      LEFT JOIN acd.programs prog ON prog.id = s.program_id
-      LEFT JOIN acd.batch_students bs ON bs.student_id = s.id
-      LEFT JOIN acd.batches b ON b.id = bs.batch_id
-      WHERE s.tenant_id = $1 
-        AND s.deleted_at IS NULL 
-        AND (p.id = $2 OR p.primary_email = $3)
-      ORDER BY s.enrollment_no ASC
-      LIMIT 1
-    `, [tenantId, userId, email]);
+    // Primary path: UI -> API Gateway -> Java student-service (STM-01)
+    try {
+      const gwHeaders: Record<string, string> = {
+        'Accept': 'application/json',
+        'X-User-Id': userId,
+        'X-Tenant-Id': tenantId,
+        'X-User-Role': 'student',
+      };
+      if (resolution.session.collegeId) {
+        gwHeaders['X-College-Id'] = resolution.session.collegeId;
+      }
+      const gwRes = await fetch(`${GATEWAY_BASE_URL}/api/v1/students/me`, {
+        headers: gwHeaders,
+        cache: 'no-store',
+      });
+      if (gwRes.ok) {
+        const profile = await gwRes.json();
+        student = {
+          id: profile.id,
+          first_name: profile.firstName || displayName?.split(' ')[0] || '',
+          last_name: profile.lastName || '',
+          enrollment_number: profile.enrollmentNo || '',
+          email: profile.primaryEmail || email,
+          status: profile.status || 'ACTIVE',
+          college_name: profile.collegeName || '',
+          program_name: profile.programName || '',
+          program_code: profile.programCode || '',
+          section_name: profile.sectionName || '',
+        };
+      }
+    } catch (_gwErr) {
+      // Gateway offline during local development or build; fall through to query fallback
+    }
 
-    if (studentRes.rows.length > 0) {
-      student = studentRes.rows[0];
+    if (!student) {
+      const studentRes = await query(`
+        SELECT 
+          s.id, 
+          p.first_name, 
+          p.last_name, 
+          s.enrollment_no as enrollment_number, 
+          p.primary_email as email,
+          s.status,
+          c.name as college_name,
+          prog.name as program_name,
+          prog.code as program_code,
+          b.name as section_name
+        FROM stu.students s
+        LEFT JOIN core.persons p ON p.id = s.person_id
+        LEFT JOIN core.colleges c ON c.id = s.college_id
+        LEFT JOIN acd.programs prog ON prog.id = s.program_id
+        LEFT JOIN acd.batch_students bs ON bs.student_id = s.id
+        LEFT JOIN acd.batches b ON b.id = bs.batch_id
+        WHERE s.tenant_id = $1 
+          AND s.deleted_at IS NULL 
+          AND (p.id = $2 OR p.primary_email = $3)
+        ORDER BY s.enrollment_no ASC
+        LIMIT 1
+      `, [tenantId, userId, email]);
 
+      if (studentRes.rows.length > 0) {
+        student = studentRes.rows[0];
+      }
+    }
+
+    if (student) {
       // 2. Fetch course-wise attendance breakdown
       const summaryRes = await query(`
         SELECT 

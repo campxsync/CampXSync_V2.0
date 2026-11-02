@@ -1,0 +1,88 @@
+
+> campxsync-web@2.0.0 build
+> next build
+
+   ▲ Next.js 15.5.28
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 9.4s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/24) ...
+   Generating static pages (6/24) 
+   Generating static pages (12/24) 
+   Generating static pages (18/24) 
+ ✓ Generating static pages (24/24)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                                Size  First Load JS
+┌ ƒ /                                                                     212 B         103 kB
+├ ○ /_not-found                                                           212 B         103 kB
+├ ○ /access-denied                                                      3.11 kB         187 kB
+├ ƒ /api/auth/test-session                                                212 B         103 kB
+├ ƒ /api/college/admissions/applications                                  212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]                             212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/assign                      212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/decision                    212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/documents                   212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/documents/[docId]/verify    212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/handover                    212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/offers                      212 B         103 kB
+├ ƒ /api/college/admissions/applications/[id]/reviews                     212 B         103 kB
+├ ƒ /api/college/admissions/intakes                                       212 B         103 kB
+├ ƒ /api/college/attendance/corrections                                   212 B         103 kB
+├ ƒ /api/college/attendance/records                                       212 B         103 kB
+├ ƒ /api/college/attendance/report                                        212 B         103 kB
+├ ƒ /api/college/attendance/sessions                                      212 B         103 kB
+├ ƒ /api/college/dashboard                                                212 B         103 kB
+├ ƒ /api/college/departments                                              212 B         103 kB
+├ ƒ /api/college/faculty                                                  212 B         103 kB
+├ ƒ /api/college/programs                                                 212 B         103 kB
+├ ƒ /api/college/students                                                 212 B         103 kB
+├ ƒ /api/college/students/assign-batch                                    212 B         103 kB
+├ ƒ /api/college/timetable                                                212 B         103 kB
+├ ƒ /api/college/timetable/entries                                        212 B         103 kB
+├ ƒ /api/faculty/dashboard                                                212 B         103 kB
+├ ƒ /api/platform/onboard-tenant                                          212 B         103 kB
+├ ƒ /api/student/admissions/applications                                  212 B         103 kB
+├ ƒ /api/student/admissions/applications/[id]/accept-offer                212 B         103 kB
+├ ƒ /api/user/preferences                                                 212 B         103 kB
+├ ƒ /auth/callback                                                        212 B         103 kB
+├ ƒ /college                                                             111 kB         232 kB
+├ ƒ /college/admissions                                                 1.07 kB         117 kB
+├ ƒ /college/admissions/applications/[id]                               4.12 kB         120 kB
+├ ƒ /college/admissions/approvals                                       1.07 kB         117 kB
+├ ƒ /college/admissions/intakes                                          3.3 kB         119 kB
+├ ƒ /college/admissions/offers                                          1.96 kB         118 kB
+├ ƒ /college/attendance                                                 9.49 kB         122 kB
+├ ƒ /college/audit                                                      1.49 kB         104 kB
+├ ƒ /college/batches                                                    1.49 kB         104 kB
+├ ƒ /college/departments                                                5.37 kB         118 kB
+├ ƒ /college/faculty                                                    5.57 kB         118 kB
+├ ƒ /college/students                                                   6.21 kB         119 kB
+├ ƒ /college/timetable                                                  5.91 kB         119 kB
+├ ƒ /faculty                                                            5.34 kB         127 kB
+├ ƒ /faculty/attendance                                                 8.23 kB         124 kB
+├ ƒ /faculty/sessions                                                   1.07 kB         117 kB
+├ ƒ /faculty/timetable                                                  1.07 kB         117 kB
+├ ○ /login                                                               5.7 kB         186 kB
+├ ƒ /platform                                                           4.88 kB         126 kB
+├ ƒ /platform/audit                                                     1.49 kB         104 kB
+├ ƒ /platform/institutes                                                3.97 kB         120 kB
+├ ƒ /platform/institutes/new                                            7.41 kB         124 kB
+├ ○ /reset-password                                                     5.61 kB         190 kB
+├ ƒ /student                                                            1.49 kB         104 kB
+└ ƒ /student/admissions                                                 3.66 kB         120 kB
++ First Load JS shared by all                                            103 kB
+  ├ chunks/1255-60d8dc7c8c9309a1.js                                     46.3 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js                                 54.2 kB
+  └ other shared chunks (total)                                         2.05 kB
+
+
+ƒ Middleware                                                            94.8 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

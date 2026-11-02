@@ -1,0 +1,464 @@
+﻿[
+    {
+        "id":  "ADM01-STORY-01",
+        "module":  "ADM-01",
+        "summary":  "Register a new institute (tenant) on the platform",
+        "component":  "ADM01_institutes",
+        "acceptance_criteria":  "Given a valid instituteCode, legalName, displayName, timezone, locale and defaultCurrency, when I submit POST /api/v1/admin/institutes, then a new ADM01_institutes document is created with status ACTIVE and version 1 | Given an instituteCode that already exists for the tenant, when I submit the create request, then it is rejected with a uniqueness-violation error and no record is written | Given the institute is created successfully, then an InstitutesCreated event is published on the outbox and the response includes the resource representation plus correlation metadata"
+    },
+    {
+        "id":  "ADM01-STORY-02",
+        "module":  "ADM-01",
+        "summary":  "Update institute profile while protecting published identity keys",
+        "component":  "ADM01_institutes",
+        "acceptance_criteria":  "Given an existing institute, when I submit PUT /api/v1/admin/institutes/{id} changing displayName/timezone/locale/status, then the update succeeds and an InstitutesUpdated event is emitted | Given a request attempts to change the immutable published identity key (instituteCode/tenantId), when the update is submitted, then it is rejected | Given status is set to INACTIVE, then only ACTIVE/INACTIVE values are accepted and the change is optimistic-concurrency checked against the current version"
+    },
+    {
+        "id":  "ADM01-STORY-03",
+        "module":  "ADM-01",
+        "summary":  "List and search institutes",
+        "component":  "ADM01_institutes",
+        "acceptance_criteria":  "Given institutes exist, when I call GET /api/v1/admin/institutes with status and updatedAt filters, then results are returned ordered using the (status,updatedAt) index | Given no filters are supplied, then all institutes visible to my tenant scope are returned paginated"
+    },
+    {
+        "id":  "ADM01-STORY-04",
+        "module":  "ADM-01",
+        "summary":  "Register a college under an institute",
+        "component":  "ADM01_colleges",
+        "acceptance_criteria":  "Given a collegeCode, name and campusIds, when I create a college, then the parent institute must exist and be resolvable or the request is rejected | Given the collegeCode already exists within the tenant, then creation is rejected as a uniqueness violation | Given the college is created, then a CollegesCreated event is published and the college is indexed by (instituteId,status)"
+    },
+    {
+        "id":  "ADM01-STORY-05",
+        "module":  "ADM-01",
+        "summary":  "Prevent provisioning against an inactive college",
+        "component":  "ADM01_colleges",
+        "acceptance_criteria":  "Given a college with status INACTIVE, when a new provisioning request targets that college, then the request is rejected with a clear lifecycle-state error | Given the college is reactivated to ACTIVE, then subsequent provisioning requests are accepted normally"
+    },
+    {
+        "id":  "ADM01-STORY-06",
+        "module":  "ADM-01",
+        "summary":  "Provision a tenant/college context end-to-end",
+        "component":  "ADM01_tenant_provisioning",
+        "acceptance_criteria":  "Given a valid targetScope and planId, when I POST /api/v1/admin/tenants/{id}/provision, then a ADM01_tenant_provisioning record is created with provisioningStatus REQUESTED and requestedAt/requestedBy captured | Given the state machine, when a status transition is attempted that is not a valid next state, then it is rejected | Given the same provisioning request is resubmitted with the same idempotency key, when the request is processed, then no duplicate provisioning record is created | Given provisioning completes, then a TenantProvisioned event is published and downstream services can consume it to create local context"
+    },
+    {
+        "id":  "ADM01-STORY-07",
+        "module":  "ADM-01",
+        "summary":  "Track and audit tenant provisioning status",
+        "component":  "ADM01_tenant_provisioning",
+        "acceptance_criteria":  "Given provisioning records exist, when I query by (tenantId,provisioningStatus), then matching records are returned using the compound index | Given a request is older than an operational SLA threshold and still not completed, then it is visible for escalation via requestedAt ordering"
+    },
+    {
+        "id":  "ADM01-STORY-08",
+        "module":  "ADM-01",
+        "summary":  "Define and update a global platform configuration setting",
+        "component":  "ADM01_global_settings",
+        "acceptance_criteria":  "Given a key, value, dataType and scope, when I create a setting, then it is stored uniquely per (scope,key,version) and becomes effective per effectiveFrom | Given the value represents a secret, when it is submitted as plaintext, then the request is rejected and only a secret reference is accepted | Given the setting is updated, then the previous version is preserved and the new version is indexed by (status,effectiveFrom)"
+    },
+    {
+        "id":  "ADM01-STORY-09",
+        "module":  "ADM-01",
+        "summary":  "View effective global configuration",
+        "component":  "ADM01_global_settings",
+        "acceptance_criteria":  "Given multiple versions of a setting exist, when I call GET /api/v1/admin/configuration, then only the version whose effectiveFrom/effectiveTo window includes now is returned | Given no active version exists for a key, then the response indicates no effective value rather than an error"
+    },
+    {
+        "id":  "ADM01-STORY-10",
+        "module":  "ADM-01",
+        "summary":  "Roll out a feature flag with tenant overrides and a kill switch",
+        "component":  "ADM01_feature_flags",
+        "acceptance_criteria":  "Given a flagKey, defaultValue and targetingRules, when I create the flag, then flagKey is enforced unique and invalid targeting rules are rejected at validation time | Given a tenant override is added, then it is indexed by tenantOverrides.tenantId and takes precedence over defaultValue for that tenant | Given any flag change, then the change is captured in the audit trail and a Feature FlagsChanged event is published"
+    },
+    {
+        "id":  "ADM01-STORY-11",
+        "module":  "ADM-01",
+        "summary":  "Publish an immutable governance policy",
+        "component":  "ADM01_global_policies",
+        "acceptance_criteria":  "Given a draft policy with policyCode, policyType and rules, when I publish it, then the (policyCode,version) becomes immutable and further edits require a new version | Given a policy requires approval, then approvedBy must be recorded before the policy transitions to published status | Given the policy is published, then a Global PoliciesCreated/Updated event is emitted for downstream policy evaluation"
+    },
+    {
+        "id":  "ADM01-STORY-12",
+        "module":  "ADM-01",
+        "summary":  "Snapshot and roll back configuration via immutable version records",
+        "component":  "ADM01_configuration_versions",
+        "acceptance_criteria":  "Given a configuration change is persisted, when the transaction commits, then a corresponding ADM01_configuration_versions snapshot is written with a unique (scope,version) and checksum | Given a snapshot exists, when a modification to that snapshot is attempted, then it is rejected because snapshots are immutable | Given a rollback is requested, when an authorized admin activates a prior version, then the activation itself is authorized and audited, not performed silently"
+    },
+    {
+        "id":  "ADM01-STORY-13",
+        "module":  "ADM-01",
+        "summary":  "Register and monitor a platform administrative user\u0027s status",
+        "component":  "ADM01_admin_users",
+        "acceptance_criteria":  "Given a userId resolved through IAM, when an admin-user record is created, then no password or credential material is stored locally | Given the user\u0027s identity reference cannot be resolved through IAM, then the create/update request is rejected | Given status or riskState changes, then the record is updated and indexed by (status,lastLoginAt) and an Admin UsersUpdated event is published"
+    },
+    {
+        "id":  "ADM01-STORY-14",
+        "module":  "ADM-01",
+        "summary":  "Define a platform role with a permission bundle",
+        "component":  "ADM01_roles",
+        "acceptance_criteria":  "Given a roleCode, name and scope, when I create a role, then (scope,roleCode) is enforced unique | Given a role is flagged as a protected system role, when a deletion is attempted, then the deletion is rejected as unsafe | Given the role\u0027s permission bundle changes, then the role version increments and a RolesUpdated event is published"
+    },
+    {
+        "id":  "ADM01-STORY-15",
+        "module":  "ADM-01",
+        "summary":  "Maintain the fine-grained permission catalog",
+        "component":  "ADM01_permissions",
+        "acceptance_criteria":  "Given a permissionCode, resource and action, when I create a permission, then permissionCode uniqueness is enforced and it is indexed by (resource,action) | Given a permissionCode is already referenced by a role binding, when a change to that code is attempted, then the change is rejected because codes are immutable once used"
+    },
+    {
+        "id":  "ADM01-STORY-16",
+        "module":  "ADM-01",
+        "summary":  "Grant and revoke a scoped role binding without privilege escalation",
+        "component":  "ADM01_role_bindings",
+        "acceptance_criteria":  "Given a principalId, roleId and scope, when I create a binding, then (tenantId,principalId,roleId,scope) uniqueness is enforced | Given a binding would grant privileges beyond the requester\u0027s own authorization policy, when it is submitted, then it is rejected as privilege escalation | Given effectiveTo passes, then the binding is no longer treated as active for authorization decisions"
+    },
+    {
+        "id":  "ADM01-STORY-17",
+        "module":  "ADM-01",
+        "summary":  "Run a periodic privileged access review with separation of duties",
+        "component":  "ADM01_access_reviews",
+        "acceptance_criteria":  "Given a due access review, when I POST /api/v1/admin/access/reviews, then a review record is created with a unique reviewId and dueAt | Given the reviewer is the same principal as the access being reviewed and policy forbids self-certification, when a decision is submitted, then it is rejected | Given the review is completed, then decision and completedAt are recorded and an Access ReviewsCompleted event is published | Given reviews are queried by (tenantId,dueAt,status), then overdue reviews are identifiable for escalation"
+    },
+    {
+        "id":  "ADM01-STORY-18",
+        "module":  "ADM-01",
+        "summary":  "Publish an immutable commercial plan",
+        "component":  "ADM01_subscription_plans",
+        "acceptance_criteria":  "Given a planCode, billingCycle, price, currency and entitlements, when I create a plan, then all financial values are validated for correctness before persistence | Given a plan is published, when a change to that published version is attempted, then it is rejected because published plans are immutable | Given a new plan version is required, then it is created as a new version rather than mutating the published one"
+    },
+    {
+        "id":  "ADM01-STORY-19",
+        "module":  "ADM-01",
+        "summary":  "Manage a tenant\u0027s subscription lifecycle",
+        "component":  "ADM01_subscriptions",
+        "acceptance_criteria":  "Given a planId, when I create a subscription, then the plan reference is validated to exist and be active | Given a subscription status transition (e.g., ACTIVE to RENEWED/CANCELLED), then the transition is captured with full audit detail and a SubscriptionChanged event is published | Given entitlementSnapshot is set at transition time, then it reflects the plan\u0027s entitlements at that point, independent of later plan changes"
+    },
+    {
+        "id":  "ADM01-STORY-20",
+        "module":  "ADM-01",
+        "summary":  "Issue and manage invoices with controlled post-issue adjustments",
+        "component":  "ADM01_invoices",
+        "acceptance_criteria":  "Given a subscription and billing period, when an invoice is issued, then invoiceNo is generated and subtotal/tax/total are computed and persisted | Given an invoice has status ISSUED, when a direct amount edit is attempted, then it is rejected unless routed through a controlled adjustment workflow | Given invoices are listed via GET /api/v1/admin/billing/invoices, then results are filterable by tenant and status"
+    },
+    {
+        "id":  "ADM01-STORY-21",
+        "module":  "ADM-01",
+        "summary":  "Reconcile payment gateway transactions idempotently",
+        "component":  "ADM01_billing_gateway_transactions",
+        "acceptance_criteria":  "Given a gatewayTransactionId already processed, when the same callback is redelivered, then it is recognized as a duplicate and no double-reconciliation occurs | Given a transaction callback is received, then no card or payment-instrument data is persisted, only rawReference and status | Given a transaction reconciles successfully, then a BillingTransactionReconciled event is published linking back to the invoice"
+    },
+    {
+        "id":  "ADM01-STORY-22",
+        "module":  "ADM-01",
+        "summary":  "Calculate and expose tenant usage metrics",
+        "component":  "ADM01_usage_metrics",
+        "acceptance_criteria":  "Given raw usage events for a period, when metrics are calculated, then the result is stored as append/aggregate records that can be rebuilt if source data is reprocessed | Given usage metrics are queried via GET /api/v1/admin/usage, then results can be filtered by tenantId, metricType and period | Given a UsageMetricCalculated event is published, then downstream billing and reporting consumers can update projections"
+    },
+    {
+        "id":  "ADM01-STORY-23",
+        "module":  "ADM-01",
+        "summary":  "Capture platform component health snapshots",
+        "component":  "ADM01_platform_health",
+        "acceptance_criteria":  "Given a component reports status, latencyMs, errorRate and dependencies, when a health snapshot is recorded, then only operational data is stored with no business PII | Given health snapshots are queried by component and region, then the latest observedAt state is retrievable for dashboards"
+    },
+    {
+        "id":  "ADM01-STORY-24",
+        "module":  "ADM-01",
+        "summary":  "Raise, acknowledge and resolve deduplicated operational alerts",
+        "component":  "ADM01_alerts",
+        "acceptance_criteria":  "Given an alert condition fires, when a new alert would duplicate an already-open alert for the same source/scope, then it is deduplicated rather than creating a second record | Given an alert is acknowledged, then acknowledgedAt and assignee are recorded and the status transitions accordingly | Given an alert is resolved, then resolvedAt is recorded, the state transition is controlled by the alert lifecycle, and an AlertsUpdated event is published"
+    },
+    {
+        "id":  "ADM01-STORY-25",
+        "module":  "ADM-01",
+        "summary":  "Define retention rules that cannot undercut legal minimums",
+        "component":  "ADM01_data_retention_policies",
+        "acceptance_criteria":  "Given a policyCode, dataClass, retentionDays and legalHoldBehavior, when I create/update a policy, then a request to set retentionDays below the legal/institutional minimum is rejected | Given archiveAfterDays is configured, then records are eligible for archival at that threshold ahead of retentionDays | Given the policy changes, then the new version is published and a Data Retention PoliciesUpdated event is emitted"
+    },
+    {
+        "id":  "ADM01-STORY-26",
+        "module":  "ADM-01",
+        "summary":  "Maintain a versioned, audited data classification taxonomy",
+        "component":  "ADM01_data_classifications",
+        "acceptance_criteria":  "Given a classCode, sensitivity, handlingRules and exportRules, when a classification is created or changed, then the change is versioned and captured in the audit trail | Given a classification is referenced by other collections\u0027 Security/Classification fields, then changing its exportRules affects future export authorization decisions"
+    },
+    {
+        "id":  "ADM01-STORY-27",
+        "module":  "ADM-01",
+        "summary":  "Request and approve a controlled data export",
+        "component":  "ADM01_export_requests",
+        "acceptance_criteria":  "Given a dataScope, format and purpose, when I POST /api/v1/admin/exports, then the request requires authorization before status can move to APPROVED | Given an export lacks an expiry, when it is submitted, then it is rejected because expiresAt is mandatory | Given an export is approved, then the output objectRef and checksum are recorded and an ExportRequested/Completed event is published | Given expiresAt passes, then the exported object is no longer accessible through the platform"
+    },
+    {
+        "id":  "ADM01-STORY-28",
+        "module":  "ADM-01",
+        "summary":  "Record an immutable, tamper-evident audit entry for every privileged operation",
+        "component":  "ADM01_audit_logs",
+        "acceptance_criteria":  "Given a privileged write occurs, when the transaction commits, then an ADM01_audit_logs record is written atomically with actorId, action, resourceType/Id, beforeHash and afterHash | Given an audit record exists, when any modification or deletion is attempted, then it is rejected because the collection is append-only | Given beforeHash/afterHash are computed, then any tampering with historical records is detectable"
+    },
+    {
+        "id":  "ADM01-STORY-29",
+        "module":  "ADM-01",
+        "summary":  "Investigate administrative activity via correlated audit search",
+        "component":  "ADM01_audit_logs",
+        "acceptance_criteria":  "Given a correlationId from an event or API response, when I search audit logs by that correlationId, then all related audit entries across the transaction chain are returned | Given a date range and actorId, then matching audit entries are returned ordered by occurredAt"
+    },
+    {
+        "id":  "ADM01-STORY-30",
+        "module":  "ADM-01",
+        "summary":  "Run a long-running administrative approval workflow with timeout and retry",
+        "component":  "ADM01_workflow_instances",
+        "acceptance_criteria":  "Given a workflowType and subject, when a workflow instance is started, then its steps and state are tracked from startedAt through completedAt | Given a step times out, then the configured retry/timeout rule executes rather than the workflow silently stalling | Given the workflow completes, then an AdministrativeWorkflowCompleted event is published"
+    },
+    {
+        "id":  "ADM01-STORY-31",
+        "module":  "ADM-01",
+        "summary":  "Guarantee exactly-once processing of retried admin commands",
+        "component":  "ADM01_idempotency_records",
+        "acceptance_criteria":  "Given an idempotencyKey and operation, when the same key is replayed with an identical request hash, then the original responseRef is returned without reapplying the operation | Given the same idempotencyKey is replayed with a different request hash, then the request is rejected as a conflicting duplicate | Given expiresAt passes, then the idempotency record is eligible for cleanup without affecting already-completed operations"
+    },
+    {
+        "id":  "ADM01-STORY-32",
+        "module":  "ADM-01",
+        "summary":  "Publish domain events transactionally via the outbox",
+        "component":  "ADM01_outbox_events",
+        "acceptance_criteria":  "Given a business transaction commits, when the outbox record is written, then it is written atomically with the business change in the same transaction | Given the publisher retries a not-yet-confirmed outbox event, then publication is idempotent and does not create duplicate downstream effects | Given publishedAt is set, then retryCount and status reflect the delivery outcome for observability"
+    },
+    {
+        "id":  "ADM01-STORY-33",
+        "module":  "ADM-01",
+        "summary":  "Consume inbound events exactly once via the inbox",
+        "component":  "ADM01_inbox_events",
+        "acceptance_criteria":  "Given an eventId already recorded as processed for a consumer, when the same event is redelivered, then it is recognized as a duplicate and no business effect is reapplied | Given processing fails, then status and error are recorded so the event can be retried or investigated"
+    },
+    {
+        "id":  "ADM01-STORY-34",
+        "module":  "ADM-01",
+        "summary":  "Review and authorize replay of dead-lettered events",
+        "component":  "ADM01_dead_letter_events",
+        "acceptance_criteria":  "Given an event exhausts its retry policy, when it fails permanently, then it is written to ADM01_dead_letter_events with failureCode and retryCount | Given a dead-lettered event is queried, then access is restricted to authorized operational roles | Given a replay is requested, then it requires explicit controlled authorization and is captured in the disposition field and audit trail"
+    },
+    {
+        "id":  "ADM02-STORY-01",
+        "module":  "ADM-02",
+        "summary":  "Register and maintain the authoritative college profile",
+        "component":  "ADM02_college_profiles",
+        "acceptance_criteria":  "Given collegeCode, legalName, displayName and accreditationRefs, when I POST /api/v1/college-admin/profile, then collegeCode is validated as required/unique and accreditation references are validated | Given the college\u0027s status changes (e.g., ACTIVE to SUSPENDED), then the lifecycle transition is controlled rather than a free-form field update | Given the profile is updated, then currentVersion increments and a College ProfilesUpdated event is published"
+    },
+    {
+        "id":  "ADM02-STORY-02",
+        "module":  "ADM-02",
+        "summary":  "Create and retire a college department without breaking references",
+        "component":  "ADM02_departments",
+        "acceptance_criteria":  "Given a departmentCode and headUserId, when I POST /api/v1/college-admin/departments, then headUserId must resolve through the IAM/HR context or the request is rejected | Given a department is still referenced by programs or other administrative records, when a hard delete is attempted, then it is rejected in favor of a status/effectiveTo lifecycle change | Given departments are listed via GET /api/v1/college-admin/departments, then results can be filtered by status"
+    },
+    {
+        "id":  "ADM02-STORY-03",
+        "module":  "ADM-02",
+        "summary":  "Create a program under an active department with an immutable published version",
+        "component":  "ADM02_programs",
+        "acceptance_criteria":  "Given a programCode, departmentId and durationYears, when I POST /api/v1/college-admin/programs, then the referenced department must be ACTIVE and durationYears must be positive | Given a program version is published, when an edit to that version is attempted, then it is rejected and a new version must be created instead | Given the program is created, then a ProgramsCreated event is published"
+    },
+    {
+        "id":  "ADM02-STORY-04",
+        "module":  "ADM-02",
+        "summary":  "Configure local college calendar behavior without overriding the authoritative academic calendar",
+        "component":  "ADM02_college_calendar_configuration",
+        "acceptance_criteria":  "Given a sourceCalendarId and localRules, when I save calendar configuration, then it references but does not duplicate or override authoritative ACD-07 calendar facts | Given an AcademicCalendarChanged event is consumed from ACD-07, then the local configuration\u0027s sync mode determines how display preferences are refreshed, without altering the authoritative source"
+    },
+    {
+        "id":  "ADM02-STORY-05",
+        "module":  "ADM-02",
+        "summary":  "Configure college-specific settings with effective dating",
+        "component":  "ADM02_college_settings",
+        "acceptance_criteria":  "Given a key/value/dataType, when I PUT /api/v1/college-admin/settings, then sensitive values are rejected unless submitted as secret references | Given GET /api/v1/college-admin/settings is called, then only the version effective as of now is returned | Given the setting changes, then a College SettingChanged event is published"
+    },
+    {
+        "id":  "ADM02-STORY-06",
+        "module":  "ADM-02",
+        "summary":  "Override a platform feature flag at the college level within safety limits",
+        "component":  "ADM02_feature_overrides",
+        "acceptance_criteria":  "Given a flagKey and overrideValue with a reason, when I submit the override, then it is rejected if the target flag is a globally disabled safety control | Given effectiveFrom/effectiveTo are set, then the override only applies within that window and a FeatureOverrideChanged event is published"
+    },
+    {
+        "id":  "ADM02-STORY-07",
+        "module":  "ADM-02",
+        "summary":  "Publish an immutable college-level administrative policy",
+        "component":  "ADM02_local_policies",
+        "acceptance_criteria":  "Given a policyCode and rules, when the policy is published, then the version becomes immutable and edits require a new version | Given the policy is a controlled policy type, when publication is attempted without approvedBy set, then it is rejected | Given the policy is published, then a Local PoliciesCreated/Updated event is emitted"
+    },
+    {
+        "id":  "ADM02-STORY-08",
+        "module":  "ADM-02",
+        "summary":  "Maintain college-scoped administrative user context without storing credentials",
+        "component":  "ADM02_college_users",
+        "acceptance_criteria":  "Given a userId and employeeRef, when a college user record is created, then the identity reference must resolve or the request is rejected, and no password data is stored | Given the user\u0027s departmentId changes, then the record is updated and a College UsersUpdated event is published"
+    },
+    {
+        "id":  "ADM02-STORY-09",
+        "module":  "ADM-02",
+        "summary":  "Define college roles with protected system roles",
+        "component":  "ADM02_roles",
+        "acceptance_criteria":  "Given a roleCode and permissions, when a role is created, then role uniqueness and status are enforced | Given a role is marked as a protected system role, when deletion is attempted, then it is rejected"
+    },
+    {
+        "id":  "ADM02-STORY-10",
+        "module":  "ADM-02",
+        "summary":  "Maintain the college administration permission catalog",
+        "component":  "ADM02_permissions",
+        "acceptance_criteria":  "Given a permissionCode is created, when it is later assigned to a role, then the code becomes immutable and cannot be changed | Given permissions are queried, then results can be filtered by resource and action"
+    },
+    {
+        "id":  "ADM02-STORY-11",
+        "module":  "ADM-02",
+        "summary":  "Grant scoped college role bindings without privilege escalation",
+        "component":  "ADM02_role_bindings",
+        "acceptance_criteria":  "Given a principalId, roleId, scopeType and scopeId, when a binding is created, then it is unique per those dimensions plus effective window | Given a binding would exceed the requester\u0027s own authorization policy, when submitted, then it is rejected as privilege escalation | Given effectiveTo passes, then the binding is no longer treated as active"
+    },
+    {
+        "id":  "ADM02-STORY-12",
+        "module":  "ADM-02",
+        "summary":  "Run periodic college access reviews with separation of duties",
+        "component":  "ADM02_access_reviews",
+        "acceptance_criteria":  "Given a review is due, when it is created, then reviewId is unique and dueAt is tracked | Given the reviewer is the same principal being reviewed and separation-of-duties policy applies, when a decision is submitted, then it is rejected | Given the review completes, then decision and completedAt are recorded"
+    },
+    {
+        "id":  "ADM02-STORY-13",
+        "module":  "ADM-02",
+        "summary":  "Submit a college data import job with idempotent replay",
+        "component":  "ADM02_data_imports",
+        "acceptance_criteria":  "Given a fileRef, entityType and mode, when I POST /api/v1/college-admin/imports, then schema-level validation runs before rows are processed | Given the same job is resubmitted with the same checksum/job key, when reprocessed, then it is recognized as an idempotent replay rather than duplicating data | Given the import completes, then a DataImportCompleted event is published"
+    },
+    {
+        "id":  "ADM02-STORY-14",
+        "module":  "ADM-02",
+        "summary":  "Track import job status and diagnostics",
+        "component":  "ADM02_import_logs",
+        "acceptance_criteria":  "Given an importId, when I call GET /api/v1/college-admin/imports/{id}, then status and associated row-level logs are returned | Given a row fails validation, then the log entry records rowNo, entityKey, severity, code and message without duplicating raw source PII beyond what\u0027s needed"
+    },
+    {
+        "id":  "ADM02-STORY-15",
+        "module":  "ADM-02",
+        "summary":  "Define an allow-listed college report",
+        "component":  "ADM02_report_definitions",
+        "acceptance_criteria":  "Given a reportCode, querySpec and permissions, when a report definition is created, then querySpec is validated against the allow-list and arbitrary queries are rejected | Given dataClass is set, then only principals with matching permissions can execute the report"
+    },
+    {
+        "id":  "ADM02-STORY-16",
+        "module":  "ADM-02",
+        "summary":  "Run an approved college report and retain execution history",
+        "component":  "ADM02_report_runs",
+        "acceptance_criteria":  "Given a reportId and filters, when I call GET /api/v1/college-admin/reports/{code}, then a run record is created with requestedBy, startedAt and eventual outputRef | Given the run completes, then rowCount and completedAt are recorded and the export/report access is captured in the audit trail with a time-bound outputRef"
+    },
+    {
+        "id":  "ADM02-STORY-17",
+        "module":  "ADM-02",
+        "summary":  "Schedule a recurring report with authorized recipients",
+        "component":  "ADM02_report_schedules",
+        "acceptance_criteria":  "Given a cron expression, timezone and recipients, when a schedule is created, then each recipient\u0027s authorization to view the report is validated | Given the scheduled time arrives, when the job executes, then execution is idempotent and nextRunAt/lastRunAt are updated correctly"
+    },
+    {
+        "id":  "ADM02-STORY-18",
+        "module":  "ADM-02",
+        "summary":  "Maintain rebuildable dashboard snapshots for fast reads",
+        "component":  "ADM02_dashboard_snapshots",
+        "acceptance_criteria":  "Given a dashboardCode and period, when a snapshot is generated, then metrics and sourceVersion are recorded and a Dashboard SnapshotsCreated event is published | Given the source data changes, then the snapshot remains rebuildable from authoritative/reporting sources rather than being the sole source of truth"
+    },
+    {
+        "id":  "ADM02-STORY-19",
+        "module":  "ADM-02",
+        "summary":  "Register a governance document with classification",
+        "component":  "ADM02_document_metadata",
+        "acceptance_criteria":  "Given a documentType, title, ownerId and classification, when I POST /api/v1/college-admin/documents, then classification is mandatory and objectRef integrity is validated | Given the document is registered, then currentVersion is tracked and a Document MetadataCreated event is published"
+    },
+    {
+        "id":  "ADM02-STORY-20",
+        "module":  "ADM-02",
+        "summary":  "Version and checksum-verify published documents",
+        "component":  "ADM02_document_versions",
+        "acceptance_criteria":  "Given a new version is uploaded, when it is registered, then checksum is computed and verified against the stored object | Given a version has status PUBLISHED, when a modification is attempted, then it is rejected because published versions are immutable"
+    },
+    {
+        "id":  "ADM02-STORY-21",
+        "module":  "ADM-02",
+        "summary":  "Grant least-privilege, time-bound document access",
+        "component":  "ADM02_document_permissions",
+        "acceptance_criteria":  "Given a principalType/principalId and permission, when a grant is created, then effectiveFrom/effectiveTo are enforced | Given effectiveTo passes, then the grant is no longer honored for access decisions"
+    },
+    {
+        "id":  "ADM02-STORY-22",
+        "module":  "ADM-02",
+        "summary":  "Submit a document for approval and publish it immutably",
+        "component":  "ADM02_document_approvals",
+        "acceptance_criteria":  "Given a document version, when I POST /api/v1/college-admin/documents/{id}/submit, then an approval record is created under RBAC/ABAC-authorized approvers | Given an approval decision is recorded, when a change to that decision is attempted afterward, then it is rejected because approval state is immutable after decision | Given the decision is APPROVED, then the version becomes published/immutable and DocumentPublished/DocumentApprovalCompleted events are emitted"
+    },
+    {
+        "id":  "ADM02-STORY-23",
+        "module":  "ADM-02",
+        "summary":  "Submit a general administrative approval request through a delegated approver chain",
+        "component":  "ADM02_approval_requests",
+        "acceptance_criteria":  "Given a requestType, subjectType/Id and approverChain, when a request is submitted, then state starts at SUBMITTED with submittedAt captured | Given an approver delegates their step, then the delegation is recorded and SLA timers continue to apply | Given all approvers decide, then decidedAt is recorded and the final state reflects the aggregate decision"
+    },
+    {
+        "id":  "ADM02-STORY-24",
+        "module":  "ADM-02",
+        "summary":  "Run a college workflow with explicit timeout, retry and compensation",
+        "component":  "ADM02_workflow_instances",
+        "acceptance_criteria":  "Given a workflowType and subject, when a workflow starts, then its steps and state are tracked from startedAt to completedAt | Given a step fails, when the configured compensation action exists, then it executes rather than leaving the workflow inconsistent | Given the workflow completes, then an AdministrativeWorkflowCompleted event is published"
+    },
+    {
+        "id":  "ADM02-STORY-25",
+        "module":  "ADM-02",
+        "summary":  "Record an immutable, tamper-evident audit entry for college administrative actions",
+        "component":  "ADM02_audit_logs",
+        "acceptance_criteria":  "Given a privileged write occurs, when it commits, then an ADM02_audit_logs record is written with actorId, action, resourceType/Id, beforeHash and afterHash | Given an audit record exists, when modification is attempted, then it is rejected because the collection is append-only and tamper-evident"
+    },
+    {
+        "id":  "ADM02-STORY-26",
+        "module":  "ADM-02",
+        "summary":  "Guarantee exactly-once processing of retried college admin commands",
+        "component":  "ADM02_idempotency_records",
+        "acceptance_criteria":  "Given an idempotencyKey and operation, when replayed with an identical request hash, then the original responseRef is returned without reapplying the operation | Given the same key is replayed with a mismatched request hash, then the request is rejected as a conflicting duplicate"
+    },
+    {
+        "id":  "ADM02-STORY-27",
+        "module":  "ADM-02",
+        "summary":  "Publish college admin domain events transactionally via the outbox",
+        "component":  "ADM02_outbox_events",
+        "acceptance_criteria":  "Given a business transaction commits, when the outbox record is written, then it is written atomically in the same transaction | Given ordering matters for an aggregate, when events are published, then per-aggregate ordering is preserved | Given the publisher retries, then publication remains idempotent"
+    },
+    {
+        "id":  "ADM02-STORY-28",
+        "module":  "ADM-02",
+        "summary":  "Consume upstream academic/faculty events exactly once via the inbox",
+        "component":  "ADM02_inbox_events",
+        "acceptance_criteria":  "Given an eventId already processed for a consumer, when redelivered, then it is recognized as a duplicate and skipped | Given processing fails, then status and error are recorded for retry or investigation"
+    },
+    {
+        "id":  "ADM02-STORY-29",
+        "module":  "ADM-02",
+        "summary":  "Review and authorize replay of dead-lettered college events",
+        "component":  "ADM02_dead_letter_events",
+        "acceptance_criteria":  "Given an event exhausts retries, when it fails permanently, then it is written to ADM02_dead_letter_events with failureCode and retryCount | Given a replay is requested, then it requires controlled authorization and is captured in disposition and the audit trail"
+    },
+    {
+        "id":  "ADM02-STORY-30",
+        "module":  "ADM-02",
+        "summary":  "Register cross-module batch split/merge permission codes and grant them to Registrar",
+        "component":  "ADM02_permissions,ADM02_role_bindings",
+        "acceptance_criteria":  "Given the three permission codes are registered in ADM02_permissions with a source annotation referencing ACD-04 as the enforcing service, When the Registrar role is provisioned or reviewed, Then BATCH_SPLIT_APPROVE and BATCH_MERGE_APPROVE are present in its ADM02_role_bindings grant set by default, BATCH_SPLIT_REQUEST is granted to Academic Admin instead, and no role holds both a *_REQUEST and its corresponding *_APPROVE permission simultaneously, enforcing separation of duties at the binding level."
+    },
+    {
+        "id":  "ADM02-STORY-31",
+        "module":  "ADM-02",
+        "summary":  "Register a batch split/merge workflow type consuming ACD-04 approval-request events",
+        "component":  "ADM02_workflow_instances,ADM02_approval_requests",
+        "acceptance_criteria":  "Given ACD-04 publishes a BatchSplitApprovalRequested payload (envelope: eventId, eventType, eventVersion=1.0, tenantId, institutionId, correlationId, timestamp) with data: { requestId, requestType:\"SPLIT\", sourceBatchId, sourceBatchCode, departmentId, campusId, requestedBy, requestedAt, reason, proposedSections:[{sectionCode, capacity, targetStudentIds[]}], approverRole:\"REGISTRAR\" }. or a BatchMergeApprovalRequested payload (same envelope) with data: { requestId, requestType:\"MERGE\", sourceBatchIds[], sourceBatchDepartmentIds[] (one per source batch, needed for the cross-department check), targetBatchId (null if a new batch is created), campusId, requestedBy, requestedAt, reason, approverRole:\"REGISTRAR\" }. event, When the College Admin Module\u0027s inbox consumes it (deduplicated via ADM02_inbox_events on eventId), Then an ADM02_workflow_instances record is created populated from requestId, requestType, sourceBatchId(s), departmentId(s)/sourceBatchDepartmentIds, campusId, requestedBy, requestedAt and reason, with the approver chain resolved to Registrar for the request\u0027s tenantId+institutionId scope (per the ADM02_permissions/ADM02_role_bindings grant), using the standard explicit timeout, retry and compensation semantics already used for general administrative approvals. Given the Registrar records a decision on that workflow instance, When the decision is finalized, Then ADM02 publishes a BatchSplitApprovalDecided / BatchMergeApprovalDecided payload (same envelope) with data: { requestId, decision:\"APPROVED\"|\"REJECTED\", decidedBy, decidedAt, reason }. event back to ACD-04 (matching requestId, correlationId carried through from the original request) so ACD-04 can resume or revert the split/merge without any ACD-04-owned approval endpoint being called."
+    },
+    {
+        "id":  "ADM02-STORY-32",
+        "module":  "ADM-02",
+        "summary":  "Capture batch split/merge approval decisions in the cross-module audit trail",
+        "component":  "ADM02_audit_logs,ADM02_inbox_events",
+        "acceptance_criteria":  "Given a Registrar approves or rejects a pending batch split/merge workflow instance, When the decision is recorded, Then an ADM02_audit_logs entry is written capturing actorId, decision, reason, timestamp and the source ACD-04 batchId(s), the entry can never be updated or deleted, and the corresponding inbound event from ACD-04 is deduplicated via ADM02_inbox_events so a redelivered event never produces a duplicate audit entry."
+    }
+]

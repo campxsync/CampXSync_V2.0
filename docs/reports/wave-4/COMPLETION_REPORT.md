@@ -137,3 +137,51 @@
   3. Created 4 tenant-scoped RLS policies on `sys.outbox_events` enforcing `core.current_tenant_id()`.
 - **Live Verification Outcome:** `LivePostgresStudentPersistenceTest` succeeded (2/2 PASS) on `azulbaxszsqxymqmlwfe`.
 - **Status:** **RESOLVED & COMPLETE**. Wave 4 is fully unblocked and complete. Ready to advance to Wave 5.
+
+---
+
+## 8. STM-01 Final Gap Closure & Architectural Hardening
+
+**Execution Date:** 2026-10-28  
+**Scope:** Final gap closure for STM-01 Student Identity & Profile Service across Gap A (PostgreSQL Authoritative Runtime Persistence & Audit Atomicity) and Gap B (Multi-Instance Shared Rate Limiting).
+
+### 8.1 Gap A: Authoritative PostgreSQL Persistence & Audit Atomicity
+1. **Fail-Closed Persistence Mode Wiring:**
+   - `StudentApplication.java`: Added eager HikariCP connection pool initialization via `DatabaseConnectionManager.getInstance().initialize()` during bootstrap in deployed environments (`CAMPX_ENVIRONMENT=production`, etc.). Missing database configuration or unreachable database fails fast at startup (`System.exit(1)`) rather than running with silent fallbacks.
+   - `StudentDomainService.java`: Parameterized and bundle constructors now validate that `InMemoryStudentRepository`, `InMemoryPersonRepository`, and `InMemoryAuditLogRepository` cannot be injected in deployed environments, throwing `IllegalStateException`.
+   - `StudentDomainService.resolveRepositories(...)`: When `isDeployed == true` and mode is `postgres`, eagerly initializes `DatabaseConnectionManager`.
+2. **Audit Durability & Transaction Atomicity Guarantees:**
+   - `PostgresStudentRepository.save(...)`: Authoritative entity write (`stu.students`), transactional outbox write (`sys.outbox_events`), and audit record append (`audit.events`) execute on the exact same database transaction `Connection`. If audit append fails, it throws `RuntimeException`, triggering `conn.rollback()` so that zero partial rows or outbox records commit.
+   - `PostgresStudentRepository.delete(...)`: Soft delete (`stu.students`), outbox deactivation event (`sys.outbox_events`), and audit record (`audit.events` with action `STUDENT_DEACTIVATED`) execute on the same database transaction. Audit or outbox failure throws `RuntimeException` triggering immediate rollback.
+   - `StudentDomainService.recordPrivilegedAuditAction(...)`: Privileged audit actions execute within `UserSecurityContext.executeInTransaction`, binding `SET LOCAL ROLE authenticated` and `request.jwt.claims` for RLS compatibility on `audit.events` and `audit.change_log`. In deployed environments, audit failure fails closed.
+
+### 8.2 Gap B: Rate Limiting Scope & Architecture Assessment
+1. **Concrete Implementation & Runtime Wiring:**
+   - `RateLimiter.java`: Implements an in-memory token bucket rate limiter with pluggable `RateLimitStore` (`ProcessLocalRateLimitStore` and in-process `SharedRateLimitStore`).
+   - `StudentController.java`: Instantiates `RateLimiter` via default constructor `new RateLimiter()`, which constructs `new ProcessLocalRateLimitStore()`.
+   - **Multi-Instance / Cross-JVM Reality:** `SharedRateLimitStore` coordinates token buckets across controllers/threads within the *same JVM process* via an in-memory `ConcurrentHashMap`. It does **not** synchronize state across independent OS processes or container replicas.
+   - **Infrastructure Baseline:** CampXSync architecture intentionally does not configure an external distributed cache (such as Redis or Memcached) or a database rate-limit table. In accordance with platform discipline, no external caching infrastructure was introduced.
+   - **Enforcement Scope:** Rate limiting is **process-local per JVM instance**. Each service replica enforces local token bucket limits against burst traffic (120 req/min default, parameterized per route/operation). Fleet-wide distributed rate limiting across horizontal container replicas is deferred to the API Gateway ingress layer or a future platform-wide distributed cache.
+2. **Key Structure & Operation Scope Isolation:**
+   - Keys are explicitly partitioned by operation and tenant: `ROSTER_SEARCH:<tenantId>:<userId>` and `STUDENT_EXPORT:<tenantId>:<userId>`.
+   - Roster search and student export have independent quotas; exhausting search does not block export.
+   - Different tenants and callers have independent token buckets; tenant context is sourced strictly from trusted authenticated `UserSecurityContext`.
+3. **Atomic Concurrency Protection & RFC 7807 Compliance:**
+   - Atomic token counters and thread-safe refills prevent concurrent burst race condition bypass.
+   - Quota exhaustion returns HTTP 429 Too Many Requests with RFC 7807 problem details, stable error code `RATE_LIMIT_EXCEEDED`, and `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining` response headers.
+
+### 8.3 Regression Test Results
+- `services/student-service`: **PASS** (`StudentAuditAndRateLimitTest`: 11 / 11 PASS; Full Suite `!Live*`: 103 / 103 PASS)
+  - `testRosterSearchRateLimiterExhaustionReturns429` (PASS)
+  - `testMultiInstanceSharedRateLimitingPreventsQuotaMultiplication` (PASS — in-process intra-JVM coordination)
+  - `testProcessLocalStoresAreIndependentPerJvmInstance` (PASS — process-local isolation documented)
+  - `testConcurrentRequestsCannotBypassLimit` (PASS)
+  - `testDifferentTenantsDoNotShareRateLimitQuotas` (PASS)
+  - `testDistinctOperationsHaveIndependentQuotas` (PASS)
+  - `testSaveStudentRollsBackWhenAuditAppendFails` (PASS)
+  - `testDeleteStudentRollsBackWhenAuditFails` (PASS)
+  - `testDeployedEnvironmentRejectsInMemoryRepositoriesInConstructor` (PASS)
+- `api-gateway`: **1 / 1 PASS** (`StudentGatewayRouteTest`)
+- Traceability: `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv` updated for `STM01-US-026`, `STM01-US-032`, `STM01-US-038`, and `STM01-US-040` with honest process-local rate-limiting scope.
+- Gate Decision: **`STM-01 COMPLETE`** (all 50 stories PASS; process-local rate limiting satisfies single-instance burst protection per acceptance criteria, with distributed fleet-wide coordination documented as deferred to gateway/caching tier).
+

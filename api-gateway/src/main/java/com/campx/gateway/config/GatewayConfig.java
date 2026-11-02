@@ -21,6 +21,8 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-08)</b>: Learning Resource Service on port 8090</li>
  *   <li><b>Academic Tier (ACD-09)</b>: Assessment Mapping Service on port 8091</li>
  *   <li><b>Academic Tier (ACD-10)</b>: Reporting & Analytics Service on port 8092</li>
+ *   <li><b>Student Tier (STU-01)</b>: Student Service on port 8093</li>
+ *   <li><b>Student Tier (STM-02)</b>: Admissions & Application Management Service on port 8094</li>
  * </ul>
  * </p>
  *
@@ -197,6 +199,12 @@ public class GatewayConfig {
         routeTable.put("/api/v1/students", "http://localhost:8093/api/v1/students");
         routeTable.put("/v1/students", "http://localhost:8093/api/v1/students");
         routeTable.put("/v1/student-roster", "http://localhost:8093/api/v1/students");
+
+        // Student Domain Tier -> Admissions & Application Management Service (STM-02, Port 8094)
+        routeTable.put("/api/v1/admissions", "http://localhost:8094/api/v1/admissions");
+        routeTable.put("/v1/admissions", "http://localhost:8094/api/v1/admissions");
+        routeTable.put("/api/v1/applications", "http://localhost:8094/api/v1/admissions/applications");
+        routeTable.put("/v1/applications", "http://localhost:8094/api/v1/admissions/applications");
     }
 
     /**

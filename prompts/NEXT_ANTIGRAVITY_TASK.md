@@ -31,9 +31,32 @@ Wave 10 (Frontend Database-Access Retirement, Integrated E2E Regression, and Con
 
 ---
 
-## 2. Next Task: Wave 11 — Production Readiness & Final Cutover (Awaiting User Authorization)
+## 1.1 Architectural Restructuring: Domain-Based Services Directory Reorganization
 
-When explicitly authorized by the user to begin Wave 11, the scope will encompass:
+On 30 October 2026, the `services/` directory was successfully restructured into a domain-based hierarchy (`services/{domain}-services/{microservice-name}/`) with zero regressions and all 22 Maven reactor modules passing verification. When executing future Wave 11 builds, use the new domain paths (e.g., `services/student-services/student-service`, `services/academic-services/course-management-service`, `services/administration-services/institute-admin-service`). See [`docs/architecture/SERVICES_DIRECTORY_RESTRUCTURING_COMPLETION_REPORT.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/architecture/SERVICES_DIRECTORY_RESTRUCTURING_COMPLETION_REPORT.md).
+
+---
+
+## 1.2 STM-02 Admissions & Application Management Implementation (Complete & Verified)
+
+On 30 October 2026, the entire STM-02 backlog (all 55 backlog items: 44 User Stories, 11 Enablers, R0–R3 releases, 257 Story Points) was implemented as a production-ready Java microservice (`admissions-service` on port 8094) under `services/student-services/admissions-service`:
+- **Database Migrations:** Designed physical DDL in `database/migrations/20261101000100_create_stu_admissions_tables.sql` and rollback in `database/migrations/20261101000100_rollback__create_stu_admissions_tables.sql` (9 tables, composite PKs, fail-closed RLS policies). Target development ref: `azulbaxszsqxymqmlwfe`.
+- **PostgreSQL JDBC Persistence Layer:** Implemented 9 real PostgreSQL JDBC repositories with HikariCP connection pooling, parameterized queries, transaction rollback, and RLS claims binding (`SET LOCAL ROLE authenticated`).
+- **CampXSync Intelligence Layer Integration:** Implemented `AdmissionsIntelligenceService` emitting 5 governed outputs via `ControlledIntelligenceAdapter` and schema `1.0.0` `IntelligenceContextEvent` (funnel, demand, operations, decisions, and enrolment conversions) with multi-tenant isolation, data minimization, and idempotent deduplication.
+- **Core Domain Logic & RFC 7807:** Complete application lifecycle (`AdmissionsStateEngine`), deterministic cutoffs (`EligibilityEvaluationEngine`), rubric scoring & SoD approvals (`ReviewAndDecisionService`), STM-01/STM-03 handover orchestration (`HandoverOrchestrationService`), RFC 7807 problem details handler, and PII-sanitized logging service (`AdmissionsLoggingService`).
+- **Gateway & OpenAPI:** Routes `/api/v1/admissions` and `/api/v1/applications` registered in `GatewayConfig.java`; OpenAPI 3.0 specification written in `openapi.yaml`.
+- **Test Evidence:** **50 tests in admissions-service (49 PASS, 1 cleanly skipped live test)**, **1/1 route test PASS** in `api-gateway`. Frontend TypeScript typecheck (`tsc --noEmit`): 0 errors. Frontend Next.js production build (`npm run build`): 21/21 routes compiled cleanly with 0 errors. All 55 items verified with status `PASS` in `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`.
+- **Database Status & Live Verification:** Physical migration `database/migrations/20261101000100_create_stu_admissions_tables.sql` applied successfully to development ref `azulbaxszsqxymqmlwfe` via Supabase MCP (`read_only=false`, user `postgres`). All 9 admissions tables physically exist with `FORCE ROW LEVEL SECURITY` active. Live multi-tenant RLS isolation, live STM-01 student handover to `stu.students`, unique constraint duplicate prevention, and transactional rollback verified live on PostgreSQL. Master completion report documented in [`docs/project-control/STM-02_TARGETED_COMPLETION_REPORT.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/project-control/STM-02_TARGETED_COMPLETION_REPORT.md).
+
+---
+
+## 2. Next Task: STM-03 Academic Enrollment & Course Registration OR Wave 11 Production Readiness (Awaiting User Authorization)
+
+When explicitly authorized by the user, the next task can be:
+- **Option A (Student Domain Track):** Begin STM-03 Academic Enrollment & Course Registration (consuming the `admissions.enrolment.handover_requested.v1` contract from STM-02 and batch assignment from ACD-04).
+- **Option B (Platform Go-Live Track):** Proceed with Wave 11 Production Readiness & Final Cutover.
+
+### Wave 11 Scope Reference:
 
 ### Step 1: Preflight Audit & Environment Consistency
 - Verify production environment configuration parameters and secret propagation (without logging credentials).

@@ -1,0 +1,12 @@
+{
+  "test_name": "SET LOCAL ROLE campx_app_server Execution Check",
+  "statement": "BEGIN; SET LOCAL ROLE campx_app_server; SELECT current_user; ROLLBACK;",
+  "status": "BLOCKED_BY_CATALOG_PRIVILEGES",
+  "error": {
+    "sqlstate": "42501",
+    "message": "ERROR: permission denied to set role \"campx_app_server\""
+  },
+  "root_cause": "In PostgreSQL 16+, executing SET ROLE <role> requires that the current user has the SET option granted on that role. Catalog inspection of pg_auth_members reveals that role 'postgres' has 'campx_app_server' granted with admin_option=true, inherit_option=false, set_option=false. Therefore session_user 'postgres' is disallowed from executing SET ROLE campx_app_server. In contrast, 'authenticated' has set_option=true.",
+  "defect_reference": "DEF-STM02-04"
+}
+

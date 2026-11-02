@@ -2,13 +2,14 @@ import { redirect } from 'next/navigation';
 import { History, ShieldCheck, CheckCircle2, Building2, Lock, Activity } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
-import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function PlatformAuditPage() {
   const supabase = await createClient();
@@ -18,36 +19,64 @@ export default async function PlatformAuditPage() {
     redirect('/access-denied?reason=forbidden');
   }
 
+  const { userId, tenantId } = resolution.session;
+
   let auditEvents: any[] = [];
   let tenantCount = 0;
 
   try {
-    const eventsRes = await query(`
-      SELECT 
-        ae.id,
-        ae.tenant_id,
-        ae.event_time,
-        ae.action,
-        ae.resource_type,
-        ae.resource_id,
-        ae.status,
-        ae.severity,
-        t.name as tenant_name,
-        t.code as tenant_code
-      FROM audit.events ae
-      LEFT JOIN core.tenants t ON t.id = ae.tenant_id
-      ORDER BY ae.event_time DESC
-      LIMIT 100
-    `);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
+      'X-User-Role': 'PLATFORM_ADMIN',
+    };
+    if (tenantId) {
+      headers['X-Tenant-Id'] = tenantId;
+    }
 
-    auditEvents = eventsRes.rows;
+    // 1. Authoritative fetch of platform audit events via API Gateway
+    const auditUrl = new URL('/api/v1/admin/audit-logs', GATEWAY_BASE_URL);
+    const auditRes = await fetch(auditUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
 
-    const tenantsRes = await query(`
-      SELECT count(*) as count FROM core.tenants WHERE deleted_at IS NULL
-    `);
-    tenantCount = Number(tenantsRes.rows[0]?.count) || 2;
+    if (auditRes.ok) {
+      const data = await auditRes.json();
+      const rawLogs = Array.isArray(data.auditLogs) ? data.auditLogs : [];
+      auditEvents = rawLogs.map((log: any, idx: number) => ({
+        id: log.eventId || `evt-${idx}`,
+        tenant_id: log.tenantId || null,
+        event_time: log.timestamp
+          ? new Date(typeof log.timestamp === 'number' ? log.timestamp : Number(log.timestamp) || Date.now()).toISOString()
+          : new Date().toISOString(),
+        action: log.action || 'AUDIT_RECORD',
+        resource_type: log.resourceType || 'SYSTEM',
+        resource_id: log.resourceId || null,
+        status: log.status || 'SUCCESS',
+        severity: log.severity || 'INFO',
+        tenant_name: log.tenantName || 'Platform Root',
+        tenant_code: log.tenantCode || 'GLOBAL',
+      }));
+    }
+
+    // 2. Authoritative count of provisioned institutional tenants via API Gateway
+    const instUrl = new URL('/api/v1/admin/institutes', GATEWAY_BASE_URL);
+    const instRes = await fetch(instUrl.toString(), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (instRes.ok) {
+      const instData = await instRes.json();
+      tenantCount = Array.isArray(instData.institutes) ? instData.institutes.length : 1;
+    } else {
+      tenantCount = 1;
+    }
   } catch (err) {
-    console.error('Failed to query platform audit events:', err);
+    console.error('Failed to query platform audit events via Gateway:', err);
   }
 
   return (

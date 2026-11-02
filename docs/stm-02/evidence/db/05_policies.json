@@ -1,0 +1,92 @@
+[
+  {
+    "schemaname": "stu",
+    "tablename": "admission_decisions",
+    "policyname": "tenant_isolation_admission_decisions",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "admission_eligibility_rules",
+    "policyname": "tenant_isolation_admission_eligibility",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "admission_handovers",
+    "policyname": "tenant_isolation_admission_handovers",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "admission_intakes",
+    "policyname": "tenant_isolation_admission_intakes",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "admission_offers",
+    "policyname": "tenant_isolation_admission_offers",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "application_documents",
+    "policyname": "tenant_isolation_app_documents",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "application_reviews",
+    "policyname": "tenant_isolation_app_reviews",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "application_status_history",
+    "policyname": "tenant_isolation_app_status_history",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  },
+  {
+    "schemaname": "stu",
+    "tablename": "applications",
+    "policyname": "tenant_isolation_applications",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)",
+    "with_check": "(tenant_id = (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'tenant_id'::text))::uuid)"
+  }
+]
