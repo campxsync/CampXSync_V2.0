@@ -113,4 +113,25 @@ public class ApplicationSecurityAndTenantIsolationTest {
 
         hmacVerifier.verify(method, path, String.valueOf(expiredTimestamp), signature, body);
     }
+
+    @Test(expected = IllegalStateException.class)
+    public void testAdmissionsApplicationFailsFastWithoutDbInDeployedEnvironment() {
+        com.campx.admissions.config.DatabaseConfig emptyConfig = new com.campx.admissions.config.DatabaseConfig();
+        emptyConfig.setJdbcUrl(null);
+        AdmissionsApplication.validatePersistenceConfiguration(emptyConfig, true);
+    }
+
+    @Test
+    public void testAdmissionsApplicationAllowsValidDbInDeployedEnvironment() {
+        com.campx.admissions.config.DatabaseConfig validConfig = new com.campx.admissions.config.DatabaseConfig();
+        validConfig.setJdbcUrl("jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:6543/postgres");
+        AdmissionsApplication.validatePersistenceConfiguration(validConfig, true);
+    }
+
+    @Test
+    public void testAdmissionsApplicationAllowsEmptyDbInLocalOrTestEnvironment() {
+        com.campx.admissions.config.DatabaseConfig emptyConfig = new com.campx.admissions.config.DatabaseConfig();
+        emptyConfig.setJdbcUrl(null);
+        AdmissionsApplication.validatePersistenceConfiguration(emptyConfig, false);
+    }
 }

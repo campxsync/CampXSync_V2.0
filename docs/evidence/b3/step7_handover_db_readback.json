@@ -1,0 +1,35 @@
+{
+  "handover": [
+    {
+      "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+      "id": "07fffed9-e256-4803-84a0-7ffcab0b0ca9",
+      "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+      "offer_id": "7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+      "idempotency_key": "stm02-handover-offer-7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+      "created_student_id": null,
+      "enrolment_status": "FAILED",
+      "retry_count": 1,
+      "last_error": "STM-01 student creation returned HTTP 403: {\"type\":\"https://campxsync.edu/errors/forbidden\",\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Missing required X-Tenant-Id header for student domain operations\"}",
+      "handover_completed_at": null,
+      "created_at": "2026-11-02T18:51:55.045Z",
+      "updated_at": "2026-11-02T18:51:48.922Z",
+      "row_version": 2
+    },
+    {
+      "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+      "id": "6cd33eed-5579-4d2e-bcf0-a0d74b51d0d1",
+      "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+      "offer_id": "7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+      "idempotency_key": "E2E-STM02-HANDOVER-KEY-001",
+      "created_student_id": null,
+      "enrolment_status": "FAILED",
+      "retry_count": 1,
+      "last_error": "STM-01 student creation returned HTTP 403: {\"type\":\"https://campxsync.edu/errors/forbidden\",\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Missing required X-Tenant-Id header for student domain operations\"}",
+      "handover_completed_at": null,
+      "created_at": "2026-11-02T18:52:29.219Z",
+      "updated_at": "2026-11-02T18:52:22.972Z",
+      "row_version": 2
+    }
+  ],
+  "student": []
+}

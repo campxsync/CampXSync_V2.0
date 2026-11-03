@@ -1,0 +1,16 @@
+{
+  "testA": {
+    "passed": true,
+    "code": "42501",
+    "message": "permission denied for table applications"
+  },
+  "testB": {
+    "passed": true,
+    "rowCount": 1
+  },
+  "testC": {
+    "passed": true,
+    "updateRowCount": 0,
+    "deleteRowCount": 0
+  }
+}

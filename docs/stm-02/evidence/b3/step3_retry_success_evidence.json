@@ -1,0 +1,28 @@
+{
+  "test": "live STM-01 handover retry success",
+  "apiResponse": {
+    "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "offerId": "246e81cb-560e-4e35-a709-73bb549e8947",
+    "createdStudentId": "7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363",
+    "enrolmentStatus": "STUDENT_CREATED",
+    "retryCount": 1,
+    "lastError": "STM-01 student creation returned HTTP 500: {\"type\":\"https://campxsync.edu/errors/internal-server-error\",\"title\":\"Internal Server Error\",\"status\":500,\"detail\":\"Database operation failed: ERROR: duplicate key value violates unique constraint \\\"uq_students_tenant_id_person_id_college_id\\\"\"}",
+    "handoverCompletedAt": "2026-11-03T08:13:05.27+05:30"
+  },
+  "dbRow": {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "09f2ac83-923b-4796-a0fa-b9d99626af10",
+    "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "offer_id": "246e81cb-560e-4e35-a709-73bb549e8947",
+    "idempotency_key": "E2E-STM02-HANDOVER-RETRY-001",
+    "created_student_id": "7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363",
+    "enrolment_status": "STUDENT_CREATED",
+    "retry_count": 1,
+    "last_error": "STM-01 student creation returned HTTP 500: {\"type\":\"https://campxsync.edu/errors/internal-server-error\",\"title\":\"Internal Server Error\",\"status\":500,\"detail\":\"Database operation failed: ERROR: duplicate key value violates unique constraint \\\"uq_students_tenant_id_person_id_college_id\\\"\"}",
+    "handover_completed_at": "2026-11-03T02:43:05.270Z",
+    "created_at": "2026-11-03T02:40:30.234Z",
+    "updated_at": "2026-11-03T02:43:05.324Z",
+    "row_version": 3
+  },
+  "verified": true
+}

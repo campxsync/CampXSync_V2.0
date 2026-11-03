@@ -362,5 +362,19 @@
     - `docs/functional/STM-02_ADMISSIONS_USER_GUIDE.md` verified.
     - `docs/project-control/STM-02_TARGETED_COMPLETION_REPORT.md` created.
 
+  - STM-02 Live Browser E2E & Full Handover Execution (COMPLETE & VERIFIED):
+    - Full end-to-end multi-persona admissions journey executed via Playwright in Chromium against live development ref `azulbaxszsqxymqmlwfe` with Gateway Auth ON:
+      1. Applicant real login -> submit application -> attach document (PASS).
+      2. Document Verifier real login -> verify document -> assign faculty reviewer (PASS).
+      3. Faculty Reviewer real login -> submit academic review (PASS, intelligence event emitted).
+      4. College Approver real login -> record offer approved decision (PASS).
+      5. College Approver real login -> issue formal offer (PASS, offer issued).
+      6. Applicant real login -> accept formal offer (PASS).
+      7. College Approver real login -> trigger handover -> STM-01 Student created (`7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363`, status `STUDENT_CREATED`).
+    - Same-idempotency-key repeat test verified: Replayed handover with `E2E-STM02-HANDOVER-KEY-001`, verified exact same student ID returned with 0 duplicate student rows created.
+    - Failure and recovery retry test verified: Pointed `STM01_SERVICE_URL` to dead port `http://localhost:59999` -> handover transitioned to `FAILED` with error `Connection refused: connect` captured -> restarted with live STM-01 on port 8093 -> handover recovered to `STUDENT_CREATED`.
+    - Intelligence events verified: `admissions.application.submitted.v1`, `admissions.application.reviewed.v1`, `admissions.offer.issued.v1`, `admissions.offer.accepted.v1`, `admissions.enrolment.handover_requested.v1`.
+    - Automated regression suites: `admissions-service` 53/53 tests PASS; frontend `npx tsc --noEmit` 0 errors; frontend `npm run build` PASS (24/24 static & dynamic pages compiled cleanly).
+
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–10 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

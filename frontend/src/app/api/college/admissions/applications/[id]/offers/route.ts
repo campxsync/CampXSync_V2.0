@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -33,18 +34,17 @@ export async function POST(
     const offerCode = parsed.success && parsed.data.offerCode ? parsed.data.offerCode : `OFF-${Date.now().toString().slice(-6)}`;
     const validDays = parsed.success ? parsed.data.validDays : 14;
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'COLLEGE_ADMIN');
+    headers['Content-Type'] = 'application/json';
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/offers`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'COLLEGE_ADMIN',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
-      body: JSON.stringify({ offerCode, validDays }),
+      headers,
+      body: JSON.stringify({
+        offerTermsVersion: '1.0.0',
+        validTo: new Date(Date.now() + validDays * 86400000).toISOString(),
+      }),
     });
 
     if (!res.ok) {

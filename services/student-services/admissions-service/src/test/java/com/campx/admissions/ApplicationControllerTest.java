@@ -374,4 +374,111 @@ public class ApplicationControllerTest {
         assertTrue(histArray.isArray());
         assertTrue(histArray.size() >= 2);
     }
+
+    @Test
+    public void testDocumentDeleteAllowedOnlyInDraftOrReturnedStatus() throws Exception {
+        // 1. Create Intake
+        ConfigureIntakeRequest intakeReq = new ConfigureIntakeRequest();
+        intakeReq.setCollegeId(UUID.randomUUID());
+        intakeReq.setProgramId(programId);
+        intakeReq.setAcademicYearId(UUID.randomUUID());
+        intakeReq.setIntakeName("Doc Delete Policy Intake");
+        intakeReq.setIntakeCode("DOC-DEL-2026");
+        intakeReq.setApplicationWindowStart(OffsetDateTime.now().minusDays(1));
+        intakeReq.setApplicationWindowEnd(OffsetDateTime.now().plusDays(30));
+        intakeReq.setCapacity(50);
+
+        ApplicationController.HttpResponse intakeResp = controller.handleRequest(
+                "POST", "/api/v1/admissions/intakes", officerHeaders, objectMapper.writeValueAsString(intakeReq)
+        );
+        assertEquals(201, intakeResp.statusCode);
+        UUID intakeId = UUID.fromString(objectMapper.readTree(intakeResp.body).get("id").asText());
+
+        // 2. Create Application (status = DRAFT)
+        CreateApplicationRequest appReq = new CreateApplicationRequest();
+        appReq.setIntakeId(intakeId);
+        ApplicationController.HttpResponse appResp = controller.handleRequest(
+                "POST", "/api/v1/admissions/applications", applicantHeaders, objectMapper.writeValueAsString(appReq)
+        );
+        assertEquals(201, appResp.statusCode);
+        UUID appId = UUID.fromString(objectMapper.readTree(appResp.body).get("id").asText());
+
+        // 3. Attach Document 1 in DRAFT
+        AttachDocumentRequest docReq1 = new AttachDocumentRequest();
+        docReq1.setDocumentId(UUID.randomUUID());
+        docReq1.setDocumentType("HIGH_SCHOOL_TRANSCRIPT");
+        docReq1.setStoragePath("/storage/transcripts/t1.pdf");
+        docReq1.setFileName("t1.pdf");
+        docReq1.setMimeType("application/pdf");
+        docReq1.setFileSizeBytes(1024L);
+
+        ApplicationController.HttpResponse attachResp1 = controller.handleRequest(
+                "POST", "/api/v1/admissions/applications/" + appId + "/documents", applicantHeaders, objectMapper.writeValueAsString(docReq1)
+        );
+        assertEquals(201, attachResp1.statusCode);
+        UUID docId1 = UUID.fromString(objectMapper.readTree(attachResp1.body).get("id").asText());
+
+        // 4. Delete Document 1 while in DRAFT -> MUST SUCCEED (200)
+        ApplicationController.HttpResponse deleteResp1 = controller.handleRequest(
+                "DELETE", "/api/v1/admissions/applications/" + appId + "/documents/" + docId1, applicantHeaders, ""
+        );
+        assertEquals(200, deleteResp1.statusCode);
+
+        // 5. Attach Document 2
+        AttachDocumentRequest docReq2 = new AttachDocumentRequest();
+        docReq2.setDocumentId(UUID.randomUUID());
+        docReq2.setDocumentType("PASSPORT");
+        docReq2.setStoragePath("/storage/passports/p2.pdf");
+        docReq2.setFileName("p2.pdf");
+        docReq2.setMimeType("application/pdf");
+        docReq2.setFileSizeBytes(2048L);
+
+        ApplicationController.HttpResponse attachResp2 = controller.handleRequest(
+                "POST", "/api/v1/admissions/applications/" + appId + "/documents", applicantHeaders, objectMapper.writeValueAsString(docReq2)
+        );
+        assertEquals(201, attachResp2.statusCode);
+        UUID docId2 = UUID.fromString(objectMapper.readTree(attachResp2.body).get("id").asText());
+
+        // 6. Submit Application -> status becomes SUBMITTED
+        ApplicationController.HttpResponse submitResp = controller.handleRequest(
+                "POST", "/api/v1/admissions/applications/" + appId + "/submit", applicantHeaders, ""
+        );
+        assertEquals(200, submitResp.statusCode);
+
+        // 7. Attempt to Delete Document 2 while SUBMITTED/ELIGIBLE -> MUST FAIL with 422
+        ApplicationController.HttpResponse deleteRespForbidden = controller.handleRequest(
+                "DELETE", "/api/v1/admissions/applications/" + appId + "/documents/" + docId2, applicantHeaders, ""
+        );
+        assertEquals(422, deleteRespForbidden.statusCode);
+        assertTrue(deleteRespForbidden.body.contains("Documents can only be deleted when application is in DRAFT or RETURNED_FOR_INFORMATION status"));
+
+        // 8. Assign Reviewer -> transitions to UNDER_REVIEW
+        AssignReviewerRequest assignReq = new AssignReviewerRequest();
+        assignReq.setReviewerId(reviewerId);
+        assignReq.setDepartmentId(UUID.randomUUID());
+        ApplicationController.HttpResponse assignResp = controller.handleRequest(
+                "POST", "/api/v1/admissions/applications/" + appId + "/assign", officerHeaders, objectMapper.writeValueAsString(assignReq)
+        );
+        assertEquals(200, assignResp.statusCode);
+
+        // 9. Return Application for Information from UNDER_REVIEW -> status becomes RETURNED_FOR_INFORMATION
+        ApplicationController.HttpResponse returnResp = controller.handleRequest(
+                "POST", "/api/v1/admissions/applications/" + appId + "/return", officerHeaders, "{\"reason\":\"Please update document\"}"
+        );
+        assertEquals(200, returnResp.statusCode);
+
+        // 10. Delete Document 2 while RETURNED_FOR_INFORMATION -> MUST SUCCEED (200)
+        ApplicationController.HttpResponse deleteResp2 = controller.handleRequest(
+                "DELETE", "/api/v1/admissions/applications/" + appId + "/documents/" + docId2, applicantHeaders, ""
+        );
+        assertEquals(200, deleteResp2.statusCode);
+
+        // 11. Verify document list is now empty
+        ApplicationController.HttpResponse docsResp = controller.handleRequest(
+                "GET", "/api/v1/admissions/applications/" + appId + "/documents", applicantHeaders, ""
+        );
+        assertEquals(200, docsResp.statusCode);
+        JsonNode docsList = objectMapper.readTree(docsResp.body);
+        assertEquals(0, docsList.size());
+    }
 }

@@ -1,0 +1,7 @@
+{
+  "test": "same-idempotency-key repeat",
+  "countBefore": "1",
+  "countAfter": "1",
+  "returnedStudentId": "7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363",
+  "verified": true
+}

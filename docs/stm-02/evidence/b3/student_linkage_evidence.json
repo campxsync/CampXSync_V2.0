@@ -1,0 +1,13 @@
+{
+  "tenantId": "e2e00000-0000-0000-0000-000000000001",
+  "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "applicationNumber": "APP-2026-12FE15E1",
+  "handoverId": "6cd33eed-5579-4d2e-bcf0-a0d74b51d0d1",
+  "handoverEnrolmentStatus": "STUDENT_CREATED",
+  "idempotencyKey": "E2E-STM02-HANDOVER-KEY-001",
+  "correlationId": "E2E-STM02-CORR-12345678",
+  "createdStudentId": "7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363",
+  "studentAdmissionNo": "APP-2026-12FE15E1",
+  "studentStatus": "ACTIVE",
+  "studentCreatedAt": "2026-11-03T02:31:54.167Z"
+}

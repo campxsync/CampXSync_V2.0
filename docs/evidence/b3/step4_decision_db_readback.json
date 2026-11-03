@@ -1,0 +1,38 @@
+[
+  {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "b7559d8d-2d10-4de9-a46a-ee2d94e892e1",
+    "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "decision_type": "OFFER_APPROVED",
+    "decision_reason_code": "STANDARD_DECISION",
+    "decision_notes": "E2E Approver: Formal offer approved ratified by Dean",
+    "decided_by": "e2e00000-0000-0000-0000-000000000005",
+    "decided_at": "2026-11-02T18:51:16.199Z",
+    "created_at": "2026-11-02T18:51:16.199Z",
+    "row_version": 1
+  },
+  {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "d8c19ceb-4d85-47f7-9b52-476c0a149671",
+    "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "decision_type": "OFFER_APPROVED",
+    "decision_reason_code": "STANDARD_DECISION",
+    "decision_notes": "E2E Approver: Formal offer approved ratified by Dean",
+    "decided_by": "e2e00000-0000-0000-0000-000000000005",
+    "decided_at": "2026-11-02T18:47:31.138Z",
+    "created_at": "2026-11-02T18:47:31.138Z",
+    "row_version": 1
+  },
+  {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "ea8cc619-2835-4cff-bf31-6426448b07dc",
+    "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "decision_type": "OFFER_APPROVED",
+    "decision_reason_code": "STANDARD_DECISION",
+    "decision_notes": "E2E Approver: Formal offer approved ratified by Dean",
+    "decided_by": "e2e00000-0000-0000-0000-000000000005",
+    "decided_at": "2026-11-02T14:22:17.724Z",
+    "created_at": "2026-11-02T14:22:17.724Z",
+    "row_version": 1
+  }
+]

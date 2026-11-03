@@ -343,7 +343,11 @@ public class StudentDomainService {
         person.setFirstName(request.getFirstName().trim());
         person.setMiddleName(request.getMiddleName() != null ? request.getMiddleName().trim() : null);
         person.setLastName(request.getLastName() != null ? request.getLastName().trim() : null);
-        person.setDisplayName(request.getDisplayName());
+        String dName = request.getDisplayName();
+        if (dName == null || dName.trim().isEmpty()) {
+            dName = (person.getFirstName() + " " + (person.getLastName() != null ? person.getLastName() : "")).trim();
+        }
+        person.setDisplayName(dName);
         person.setPrimaryEmail(request.getPrimaryEmail().trim().toLowerCase());
         person.setPrimaryPhone(request.getPrimaryPhone() != null ? request.getPrimaryPhone().trim() : null);
         person.setGender(request.getGender() != null ? request.getGender() : Gender.U);

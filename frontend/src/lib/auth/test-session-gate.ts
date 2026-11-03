@@ -9,7 +9,10 @@ export function isTestSessionAllowed(
     env.VERCEL_ENV === 'production' ||
     env.NODE_ENV === 'production' ||
     env.NEXT_PUBLIC_ENVIRONMENT === 'production' ||
-    env.DEPLOYMENT_ENV === 'production'
+    env.DEPLOYMENT_ENV === 'production' ||
+    env.CAMPX_ENVIRONMENT === 'production' ||
+    env.ENVIRONMENT === 'production' ||
+    env.APP_ENV === 'production'
   ) {
     return false;
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -33,16 +34,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ type: 'https://campxsync.edu/errors/bad-request', title: 'Missing Tenant Context', status: 400 }, { status: 400 });
     }
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'COLLEGE_ADMIN');
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/intakes/active`;
     const res = await fetch(gatewayUrl, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'COLLEGE_ADMIN',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
+      headers,
       cache: 'no-store',
     });
 
@@ -85,17 +81,13 @@ export async function POST(req: NextRequest) {
       academicYearId: parsed.data.academicYearId || '11111111-aaaa-bbbb-cccc-000000000001',
     };
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'COLLEGE_ADMIN');
+    headers['Content-Type'] = 'application/json';
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/intakes`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'COLLEGE_ADMIN',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 

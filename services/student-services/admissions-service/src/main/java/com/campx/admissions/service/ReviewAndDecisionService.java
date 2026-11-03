@@ -152,14 +152,21 @@ public class ReviewAndDecisionService {
 
         // Verify that offer does not already exist
         Optional<AdmissionOfferEntity> existing = offerRepository.findByApplication(context.getTenantId(), applicationId);
-        if (existing.isPresent() && existing.get().getStatus() == OfferStatus.ISSUED) {
+        if (existing.isPresent() && (existing.get().getStatus() == OfferStatus.ISSUED || existing.get().getStatus() == OfferStatus.ACCEPTED)) {
             return existing.get();
+        }
+
+        UUID decisionId = request.getDecisionId();
+        if (decisionId == null) {
+            decisionId = decisionRepository.findByApplication(context.getTenantId(), applicationId)
+                    .map(AdmissionDecisionEntity::getId)
+                    .orElseThrow(() -> new AdmissionsValidationException("Cannot issue offer without prior approved decision"));
         }
 
         AdmissionOfferEntity offer = new AdmissionOfferEntity();
         offer.setTenantId(context.getTenantId());
         offer.setApplicationId(applicationId);
-        offer.setDecisionId(request.getDecisionId() != null ? request.getDecisionId() : UUID.randomUUID());
+        offer.setDecisionId(decisionId);
         offer.setOfferCode("OFR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         offer.setOfferTermsVersion(request.getOfferTermsVersion() != null ? request.getOfferTermsVersion() : "1.0.0");
         offer.setValidFrom(OffsetDateTime.now());

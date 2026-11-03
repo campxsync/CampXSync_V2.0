@@ -1,0 +1,9 @@
+{
+  "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "offerId": "7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+  "createdStudentId": null,
+  "enrolmentStatus": "FAILED",
+  "retryCount": 1,
+  "lastError": "STM-01 student creation returned HTTP 403: {\"type\":\"https://campxsync.edu/errors/forbidden\",\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Missing required X-Tenant-Id header for student domain operations\"}",
+  "handoverCompletedAt": null
+}

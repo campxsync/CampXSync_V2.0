@@ -1,0 +1,28 @@
+{
+  "test": "dead port handover failure",
+  "apiResponse": {
+    "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "offerId": "246e81cb-560e-4e35-a709-73bb549e8947",
+    "createdStudentId": null,
+    "enrolmentStatus": "FAILED",
+    "retryCount": 1,
+    "lastError": "Connection refused: connect",
+    "handoverCompletedAt": null
+  },
+  "dbRow": {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "00b99551-1b46-4fcb-8b34-eb752190a99d",
+    "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "offer_id": "246e81cb-560e-4e35-a709-73bb549e8947",
+    "idempotency_key": "E2E-STM02-HANDOVER-FAIL-001",
+    "created_student_id": null,
+    "enrolment_status": "FAILED",
+    "retry_count": 1,
+    "last_error": "Connection refused: connect",
+    "handover_completed_at": null,
+    "created_at": "2026-11-03T02:38:40.484Z",
+    "updated_at": "2026-11-03T02:38:42.775Z",
+    "row_version": 2
+  },
+  "verified": true
+}

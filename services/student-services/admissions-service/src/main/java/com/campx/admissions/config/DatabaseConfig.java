@@ -19,6 +19,11 @@ public class DatabaseConfig {
         if (url != null && url.contains("ap-southeast-1")) {
             url = url.replace("ap-southeast-1", "ap-south-1");
         }
+        if (url != null && (url.contains("pooler.supabase.com") || url.contains("pooler.supabase.co"))) {
+            if (!url.contains("prepareThreshold")) {
+                url = url.contains("?") ? url + "&prepareThreshold=0" : url + "?prepareThreshold=0";
+            }
+        }
         this.jdbcUrl = url;
 
         // Resolve User: default to campx_app_server.<dev-ref> for pooler

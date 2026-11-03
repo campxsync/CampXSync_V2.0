@@ -1,0 +1,12 @@
+{
+  "name": "stm-02-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated E2E Playwright tests for STM-02 Admissions Journey",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "tenantId": "e2e00000-0000-0000-0000-000000000001",
+  "id": "246e81cb-560e-4e35-a709-73bb549e8947",
+  "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "decisionId": "6c19c3d5-7a86-4f60-8332-273349901052",
+  "offerCode": "OFR-F20962CA",
+  "offerTermsVersion": "1.0.0",
+  "validFrom": "2026-11-02T19:01:35.286Z",
+  "validTo": "2026-11-16T19:01:34.963Z",
+  "status": "ACCEPTED",
+  "acceptedAt": "2026-11-02T19:14:36.887Z",
+  "declinedAt": null,
+  "declineReason": null,
+  "extensionGranted": false,
+  "extensionGrantedBy": null,
+  "extendedValidTo": null,
+  "createdAt": "2026-11-02T19:01:35.286Z",
+  "updatedAt": "2026-11-02T19:14:30.575438Z",
+  "createdBy": "e2e00000-0000-0000-0000-000000000005",
+  "rowVersion": 2
+}

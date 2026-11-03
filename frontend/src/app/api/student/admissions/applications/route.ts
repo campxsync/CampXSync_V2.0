@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -29,16 +30,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ type: 'https://campxsync.edu/errors/bad-request', title: 'Missing Tenant Context', status: 400 }, { status: 400 });
     }
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'APPLICANT');
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications`;
     const res = await fetch(gatewayUrl, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'APPLICANT',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
+      headers,
       cache: 'no-store',
     });
 
@@ -71,13 +67,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const parsed = CreateAndSubmitApplicationSchema.safeParse(body);
     if (!parsed.success) {
+      console.error('Validation failed for /api/student/admissions/applications:', JSON.stringify(parsed.error.format()));
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 422 });
     }
 
     const applicantPayload = {
       intakeId: parsed.data.intakeId,
-      applicantPersonId: userId,
-      declarationAccepted: parsed.data.declarationAccepted,
       applicantData: JSON.stringify({
         candidateName: parsed.data.candidateName,
         email: parsed.data.email,
@@ -87,18 +82,14 @@ export async function POST(req: NextRequest) {
       }),
     };
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'APPLICANT');
+    headers['Content-Type'] = 'application/json';
+
     // 1. Create Draft Application
     const createUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications`;
     const createRes = await fetch(createUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'APPLICANT',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
+      headers,
       body: JSON.stringify(applicantPayload),
     });
 
@@ -110,18 +101,15 @@ export async function POST(req: NextRequest) {
     const createdApp = await createRes.json();
     const applicationId = createdApp.id;
 
+    if (createdApp.status && createdApp.status !== 'DRAFT') {
+      return NextResponse.json(createdApp, { status: 200 });
+    }
+
     // 2. Submit Application immediately with declaration
     const submitUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/submit`;
     const submitRes = await fetch(submitUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'APPLICANT',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
+      headers,
       body: JSON.stringify({ declarationAccepted: true }),
     });
 

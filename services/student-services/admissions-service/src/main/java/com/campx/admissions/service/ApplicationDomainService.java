@@ -77,7 +77,7 @@ public class ApplicationDomainService {
                 applicationRepository, intakeRepository, reviewRepository, decisionRepository, offerRepository, this.stateEngine, this.eventPublisher
         );
         this.handoverService = new HandoverOrchestrationService(
-                applicationRepository, offerRepository, handoverRepository, this.stateEngine, this.eventPublisher
+                applicationRepository, offerRepository, handoverRepository, this.stateEngine, this.eventPublisher, null, intakeRepository
         );
         this.intelligenceService = new com.campx.admissions.intelligence.AdmissionsIntelligenceService(
                 applicationRepository, intakeRepository, reviewRepository, decisionRepository, offerRepository, handoverRepository,
@@ -477,6 +477,26 @@ public class ApplicationDomainService {
 
         AdmissionsPermissionEvaluator.requireApplicationOwnershipOrStaff(context, app.getApplicantPersonId());
         return documentRepository.findByApplication(context.getTenantId(), applicationId);
+    }
+
+    public void deleteDocument(UserSecurityContext context, UUID applicationId, UUID documentId) {
+        ApplicationEntity app = applicationRepository.findById(context.getTenantId(), applicationId)
+                .orElseThrow(() -> new AdmissionsNotFoundException("Application not found: " + applicationId));
+
+        AdmissionsPermissionEvaluator.requireApplicationOwnershipOrStaff(context, app.getApplicantPersonId());
+
+        if (app.getStatus() != ApplicationStatus.DRAFT && app.getStatus() != ApplicationStatus.RETURNED_FOR_INFORMATION) {
+            throw new AdmissionsLifecycleException("Documents can only be deleted when application is in DRAFT or RETURNED_FOR_INFORMATION status. Current status: " + app.getStatus());
+        }
+
+        ApplicationDocumentEntity doc = documentRepository.findById(context.getTenantId(), documentId)
+                .orElseThrow(() -> new AdmissionsNotFoundException("Document reference not found: " + documentId));
+
+        if (!doc.getApplicationId().equals(applicationId)) {
+            throw new AdmissionsValidationException("Document does not belong to specified application");
+        }
+
+        documentRepository.delete(context.getTenantId(), documentId);
     }
 
     // ========================================================================

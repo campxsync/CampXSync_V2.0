@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -24,18 +25,14 @@ export async function POST(
     const { id: applicationId } = await params;
     const idempotencyKey = req.headers.get('idempotency-key') || `handover-${applicationId}-${Date.now()}`;
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'COLLEGE_ADMIN');
+    headers['Content-Type'] = 'application/json';
+    headers['Idempotency-Key'] = idempotencyKey;
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/handover`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'COLLEGE_ADMIN',
-        'Idempotency-Key': idempotencyKey,
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
+      headers,
       body: JSON.stringify({}),
     });
 

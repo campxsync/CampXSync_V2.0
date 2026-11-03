@@ -192,7 +192,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith('/college')) {
-      if (!isCollegeAdminUser) {
+      if (!isCollegeAdminUser && !(isFacultyUser && pathname.startsWith('/college/admissions/applications'))) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
     }
@@ -225,3 +225,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+

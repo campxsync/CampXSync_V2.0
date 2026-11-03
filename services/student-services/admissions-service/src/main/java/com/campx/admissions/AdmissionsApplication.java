@@ -19,11 +19,43 @@ public class AdmissionsApplication {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(AdmissionsApplication.class);
 
+    public static boolean isDeployedEnvironment() {
+        String env = System.getProperty("campx.environment");
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("CAMPX_ENVIRONMENT");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("DEPLOYMENT_ENV");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("APP_ENV");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("NODE_ENV");
+        }
+        if (env == null || env.trim().isEmpty()) {
+            env = System.getenv("VERCEL_ENV");
+        }
+        return env != null && !env.trim().isEmpty()
+                && !env.equalsIgnoreCase("test")
+                && !env.equalsIgnoreCase("local")
+                && !env.equalsIgnoreCase("development")
+                && !env.equalsIgnoreCase("dev");
+    }
+
+    public static void validatePersistenceConfiguration(DatabaseConfig dbConfig, boolean isDeployed) {
+        boolean hasDb = dbConfig != null && dbConfig.getJdbcUrl() != null && !dbConfig.getJdbcUrl().trim().isEmpty();
+        if (isDeployed && !hasDb) {
+            throw new IllegalStateException("Authoritative PostgreSQL persistence required in deployed environment. Database URL must be configured.");
+        }
+    }
+
     public static void main(String[] args) {
         try {
             logger.info("Initializing CampXSync Admissions Domain Service (STM-02)...");
 
             DatabaseConfig dbConfig = new DatabaseConfig();
+            validatePersistenceConfiguration(dbConfig, isDeployedEnvironment());
             boolean hasDb = dbConfig.getJdbcUrl() != null && !dbConfig.getJdbcUrl().trim().isEmpty();
 
             ApplicationRepository appRepo;

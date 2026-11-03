@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const SubmitReviewSchema = z.object({
   totalScore: z.number().min(0).max(100),
-  recommendation: z.enum(['ADMIT', 'WAITLIST', 'REJECT']),
+  recommendation: z.enum(['ADMIT', 'WAITLIST', 'REJECT', 'RECOMMEND_OFFER', 'RECOMMEND_REJECT']),
   confidentialComments: z.string().optional().default(''),
   applicantFacingRemarks: z.string().optional().default(''),
   rubricVersion: z.string().optional().default('1.0'),
@@ -37,18 +38,25 @@ export async function POST(
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 422 });
     }
 
+    const rawRec = parsed.data.recommendation;
+    const mappedRec = rawRec === 'ADMIT' ? 'RECOMMEND_OFFER' : rawRec === 'REJECT' ? 'RECOMMEND_REJECT' : rawRec;
+
+    const headers = await getGatewayHeaders(
+      req,
+      supabase,
+      resolution.session,
+      resolution.session.role === 'faculty' ? 'FACULTY' : 'COLLEGE_ADMIN'
+    );
+    headers['Content-Type'] = 'application/json';
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/reviews`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': resolution.session.role === 'faculty' ? 'FACULTY' : 'COLLEGE_ADMIN',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
-      body: JSON.stringify(parsed.data),
+      headers,
+      body: JSON.stringify({
+        ...parsed.data,
+        recommendation: mappedRec,
+      }),
     });
 
     if (!res.ok) {

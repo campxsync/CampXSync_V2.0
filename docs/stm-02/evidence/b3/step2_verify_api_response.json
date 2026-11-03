@@ -1,0 +1,20 @@
+{
+  "tenantId": "e2e00000-0000-0000-0000-000000000001",
+  "id": "c031fd73-958a-41be-a1ec-54ce59aee317",
+  "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "documentId": "05230b15-8b82-4adb-9a8e-a47b7e37d4a8",
+  "documentType": "TRANSCRIPT",
+  "storagePath": "/storage/e2e-docs/transcript.pdf",
+  "fileName": "E2E-STM02-TRANSCRIPT.pdf",
+  "mimeType": "application/pdf",
+  "fileSizeBytes": 2048,
+  "verificationStatus": "VERIFIED",
+  "verifiedBy": "e2e00000-0000-0000-0000-000000000003",
+  "verifiedAt": "2026-11-03T08:00:01.033+05:30",
+  "rejectionReason": null,
+  "fraudulent": false,
+  "fraudNotes": null,
+  "createdAt": "2026-11-03T02:29:36.185Z",
+  "updatedAt": "2026-11-03T02:29:54.800848Z",
+  "rowVersion": 2
+}

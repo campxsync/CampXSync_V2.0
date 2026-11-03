@@ -1,0 +1,44 @@
+[
+  {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "application_number": "APP-2026-12FE15E1",
+    "intake_id": "e2e00000-0000-0000-0000-000000000050",
+    "applicant_person_id": "e2e00000-0000-0000-0000-000000000002",
+    "assigned_department_id": "e2e00000-0000-0000-0000-000000000020",
+    "assigned_reviewer_id": "e2e00000-0000-0000-0000-000000000004",
+    "status": "UNDER_REVIEW",
+    "document_verification_status": "IN_PROGRESS",
+    "payment_status": "EXEMPT",
+    "fee_obligation_id": null,
+    "payment_reference": null,
+    "payment_amount": "0.00",
+    "submission_timestamp": "2026-11-02T12:08:57.265Z",
+    "eligibility_rule_version": null,
+    "eligibility_result": "ELIGIBLE",
+    "eligibility_evaluation_detail": {
+      "status": "NO_RULE_CONFIGURED"
+    },
+    "eligibility_overridden": false,
+    "eligibility_override_reason": null,
+    "eligibility_override_by": null,
+    "late_submission_exception_granted": false,
+    "late_submission_exception_by": null,
+    "declaration_accepted": false,
+    "declaration_timestamp": null,
+    "privacy_consent_accepted": false,
+    "applicant_data": {
+      "email": "e2e-applicant@campx.com",
+      "phone": "",
+      "candidateName": "E2E-STM02 Applicant",
+      "qualificationGrade": "Grade A"
+    },
+    "review_comments_summary": "Recommended for admission offer",
+    "created_at": "2026-11-02T12:08:56.919Z",
+    "updated_at": "2026-11-02T18:47:24.855Z",
+    "created_by": null,
+    "updated_by": null,
+    "deleted_at": null,
+    "row_version": 20
+  }
+]

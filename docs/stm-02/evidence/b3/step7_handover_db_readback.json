@@ -1,0 +1,69 @@
+{
+  "handover": [
+    {
+      "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+      "id": "6cd33eed-5579-4d2e-bcf0-a0d74b51d0d1",
+      "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+      "offer_id": "7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+      "idempotency_key": "E2E-STM02-HANDOVER-KEY-001",
+      "created_student_id": "7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363",
+      "enrolment_status": "STUDENT_CREATED",
+      "retry_count": 5,
+      "last_error": "STM-01 student creation returned HTTP 409: {\"type\":\"https://campxsync.edu/errors/conflict\",\"title\":\"Conflict\",\"status\":409,\"detail\":\"Person with email 'e2e-applicant@campx.com' already exists in tenant.\"}",
+      "handover_completed_at": "2026-11-03T02:31:55.748Z",
+      "created_at": "2026-11-02T18:52:29.219Z",
+      "updated_at": "2026-11-03T02:31:55.803Z",
+      "row_version": 7
+    },
+    {
+      "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+      "id": "2c078f41-94a3-4665-9f02-62821b6a14b3",
+      "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+      "offer_id": "246e81cb-560e-4e35-a709-73bb549e8947",
+      "idempotency_key": "stm02-handover-offer-246e81cb-560e-4e35-a709-73bb549e8947",
+      "created_student_id": null,
+      "enrolment_status": "FAILED",
+      "retry_count": 5,
+      "last_error": "STM-01 student creation returned HTTP 500: {\"type\":\"https://campxsync.edu/errors/internal-server-error\",\"title\":\"Internal Server Error\",\"status\":500,\"detail\":\"Database operation failed: ERROR: new row violates row-level security policy for table \\\"students\\\"\"}",
+      "handover_completed_at": null,
+      "created_at": "2026-11-02T19:14:37.140Z",
+      "updated_at": "2026-11-03T02:31:36.531Z",
+      "row_version": 6
+    },
+    {
+      "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+      "id": "07fffed9-e256-4803-84a0-7ffcab0b0ca9",
+      "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+      "offer_id": "7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+      "idempotency_key": "stm02-handover-offer-7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+      "created_student_id": null,
+      "enrolment_status": "FAILED",
+      "retry_count": 1,
+      "last_error": "STM-01 student creation returned HTTP 403: {\"type\":\"https://campxsync.edu/errors/forbidden\",\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Missing required X-Tenant-Id header for student domain operations\"}",
+      "handover_completed_at": null,
+      "created_at": "2026-11-02T18:51:55.045Z",
+      "updated_at": "2026-11-02T18:51:48.922Z",
+      "row_version": 2
+    }
+  ],
+  "student": [
+    {
+      "id": "7a1a49ad-e28e-4ba7-bc2d-02e4e0a73363",
+      "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+      "person_id": "e2e00000-0000-0000-0000-000000000002",
+      "college_id": "e2e00000-0000-0000-0000-000000000010",
+      "program_id": "e2e00000-0000-0000-0000-000000000040",
+      "enrollment_no": "STU202600001",
+      "admission_no": "APP-2026-12FE15E1",
+      "admission_date": "2026-11-02T18:30:00.000Z",
+      "admission_academic_year_id": "e2e00000-0000-0000-0000-000000000030",
+      "status": "ACTIVE",
+      "created_at": "2026-11-03T02:31:54.167Z",
+      "updated_at": "2026-11-03T02:31:54.167Z",
+      "created_by": "e2e00000-0000-0000-0000-000000000005",
+      "updated_by": "e2e00000-0000-0000-0000-000000000005",
+      "row_version": 1,
+      "deleted_at": null
+    }
+  ]
+}

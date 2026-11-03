@@ -154,6 +154,11 @@ public class ApplicationController {
                 UUID docId = extractDocumentId(path);
                 VerifyDocumentRequest req = objectMapper.readValue(body, VerifyDocumentRequest.class);
                 response = ok(domainService.verifyDocument(context, appId, docId, req));
+            } else if ("DELETE".equalsIgnoreCase(method) && path.contains("/documents/")) {
+                UUID appId = extractApplicationId(path);
+                UUID docId = extractDocumentId(path);
+                domainService.deleteDocument(context, appId, docId);
+                response = ok(Collections.singletonMap("deleted", true));
             } else if ("POST".equalsIgnoreCase(method) && path.endsWith("/assign")) {
                 UUID appId = extractApplicationId(path);
                 AssignReviewerRequest req = objectMapper.readValue(body, AssignReviewerRequest.class);

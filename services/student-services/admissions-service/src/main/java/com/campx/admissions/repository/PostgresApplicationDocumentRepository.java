@@ -39,14 +39,14 @@ public class PostgresApplicationDocumentRepository implements ApplicationDocumen
         String sql = "INSERT INTO stu.application_documents (" +
                 "tenant_id, id, application_id, document_id, document_type, storage_path, " +
                 "file_name, mime_type, file_size_bytes, verification_status, verified_by, " +
-                "verified_at, rejection_reason, fraudulent, fraud_notes, created_at, updated_at, row_version" +
+                "verified_at, rejection_reason, is_fraudulent, fraud_notes, created_at, updated_at, row_version" +
                 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON CONFLICT (tenant_id, id) DO UPDATE SET " +
                 "verification_status = EXCLUDED.verification_status, " +
                 "verified_by = EXCLUDED.verified_by, " +
                 "verified_at = EXCLUDED.verified_at, " +
                 "rejection_reason = EXCLUDED.rejection_reason, " +
-                "fraudulent = EXCLUDED.fraudulent, " +
+                "is_fraudulent = EXCLUDED.is_fraudulent, " +
                 "fraud_notes = EXCLUDED.fraud_notes, " +
                 "updated_at = clock_timestamp(), " +
                 "row_version = stu.application_documents.row_version + 1 " +
@@ -162,7 +162,7 @@ public class PostgresApplicationDocumentRepository implements ApplicationDocumen
         d.setVerifiedBy(rs.getObject("verified_by", UUID.class));
         d.setVerifiedAt(rs.getObject("verified_at", OffsetDateTime.class));
         d.setRejectionReason(rs.getString("rejection_reason"));
-        d.setFraudulent(rs.getBoolean("fraudulent"));
+        d.setFraudulent(rs.getBoolean("is_fraudulent"));
         d.setFraudNotes(rs.getString("fraud_notes"));
         d.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
         d.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));

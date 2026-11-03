@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -30,18 +31,14 @@ export async function POST(
     const body = await req.json().catch(() => ({ termsAccepted: true }));
     const parsed = AcceptOfferSchema.safeParse(body);
 
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'APPLICANT');
+    headers['Content-Type'] = 'application/json';
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/offers/accept`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'APPLICANT',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
-      body: JSON.stringify(parsed.success ? parsed.data : { termsAccepted: true }),
+      headers,
+      body: JSON.stringify({ confirmAcceptance: true }),
     });
 
     if (!res.ok) {

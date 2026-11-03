@@ -88,8 +88,8 @@ public class StudentController implements HttpHandler {
             return;
         }
 
-        // 3. Extract headers map
-        Map<String, String> headers = new HashMap<>();
+        // 3. Extract headers map (case-insensitive for HTTP headers)
+        Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (Map.Entry<String, List<String>> entry : exchange.getRequestHeaders().entrySet()) {
             if (entry.getValue() != null && !entry.getValue().isEmpty()) {
                 headers.put(entry.getKey(), entry.getValue().get(0));

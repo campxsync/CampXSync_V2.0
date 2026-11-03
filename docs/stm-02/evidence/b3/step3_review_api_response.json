@@ -1,0 +1,16 @@
+{
+  "tenantId": "e2e00000-0000-0000-0000-000000000001",
+  "id": "76f68178-1f27-42fa-8d39-e34f6f72e47e",
+  "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "reviewerId": "e2e00000-0000-0000-0000-000000000004",
+  "rubricVersion": "1.0",
+  "rubricScores": "{}",
+  "totalScore": 95,
+  "recommendation": "RECOMMEND_OFFER",
+  "confidentialComments": "E2E Reviewer: Outstanding candidate, unconditional admission recommended",
+  "applicantFacingRemarks": "Recommended for admission offer",
+  "submittedAt": "2026-11-03T08:00:43.396+05:30",
+  "createdAt": "2026-11-03T08:00:43.396+05:30",
+  "updatedAt": "2026-11-03T02:30:43.397Z",
+  "rowVersion": 1
+}

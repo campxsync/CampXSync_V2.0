@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 const RecordDecisionSchema = z.object({
-  decisionType: z.enum(['APPROVED', 'REJECTED', 'WAITLISTED', 'CONDITIONAL']),
+  decisionType: z.enum(['APPROVED', 'OFFER_APPROVED', 'REJECTED', 'WAITLISTED', 'CONDITIONAL', 'DEFERRED']),
   decisionNotes: z.string().min(1, 'Decision notes are required'),
 });
 
@@ -34,18 +35,19 @@ export async function POST(
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 422 });
     }
 
+    const decisionType = parsed.data.decisionType === 'APPROVED' ? 'OFFER_APPROVED' : parsed.data.decisionType;
+
+    const headers = await getGatewayHeaders(req, supabase, resolution.session, 'COLLEGE_ADMIN');
+    headers['Content-Type'] = 'application/json';
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/decision`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': 'COLLEGE_ADMIN',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
-      body: JSON.stringify(parsed.data),
+      headers,
+      body: JSON.stringify({
+        ...parsed.data,
+        decisionType,
+      }),
     });
 
     if (!res.ok) {

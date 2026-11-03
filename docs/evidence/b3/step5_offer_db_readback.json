@@ -1,0 +1,23 @@
+[
+  {
+    "tenant_id": "e2e00000-0000-0000-0000-000000000001",
+    "id": "7e26f173-a6a3-45a1-aa74-64b9501c2a5b",
+    "application_id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+    "decision_id": "b7559d8d-2d10-4de9-a46a-ee2d94e892e1",
+    "offer_code": "OFR-92C92C17",
+    "offer_terms_version": "1.0.0",
+    "valid_from": "2026-11-02T18:51:20.310Z",
+    "valid_to": "2026-11-16T18:51:19.948Z",
+    "status": "ISSUED",
+    "accepted_at": null,
+    "declined_at": null,
+    "decline_reason": null,
+    "extension_granted": false,
+    "extension_granted_by": null,
+    "extended_valid_to": null,
+    "created_at": "2026-11-02T18:51:20.310Z",
+    "updated_at": "2026-11-02T18:51:20.311Z",
+    "created_by": "e2e00000-0000-0000-0000-000000000005",
+    "row_version": 1
+  }
+]

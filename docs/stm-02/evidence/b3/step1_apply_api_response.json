@@ -1,0 +1,18 @@
+{
+  "id": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "tenantId": "e2e00000-0000-0000-0000-000000000001",
+  "applicationNumber": "APP-2026-12FE15E1",
+  "intakeId": "e2e00000-0000-0000-0000-000000000050",
+  "applicantPersonId": "e2e00000-0000-0000-0000-000000000002",
+  "status": "ACCEPTED",
+  "documentVerificationStatus": "IN_PROGRESS",
+  "paymentStatus": "EXEMPT",
+  "paymentAmount": 0,
+  "submissionTimestamp": "2026-11-02T12:08:57.265Z",
+  "eligibilityResult": "ELIGIBLE",
+  "declarationAccepted": false,
+  "applicantData": "{\"email\": \"e2e-applicant@campx.com\", \"phone\": \"\", \"candidateName\": \"E2E-STM02 Applicant\", \"qualificationGrade\": \"Grade A\"}",
+  "timelineStatus": "ACCEPTED",
+  "rowVersion": 58,
+  "createdAt": "2026-11-02T12:08:56.919Z"
+}

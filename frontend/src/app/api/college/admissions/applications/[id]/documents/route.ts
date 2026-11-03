@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -37,18 +38,25 @@ export async function POST(
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 422 });
     }
 
+    const headers = await getGatewayHeaders(
+      req,
+      supabase,
+      resolution.session,
+      resolution.session.role === 'student' ? 'APPLICANT' : 'COLLEGE_ADMIN'
+    );
+    headers['Content-Type'] = 'application/json';
+
     const gatewayUrl = `${GATEWAY_BASE_URL}/api/v1/admissions/applications/${applicationId}/documents`;
     const res = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
-        'X-User-Role': resolution.session.role === 'student' ? 'APPLICANT' : 'COLLEGE_ADMIN',
-        ...(collegeId ? { 'X-College-Id': collegeId } : {}),
-      },
-      body: JSON.stringify(parsed.data),
+      headers,
+      body: JSON.stringify({
+        documentType: parsed.data.documentType,
+        storagePath: (parsed.data as any).storagePath || parsed.data.documentRefUrl,
+        fileName: parsed.data.fileName,
+        fileSizeBytes: parsed.data.fileSizeBytes,
+        mimeType: parsed.data.mimeType,
+      }),
     });
 
     if (!res.ok) {

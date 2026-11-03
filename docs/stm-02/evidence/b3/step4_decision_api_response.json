@@ -1,0 +1,12 @@
+{
+  "tenantId": "e2e00000-0000-0000-0000-000000000001",
+  "id": "5b582ce7-0d5f-4af2-984a-af2f2b253a4e",
+  "applicationId": "d8d6d55d-cd9a-440b-92b2-85f91de4b29d",
+  "decisionType": "OFFER_APPROVED",
+  "decisionReasonCode": "STANDARD_DECISION",
+  "decisionNotes": "E2E Approver: Formal offer approved ratified by Dean",
+  "decidedBy": "e2e00000-0000-0000-0000-000000000005",
+  "decidedAt": "2026-11-03T08:01:02.091+05:30",
+  "createdAt": "2026-11-03T08:01:02.091+05:30",
+  "rowVersion": 1
+}
