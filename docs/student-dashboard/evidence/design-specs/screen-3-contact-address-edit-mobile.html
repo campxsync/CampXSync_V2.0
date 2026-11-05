@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CampXSync - Student Contact &amp; Address Management</title>
+<!-- Inter font family -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary": "#006a44",
+            "secondary-container": "#c8dbfe",
+            "background": "#f8f9ff",
+            "primary": "#0057c3",
+            "primary-fixed": "#d9e2ff",
+            "surface": "#f8f9ff",
+            "tertiary-container": "#008657",
+            "surface-container": "#e5eeff",
+            "tertiary-fixed": "#86f9bd",
+            "outline-variant": "#c2c6d6",
+            "outline": "#727786",
+            "inverse-on-surface": "#eaf1ff",
+            "on-tertiary": "#ffffff",
+            "on-tertiary-container": "#f9fff8",
+            "surface-variant": "#d3e4fe",
+            "primary-fixed-dim": "#afc6ff",
+            "on-primary-fixed-variant": "#004299",
+            "on-background": "#0b1c30",
+            "error": "#ba1a1a",
+            "on-primary-fixed": "#001944",
+            "surface-bright": "#f8f9ff",
+            "surface-container-low": "#eff4ff",
+            "on-secondary": "#ffffff",
+            "tertiary-fixed-dim": "#69dca2",
+            "on-surface-variant": "#424754",
+            "on-secondary-container": "#4e607e",
+            "on-error-container": "#93000a",
+            "error-container": "#ffdad6",
+            "on-primary-container": "#fffcff",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-highest": "#d3e4fe",
+            "surface-tint": "#0059c8",
+            "inverse-primary": "#afc6ff",
+            "surface-dim": "#cbdbf5",
+            "on-secondary-fixed-variant": "#364764",
+            "on-primary": "#ffffff",
+            "surface-container-high": "#dce9ff",
+            "primary-container": "#1f6feb",
+            "secondary-fixed": "#d6e3ff",
+            "on-surface": "#0b1c30",
+            "secondary": "#4d5f7d",
+            "on-secondary-fixed": "#071c36",
+            "on-error": "#ffffff",
+            "inverse-surface": "#213145",
+            "secondary-fixed-dim": "#b5c7ea",
+            "on-tertiary-fixed-variant": "#005233",
+            "on-tertiary-fixed": "#002112"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin-sm": "1rem",
+            "margin": "2rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter-sm": "1rem",
+            "space-md": "1rem",
+            "gutter": "1.5rem",
+            "space-xl": "2rem"
+          },
+          "fontFamily": {
+            "headline-sm": ["Inter"],
+            "headline-md": ["Inter"],
+            "display-lg-mobile": ["Inter"],
+            "body-sm": ["Inter"],
+            "label-sm": ["Inter"],
+            "display-lg": ["Inter"],
+            "label-md": ["Inter"],
+            "caption": ["Inter"],
+            "body-lg": ["Inter"],
+            "headline-lg": ["Inter"],
+            "body-md": ["Inter"]
+          },
+          "fontSize": {
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "display-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.005em", "fontWeight": "500" }],
+            "caption": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Subtle pulse shimmer for async skeleton representation */
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    .animate-subtle-pulse {
+      animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex justify-center selection:bg-secondary-container selection:text-primary">
+<!-- Mobile Viewport Wrapper (Constrained to 390px for high-fidelity native view) -->
+<div class="w-full max-w-[390px] min-h-screen bg-background relative flex flex-col pb-44 shadow-2xl">
+<!-- Top Compact Header: Navy #0b1c30 -->
+<header class="sticky top-0 z-40 bg-[#0b1f3a] text-white px-margin-sm h-14 flex items-center justify-between shadow-md">
+<div class="flex items-center gap-space-sm">
+<button aria-label="Back to Student Profile" class="w-9 h-9 rounded-lg flex items-center justify-center text-white/90 hover:bg-white/10 active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-white font-bold tracking-tight">CampXSync</span>
+<!-- Green indicator dot -->
+<span class="w-2 h-2 rounded-full bg-[#1E9E6A] ring-2 ring-[#0b1f3a]" title="SIS Link Active"></span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<!-- Student Identifier Badge -->
+<span class="bg-white/10 text-white/95 px-2 py-0.5 rounded-full font-label-sm text-label-sm border border-white/15 tracking-wider">
+          STU-DEV-2026-0001
+        </span>
+<button aria-label="Support &amp; Help" class="w-9 h-9 rounded-lg flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 active:scale-95 transition-colors" type="button">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-margin-sm pt-space-md space-y-space-md">
+<!-- Breadcrumbs & Context Header -->
+<section class="space-y-1">
+<nav aria-label="Breadcrumb" class="flex items-center gap-1 text-[#64748B] font-caption text-caption">
+<span>Home</span>
+<span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+<span>Student Profile</span>
+<span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+<span class="text-on-surface font-label-md">Contact &amp; Addresses</span>
+</nav>
+<div class="pt-0.5">
+<h1 class="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">
+            Contact &amp; Addresses
+          </h1>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+            Keep your institutional contacts and domicile records updated with SIS.
+          </p>
+</div>
+</section>
+<!-- System Feedback Alerts -->
+<section class="space-y-2.5">
+<!-- Success Alert Banner -->
+<div class="p-3 bg-[#E8F8F0] border border-[#C2EDDA] rounded-xl flex items-start justify-between gap-2.5 shadow-sm" id="successBanner">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#1E9E6A] shrink-0 text-[20px] mt-0.5" data-icon="check_circle">check_circle</span>
+<div class="space-y-0.5">
+<p class="font-label-md text-label-md text-[#006a44] font-semibold leading-tight">
+                Address updated successfully in SIS.
+              </p>
+<p class="font-caption text-caption text-[#006a44]/80">
+                Sync ref: <span class="font-mono font-medium">TXN-CAMPX-2026-8841</span>
+</p>
+</div>
+</div>
+<button aria-label="Dismiss banner" class="text-[#006a44]/70 hover:text-[#006a44] p-1 rounded-lg hover:bg-[#1E9E6A]/10 transition-colors" onclick="document.getElementById('successBanner').remove()" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Validation Error Banner -->
+<div class="p-3 bg-[#FEF3C7] border border-[#FDE68A] rounded-xl flex flex-col gap-2 shadow-sm">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[#D97706] shrink-0 text-[20px] mt-0.5" data-icon="warning">warning</span>
+<div class="space-y-1 pr-1">
+<p class="font-label-md text-label-md text-[#92400E] font-semibold">
+                Postal PIN code format verification
+              </p>
+<p class="font-caption text-caption text-[#92400E]/90 leading-tight">
+                Postal PIN code must be a 6-digit numeric value. Verify both Permanent &amp; Correspondence entries.
+              </p>
+</div>
+</div>
+<div class="flex justify-end pt-0.5">
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#D97706] text-white rounded-full font-label-sm text-label-sm font-semibold shadow-xs hover:bg-[#B45309] active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[14px]" data-icon="refresh">refresh</span>
+              Retry Validation
+            </button>
+</div>
+</div>
+</section>
+<!-- SECTION 1: Institutional & Digital Contacts -->
+<section class="bg-surface-container-lowest border border-[#E3E8EF] rounded-xl p-4 shadow-sm space-y-4">
+<!-- Section Header -->
+<div class="flex items-center justify-between pb-3 border-b border-[#E3E8EF]">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="contact_phone">contact_phone</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Institutional Contacts</h2>
+<p class="font-caption text-caption text-on-surface-variant">Digital authentication nodes</p>
+</div>
+</div>
+<span class="bg-[#E8F8F0] text-[#1E9E6A] border border-[#C2EDDA] px-2 py-0.5 rounded-full font-label-sm text-label-sm">
+            Verified Channels
+          </span>
+</div>
+<!-- Institutional Email (Read-Only) -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-1.5">
+<span>Institutional Email</span>
+<span class="material-symbols-outlined text-[16px] text-outline" data-icon="lock">lock</span>
+</label>
+<span class="bg-surface-container text-primary font-label-sm text-label-sm px-2 py-0.5 rounded-full border border-primary/20">
+              SSO / ID Managed
+            </span>
+</div>
+<div class="relative">
+<input class="w-full h-11 bg-[#F6F8FB] border border-[#E3E8EF] rounded-lg px-3 pl-10 font-body-md text-on-surface cursor-not-allowed text-sm" readonly="" type="email" value="student1.campx@gmail.com"/>
+<span class="material-symbols-outlined absolute left-3 top-3 text-[18px] text-outline" data-icon="mail">mail</span>
+</div>
+<div class="flex items-start gap-1.5 text-secondary text-caption font-caption bg-surface-container-low p-2 rounded-lg border border-[#E3E8EF]">
+<span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5" data-icon="info">info</span>
+<span>To change institutional identity credentials, submit an IT Helpdesk Service Request.</span>
+</div>
+</div>
+<!-- Primary Mobile Phone -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label-md text-label-md text-on-surface font-semibold">Primary Mobile Phone</label>
+<span class="bg-[#E8F8F0] text-[#1E9E6A] border border-[#C2EDDA] font-label-sm text-label-sm px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="check">check</span> OTP Verified
+            </span>
+</div>
+<div class="flex gap-2">
+<select aria-label="Country Dial Code" class="h-11 w-32 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest font-body-sm text-body-sm text-on-surface px-2.5 focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+<option value="+91">+91 (IND)</option>
+<option value="+1">+1 (USA)</option>
+<option value="+44">+44 (UK)</option>
+<option value="+971">+971 (UAE)</option>
+</select>
+<div class="relative flex-1">
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-md text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="tel" value="9876543210"/>
+<span class="material-symbols-outlined absolute right-3 top-3 text-[18px] text-[#1E9E6A]" data-icon="verified">verified</span>
+</div>
+</div>
+</div>
+<!-- Alternate / WhatsApp Phone -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label-md text-label-md text-on-surface font-semibold">Alternate / WhatsApp Phone</label>
+<span class="bg-[#E8F8F0] text-[#1E9E6A] border border-[#C2EDDA] font-label-sm text-label-sm px-2 py-0.5 rounded-full">
+              WhatsApp Enabled
+            </span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-3 text-[18px] text-outline" data-icon="chat">chat</span>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest pl-10 pr-3 font-body-md text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="tel" value="+91 9811223344"/>
+</div>
+</div>
+<!-- Designated Emergency Contact Subsection -->
+<div class="bg-[#FFF8F8] border border-[#FECACA] rounded-xl p-3.5 space-y-3 relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="text-[#D9383A] font-bold text-sm leading-none">*</span>
+<span class="font-headline-sm text-headline-sm text-on-surface text-sm">Designated Emergency Contact</span>
+</div>
+<span class="bg-[#FEE2E2] text-[#D9383A] border border-[#FECACA] font-label-sm text-label-sm px-2 py-0.5 rounded-full">
+              Priority Contact
+            </span>
+</div>
+<div class="space-y-2.5">
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Full Name</label>
+<input class="w-full h-10 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="Rajesh Sharma"/>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Relationship</label>
+<select class="w-full h-10 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+<option selected="" value="Father">Father</option>
+<option value="Mother">Mother</option>
+<option value="Guardian">Guardian</option>
+<option value="Sibling">Sibling</option>
+</select>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Emergency Phone</label>
+<input class="w-full h-10 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="tel" value="+91 9876500000"/>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: Permanent Residential Address -->
+<section class="bg-surface-container-lowest border border-[#E3E8EF] rounded-xl p-4 shadow-sm space-y-3.5">
+<div class="flex items-center justify-between pb-3 border-b border-[#E3E8EF]">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="home_pin">home_pin</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Permanent Address</h2>
+<p class="font-caption text-caption text-on-surface-variant">Legal domicile register</p>
+</div>
+</div>
+<span class="bg-[#F0F6FF] text-primary border border-primary/20 px-2 py-0.5 rounded-full font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="shield">shield</span>
+            Verified Record
+          </span>
+</div>
+<div class="space-y-3">
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Street Address Line 1</label>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="Flat 402, Green Valley Apartments"/>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Street Address Line 2 / Landmark</label>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="Sector 62, Near IT Park"/>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">City</label>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="Bengaluru"/>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">State / Province</label>
+<select class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+<option selected="" value="Karnataka">Karnataka</option>
+<option value="Maharashtra">Maharashtra</option>
+<option value="Delhi">Delhi NCR</option>
+<option value="Tamil Nadu">Tamil Nadu</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<div>
+<div class="flex items-center justify-between mb-1">
+<label class="font-caption text-caption text-on-surface-variant">Postal / PIN Code</label>
+<span class="text-[#1E9E6A] font-label-sm text-[10px] font-semibold flex items-center">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle">check_circle</span> Valid PIN
+                </span>
+</div>
+<input class="w-full h-11 rounded-lg border border-[#C2EDDA] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" maxlength="6" type="text" value="560001"/>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Country</label>
+<select class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-2.5 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20">
+<option selected="" value="India">India</option>
+<option value="United States">United States</option>
+<option value="United Kingdom">United Kingdom</option>
+<option value="Canada">Canada</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Compliance notice callout -->
+<div class="flex items-start gap-2 bg-[#F6F8FB] border border-[#E3E8EF] p-2.5 rounded-lg text-secondary">
+<span class="material-symbols-outlined text-[18px] text-primary shrink-0" data-icon="article">article</span>
+<span class="font-caption text-caption leading-tight">
+            Requires domicile certificate or passport proof attachment if state or country changes.
+          </span>
+</div>
+</section>
+<!-- SECTION 3: Current / Correspondence Address -->
+<section class="bg-surface-container-lowest border border-[#E3E8EF] rounded-xl p-4 shadow-sm space-y-3.5">
+<div class="flex items-center justify-between pb-3 border-b border-[#E3E8EF]">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="markunread_mailbox">markunread_mailbox</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Correspondence</h2>
+<p class="font-caption text-caption text-on-surface-variant">Active mailing destination</p>
+</div>
+</div>
+<!-- Same as Permanent Toggle (OFF) -->
+<div class="flex items-center gap-1.5 bg-[#F6F8FB] px-2 py-1 rounded-lg border border-[#E3E8EF]">
+<span class="font-caption text-[11px] text-on-surface-variant font-medium">Same</span>
+<button aria-checked="false" aria-label="Toggle Same as Permanent" class="w-8 h-4 bg-[#CBD5E1] rounded-full relative transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20" role="switch" type="button">
+<span class="w-3 h-3 bg-white rounded-full absolute left-0.5 top-0.5 transition-transform"></span>
+</button>
+</div>
+</div>
+<!-- Accommodation Type Segmented Pill Control -->
+<div class="space-y-1.5">
+<label class="font-caption text-caption text-on-surface-variant">Residence Accommodation Type</label>
+<div class="grid grid-cols-2 p-1 bg-surface-container-low rounded-xl border border-[#E3E8EF] gap-1">
+<button class="py-2 text-center rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md font-semibold shadow-xs border border-primary/20 transition-all" type="button">
+              Campus Hostel (Active)
+            </button>
+<button class="py-2 text-center rounded-lg text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" type="button">
+              Day Scholar / Off-Campus
+            </button>
+</div>
+</div>
+<!-- Official Hostel Allocation Record Card -->
+<div class="bg-[#F0F6FF] border border-[#C8DBFE] rounded-xl p-3.5 space-y-2.5">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-primary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="domain">domain</span>
+              Hostel Allocation Record
+            </span>
+<span class="bg-[#E8F8F0] text-[#1E9E6A] border border-[#C2EDDA] font-label-sm text-label-sm px-2 py-0.5 rounded-full">
+              Warden Confirmed
+            </span>
+</div>
+<div class="grid grid-cols-3 gap-2 pt-1 border-t border-[#C8DBFE]/50 text-center">
+<div class="bg-surface-container-lowest/80 p-2 rounded-lg border border-[#C8DBFE]/40">
+<span class="font-caption text-[10px] text-secondary block">Facility</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold truncate block">North Campus</span>
+</div>
+<div class="bg-surface-container-lowest/80 p-2 rounded-lg border border-[#C8DBFE]/40">
+<span class="font-caption text-[10px] text-secondary block">Room/Block</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold block">B-314</span>
+</div>
+<div class="bg-surface-container-lowest/80 p-2 rounded-lg border border-[#C8DBFE]/40">
+<span class="font-caption text-[10px] text-secondary block">Campus Box</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold block">#402</span>
+</div>
+</div>
+</div>
+<!-- Local Mailing Fields -->
+<div class="space-y-2.5">
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">Local Mailing Address</label>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="North Campus Hostel Desk, CampX University"/>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">City</label>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="Bengaluru"/>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant block mb-1">PIN Code</label>
+<input class="w-full h-11 rounded-lg border border-[#E3E8EF] bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20" type="text" value="560001"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Async State / Loading Skeleton Representation -->
+<section class="bg-surface-container-lowest border border-[#E3E8EF] rounded-xl p-3.5 shadow-sm space-y-2.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="sync">sync</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">Async SIS Sync Status</span>
+</div>
+<span class="bg-[#EDF2F7] text-[#0B1F3A] border border-[#CBD5E1] px-2 py-0.5 rounded-full font-label-sm text-[10px]">
+            HTTP 200 OK
+          </span>
+</div>
+<p class="font-caption text-[11px] text-on-surface-variant">
+          Awaiting background ledger verification...
+        </p>
+<!-- Simulated Animated Skeleton bars -->
+<div class="space-y-1.5 pt-1 animate-subtle-pulse">
+<div class="h-2 w-3/4 bg-[#E3E8EF] rounded-full"></div>
+<div class="h-2 w-1/2 bg-[#E3E8EF] rounded-full"></div>
+</div>
+</section>
+</main>
+<!-- STICKY MOBILE DOCKED ACTIONS & BOTTOM NAVIGATION SHELL -->
+<div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] z-50">
+<!-- Primary Save / Discard Bar (With Frosted Glass Background & Drop Shadow) -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-md px-margin-sm py-2.5 border-t border-[#E3E8EF] shadow-[0_-4px_12px_rgba(11,31,58,0.06)] flex items-center gap-2.5">
+<button class="h-11 px-4 rounded-lg bg-surface-container-lowest border border-[#E3E8EF] text-on-surface font-label-md text-label-md font-medium hover:bg-surface-container-low active:scale-95 transition-all" type="button">
+          Discard
+        </button>
+<button class="h-11 flex-1 rounded-lg bg-primary-container text-white font-label-md text-label-md font-semibold flex items-center justify-center gap-2 shadow-sm hover:bg-[#1659C7] active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="save">save</span>
+          Save Address Changes
+        </button>
+</div>
+<!-- Shared Component: BottomNavBar (Strictly implementing JSON styling & labels) -->
+<nav aria-label="Bottom Global Navigation" class="bg-surface-container-lowest dark:bg-inverse-surface border-t border-outline-variant dark:border-outline shadow-md dark:shadow-none flex justify-around items-center px-gutter-sm py-space-xs">
+<!-- Tab 1: Overview -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-1 px-3 hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150 active:scale-95" href="#overview">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span class="text-label-sm font-label-sm mt-0.5">Overview</span>
+</a>
+<!-- Tab 2: Documents (Active Context for Profile & Domicile records) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-primary dark:text-inverse-primary font-medium rounded-lg py-1 px-3 active:scale-95 transition-transform duration-150" href="#documents">
+<span class="material-symbols-outlined text-[20px]" data-icon="folder_open">folder_open</span>
+<span class="text-label-sm font-label-sm mt-0.5">Documents</span>
+</a>
+<!-- Tab 3: Status -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-1 px-3 hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150 active:scale-95" href="#status">
+<span class="material-symbols-outlined text-[20px]" data-icon="fact_check">fact_check</span>
+<span class="text-label-sm font-label-sm mt-0.5">Status</span>
+</a>
+<!-- Tab 4: Support -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant py-1 px-3 hover:text-primary dark:hover:text-inverse-primary transition-colors duration-150 active:scale-95" href="#support">
+<span class="material-symbols-outlined text-[20px]" data-icon="help_outline">help_outline</span>
+<span class="text-label-sm font-label-sm mt-0.5">Support</span>
+</a>
+</nav>
+</div>
+</div>
+</body></html>

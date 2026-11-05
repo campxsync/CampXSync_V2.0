@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>CampXSync - Student Dashboard</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary-fixed": "#d9e2ff",
+            "on-secondary-fixed": "#071c36",
+            "secondary-fixed": "#d6e3ff",
+            "on-surface-variant": "#424754",
+            "on-tertiary": "#ffffff",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-fixed-variant": "#005233",
+            "on-tertiary-container": "#f9fff8",
+            "on-secondary-fixed-variant": "#364764",
+            "on-error": "#ffffff",
+            "inverse-surface": "#213145",
+            "surface-container-highest": "#d3e4fe",
+            "on-tertiary-fixed": "#002112",
+            "primary-container": "#1f6feb",
+            "tertiary-container": "#008657",
+            "background": "#f8f9ff",
+            "on-secondary": "#ffffff",
+            "inverse-primary": "#afc6ff",
+            "tertiary-fixed": "#86f9bd",
+            "on-primary-fixed-variant": "#004299",
+            "on-error-container": "#93000a",
+            "surface-variant": "#d3e4fe",
+            "secondary": "#4d5f7d",
+            "error-container": "#ffdad6",
+            "surface-tint": "#0059c8",
+            "on-background": "#0b1c30",
+            "primary-fixed-dim": "#afc6ff",
+            "outline": "#727786",
+            "tertiary-fixed-dim": "#69dca2",
+            "surface": "#f8f9ff",
+            "tertiary": "#006a44",
+            "surface-container-low": "#eff4ff",
+            "surface-container": "#e5eeff",
+            "on-primary-fixed": "#001944",
+            "error": "#ba1a1a",
+            "surface-dim": "#cbdbf5",
+            "on-primary-container": "#fffcff",
+            "primary": "#0057c3",
+            "on-primary": "#ffffff",
+            "inverse-on-surface": "#eaf1ff",
+            "surface-bright": "#f8f9ff",
+            "secondary-container": "#c8dbfe",
+            "outline-variant": "#c2c6d6",
+            "surface-container-high": "#dce9ff",
+            "secondary-fixed-dim": "#b5c7ea",
+            "on-surface": "#0b1c30",
+            "on-secondary-container": "#4e607e"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "1.5rem",
+            "gutter-sm": "1rem",
+            "space-xs": "0.25rem",
+            "space-md": "1rem",
+            "margin": "2rem",
+            "space-lg": "1.5rem",
+            "margin-sm": "1rem",
+            "space-sm": "0.5rem",
+            "space-xl": "2rem"
+          },
+          "fontFamily": {
+            "display-lg-mobile": ["Inter"],
+            "headline-md": ["Inter"],
+            "headline-lg": ["Inter"],
+            "body-md": ["Inter"],
+            "label-sm": ["Inter"],
+            "caption": ["Inter"],
+            "display-lg": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "display-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "caption": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.005em", "fontWeight": "500" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Touch optimization */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* Shimmer effect for skeleton */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #eff4ff 25%, #dce9ff 50%, #eff4ff 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    /* Smooth tab switching */
+    .tab-view-content {
+      transition: opacity 0.2s ease-in-out;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased font-body-md select-none flex justify-center min-h-screen">
+<!-- Mobile Container Frame (390px viewport simulation) -->
+<div class="w-full max-w-[390px] min-h-screen bg-background relative flex flex-col pb-24 shadow-2xl">
+<!-- Top App Bar (Shared Component Anchor) -->
+<header class="bg-on-background dark:bg-inverse-surface sticky top-0 z-50 flex items-center justify-between px-gutter-sm h-14 w-full shadow-sm dark:shadow-none">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="school">school</span>
+<span class="text-headline-sm font-headline-sm text-surface-container-lowest dark:text-inverse-on-surface tracking-tight font-bold">CampXSync</span>
+</div>
+<div class="flex items-center gap-2">
+<!-- Student Roll Pill -->
+<span class="bg-secondary-fixed/20 text-secondary-fixed px-2 py-0.5 rounded-full font-label-sm text-label-sm border border-secondary-fixed/30 tracking-tight">
+          DEV-0001
+        </span>
+<!-- Notification Bell -->
+<button class="relative touch-target flex items-center justify-center text-surface-container-lowest hover:bg-secondary/40 rounded-full w-9 h-9 active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-[20px]" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-on-background"></span>
+</button>
+<!-- Avatar -->
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-headline-sm text-xs border border-primary-fixed/40">
+          S1
+        </div>
+</div>
+</header>
+<!-- State Simulation Sub-Header Tabs -->
+<div class="bg-on-background/95 border-b border-outline-variant/30 px-3 py-2 flex items-center justify-between gap-1 overflow-x-auto text-[11px]">
+<div class="flex items-center space-x-1">
+<button class="state-tab px-2.5 py-1.5 rounded-md font-label-sm font-semibold transition-colors bg-primary-container text-on-primary-container" id="tab-interactive" onclick="switchState('interactive')">
+          Interactive
+        </button>
+<button class="state-tab px-2.5 py-1.5 rounded-md font-label-sm text-secondary-fixed hover:text-white transition-colors" id="tab-skeleton" onclick="switchState('skeleton')">
+          Skeleton
+        </button>
+<button class="state-tab px-2.5 py-1.5 rounded-md font-label-sm text-secondary-fixed hover:text-white transition-colors" id="tab-empty" onclick="switchState('empty')">
+          Empty
+        </button>
+</div>
+<!-- Gateway Toggle -->
+<button class="flex items-center gap-1 px-2 py-1 rounded bg-secondary-fixed/15 text-secondary-fixed hover:bg-secondary-fixed/25 transition-colors font-label-sm text-[10px]" id="gateway-toggle" onclick="toggleGatewayNotice()">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim" id="gateway-dot"></span>
+<span>Gateway</span>
+</button>
+</div>
+<!-- Gateway Notice Banner -->
+<div class="bg-surface-container border-b border-outline-variant/40 px-3 py-2.5 flex items-start justify-between gap-2 text-on-surface" id="gateway-banner">
+<div class="flex items-start gap-2 text-xs">
+<span class="material-symbols-outlined text-primary text-[18px] mt-0.5" data-icon="cloud_sync">cloud_sync</span>
+<div>
+<p class="font-label-md text-on-surface font-semibold text-[11px]">Gateway Fallback Active</p>
+<p class="text-secondary text-[11px] leading-tight">Live timetable sync may lag by 2 min.</p>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2 py-1 bg-surface-container-lowest border border-outline-variant rounded text-[10px] font-semibold text-primary shadow-xs active:scale-95 flex items-center gap-1" onclick="refreshSync()">
+<span class="material-symbols-outlined text-[12px]" data-icon="sync">sync</span>
+          Sync
+        </button>
+<button class="text-secondary hover:text-on-surface p-1" onclick="dismissGatewayBanner()">
+<span class="material-symbols-outlined text-[14px]" data-icon="close">close</span>
+</button>
+</div>
+</div>
+<!-- MAIN CONTENT VIEW AREA -->
+<main class="flex-1 px-3 pt-3 space-y-3.5">
+<!-- ================= 1. INTERACTIVE VIEW ================= -->
+<div class="tab-view-content space-y-3.5" id="view-interactive">
+<!-- Student Hero & Academic Standing Card -->
+<section class="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/40 shadow-sm relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-label-sm font-label-sm text-secondary uppercase tracking-wider">Academic Profile</span>
+<h1 class="text-headline-md font-headline-md text-on-surface mt-0.5">Student One</h1>
+<p class="text-body-sm font-body-sm text-secondary">B.Tech CSE <span class="text-outline-variant">•</span> Batch 2026-A</p>
+</div>
+<!-- Overall Standing Badge -->
+<div class="flex flex-col items-end">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-tertiary-fixed/30 border border-tertiary-container/30 text-tertiary font-label-sm text-xs font-semibold">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified" data-weight="fill" style="font-variation-settings: 'FILL' 1;">verified</span>
+                Good Standing
+              </span>
+<span class="text-[10px] text-secondary font-medium mt-1">Roll #STU-DEV-2026-0001</span>
+</div>
+</div>
+<!-- Hero Action Buttons -->
+<div class="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-outline-variant/30">
+<button class="touch-target flex items-center justify-center gap-1.5 px-3 py-2 bg-on-background text-surface-container-lowest text-xs font-label-md rounded-lg active:scale-98 transition shadow-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="download">download</span>
+              Export Transcript
+            </button>
+<button class="touch-target flex items-center justify-center gap-1.5 px-3 py-2 bg-surface-container-low border border-outline-variant text-on-surface text-xs font-label-md rounded-lg active:scale-98 transition">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="support_agent">support_agent</span>
+              Advisor Call
+            </button>
+</div>
+</section>
+<!-- Admissions Handover Card -->
+<section class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/50 shadow-xs flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="how_to_reg">how_to_reg</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-body-sm font-semibold text-on-surface">Admissions Handover</span>
+<span class="px-1.5 py-0.2 bg-tertiary/10 text-tertiary text-[10px] font-semibold rounded">Enrolled</span>
+</div>
+<p class="text-[11px] text-secondary">#APP-DEV-2026-0001 • DEV-INTAKE-2026</p>
+</div>
+</div>
+<button class="touch-target flex items-center justify-center text-primary hover:text-on-primary-fixed-variant pr-1">
+<span class="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
+</button>
+</section>
+<!-- Quick Actions Grid (2x2) -->
+<section>
+<div class="flex items-center justify-between mb-2 px-0.5">
+<h2 class="text-label-md font-label-md text-on-surface font-semibold">Campus Quick Actions</h2>
+<span class="text-label-sm font-label-sm text-secondary">Essential Services</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<!-- 1. Upload Documents -->
+<div class="touch-target bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between active:bg-surface-container-low transition cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="w-7 h-7 rounded-md bg-secondary-fixed/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px]" data-icon="upload_file">upload_file</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[16px]" data-icon="arrow_outward">arrow_outward</span>
+</div>
+<div class="mt-2.5">
+<h3 class="text-body-sm font-headline-sm font-semibold text-on-surface leading-tight">Upload Documents</h3>
+<p class="text-[10px] text-secondary mt-0.5">Application verification</p>
+</div>
+</div>
+<!-- 2. Correction Requests -->
+<div class="touch-target bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between active:bg-surface-container-low transition cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="w-7 h-7 rounded-md bg-secondary-fixed/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit_note">edit_note</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[16px]" data-icon="arrow_outward">arrow_outward</span>
+</div>
+<div class="mt-2.5">
+<h3 class="text-body-sm font-headline-sm font-semibold text-on-surface leading-tight">Correction Ledger</h3>
+<p class="text-[10px] text-secondary mt-0.5">Profile &amp; identity audit</p>
+</div>
+</div>
+<!-- 3. Contact & Address -->
+<div class="touch-target bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between active:bg-surface-container-low transition cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="w-7 h-7 rounded-md bg-secondary-fixed/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px]" data-icon="contact_emergency">contact_emergency</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[16px]" data-icon="arrow_outward">arrow_outward</span>
+</div>
+<div class="mt-2.5">
+<h3 class="text-body-sm font-headline-sm font-semibold text-on-surface leading-tight">Contact &amp; Domicile</h3>
+<p class="text-[10px] text-secondary mt-0.5">Emergency &amp; address</p>
+</div>
+</div>
+<!-- 4. Class Timetable -->
+<div class="touch-target bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between active:bg-surface-container-low transition cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="w-7 h-7 rounded-md bg-secondary-fixed/50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_month">calendar_month</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant text-[16px]" data-icon="arrow_outward">arrow_outward</span>
+</div>
+<div class="mt-2.5">
+<h3 class="text-body-sm font-headline-sm font-semibold text-on-surface leading-tight">Class Timetable</h3>
+<p class="text-[10px] text-secondary mt-0.5">Lecture rooms &amp; slots</p>
+</div>
+</div>
+</div>
+</section>
+<!-- KPI Attendance Metrics -->
+<section class="space-y-2">
+<div class="flex items-center justify-between px-0.5">
+<h2 class="text-label-md font-label-md text-on-surface font-semibold">Attendance Ledger Metrics</h2>
+<span class="text-label-sm font-label-sm text-tertiary font-bold">Fall 2026 Term</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<!-- Overall Metric Card -->
+<div class="col-span-2 bg-surface-container-lowest p-3.5 rounded-xl border border-outline-variant/40 shadow-xs">
+<div class="flex items-center justify-between">
+<div>
+<span class="text-[11px] font-label-sm text-secondary uppercase tracking-wider">Overall Attendance</span>
+<div class="flex items-baseline gap-2 mt-0.5">
+<span class="text-display-lg-mobile font-display-lg-mobile text-on-surface font-bold">80.0%</span>
+<span class="text-xs text-tertiary font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                      Above Threshold
+                    </span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-label-sm text-secondary">Req. Minimum</span>
+<div class="text-body-md font-semibold text-on-surface">75.0%</div>
+</div>
+</div>
+<!-- Visual Progress Bar -->
+<div class="mt-3">
+<div class="w-full h-2.5 bg-surface-container rounded-full overflow-hidden relative">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 80%;"></div>
+<!-- 75% Marker Line -->
+<div class="absolute top-0 bottom-0 w-0.5 bg-error z-10" style="left: 75%;" title="Threshold: 75%"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] text-secondary mt-1">
+<span>0%</span>
+<span class="text-error font-semibold pl-14">Threshold 75%</span>
+<span>100%</span>
+</div>
+</div>
+</div>
+<!-- Attendance Sessions Card -->
+<div class="bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
+<div>
+<span class="text-[11px] font-label-sm text-secondary">Sessions Attended</span>
+<div class="text-headline-md font-headline-md text-on-surface font-bold mt-1">4 <span class="text-secondary text-sm font-normal">/ 5 Total</span></div>
+</div>
+<div class="mt-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-error-container/40 text-on-error-container">
+                  1 Unexcused Miss
+                </span>
+</div>
+</div>
+<!-- Academic Conduct Card -->
+<div class="bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
+<div>
+<span class="text-[11px] font-label-sm text-secondary">Academic Status</span>
+<div class="text-headline-md font-headline-md text-on-surface font-bold mt-1">Satisfactory</div>
+</div>
+<div class="mt-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary-fixed/50 text-on-secondary-fixed font-semibold">
+                  Good Conduct
+                </span>
+</div>
+</div>
+</div>
+</section>
+<!-- Course-Wise Attendance Summary -->
+<section class="space-y-2.5">
+<div class="flex items-center justify-between px-0.5">
+<div class="flex items-center gap-1.5">
+<h2 class="text-label-md font-label-md text-on-surface font-semibold">Course-Wise Ledger</h2>
+<span class="px-1.5 py-0.5 bg-surface-container text-secondary font-label-sm text-[10px] rounded-full">2 Active Courses</span>
+</div>
+<button class="text-primary font-label-sm text-[11px] font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="filter_list">filter_list</span>
+              Filter
+            </button>
+</div>
+<!-- Course 1: Shortage Alert -->
+<div class="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/40 shadow-xs space-y-2.5">
+<div class="flex items-start justify-between gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm font-bold text-on-surface text-sm">CS101</span>
+<span class="text-secondary text-xs">• Intro to Computer Science</span>
+</div>
+<p class="text-[11px] text-secondary mt-0.5">Core Theory • 4 Credits • Dr. Sharma</p>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container text-[10px] font-bold tracking-tight shrink-0 border border-error/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="warning">warning</span>
+                Shortage Alert (&lt;75%)
+              </span>
+</div>
+<!-- Stats Bar -->
+<div class="bg-surface-container-low p-2 rounded-lg flex items-center justify-between text-xs">
+<div class="text-center flex-1 border-r border-outline-variant/40">
+<div class="text-secondary text-[10px]">Conducted</div>
+<div class="font-semibold text-on-surface">3</div>
+</div>
+<div class="text-center flex-1 border-r border-outline-variant/40">
+<div class="text-secondary text-[10px]">Attended</div>
+<div class="font-semibold text-tertiary">2</div>
+</div>
+<div class="text-center flex-1 border-r border-outline-variant/40">
+<div class="text-secondary text-[10px]">Absent</div>
+<div class="font-semibold text-error">1</div>
+</div>
+<div class="text-center flex-1">
+<div class="text-secondary text-[10px]">Aggregate</div>
+<div class="font-bold text-error">66.7%</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="text-[11px] text-secondary">Need 2 consecutive attendances to recover</span>
+<a class="touch-target flex items-center text-primary text-xs font-semibold gap-0.5" href="#">
+                View Log <span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+</a>
+</div>
+</div>
+<!-- Course 2: Good Standing -->
+<div class="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/40 shadow-xs space-y-2.5">
+<div class="flex items-start justify-between gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm font-bold text-on-surface text-sm">CS102</span>
+<span class="text-secondary text-xs">• Data Structures &amp; Algo</span>
+</div>
+<p class="text-[11px] text-secondary mt-0.5">Core Practical • 4 Credits • Prof. Rao</p>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-fixed/30 text-tertiary text-[10px] font-bold tracking-tight shrink-0 border border-tertiary/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle">check_circle</span>
+                Good Standing
+              </span>
+</div>
+<!-- Stats Bar -->
+<div class="bg-surface-container-low p-2 rounded-lg flex items-center justify-between text-xs">
+<div class="text-center flex-1 border-r border-outline-variant/40">
+<div class="text-secondary text-[10px]">Conducted</div>
+<div class="font-semibold text-on-surface">2</div>
+</div>
+<div class="text-center flex-1 border-r border-outline-variant/40">
+<div class="text-secondary text-[10px]">Attended</div>
+<div class="font-semibold text-tertiary">2</div>
+</div>
+<div class="text-center flex-1 border-r border-outline-variant/40">
+<div class="text-secondary text-[10px]">Absent</div>
+<div class="font-semibold text-secondary">0</div>
+</div>
+<div class="text-center flex-1">
+<div class="text-secondary text-[10px]">Aggregate</div>
+<div class="font-bold text-tertiary">100.0%</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="text-[11px] text-secondary">Satisfies university ordinance threshold</span>
+<a class="touch-target flex items-center text-primary text-xs font-semibold gap-0.5" href="#">
+                View Log <span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+</a>
+</div>
+</div>
+<!-- Academic Policy Note Banner -->
+<div class="p-2.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/30 flex items-center gap-2 text-[11px] text-secondary">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="info">info</span>
+<span>Institutional minimum mandatory attendance is 75% across all matriculated courses.</span>
+</div>
+</section>
+<!-- Recent Attendance Sessions -->
+<section class="space-y-2">
+<div class="flex items-center justify-between px-0.5">
+<h2 class="text-label-md font-label-md text-on-surface font-semibold">Recent Timetable Sessions</h2>
+<span class="text-label-sm font-label-sm text-secondary">Verified Records</span>
+</div>
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/40 divide-y divide-outline-variant/30 overflow-hidden shadow-xs">
+<!-- Session 1 -->
+<div class="p-3 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed/30 text-tertiary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px]" data-icon="check">check</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-xs text-on-surface">CS101</span>
+<span class="text-secondary text-[11px]">Lab-302</span>
+</div>
+<p class="text-[10px] text-secondary">Oct 25, 2026 • Dr. Sharma</p>
+</div>
+</div>
+<span class="px-2 py-0.5 bg-tertiary-fixed/30 text-tertiary text-[11px] font-semibold rounded">
+                Present
+              </span>
+</div>
+<!-- Session 2 -->
+<div class="p-3 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed/30 text-tertiary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px]" data-icon="check">check</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-xs text-on-surface">CS102</span>
+<span class="text-secondary text-[11px]">Hall-101</span>
+</div>
+<p class="text-[10px] text-secondary">Oct 24, 2026 • Prof. Rao</p>
+</div>
+</div>
+<span class="px-2 py-0.5 bg-tertiary-fixed/30 text-tertiary text-[11px] font-semibold rounded">
+                Present
+              </span>
+</div>
+<!-- Session 3 -->
+<div class="p-3 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px]" data-icon="close">close</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-xs text-on-surface">CS101</span>
+<span class="text-secondary text-[11px]">Hall-204</span>
+</div>
+<p class="text-[10px] text-secondary">Oct 23, 2026 • Dr. Sharma</p>
+</div>
+</div>
+<span class="px-2 py-0.5 bg-error-container text-on-error-container text-[11px] font-semibold rounded">
+                Absent
+              </span>
+</div>
+</div>
+<!-- Discrepancy CTA -->
+<div class="pt-1">
+<button class="touch-target w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-surface-container-low border border-outline-variant/60 rounded-xl text-xs font-semibold text-secondary hover:text-on-surface active:scale-98 transition">
+<span class="material-symbols-outlined text-[16px] text-secondary" data-icon="flag">flag</span>
+              Report Attendance Discrepancy
+            </button>
+</div>
+</section>
+</div>
+<!-- ================= 2. SKELETON VIEW ================= -->
+<div class="tab-view-content hidden space-y-3.5" id="view-skeleton">
+<!-- Skeleton Hero Card -->
+<div class="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/30 space-y-3">
+<div class="flex justify-between items-start">
+<div class="space-y-1.5 w-3/5">
+<div class="h-3 w-16 skeleton-shimmer rounded"></div>
+<div class="h-6 w-32 skeleton-shimmer rounded"></div>
+<div class="h-3.5 w-44 skeleton-shimmer rounded"></div>
+</div>
+<div class="h-6 w-24 skeleton-shimmer rounded-full"></div>
+</div>
+<div class="grid grid-cols-2 gap-2 pt-2 border-t border-outline-variant/20">
+<div class="h-9 skeleton-shimmer rounded-lg"></div>
+<div class="h-9 skeleton-shimmer rounded-lg"></div>
+</div>
+</div>
+<!-- Skeleton Handover -->
+<div class="bg-surface-container-lowest rounded-xl p-3 border border-outline-variant/30 flex items-center justify-between">
+<div class="flex items-center gap-2.5 w-full">
+<div class="w-8 h-8 skeleton-shimmer rounded-lg shrink-0"></div>
+<div class="space-y-1 w-2/3">
+<div class="h-3.5 w-32 skeleton-shimmer rounded"></div>
+<div class="h-3 w-40 skeleton-shimmer rounded"></div>
+</div>
+</div>
+</div>
+<!-- Skeleton 2x2 Grid -->
+<div class="grid grid-cols-2 gap-2">
+<div class="h-24 bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-3 space-y-2">
+<div class="w-7 h-7 skeleton-shimmer rounded-md"></div>
+<div class="h-3.5 w-20 skeleton-shimmer rounded"></div>
+<div class="h-2.5 w-24 skeleton-shimmer rounded"></div>
+</div>
+<div class="h-24 bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-3 space-y-2">
+<div class="w-7 h-7 skeleton-shimmer rounded-md"></div>
+<div class="h-3.5 w-20 skeleton-shimmer rounded"></div>
+<div class="h-2.5 w-24 skeleton-shimmer rounded"></div>
+</div>
+<div class="h-24 bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-3 space-y-2">
+<div class="w-7 h-7 skeleton-shimmer rounded-md"></div>
+<div class="h-3.5 w-20 skeleton-shimmer rounded"></div>
+<div class="h-2.5 w-24 skeleton-shimmer rounded"></div>
+</div>
+<div class="h-24 bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-3 space-y-2">
+<div class="w-7 h-7 skeleton-shimmer rounded-md"></div>
+<div class="h-3.5 w-20 skeleton-shimmer rounded"></div>
+<div class="h-2.5 w-24 skeleton-shimmer rounded"></div>
+</div>
+</div>
+<!-- Skeleton KPI -->
+<div class="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/30 space-y-2.5">
+<div class="h-3.5 w-28 skeleton-shimmer rounded"></div>
+<div class="h-8 w-20 skeleton-shimmer rounded"></div>
+<div class="h-2.5 w-full skeleton-shimmer rounded-full"></div>
+</div>
+<!-- Skeleton Course Card -->
+<div class="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/30 space-y-3">
+<div class="flex justify-between">
+<div class="h-4 w-36 skeleton-shimmer rounded"></div>
+<div class="h-4 w-16 skeleton-shimmer rounded"></div>
+</div>
+<div class="h-10 skeleton-shimmer rounded-lg"></div>
+</div>
+</div>
+<!-- ================= 3. EMPTY STATE VIEW ================= -->
+<div class="tab-view-content hidden space-y-4 pt-4" id="view-empty">
+<div class="bg-surface-container-lowest rounded-xl p-8 border border-outline-variant/40 text-center flex flex-col items-center justify-center">
+<div class="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-3">
+<span class="material-symbols-outlined text-[32px]" data-icon="hourglass_empty">hourglass_empty</span>
+</div>
+<h2 class="text-headline-sm font-headline-sm text-on-surface font-semibold">No Attendance Records Yet</h2>
+<p class="text-body-sm text-secondary mt-1.5 max-w-[260px] leading-relaxed">
+            Attendance ledger for this semester is currently syncing with the academic timetable authority.
+          </p>
+<div class="mt-5 flex flex-col w-full gap-2">
+<button class="touch-target w-full py-2.5 bg-primary text-on-primary font-semibold text-xs rounded-lg active:scale-95 shadow-sm transition" onclick="switchState('interactive')">
+              Refresh Timetable Ledger
+            </button>
+<button class="touch-target w-full py-2 bg-surface-container-low text-secondary text-xs rounded-lg font-medium border border-outline-variant">
+              Contact Academic Registrar
+            </button>
+</div>
+</div>
+<!-- Empty State Guidance -->
+<div class="p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 text-xs text-secondary flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="help_center">help_center</span>
+<p>
+            Lectures begin according to the semester orientation timetable. Verification takes up to 24 hours post-lecture.
+          </p>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar (Shared Component Anchor) -->
+<!-- Prohibiting border-t/border-b per spec; using background separation and elevation shadow -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter-sm py-space-xs bg-surface-container-lowest dark:bg-inverse-surface shadow-md dark:shadow-none max-w-[390px] mx-auto right-0">
+<!-- 1. Dashboard (Active Anchor) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-inverse-primary font-semibold py-1 active:scale-95 transition-transform duration-150 touch-target" href="#dashboard">
+<span class="material-symbols-outlined text-[22px]" data-icon="dashboard" data-weight="fill" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-label-sm font-label-sm mt-0.5">Dashboard</span>
+</a>
+<!-- 2. Admissions -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-outline-variant py-1 hover:text-primary dark:hover:text-inverse-primary active:scale-95 transition-transform duration-150 touch-target" href="#admissions">
+<span class="material-symbols-outlined text-[22px]" data-icon="how_to_reg">how_to_reg</span>
+<span class="text-label-sm font-label-sm mt-0.5">Admissions</span>
+</a>
+<!-- 3. Courses -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-outline-variant py-1 hover:text-primary dark:hover:text-inverse-primary active:scale-95 transition-transform duration-150 touch-target" href="#courses">
+<span class="material-symbols-outlined text-[22px]" data-icon="menu_book">menu_book</span>
+<span class="text-label-sm font-label-sm mt-0.5">Courses</span>
+</a>
+<!-- 4. Profile -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-outline-variant py-1 hover:text-primary dark:hover:text-inverse-primary active:scale-95 transition-transform duration-150 touch-target" href="#profile">
+<span class="material-symbols-outlined text-[22px]" data-icon="person">person</span>
+<span class="text-label-sm font-label-sm mt-0.5">Profile</span>
+</a>
+</nav>
+</div>
+<!-- Interactive JavaScript -->
+<script>
+    function switchState(stateName) {
+      // Hide all states
+      document.getElementById('view-interactive').classList.add('hidden');
+      document.getElementById('view-skeleton').classList.add('hidden');
+      document.getElementById('view-empty').classList.add('hidden');
+
+      // Reset button classes
+      const tabs = document.querySelectorAll('.state-tab');
+      tabs.forEach(tab => {
+        tab.className = 'state-tab px-2.5 py-1.5 rounded-md font-label-sm text-secondary-fixed hover:text-white transition-colors';
+      });
+
+      // Show selected state and activate button
+      const activeTab = document.getElementById('tab-' + stateName);
+      if (activeTab) {
+        activeTab.className = 'state-tab px-2.5 py-1.5 rounded-md font-label-sm font-semibold transition-colors bg-primary-container text-on-primary-container';
+      }
+
+      const activeView = document.getElementById('view-' + stateName);
+      if (activeView) {
+        activeView.classList.remove('hidden');
+      }
+    }
+
+    function dismissGatewayBanner() {
+      const banner = document.getElementById('gateway-banner');
+      banner.style.display = 'none';
+    }
+
+    function toggleGatewayNotice() {
+      const banner = document.getElementById('gateway-banner');
+      const dot = document.getElementById('gateway-dot');
+      if (banner.style.display === 'none') {
+        banner.style.display = 'flex';
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim';
+      } else {
+        banner.style.display = 'none';
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-outline-variant';
+      }
+    }
+
+    function refreshSync() {
+      const banner = document.getElementById('gateway-banner');
+      banner.classList.add('opacity-50');
+      setTimeout(() => {
+        banner.classList.remove('opacity-50');
+        alert('Gateway database synchronized. Timetable is now live.');
+      }, 700);
+    }
+  </script>
+</body></html>

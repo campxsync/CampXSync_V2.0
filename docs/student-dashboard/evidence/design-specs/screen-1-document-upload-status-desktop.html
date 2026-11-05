@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CampXSync - Application Document Upload and Verification Status View</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-surface": "#213145",
+            "on-secondary-container": "#4e607e",
+            "error-container": "#ffdad6",
+            "on-tertiary-fixed-variant": "#005233",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "tertiary-fixed-dim": "#69dca2",
+            "primary-fixed": "#d9e2ff",
+            "on-tertiary-fixed": "#002112",
+            "on-primary-fixed": "#001944",
+            "on-secondary-fixed-variant": "#364764",
+            "on-secondary": "#ffffff",
+            "inverse-primary": "#afc6ff",
+            "on-tertiary": "#ffffff",
+            "surface": "#f8f9ff",
+            "on-primary": "#ffffff",
+            "primary-fixed-dim": "#afc6ff",
+            "tertiary": "#006a44",
+            "on-primary-container": "#fffcff",
+            "on-secondary-fixed": "#071c36",
+            "on-error": "#ffffff",
+            "surface-container": "#e5eeff",
+            "on-tertiary-container": "#f9fff8",
+            "secondary-fixed": "#d6e3ff",
+            "secondary-fixed-dim": "#b5c7ea",
+            "inverse-on-surface": "#eaf1ff",
+            "background": "#f8f9ff",
+            "surface-bright": "#f8f9ff",
+            "error": "#ba1a1a",
+            "tertiary-container": "#008657",
+            "on-error-container": "#93000a",
+            "primary": "#0057c3",
+            "surface-variant": "#d3e4fe",
+            "secondary-container": "#c8dbfe",
+            "on-background": "#0b1c30",
+            "primary-container": "#1f6feb",
+            "tertiary-fixed": "#86f9bd",
+            "surface-container-highest": "#d3e4fe",
+            "outline": "#727786",
+            "outline-variant": "#c2c6d6",
+            "on-surface-variant": "#424754",
+            "surface-tint": "#0059c8",
+            "on-primary-fixed-variant": "#004299",
+            "on-surface": "#0b1c30",
+            "surface-dim": "#cbdbf5",
+            "secondary": "#4d5f7d",
+            "surface-container-high": "#dce9ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "gutter": "1.5rem",
+            "margin": "2rem",
+            "space-lg": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem",
+            "gutter-sm": "1rem",
+            "margin-sm": "1rem"
+          },
+          "fontFamily": {
+            "label-sm": ["Inter"],
+            "body-lg": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-lg": ["Inter"],
+            "caption": ["Inter"],
+            "headline-sm": ["Inter"],
+            "display-lg": ["Inter"],
+            "body-sm": ["Inter"],
+            "display-lg-mobile": ["Inter"],
+            "body-md": ["Inter"],
+            "headline-md": ["Inter"]
+          },
+          "fontSize": {
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.005em", "fontWeight": "500" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "caption": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "display-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    @keyframes pulseShimmer {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    .animate-shimmer {
+      animation: pulseShimmer 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md text-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- TOP APP BAR (from Shared Components JSON: TopNavBar) -->
+<header class="bg-on-background dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none docked full-width top-0 sticky z-50">
+<div class="w-full px-6 flex justify-between items-center h-16">
+<!-- Left: Logo & Enterprise Identity -->
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container shadow-sm">
+<span class="material-symbols-outlined text-[20px]" data-icon="account_balance">account_balance</span>
+</div>
+<div>
+<div class="text-headline-md font-headline-md font-bold text-surface-container-lowest dark:text-surface-container-lowest tracking-tight flex items-center gap-2">
+<span>CampXSync</span>
+<span class="bg-on-secondary-fixed-variant text-surface-container-lowest text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border border-secondary">Enterprise Portal</span>
+</div>
+</div>
+</div>
+<!-- Desktop Navigation Links -->
+<nav class="hidden lg:flex items-center gap-6 ml-4">
+<a class="text-surface-variant dark:text-surface-variant hover:text-surface-container-lowest transition-colors text-label-md font-label-md" href="#">Dashboard</a>
+<!-- Admissions active as per context -->
+<a class="text-surface-container-lowest dark:text-surface-container-lowest font-semibold border-b-2 border-primary-container pb-1 text-label-md font-label-md" href="#">Admissions</a>
+<a class="text-surface-variant dark:text-surface-variant hover:text-surface-container-lowest transition-colors text-label-md font-label-md" href="#">Academics</a>
+<a class="text-surface-variant dark:text-surface-variant hover:text-surface-container-lowest transition-colors text-label-md font-label-md" href="#">Financial Aid</a>
+</nav>
+</div>
+<!-- Right: Action Cluster & Profile Info -->
+<div class="flex items-center gap-3">
+<!-- Trailing Primary Action -->
+<button class="hidden sm:inline-flex items-center gap-2 bg-primary-container hover:bg-primary text-on-primary-container font-label-md text-label-md px-3.5 py-2 rounded-lg transition-all duration-150 active:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]" data-icon="upload_file">upload_file</span>
+<span>Upload Document</span>
+</button>
+<div class="h-6 w-px bg-outline mx-1 hidden sm:block"></div>
+<!-- Trailing Icon Actions -->
+<button class="relative p-2 text-surface-variant hover:text-surface-container-lowest rounded-lg hover:bg-on-secondary-fixed-variant transition-colors" title="Notifications">
+<span class="material-symbols-outlined text-[22px]" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-on-background"></span>
+</button>
+<button class="p-2 text-surface-variant hover:text-surface-container-lowest rounded-lg hover:bg-on-secondary-fixed-variant transition-colors" title="Help & Support">
+<span class="material-symbols-outlined text-[22px]" data-icon="help">help</span>
+</button>
+<!-- Profile Chip -->
+<div class="flex items-center gap-3 pl-2 border-l border-outline/50">
+<div class="w-8 h-8 rounded-full overflow-hidden ring-1 ring-outline bg-surface-container-low flex items-center justify-center text-primary font-bold text-caption">
+<img class="w-full h-full object-cover" data-alt="Student profile portrait photograph of a university student against a neutral academic studio backdrop in soft professional lighting, with clean composure representing Student One for verification records." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpx7NGCyg4FiP0PCMfYJR_BJqgZqrGZ0VmRGhmy8x3CMZvcN8z32R3elWyVg5pdPM1riAebo-3w78zoHXW3nBcszxwnn72NwK1dXI30acNqUw0XGswaPPmaHmv1VLnZ0GQXjVFWJeibHns8i7HZDgn0MT-Ke9Gll7My6PXlq45dAmyoUoerLYZMSjlr7n3hhz6GulIJzCCrzfNaN_VZFPX-PO4GLPWHJiPvgJxkA0ZR8--VpP1TniYUvthuIh2LFArxbhjKLqgNad2"/>
+</div>
+<div class="hidden xl:block text-left">
+<p class="text-surface-container-lowest font-label-md text-label-md leading-none">Student One</p>
+<p class="text-outline-variant font-caption text-caption mt-0.5 leading-none">student1.campx@gmail.com</p>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- SECONDARY BREADCRUMB & CONTEXT RAIL -->
+<div class="bg-surface-container-lowest border-b border-outline-variant px-6 py-2.5">
+<div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+<nav class="flex items-center gap-2 text-caption font-caption text-on-surface-variant">
+<a class="hover:text-primary flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-[16px]" data-icon="home">home</span>
+          Dashboard
+        </a>
+<span class="material-symbols-outlined text-[14px] text-outline" data-icon="chevron_right">chevron_right</span>
+<a class="hover:text-primary" href="#">Admissions</a>
+<span class="material-symbols-outlined text-[14px] text-outline" data-icon="chevron_right">chevron_right</span>
+<span class="font-medium text-on-surface">Application Documents (APP-DEV-2026-0001)</span>
+</nav>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container font-label-sm text-label-sm text-on-surface font-semibold border border-outline-variant">
+<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+          Application Active: Fall 2026
+        </span>
+<span class="text-caption font-caption text-on-surface-variant">Last Synced: Today, 14:35 IST</span>
+</div>
+</div>
+</div>
+<!-- APPLICATION WORKSPACE WRAPPER -->
+<div class="flex-1 flex w-full max-w-[1600px] mx-auto">
+<!-- SIDE NAVIGATION RAIL (from Shared Components JSON: SideNavBar) -->
+<aside class="hidden md:flex w-64 flex-col justify-between border-r border-outline-variant bg-surface-container-lowest p-4 min-h-[calc(100vh-6.5rem)] sticky top-16 shrink-0">
+<!-- Top profile badge inside rail -->
+<div>
+<div class="p-3 mb-4 rounded-xl bg-surface-container-low border border-outline-variant/60 flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center font-bold font-headline-sm text-headline-sm shadow-sm">
+            S1
+          </div>
+<div class="overflow-hidden">
+<h4 class="text-headline-sm font-headline-sm text-on-surface font-semibold truncate leading-tight">Student One</h4>
+<p class="text-caption font-caption text-secondary truncate">APP-DEV-2026-0001</p>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<nav class="space-y-1">
+<!-- Admissions Overview -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span>Admissions Overview</span>
+</a>
+<!-- Application Documents (ACTIVE) -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-medium shadow-xs font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="folder_shared" style="font-variation-settings: 'FILL' 1;">folder_shared</span>
+<span class="font-semibold text-on-surface">Application Documents</span>
+</a>
+<!-- Fee Statements -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="payments">payments</span>
+<span>Fee Statements</span>
+</a>
+<!-- Enrollment Verification -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="verified_user">verified_user</span>
+<span>Enrollment Verification</span>
+</a>
+<!-- Profile Settings -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="manage_accounts">manage_accounts</span>
+<span>Profile Settings</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Nav Rail Actions -->
+<div class="pt-4 border-t border-outline-variant space-y-2">
+<button class="w-full flex items-center justify-center gap-2 bg-on-background text-on-primary font-label-md text-label-md py-2.5 px-4 rounded-lg hover:bg-secondary transition-all">
+<span class="material-symbols-outlined text-[18px]" data-icon="assignment_turned_in">assignment_turned_in</span>
+<span>Submit Dossier</span>
+</button>
+<a class="flex items-center gap-3 px-4 py-2.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="headset_mic">headset_mic</span>
+<span>Academic Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-error hover:bg-error-container/30 rounded-lg transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+<span>Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- MAIN BODY CANVAS -->
+<main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+<!-- PAGE TITLE & INSET MODE CONTROLS -->
+<div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h1 class="text-headline-lg font-headline-lg text-on-background font-bold tracking-tight">Application Document Management</h1>
+<p class="text-body-md font-body-md text-on-surface-variant mt-1">
+            Upload mandatory verification documents for Fall 2026 B.Tech Computer Science admission. Verified by College Registrar.
+          </p>
+</div>
+<!-- Interactive Mode Switcher for Demo States -->
+<div class="inline-flex p-1 bg-surface-container rounded-lg border border-outline-variant/70 self-start md:self-auto text-caption font-caption">
+<button class="px-3 py-1.5 rounded-md font-semibold text-on-surface bg-surface-container-lowest shadow-sm transition-all" id="btn-populated" onclick="switchView('populated')">
+            Populated View
+          </button>
+<button class="px-3 py-1.5 rounded-md font-medium text-on-surface-variant hover:text-on-surface transition-all" id="btn-skeleton" onclick="switchView('skeleton')">
+            Skeleton State
+          </button>
+<button class="px-3 py-1.5 rounded-md font-medium text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1" id="btn-alert" onclick="toggleAlertBanner()">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+            Toggle Retry Banner
+          </button>
+</div>
+</div>
+<!-- APPLICATION METADATA CHIPS BAR -->
+<div class="flex flex-wrap items-center gap-2.5 mb-6">
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant text-body-sm font-body-sm text-on-surface font-medium shadow-xs">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="calendar_month">calendar_month</span>
+<span class="text-secondary">Term:</span> Fall 2026
+        </span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant text-body-sm font-body-sm text-on-surface font-medium shadow-xs">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="school">school</span>
+<span class="text-secondary">Program:</span> B.Tech Computer Science
+        </span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant text-body-sm font-body-sm text-on-surface font-medium shadow-xs">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="badge">badge</span>
+<span class="text-secondary">Application ID:</span> APP-DEV-2026-0001
+        </span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-error-container/40 border border-error/30 text-body-sm font-body-sm text-on-error-container font-semibold shadow-xs">
+<span class="material-symbols-outlined text-[16px] text-error" data-icon="event_busy">event_busy</span>
+<span class="text-error">Deadline:</span> Nov 15, 2026
+        </span>
+</div>
+<!-- INSET DEMO STATE: ERROR RETRY ALERT BANNER (Toggled or visible) -->
+<div class="mb-6 bg-error-container/30 border border-error/40 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs" id="retry-alert-banner">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-error/10 text-error flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]" data-icon="wifi_off">wifi_off</span>
+</div>
+<div>
+<h5 class="text-body-md font-body-md font-semibold text-on-error-container">Audit Log Sync Warning</h5>
+<p class="text-caption font-caption text-on-surface-variant">Network timeout while fetching registrar verification audit log. Recent cryptographic proofs may be delayed.</p>
+</div>
+</div>
+<div class="flex items-center gap-2 self-end sm:self-center">
+<button class="px-3 py-1.5 text-caption font-caption font-semibold text-secondary hover:text-on-surface" onclick="dismissAlert()">Dismiss</button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-error text-on-error rounded-lg font-label-sm text-label-sm hover:bg-error/90 transition-all shadow-xs">
+<span class="material-symbols-outlined text-[15px]" data-icon="refresh">refresh</span>
+<span>Retry now</span>
+</button>
+</div>
+</div>
+<!-- VERIFICATION STATUS PROGRESS HERO BANNER -->
+<div class="mb-6 bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-[22px]" data-icon="verified">verified</span>
+<h2 class="text-headline-sm font-headline-sm font-semibold text-on-surface">3 of 4 Documents Verified (75% Complete)</h2>
+</div>
+<p class="text-caption font-caption text-secondary mt-0.5">
+              Verified by Office of the Registrar, Central Admissions Cell. One document requires candidate re-upload.
+            </p>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed text-label-sm font-label-sm border border-tertiary-fixed-dim">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+              3 Verified
+            </span>
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-on-error-container text-label-sm font-label-sm border border-error/30 font-semibold">
+<span class="material-symbols-outlined text-[14px]" data-icon="priority_high">priority_high</span>
+              1 Action Required / Under Review
+            </span>
+</div>
+</div>
+<!-- Progress Track -->
+<div class="w-full bg-surface-container-high h-2.5 rounded-full overflow-hidden">
+<div class="bg-tertiary-container h-full rounded-full transition-all duration-700 ease-out" style="width: 75%;"></div>
+</div>
+<div class="flex justify-between items-center mt-2 text-caption font-caption text-secondary">
+<span>Submission Threshold: 100% Required for Final Enrollment Certificate</span>
+<span class="font-medium text-tertiary">Registrar Verification Seal Active</span>
+</div>
+</div>
+<!-- POPULATED MAIN CONTENT: 2-COLUMN ENTERPRISE LAYOUT -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" id="populated-view">
+<!-- LEFT / CENTER COLUMN (Documents Table & Upload Zone) -->
+<div class="lg:col-span-7 xl:col-span-7 space-y-6">
+<!-- SECTION: Structured Documents List Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="p-4 border-b border-outline-variant bg-surface-container-low/40 flex items-center justify-between">
+<div>
+<h3 class="text-headline-sm font-headline-sm font-semibold text-on-surface">Required Academic Documents</h3>
+<p class="text-caption font-caption text-secondary">Verify that all uploaded files are readable and carry official educational board watermarks.</p>
+</div>
+<span class="text-label-sm font-label-sm bg-surface-container text-secondary px-2.5 py-1 rounded-md border border-outline-variant/80">4 Mandatory</span>
+</div>
+<!-- Documents Item Cards / Table -->
+<div class="divide-y divide-outline-variant">
+<!-- Document 1: 12th Marksheet -->
+<div class="p-4.5 p-4 hover:bg-surface/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-container-low/20">
+<div class="flex items-start gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0 border border-outline-variant/50">
+<span class="material-symbols-outlined text-[24px]" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<h4 class="text-body-md font-body-md font-semibold text-on-surface">High School 12th Marksheet</h4>
+<!-- Verified Pill -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed text-label-sm font-label-sm border border-tertiary-fixed-dim">
+<span class="material-symbols-outlined text-[13px]" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                        Verified
+                      </span>
+</div>
+<p class="text-caption font-caption text-secondary mt-0.5">
+                      Uploaded: 2026-10-15 • 1.8 MB • PDF
+                    </p>
+<p class="text-caption font-caption text-tertiary font-medium flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified_user">verified_user</span>
+                      Verified by Dr. R. Sharma (Registrar)
+                    </p>
+</div>
+</div>
+<div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+<button class="px-3 py-1.5 text-label-md font-label-md rounded-lg bg-primary-container text-on-primary-container hover:bg-primary font-medium transition-colors shadow-xs flex items-center gap-1" onclick="previewDocument('marksheet')">
+<span class="material-symbols-outlined text-[16px]" data-icon="visibility">visibility</span>
+<span>View Document</span>
+</button>
+<button class="px-2.5 py-1.5 text-label-md font-label-md rounded-lg border border-outline-variant text-on-surface hover:bg-surface-container transition-colors" title="Replace file">
+<span class="material-symbols-outlined text-[18px]" data-icon="sync">sync</span>
+</button>
+</div>
+</div>
+<!-- Document 2: Government Photo ID -->
+<div class="p-4 hover:bg-surface/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+<div class="flex items-start gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0 border border-outline-variant/50">
+<span class="material-symbols-outlined text-[24px]" data-icon="image">image</span>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<h4 class="text-body-md font-body-md font-semibold text-on-surface">Government Photo ID (Aadhaar/Passport)</h4>
+<!-- Verified Pill -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed text-label-sm font-label-sm border border-tertiary-fixed-dim">
+<span class="material-symbols-outlined text-[13px]" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                        Verified
+                      </span>
+</div>
+<p class="text-caption font-caption text-secondary mt-0.5">
+                      Uploaded: 2026-10-14 • 850 KB • JPG
+                    </p>
+<p class="text-caption font-caption text-tertiary font-medium flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="fingerprint">fingerprint</span>
+                      Verified (UIDAI Biometric Match)
+                    </p>
+</div>
+</div>
+<div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+<button class="px-3 py-1.5 text-label-md font-label-md rounded-lg border border-outline-variant text-on-surface hover:bg-surface-container transition-colors font-medium flex items-center gap-1" onclick="previewDocument('photoid')">
+<span class="material-symbols-outlined text-[16px]" data-icon="visibility">visibility</span>
+<span>View Document</span>
+</button>
+</div>
+</div>
+<!-- Document 3: Transfer / Migration Certificate -->
+<div class="p-4 hover:bg-surface/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+<div class="flex items-start gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0 border border-outline-variant/50">
+<span class="material-symbols-outlined text-[24px]" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<h4 class="text-body-md font-body-md font-semibold text-on-surface">Transfer / Migration Certificate</h4>
+<!-- Amber Pending Pill -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-label-sm font-label-sm border border-secondary-fixed-dim">
+<span class="material-symbols-outlined text-[13px]" data-icon="schedule">schedule</span>
+                        Pending Verification
+                      </span>
+</div>
+<p class="text-caption font-caption text-secondary mt-0.5">
+                      Uploaded: 2026-10-20 • 2.1 MB • PDF
+                    </p>
+<p class="text-caption font-caption text-secondary font-medium flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="hourglass_top">hourglass_top</span>
+                      Under review by Verification Officer (Est. 24 hrs)
+                    </p>
+</div>
+</div>
+<div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+<button class="px-3 py-1.5 text-label-md font-label-md rounded-lg border border-outline-variant text-on-surface hover:bg-surface-container transition-colors font-medium flex items-center gap-1" onclick="previewDocument('transfer')">
+<span class="material-symbols-outlined text-[16px]" data-icon="visibility">visibility</span>
+<span>View Pending</span>
+</button>
+</div>
+</div>
+<!-- Document 4: Entrance Exam Scorecard (Action Required) -->
+<div class="p-4 bg-error-container/20 border-l-4 border-error hover:bg-error-container/30 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+<div class="flex items-start gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-error-container text-error flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[24px]" data-icon="warning">warning</span>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<h4 class="text-body-md font-body-md font-semibold text-on-surface">Entrance Exam Scorecard</h4>
+<!-- Error Pill -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container text-label-sm font-label-sm border border-error/30 font-semibold">
+<span class="material-symbols-outlined text-[13px]" data-icon="error">error</span>
+                        Action Required
+                      </span>
+</div>
+<p class="text-caption font-caption text-error font-medium mt-1">
+                      Missing / Rejected: Previous upload was blurry. Please re-upload legible scan.
+                    </p>
+<p class="text-caption font-caption text-secondary mt-0.5">
+                      Target Scorecard: JEE Main / State Entrance 2026 Roll No. CS-9014
+                    </p>
+</div>
+</div>
+<div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+<a class="px-3.5 py-2 text-label-md font-label-md rounded-lg bg-error text-on-error hover:bg-error/90 font-semibold transition-all shadow-xs flex items-center gap-1.5" href="#upload-zone-anchor">
+<span class="material-symbols-outlined text-[16px]" data-icon="file_upload">file_upload</span>
+<span>Re-upload Scorecard</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION: Interactive Document Upload Zone -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm" id="upload-zone-anchor">
+<div class="flex items-center justify-between mb-4">
+<div>
+<h3 class="text-headline-sm font-headline-sm font-semibold text-on-surface">Upload Verification Document</h3>
+<p class="text-caption font-caption text-secondary">Ensure document is high resolution with clear institutional stamps.</p>
+</div>
+<span class="material-symbols-outlined text-primary text-[24px]" data-icon="cloud_upload">cloud_upload</span>
+</div>
+<!-- Category Selector -->
+<div class="mb-4">
+<label class="block text-label-md font-label-md font-medium text-on-surface mb-1.5" for="doc-category">
+                Select Document Category <span class="text-error">*</span>
+</label>
+<select class="w-full h-10 px-3 border border-outline-variant rounded-lg bg-surface-container-lowest text-on-surface text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20" id="doc-category">
+<option selected="" value="scorecard">Entrance Exam Scorecard (Selected - Needs Re-upload)</option>
+<option value="marksheet">High School 12th Marksheet</option>
+<option value="photoid">Government Photo ID</option>
+<option value="migration">Transfer / Migration Certificate</option>
+</select>
+</div>
+<!-- Drag-and-drop Dropzone -->
+<div class="border-2 border-dashed border-primary-container bg-surface-container-low/40 rounded-xl p-8 text-center transition-all hover:bg-surface-container-low hover:border-primary cursor-pointer group">
+<div class="w-14 h-14 mx-auto rounded-full bg-surface-container-lowest text-primary flex items-center justify-center shadow-xs mb-3 group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[32px]" data-icon="upload_file">upload_file</span>
+</div>
+<p class="text-headline-sm font-headline-sm font-semibold text-on-surface">
+                Drag PDF, JPG or PNG here, or <span class="text-primary underline">Browse from device</span>
+</p>
+<p class="text-caption font-caption text-secondary mt-1">
+                Max 5MB per file • 300+ DPI recommended • Color scans preferred
+              </p>
+<div class="mt-4 flex flex-wrap justify-center items-center gap-3">
+<span class="inline-flex items-center gap-1 text-caption font-caption text-on-surface-variant bg-surface-container-lowest px-2.5 py-1 rounded-md border border-outline-variant">
+<span class="material-symbols-outlined text-[14px] text-tertiary" data-icon="lock">lock</span>
+                  256-Bit Encrypted Transfer
+                </span>
+<span class="inline-flex items-center gap-1 text-caption font-caption text-on-surface-variant bg-surface-container-lowest px-2.5 py-1 rounded-md border border-outline-variant">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="auto_awesome">auto_awesome</span>
+                  Automated OCR Verification
+                </span>
+</div>
+</div>
+<!-- Form Actions -->
+<div class="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-outline-variant">
+<span class="text-caption font-caption text-secondary flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-tertiary" data-icon="verified">verified</span>
+                Verified directly against state educational registry database
+              </span>
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary-container hover:bg-primary text-on-primary-container px-5 py-2.5 rounded-lg font-label-md text-label-md font-semibold transition-all duration-150 active:scale-[0.98] shadow-sm">
+<span class="material-symbols-outlined text-[18px]" data-icon="lock_clock">lock_clock</span>
+<span>Upload and Submit for Verification</span>
+</button>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: Document Preview & Detail Modal Drawer Pane -->
+<div class="lg:col-span-5 xl:col-span-5 space-y-6">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden sticky top-24">
+<!-- Drawer Header -->
+<div class="p-4 border-b border-outline-variant bg-surface-container-low/30 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="preview">preview</span>
+<h3 class="text-headline-sm font-headline-sm font-semibold text-on-surface">Document Preview & Verification Audit</h3>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<button class="p-1 hover:text-on-surface rounded" title="Fullscreen Preview">
+<span class="material-symbols-outlined text-[18px]" data-icon="open_in_full">open_in_full</span>
+</button>
+<button class="p-1 hover:text-on-surface rounded" title="Close Panel">
+<span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+</button>
+</div>
+</div>
+<!-- Document Visual Preview Pane (Mini Replica Page) -->
+<div class="p-4 bg-surface-container-low/40 border-b border-outline-variant">
+<div class="relative bg-surface-container-lowest border border-outline-variant rounded-lg p-5 shadow-xs overflow-hidden min-h-[260px] flex flex-col justify-between">
+<!-- Watermark Background -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5">
+<span class="material-symbols-outlined text-[200px]" data-icon="school">school</span>
+</div>
+<!-- Simulated Document Header -->
+<div class="flex items-start justify-between border-b border-outline-variant pb-3 relative z-10">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded bg-surface-container text-primary flex items-center justify-center font-bold text-[11px]">
+                      CBSE
+                    </div>
+<div>
+<p class="text-[12px] font-bold text-on-surface uppercase tracking-wide">Central Board of Secondary Education</p>
+<p class="text-[10px] text-secondary">Senior School Certificate Examination (Class XII) 2026</p>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-tertiary-fixed text-on-tertiary-fixed border border-tertiary-fixed-dim">
+                    PASS - 94.6%
+                  </span>
+</div>
+<!-- Simulated Document Body Lines -->
+<div class="space-y-2 py-3 relative z-10 text-[11px]">
+<div class="flex justify-between text-secondary">
+<span>Candidate: <strong class="text-on-surface">STUDENT ONE</strong></span>
+<span>Roll No: <strong class="text-on-surface">12948102</strong></span>
+</div>
+<div class="grid grid-cols-4 gap-2 pt-1 text-[10px] border-t border-surface-container">
+<span class="font-medium text-secondary">Physics: 95</span>
+<span class="font-medium text-secondary">Chemistry: 92</span>
+<span class="font-medium text-secondary">Maths: 98</span>
+<span class="font-medium text-secondary">CS: 99</span>
+</div>
+</div>
+<!-- Official Stamp Overlay -->
+<div class="pt-2 border-t border-outline-variant flex items-center justify-between relative z-10">
+<div class="flex items-center gap-1.5">
+<div class="w-7 h-7 rounded-full border-2 border-tertiary-container flex items-center justify-center text-tertiary-container">
+<span class="material-symbols-outlined text-[15px]" data-icon="verified">verified</span>
+</div>
+<div>
+<p class="text-[9px] font-bold uppercase tracking-wider text-tertiary-container">Registrar Verified Seal</p>
+<p class="text-[9px] text-secondary">Central Admissions Cell</p>
+</div>
+</div>
+<span class="text-[10px] font-mono text-outline">SECURE-HASH-CBSE-991</span>
+</div>
+</div>
+</div>
+<!-- Metadata Audit List -->
+<div class="p-4 space-y-3">
+<h4 class="text-label-md font-label-md font-semibold text-on-surface">Cryptographic & Registrar Metadata</h4>
+<div class="grid grid-cols-2 gap-3 text-caption font-caption">
+<div class="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+<span class="text-secondary block">Document Type</span>
+<span class="font-semibold text-on-surface">High School 12th Marksheet</span>
+</div>
+<div class="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+<span class="text-secondary block">File MIME Type</span>
+<span class="font-semibold text-on-surface">application/pdf (1.8 MB)</span>
+</div>
+<div class="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+<span class="text-secondary block">Upload Timestamp</span>
+<span class="font-medium text-on-surface">2026-10-15 14:22:08 IST</span>
+</div>
+<div class="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+<span class="text-secondary block">Verification Authority</span>
+<span class="font-medium text-tertiary">Registrar (ID: REG-8821)</span>
+</div>
+</div>
+<!-- Checksum Hash Bar -->
+<div class="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60 flex items-center justify-between text-caption font-caption">
+<div class="truncate mr-2">
+<span class="text-secondary block">SHA-256 Digest</span>
+<span class="font-mono text-on-surface text-[11px] truncate">4e9a8f219c00b...d82a19e8821</span>
+</div>
+<button class="text-primary hover:underline shrink-0 text-caption font-medium">Copy</button>
+</div>
+<!-- Action Row -->
+<div class="pt-2 space-y-2">
+<button class="w-full flex items-center justify-center gap-2 border border-outline-variant hover:bg-surface-container text-on-surface font-label-md text-label-md py-2.5 px-4 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[18px] text-primary" data-icon="download">download</span>
+<span>Download Verified PDF</span>
+</button>
+<div class="grid grid-cols-2 gap-2">
+<button class="flex items-center justify-center gap-1.5 border border-outline-variant hover:bg-surface-container text-secondary hover:text-on-surface font-label-md text-label-md py-2 px-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[16px]" data-icon="print">print</span>
+<span>Print Receipt</span>
+</button>
+<button class="flex items-center justify-center gap-1.5 border border-outline-variant hover:bg-surface-container text-error hover:text-on-error-container font-label-md text-label-md py-2 px-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-[16px]" data-icon="flag">flag</span>
+<span>Flag Discrepancy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- SKELETON LOADING STATE VIEW (Toggled via view selector for enterprise completeness) -->
+<div class="hidden grid-cols-1 lg:grid-cols-12 gap-6 items-start" id="skeleton-view">
+<div class="lg:col-span-7 xl:col-span-7 space-y-6">
+<!-- Skeleton Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm space-y-4">
+<div class="flex justify-between items-center">
+<div class="h-6 w-48 bg-surface-container-highest rounded animate-shimmer"></div>
+<div class="h-6 w-20 bg-surface-container-highest rounded animate-shimmer"></div>
+</div>
+<div class="space-y-3 pt-2">
+<div class="h-20 bg-surface-container-low rounded-lg animate-shimmer"></div>
+<div class="h-20 bg-surface-container-low rounded-lg animate-shimmer"></div>
+<div class="h-20 bg-surface-container-low rounded-lg animate-shimmer"></div>
+<div class="h-20 bg-surface-container-low rounded-lg animate-shimmer"></div>
+</div>
+</div>
+<!-- Skeleton Upload Zone -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm space-y-4">
+<div class="h-6 w-40 bg-surface-container-highest rounded animate-shimmer"></div>
+<div class="h-44 border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low/50 flex flex-col items-center justify-center gap-2 animate-shimmer">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest"></div>
+<div class="h-4 w-56 bg-surface-container-highest rounded"></div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-5 xl:col-span-5">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm space-y-4">
+<div class="h-6 w-52 bg-surface-container-highest rounded animate-shimmer"></div>
+<div class="h-64 bg-surface-container-low rounded-lg animate-shimmer"></div>
+<div class="grid grid-cols-2 gap-3">
+<div class="h-14 bg-surface-container-low rounded-lg animate-shimmer"></div>
+<div class="h-14 bg-surface-container-low rounded-lg animate-shimmer"></div>
+</div>
+<div class="h-10 bg-surface-container-highest rounded-lg animate-shimmer"></div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- INSTITUTIONAL FOOTER -->
+<footer class="bg-surface-container-lowest border-t border-outline-variant py-4 px-6 text-caption font-caption text-secondary">
+<div class="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+<div class="flex items-center gap-3">
+<span class="font-semibold text-on-surface">CampXSync Institutional Admissions</span>
+<span>•</span>
+<span>Central Registrar Office, Directorate of Academic Credentials</span>
+</div>
+<div class="flex items-center gap-4 text-outline">
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-primary transition-colors" href="#">Credential Verification Standards</a>
+<a class="hover:text-primary transition-colors" href="#">Help Desk (Ext. 4022)</a>
+</div>
+</div>
+</footer>
+<!-- MICRO-INTERACTIONS AND VIEW-SWITCHING LOGIC -->
+<script>
+    function switchView(viewName) {
+      const populatedEl = document.getElementById('populated-view');
+      const skeletonEl = document.getElementById('skeleton-view');
+      const btnPopulated = document.getElementById('btn-populated');
+      const btnSkeleton = document.getElementById('btn-skeleton');
+
+      if (viewName === 'populated') {
+        populatedEl.classList.remove('hidden');
+        populatedEl.classList.add('grid');
+        skeletonEl.classList.add('hidden');
+        skeletonEl.classList.remove('grid');
+
+        btnPopulated.classList.add('bg-surface-container-lowest', 'text-on-surface', 'shadow-sm');
+        btnPopulated.classList.remove('text-on-surface-variant');
+        btnSkeleton.classList.remove('bg-surface-container-lowest', 'text-on-surface', 'shadow-sm');
+        btnSkeleton.classList.add('text-on-surface-variant');
+      } else if (viewName === 'skeleton') {
+        populatedEl.classList.add('hidden');
+        populatedEl.classList.remove('grid');
+        skeletonEl.classList.remove('hidden');
+        skeletonEl.classList.add('grid');
+
+        btnSkeleton.classList.add('bg-surface-container-lowest', 'text-on-surface', 'shadow-sm');
+        btnSkeleton.classList.remove('text-on-surface-variant');
+        btnPopulated.classList.remove('bg-surface-container-lowest', 'text-on-surface', 'shadow-sm');
+        btnPopulated.classList.add('text-on-surface-variant');
+      }
+    }
+
+    function toggleAlertBanner() {
+      const banner = document.getElementById('retry-alert-banner');
+      banner.classList.toggle('hidden');
+    }
+
+    function dismissAlert() {
+      document.getElementById('retry-alert-banner').classList.add('hidden');
+    }
+
+    function previewDocument(type) {
+      // Visual feedback cue for previewing different items in the right inspection drawer
+      console.log('Inspecting document:', type);
+    }
+  </script>
+</body></html>

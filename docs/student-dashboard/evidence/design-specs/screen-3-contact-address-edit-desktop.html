@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CampXSync - Contact Information &amp; Address Management</title>
+<!-- Inter Font Family -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with Forms and Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-container": "#4e607e",
+            "surface-container": "#e5eeff",
+            "secondary": "#4d5f7d",
+            "on-secondary-fixed": "#071c36",
+            "surface-container-highest": "#d3e4fe",
+            "tertiary": "#006a44",
+            "tertiary-fixed-dim": "#69dca2",
+            "on-tertiary": "#ffffff",
+            "on-secondary": "#ffffff",
+            "error": "#ba1a1a",
+            "on-surface-variant": "#424754",
+            "on-primary-fixed": "#001944",
+            "primary": "#0057c3",
+            "on-error-container": "#93000a",
+            "surface-container-low": "#eff4ff",
+            "surface-bright": "#f8f9ff",
+            "outline-variant": "#c2c6d6",
+            "primary-fixed": "#d9e2ff",
+            "surface-tint": "#0059c8",
+            "on-tertiary-fixed-variant": "#005233",
+            "on-tertiary-container": "#f9fff8",
+            "primary-container": "#1f6feb",
+            "surface": "#f8f9ff",
+            "tertiary-fixed": "#86f9bd",
+            "on-error": "#ffffff",
+            "outline": "#727786",
+            "on-primary-container": "#fffcff",
+            "surface-variant": "#d3e4fe",
+            "secondary-fixed-dim": "#b5c7ea",
+            "on-primary": "#ffffff",
+            "tertiary-container": "#008657",
+            "secondary-fixed": "#d6e3ff",
+            "on-tertiary-fixed": "#002112",
+            "surface-dim": "#cbdbf5",
+            "surface-container-lowest": "#ffffff",
+            "error-container": "#ffdad6",
+            "surface-container-high": "#dce9ff",
+            "on-primary-fixed-variant": "#004299",
+            "secondary-container": "#c8dbfe",
+            "background": "#f8f9ff",
+            "inverse-surface": "#213145",
+            "primary-fixed-dim": "#afc6ff",
+            "on-surface": "#0b1c30",
+            "inverse-primary": "#afc6ff",
+            "inverse-on-surface": "#eaf1ff",
+            "on-secondary-fixed-variant": "#364764",
+            "on-background": "#0b1c30"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-lg": "1.5rem",
+            "space-xs": "0.25rem",
+            "margin": "2rem",
+            "gutter": "1.5rem",
+            "gutter-sm": "1rem",
+            "space-md": "1rem",
+            "margin-sm": "1rem",
+            "space-xl": "2rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "headline-sm": ["Inter"],
+            "headline-md": ["Inter"],
+            "display-lg": ["Inter"],
+            "label-sm": ["Inter"],
+            "body-lg": ["Inter"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "caption": ["Inter"],
+            "body-sm": ["Inter"],
+            "display-lg-mobile": ["Inter"],
+            "headline-lg": ["Inter"]
+          },
+          "fontSize": {
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.005em", "fontWeight": "500" }],
+            "caption": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "display-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill-icon {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #eff4ff 25%, #dce9ff 50%, #eff4ff 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.8s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col selection:bg-secondary-container selection:text-on-surface">
+<!-- ========================================================================= -->
+<!-- 1. TOP APP BAR (from Shared Components JSON: TopNavBar)                  -->
+<!-- ========================================================================= -->
+<header class="bg-on-background dark:bg-inverse-surface text-surface-container-lowest docked full-width top-0 sticky z-50 border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none w-full px-6 flex justify-between items-center h-16">
+<!-- Brand Anchor & Campus Badge -->
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<span class="text-headline-md font-headline-md font-bold text-surface-container-lowest dark:text-surface-container-lowest tracking-tight flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container fill-icon" style="font-size: 26px;">school</span>
+          CampXSync
+        </span>
+<span class="bg-surface-variant/20 text-surface-container border border-outline-variant/30 text-label-sm font-label-sm px-2.5 py-0.5 rounded-full flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed"></span>
+          Tech Campus
+        </span>
+</div>
+<!-- Navigation Links from JSON: ["Dashboard", "Admissions", "Academics", "Financial Aid"] -->
+<!-- Profile is an Admissions sub-view; Admissions or Dashboard represented -->
+<nav class="hidden md:flex items-center gap-6 ml-4">
+<a class="text-surface-variant dark:text-surface-variant hover:text-surface-container-lowest transition-colors text-label-md font-label-md" href="#">Dashboard</a>
+<a class="text-surface-container-lowest dark:text-surface-container-lowest font-semibold border-b-2 border-primary-container pb-1 text-label-md font-label-md" href="#">Admissions</a>
+<a class="text-surface-variant dark:text-surface-variant hover:text-surface-container-lowest transition-colors text-label-md font-label-md" href="#">Academics</a>
+<a class="text-surface-variant dark:text-surface-variant hover:text-surface-container-lowest transition-colors text-label-md font-label-md" href="#">Financial Aid</a>
+</nav>
+</div>
+<!-- Trailing Actions & Profile Cluster -->
+<div class="flex items-center gap-3">
+<!-- Trailing Primary Action from JSON: "Upload Document" -->
+<button class="bg-primary-container hover:bg-primary text-on-primary font-label-md text-label-md px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm">
+<span class="material-symbols-outlined" style="font-size: 18px;">upload_file</span>
+<span>Upload Document</span>
+</button>
+<!-- Trailing Icon Actions from JSON: ["notifications", "help"] -->
+<div class="flex items-center gap-1 pl-1 border-l border-outline-variant/30">
+<button class="p-2 rounded-lg text-surface-variant hover:text-surface-container-lowest hover:bg-on-secondary-fixed dark:hover:bg-surface-variant transition-colors duration-150 relative" title="Notifications">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error border border-on-background"></span>
+</button>
+<button class="p-2 rounded-lg text-surface-variant hover:text-surface-container-lowest hover:bg-on-secondary-fixed dark:hover:bg-surface-variant transition-colors duration-150" title="Help Desk">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+<!-- Student Profile Card with Live Status Badge -->
+<div class="flex items-center gap-3 pl-3 border-l border-outline-variant/30">
+<div class="w-9 h-9 rounded-full bg-primary-container/20 text-primary-fixed border border-primary-container flex items-center justify-center font-headline-sm text-headline-sm">
+          SO
+        </div>
+<div class="hidden xl:flex flex-col text-left">
+<div class="flex items-center gap-2">
+<span class="text-label-md font-label-md text-surface-container-lowest leading-none">Student One</span>
+<span class="bg-tertiary-container/30 text-tertiary-fixed text-[10px] font-label-sm px-1.5 py-0.2 rounded font-medium">SIS Live</span>
+</div>
+<span class="text-caption font-caption text-surface-variant leading-tight">STU-DEV-2026-0001</span>
+</div>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- 2. BODY CONTAINER: SIDENAV + MAIN CONTENT WORKSPACE                     -->
+<!-- ========================================================================= -->
+<div class="flex flex-1 w-full max-w-[1600px] mx-auto">
+<!-- ======================================================================= -->
+<!-- SIDE NAV BAR (from Shared Components JSON: SideNavBar)                  -->
+<!-- Tab labels: ["Admissions Overview", "Application Documents", "Fee Statements", "Enrollment Verification", "Profile Settings"] -->
+<!-- Tab icons: ["dashboard", "folder_shared", "payments", "verified_user", "manage_accounts"] -->
+<!-- Active Tab: Profile Settings (since this page is Student Profile / Contact & Address Details) -->
+<!-- ======================================================================= -->
+<aside class="hidden lg:flex w-64 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant dark:border-outline p-4 flex-col justify-between shrink-0 min-h-[calc(100vh-4rem)]">
+<div class="flex flex-col gap-6">
+<!-- Sidebar Profile Mini-Banner -->
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low border border-outline-variant/40">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center font-bold text-on-secondary-container text-label-md shrink-0">
+            SO
+          </div>
+<div class="flex flex-col overflow-hidden">
+<span class="text-headline-sm font-headline-sm text-on-surface truncate">Student One</span>
+<span class="text-caption font-caption text-on-surface-variant truncate">APP-DEV-2026-0001</span>
+</div>
+</div>
+<!-- Navigation Tab Cluster -->
+<nav class="flex flex-col gap-1">
+<!-- 1. Admissions Overview -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:text-on-surface dark:hover:text-inverse-on-surface rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-label-md font-label-md">Admissions Overview</span>
+</a>
+<!-- 2. Application Documents -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:text-on-surface dark:hover:text-inverse-on-surface rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">folder_shared</span>
+<span class="text-label-md font-label-md">Application Documents</span>
+</a>
+<!-- 3. Fee Statements -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:text-on-surface dark:hover:text-inverse-on-surface rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="text-label-md font-label-md">Fee Statements</span>
+</a>
+<!-- 4. Enrollment Verification -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:text-on-surface dark:hover:text-inverse-on-surface rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors duration-150" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+<span class="text-label-md font-label-md">Enrollment Verification</span>
+</a>
+<!-- 5. Profile Settings (ACTIVE STATE) -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container dark:bg-on-secondary-container text-on-secondary-container dark:text-surface-container-lowest rounded-lg font-medium border border-outline-variant/30" href="#">
+<span class="material-symbols-outlined fill-icon text-primary">manage_accounts</span>
+<span class="text-label-md font-label-md text-on-surface font-semibold">Profile Settings</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Cluster & CTA from JSON: "Submit Dossier", ["Academic Support", "Sign Out"] -->
+<div class="flex flex-col gap-3 pt-4 border-t border-outline-variant/30">
+<button class="w-full bg-on-background text-surface-container-lowest hover:bg-secondary transition-colors py-2.5 px-4 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 shadow-sm">
+<span class="material-symbols-outlined" style="font-size: 18px;">send_time_extension</span>
+<span>Submit Dossier</span>
+</button>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-size: 18px;">headset_mic</span>
+<span class="text-label-md font-label-md">Academic Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-error hover:bg-error-container/40 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-size: 18px;">logout</span>
+<span class="text-label-md font-label-md">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- ======================================================================= -->
+<!-- MAIN WORKSPACE CONTENT CANVAS                                          -->
+<!-- ======================================================================= -->
+<main class="flex-1 px-4 lg:px-8 py-6 max-w-full overflow-y-auto">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 text-caption font-caption text-on-surface-variant mb-3">
+<a class="hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined" style="font-size: 16px;">home</span>
+          Home
+        </a>
+<span class="text-outline-variant">/</span>
+<a class="hover:text-primary transition-colors" href="#">Student Profile</a>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">Contact &amp; Address Details</span>
+</nav>
+<!-- Page Header with Subtitle and Quick Action Buttons -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-outline-variant/40 mb-6">
+<div>
+<div class="flex items-center gap-3 flex-wrap">
+<h1 class="text-headline-lg font-headline-lg text-on-surface tracking-tight">Contact Information &amp; Address Management</h1>
+<span class="bg-surface-container-highest text-on-surface-variant border border-outline-variant text-label-sm font-label-sm px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              Record Revision #04
+            </span>
+</div>
+<p class="text-body-md font-body-md text-on-surface-variant mt-1.5 max-w-3xl">
+            Keep your communication details and physical addresses up to date for official college correspondence, dispatch of grade cards, and emergency notifications.
+          </p>
+</div>
+<!-- Quick Action Buttons & Simulated State Controller -->
+<div class="flex items-center gap-2 shrink-0">
+<button class="bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-1.5 shadow-sm transition-colors">
+<span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+<span>Audit Log</span>
+</button>
+<button class="bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-1.5 shadow-sm transition-colors">
+<span class="material-symbols-outlined" style="font-size: 18px;">policy</span>
+<span>Contact Policy Guide</span>
+</button>
+<!-- State Toggle Pill (Display Indicator) -->
+<div class="hidden xl:flex items-center bg-surface-container-low p-1 rounded-lg border border-outline-variant/60">
+<span class="px-2.5 py-1 text-label-sm font-label-sm rounded-md bg-surface-container-lowest text-primary shadow-xs font-semibold">Populated View</span>
+<span class="px-2 py-1 text-label-sm font-label-sm text-on-surface-variant">Skeleton State</span>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- 3. SYSTEM STATUS / TOAST & VALIDATION ALERTS                           -->
+<!-- ===================================================================== -->
+<div class="space-y-3 mb-6">
+<!-- Success Toast Notification -->
+<div class="bg-tertiary-container/10 border border-tertiary/30 rounded-lg p-3.5 flex items-center justify-between shadow-xs">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary-container/20 text-tertiary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined fill-icon">check_circle</span>
+</div>
+<div>
+<p class="text-body-md font-body-md font-semibold text-on-surface">Address information updated successfully in SIS.</p>
+<p class="text-caption font-caption text-on-surface-variant">Sync reference: TXN-CAMPX-2026-8841 · Propagated to Admissions Database &amp; Housing Registry</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-label-sm text-tertiary font-medium bg-tertiary-container/10 px-2 py-0.5 rounded border border-tertiary/20">Synced 2m ago</span>
+<button aria-label="Dismiss Notification" class="text-on-surface-variant hover:text-on-surface p-1 rounded-md">
+<span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+</button>
+</div>
+</div>
+<!-- Validation Error Alert Banner -->
+<div class="bg-error-container/20 border border-error/40 rounded-lg p-3.5 flex items-center justify-between shadow-xs">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div>
+<p class="text-body-md font-body-md font-semibold text-on-error-container">Postal PIN code must be a 6-digit numeric value.</p>
+<p class="text-caption font-caption text-on-surface-variant">Please verify the PIN code entered in both Permanent and Correspondence Address records before finalizing.</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="bg-surface-container-lowest border border-error/40 text-error hover:bg-error-container/40 text-label-sm font-label-sm px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 16px;">refresh</span>
+              Retry Validation
+            </button>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- 4. MAIN CONTENT AREA (Bento / High-Density Grid)                       -->
+<!-- ===================================================================== -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+<!-- =================================================================== -->
+<!-- CARD 1: INSTITUTIONAL & DIGITAL CONTACTS (Col 1-12 or 7 wide)      -->
+<!-- =================================================================== -->
+<section class="xl:col-span-7 bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-6 shadow-sm">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-4 mb-5">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">contacts</span>
+</div>
+<div>
+<h2 class="text-headline-sm font-headline-sm text-on-surface">Institutional &amp; Digital Contacts</h2>
+<p class="text-caption font-caption text-on-surface-variant">Primary channels for academic notices, alerts, and OTP authentications.</p>
+</div>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant text-label-sm font-label-sm px-2.5 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-primary" style="font-size: 14px;">verified</span> Verified Channels
+            </span>
+</div>
+<div class="space-y-4">
+<!-- Student Institutional Email (Read-only SSO managed) -->
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="text-label-md font-label-md text-on-surface flex items-center gap-1.5">
+                  Institutional Email Address
+                  <span class="text-error">*</span>
+</label>
+<span class="inline-flex items-center gap-1 bg-surface-container text-on-secondary-container text-label-sm font-label-sm px-2 py-0.5 rounded border border-outline-variant/40">
+<span class="material-symbols-outlined" style="font-size: 13px;">lock</span>
+                  SSO / Identity Provider Managed
+                </span>
+</div>
+<div class="relative">
+<input class="w-full h-10 px-3.5 bg-surface-container-low border border-outline-variant/80 rounded-lg text-on-surface text-body-md cursor-not-allowed select-all pr-24" readonly="" type="email" value="student1.campx@gmail.com"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-caption font-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary" style="font-size: 16px;">lock</span> Read Only
+                </span>
+</div>
+<p class="text-caption font-caption text-on-surface-variant mt-1">To change institutional identity credentials, submit an IT Helpdesk Service Request.</p>
+</div>
+<!-- Primary Mobile Phone & Alternate Mobile / WhatsApp (Grid 2-col) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Primary Mobile -->
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="text-label-md font-label-md text-on-surface flex items-center gap-1">
+                    Primary Mobile Phone
+                    <span class="text-error">*</span>
+</label>
+<span class="bg-tertiary-container/15 text-tertiary border border-tertiary/30 text-label-sm font-label-sm px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined fill-icon" style="font-size: 12px;">check</span> OTP Verified
+                  </span>
+</div>
+<div class="flex rounded-lg shadow-xs">
+<select class="h-10 px-2.5 bg-surface-container-low border border-r-0 border-outline-variant rounded-l-lg text-on-surface text-body-sm font-medium focus:ring-primary focus:border-primary">
+<option selected="">+91 (IND)</option>
+<option>+1 (USA)</option>
+<option>+44 (UK)</option>
+<option>+971 (UAE)</option>
+</select>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-r-lg text-on-surface text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" type="tel" value="9876543210"/>
+</div>
+</div>
+<!-- Alternate Mobile / WhatsApp -->
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="text-label-md font-label-md text-on-surface flex items-center gap-1">
+                    Alternate / WhatsApp Mobile
+                  </label>
+<span class="bg-tertiary-container/10 text-tertiary border border-tertiary/30 text-label-sm font-label-sm px-2 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined" style="font-size: 13px;">chat</span> WhatsApp Enabled
+                  </span>
+</div>
+<div class="relative">
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-on-surface text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" type="tel" value="+91 9811223344"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-tertiary">
+<span class="material-symbols-outlined" style="font-size: 18px;">sms</span>
+</span>
+</div>
+</div>
+</div>
+<!-- Emergency Contact Subcard / Group -->
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-4 mt-2">
+<div class="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant/30">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-error" style="font-size: 18px;">emergency</span>
+<span class="text-label-md font-label-md text-on-surface font-semibold">Designated Emergency Contact</span>
+</div>
+<span class="bg-error-container text-on-error-container text-label-sm font-label-sm px-2 py-0.5 rounded font-medium">
+                  Priority Contact
+                </span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<!-- Name -->
+<div>
+<label class="text-caption font-caption text-on-surface-variant block mb-1">Contact Full Name</label>
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary" type="text" value="Rajesh Sharma"/>
+</div>
+<!-- Relationship -->
+<div>
+<label class="text-caption font-caption text-on-surface-variant block mb-1">Relationship</label>
+<select class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary">
+<option selected="">Father</option>
+<option>Mother</option>
+<option>Legal Guardian</option>
+<option>Spouse</option>
+<option>Sibling</option>
+</select>
+</div>
+<!-- Phone -->
+<div>
+<label class="text-caption font-caption text-on-surface-variant block mb-1">Emergency Phone</label>
+<div class="relative">
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary pr-8" type="tel" value="+91 9876500000"/>
+<span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-error">
+<span class="material-symbols-outlined" style="font-size: 16px;">call</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- =================================================================== -->
+<!-- SKELETON PREVIEW AUXILIARY CARD (Col 8-12 / 5-wide)                 -->
+<!-- =================================================================== -->
+<section class="xl:col-span-5 bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-4 mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">hourglass_top</span>
+<div>
+<h3 class="text-headline-sm font-headline-sm text-on-surface">Async SIS Sync Preview</h3>
+<p class="text-caption font-caption text-on-surface-variant">Simulated skeleton state during live sync verification</p>
+</div>
+</div>
+<span class="text-label-sm font-label-sm text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">Mock Skeleton</span>
+</div>
+<!-- Skeleton Fields -->
+<div class="space-y-3.5">
+<div class="space-y-1.5">
+<div class="w-28 h-3.5 rounded skeleton-shimmer"></div>
+<div class="w-full h-9 rounded-lg skeleton-shimmer"></div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="space-y-1.5">
+<div class="w-20 h-3.5 rounded skeleton-shimmer"></div>
+<div class="w-full h-9 rounded-lg skeleton-shimmer"></div>
+</div>
+<div class="space-y-1.5">
+<div class="w-24 h-3.5 rounded skeleton-shimmer"></div>
+<div class="w-full h-9 rounded-lg skeleton-shimmer"></div>
+</div>
+</div>
+<div class="space-y-1.5">
+<div class="w-36 h-3.5 rounded skeleton-shimmer"></div>
+<div class="w-full h-16 rounded-lg skeleton-shimmer"></div>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant/30 flex items-center justify-between">
+<span class="text-caption font-caption text-on-surface-variant flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+              Awaiting background ledger verification...
+            </span>
+<span class="text-label-sm font-label-sm font-mono text-outline">HTTP 200 OK</span>
+</div>
+</section>
+<!-- =================================================================== -->
+<!-- CARD 2: PERMANENT RESIDENTIAL ADDRESS (Col 1-6)                     -->
+<!-- =================================================================== -->
+<section class="xl:col-span-6 bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-6 shadow-sm">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-4 mb-5">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">home_pin</span>
+</div>
+<div>
+<h2 class="text-headline-sm font-headline-sm text-on-surface">Permanent Residential Address</h2>
+<p class="text-caption font-caption text-on-surface-variant">Official permanent domicile registered during admission.</p>
+</div>
+</div>
+<span class="bg-surface-container text-on-surface-variant border border-outline-variant/60 text-label-sm font-label-sm px-2.5 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary" style="font-size: 14px;">assignment_turned_in</span>
+              Verified Identity Document Record
+            </span>
+</div>
+<div class="space-y-3.5">
+<!-- Street Address Line 1 -->
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">
+                Street Address Line 1 <span class="text-error">*</span>
+</label>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20" type="text" value="Flat 402, Green Valley Apartments"/>
+</div>
+<!-- Street Address Line 2 -->
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">
+                Street Address Line 2 / Landmark
+              </label>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20" type="text" value="Sector 62, Near IT Park"/>
+</div>
+<!-- City & State / Province -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">
+                  City <span class="text-error">*</span>
+</label>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20" type="text" value="Bengaluru"/>
+</div>
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">
+                  State / Province <span class="text-error">*</span>
+</label>
+<select class="w-full h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20">
+<option selected="">Karnataka</option>
+<option>Maharashtra</option>
+<option>Delhi NCR</option>
+<option>Tamil Nadu</option>
+<option>Telangana</option>
+</select>
+</div>
+</div>
+<!-- Postal PIN Code & Country -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+<div>
+<div class="flex items-center justify-between mb-1">
+<label class="text-label-md font-label-md text-on-surface">
+                    Postal / PIN Code <span class="text-error">*</span>
+</label>
+<span class="text-caption font-caption text-tertiary">Valid PIN</span>
+</div>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md font-mono text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20" maxlength="6" type="text" value="560001"/>
+</div>
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">
+                  Country <span class="text-error">*</span>
+</label>
+<select class="w-full h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20">
+<option selected="">India</option>
+<option>United States</option>
+<option>United Kingdom</option>
+<option>Singapore</option>
+</select>
+</div>
+</div>
+<!-- Domicile / Passport Note -->
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/40 flex items-start gap-2.5 mt-2">
+<span class="material-symbols-outlined text-secondary shrink-0 mt-0.5" style="font-size: 18px;">info</span>
+<p class="text-caption font-caption text-on-surface-variant">
+<strong>Administrative Policy Notice:</strong> Requires domicile certificate or passport proof attachment if state or country changes from initial admission baseline.
+              </p>
+</div>
+</div>
+</section>
+<!-- =================================================================== -->
+<!-- CARD 3: CURRENT / CORRESPONDENCE ADDRESS (Col 7-12)                -->
+<!-- =================================================================== -->
+<section class="xl:col-span-6 bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-6 shadow-sm">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-4 mb-5">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">mark_as_unread</span>
+</div>
+<div>
+<h2 class="text-headline-sm font-headline-sm text-on-surface">Current / Correspondence Address</h2>
+<p class="text-caption font-caption text-on-surface-variant">Used for all physical post, certificates, and term letters.</p>
+</div>
+</div>
+<!-- Quick Sync Checkbox/Toggle -->
+<label class="flex items-center gap-2 cursor-pointer bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors">
+<input class="w-4 h-4 rounded border-outline text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-label-sm font-label-sm text-on-surface select-none">Same as Permanent</span>
+</label>
+</div>
+<!-- Residence Type Segmented Pill Toggle -->
+<div class="mb-4">
+<label class="text-caption font-caption text-on-surface-variant block mb-1.5">Student Living Accommodation Type</label>
+<div class="grid grid-cols-2 p-1 bg-surface-container-low rounded-lg border border-outline-variant/60 gap-1">
+<button class="py-2 px-3 rounded-md bg-surface-container-lowest text-primary font-semibold text-label-md font-label-md shadow-xs flex items-center justify-center gap-1.5" type="button">
+<span class="material-symbols-outlined" style="font-size: 16px;">apartment</span>
+                Campus Hostel (Active)
+              </button>
+<button class="py-2 px-3 rounded-md text-on-surface-variant hover:text-on-surface text-label-md font-label-md flex items-center justify-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined" style="font-size: 16px;">directions_bus</span>
+                Day Scholar / Off-Campus
+              </button>
+</div>
+</div>
+<!-- Hostel Allocation Details Block -->
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-4 space-y-3 mb-4">
+<div class="flex items-center justify-between pb-2 border-b border-outline-variant/30">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-size: 18px;">bed</span>
+<span class="text-label-md font-label-md text-on-surface font-semibold">Official Hostel Allocation Record</span>
+</div>
+<span class="bg-tertiary-container/15 text-tertiary text-label-sm font-label-sm px-2 py-0.5 rounded font-medium border border-tertiary/20">
+                Warden Confirmed
+              </span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<div>
+<label class="text-caption font-caption text-on-surface-variant block mb-1">Hostel Facility</label>
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary" type="text" value="North Campus Hostel"/>
+</div>
+<div>
+<label class="text-caption font-caption text-on-surface-variant block mb-1">Room / Block</label>
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary" type="text" value="Block B, Room 314"/>
+</div>
+<div>
+<label class="text-caption font-caption text-on-surface-variant block mb-1">Campus Mail Route</label>
+<input class="w-full h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary" type="text" value="Campus Box #402"/>
+</div>
+</div>
+</div>
+<!-- Fallback / Local Mailing Address Fields -->
+<div class="space-y-3">
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">
+                Local Mailing Address Line 1
+              </label>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20" type="text" value="North Campus Hostel Desk, CampX University"/>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">City</label>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md text-on-surface focus:border-primary" type="text" value="Bengaluru"/>
+</div>
+<div>
+<label class="text-label-md font-label-md text-on-surface block mb-1">PIN Code</label>
+<input class="w-full h-10 px-3.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md font-mono text-on-surface focus:border-primary" type="text" value="560001"/>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- ===================================================================== -->
+<!-- 5. ACTION BAR / STICKY BOTTOM BAR                                      -->
+<!-- ===================================================================== -->
+<div class="sticky bottom-0 mt-8 -mx-4 lg:-mx-8 px-6 lg:px-8 py-4 bg-surface-container-lowest border-t border-outline-variant shadow-lg z-30 flex flex-col sm:flex-row items-center justify-between gap-4">
+<!-- Left: Audit Timestamp & Lock Indicator -->
+<div class="flex items-center gap-2.5 text-on-surface-variant">
+<div class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined" style="font-size: 16px;">lock_clock</span>
+</div>
+<div>
+<p class="text-caption font-caption text-on-surface">
+              Last updated: <strong>14 Aug 2026</strong> by <strong>Admissions Officer</strong> (Ref: ADM-OFF-1029).
+            </p>
+<p class="text-[11px] font-caption text-outline">
+              Integrity checksum validated via SHA-256 ledger.
+            </p>
+</div>
+</div>
+<!-- Right: Actions -->
+<div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+<button class="px-4 py-2.5 bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface rounded-lg font-label-md text-label-md transition-colors shadow-xs">
+            Discard Changes
+          </button>
+<button class="px-5 py-2.5 bg-primary-container hover:bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-primary-container">
+<span class="material-symbols-outlined" style="font-size: 18px;">save</span>
+<span>Save Address Changes</span>
+</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

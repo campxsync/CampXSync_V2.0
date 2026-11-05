@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CampXSync Admissions - Document Verification</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-fixed-dim": "#69dca2",
+            "secondary-fixed": "#d6e3ff",
+            "error": "#ba1a1a",
+            "primary": "#0057c3",
+            "on-secondary": "#ffffff",
+            "on-secondary-fixed": "#071c36",
+            "on-surface": "#0b1c30",
+            "secondary-container": "#c8dbfe",
+            "on-tertiary": "#ffffff",
+            "on-primary": "#ffffff",
+            "surface-container-highest": "#d3e4fe",
+            "primary-container": "#1f6feb",
+            "inverse-on-surface": "#eaf1ff",
+            "outline-variant": "#c2c6d6",
+            "primary-fixed-dim": "#afc6ff",
+            "on-primary-fixed-variant": "#004299",
+            "tertiary-container": "#008657",
+            "on-secondary-fixed-variant": "#364764",
+            "surface-container-high": "#dce9ff",
+            "secondary": "#4d5f7d",
+            "secondary-fixed-dim": "#b5c7ea",
+            "tertiary-fixed": "#86f9bd",
+            "surface-bright": "#f8f9ff",
+            "on-background": "#0b1c30",
+            "surface": "#f8f9ff",
+            "on-secondary-container": "#4e607e",
+            "error-container": "#ffdad6",
+            "surface-tint": "#0059c8",
+            "surface-container": "#e5eeff",
+            "background": "#f8f9ff",
+            "on-error": "#ffffff",
+            "on-tertiary-fixed-variant": "#005233",
+            "outline": "#727786",
+            "inverse-surface": "#213145",
+            "surface-container-lowest": "#ffffff",
+            "surface-variant": "#d3e4fe",
+            "surface-container-low": "#eff4ff",
+            "on-tertiary-fixed": "#002112",
+            "on-error-container": "#93000a",
+            "inverse-primary": "#afc6ff",
+            "primary-fixed": "#d9e2ff",
+            "tertiary": "#006a44",
+            "on-tertiary-container": "#f9fff8",
+            "surface-dim": "#cbdbf5",
+            "on-primary-fixed": "#001944",
+            "on-primary-container": "#fffcff",
+            "on-surface-variant": "#424754"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "gutter": "1.5rem",
+            "margin-sm": "1rem",
+            "space-xs": "0.25rem",
+            "space-md": "1rem",
+            "margin": "2rem",
+            "gutter-sm": "1rem"
+          },
+          "fontFamily": {
+            "body-sm": ["Inter"],
+            "body-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "headline-lg": ["Inter"],
+            "caption": ["Inter"],
+            "headline-md": ["Inter"],
+            "body-lg": ["Inter"],
+            "display-lg": ["Inter"],
+            "label-md": ["Inter"],
+            "label-sm": ["Inter"],
+            "display-lg-mobile": ["Inter"]
+          },
+          "fontSize": {
+            "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "headline-sm": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600"}],
+            "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
+            "caption": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+            "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "label-md": ["13px", {"lineHeight": "16px", "letterSpacing": "0.005em", "fontWeight": "500"}],
+            "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600"}],
+            "display-lg-mobile": ["26px", {"lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+    }
+    .material-symbols-outlined.fill-icon {
+      font-variation-settings: 'FILL' 1;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased flex justify-center min-h-screen">
+<!-- Mobile Viewport Container (390px simulated Canvas) -->
+<div class="w-full max-w-[390px] bg-background min-h-screen flex flex-col relative pb-28 shadow-xl border-x border-outline-variant/30">
+<!-- Top App Bar (Shared Components JSON Anchor) -->
+<header class="fixed top-0 left-0 w-full max-w-[390px] z-40 flex items-center justify-between px-margin-sm h-14 bg-surface-container-lowest shadow-sm border-b border-outline-variant mx-auto inset-x-0">
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-container-high transition-colors duration-150 active:scale-95 text-on-surface" title="Admissions">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface leading-tight tracking-tight flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+            CampXSync
+          </span>
+<span class="font-caption text-caption text-on-surface-variant text-[10px]">Admissions Portal</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="bg-surface-container text-on-surface font-label-sm text-label-sm px-2 py-0.5 rounded-full border border-outline-variant font-mono">STU-DEV-2026-0001</span>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors" title="Support">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 mt-14 px-margin-sm py-space-md flex flex-col gap-space-md">
+<!-- Inline Notification Alert Banner -->
+<div class="bg-error-container/60 border border-error/20 rounded-xl p-3 flex items-start gap-2.5 transition-all" id="inline-alert">
+<span class="material-symbols-outlined text-error mt-0.5">error</span>
+<div class="flex-1">
+<p class="font-label-md text-label-md font-semibold text-on-error-container">Upload Attention Required</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">Network timeout on Transfer Certificate. Please review and tap retry.</p>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface p-1" onclick="document.getElementById('inline-alert').style.display='none'">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<!-- Application Context Banner -->
+<section class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-space-md shadow-sm">
+<div class="flex items-start justify-between gap-2 border-b border-outline-variant/40 pb-3">
+<div>
+<span class="font-caption text-caption text-on-surface-variant block">Application Reference</span>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">APP-DEV-2026-0001</span>
+</div>
+<!-- Status Badge -->
+<div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-2.5 py-1">
+<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider font-semibold">Under Review</span>
+</div>
+</div>
+<div class="mt-3 space-y-1">
+<p class="font-body-sm text-body-sm text-on-surface font-medium flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">school</span>
+            B.Tech Computer Science &amp; Engineering
+          </p>
+<p class="font-caption text-caption text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-outline text-[18px]">event</span>
+            Intake Session: DEV-INTAKE-2026
+          </p>
+</div>
+<!-- Verification Progress -->
+<div class="mt-4 pt-3 border-t border-outline-variant/40">
+<div class="flex justify-between items-center mb-1.5">
+<span class="font-label-md text-label-md font-medium text-on-surface">Verification Progress</span>
+<span class="font-label-sm text-label-sm text-primary font-bold">2 of 5 Verified (40%)</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden flex">
+<div class="bg-tertiary-container h-full w-[40%] rounded-l-full"></div>
+<div class="bg-amber-400 h-full w-[20%]"></div>
+<div class="bg-error h-full w-[20%]"></div>
+<div class="bg-surface-variant h-full w-[20%]"></div>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant font-caption mt-1.5 px-0.5">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span> 2 Approved</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> 1 Review</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error"></span> 1 Rejected</span>
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span> 1 Pending</span>
+</div>
+</div>
+</section>
+<!-- Mobile Document Upload Component -->
+<section class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-space-md shadow-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary-container">cloud_upload</span>
+          Upload New Document
+        </h2>
+<!-- Document Type Selector -->
+<label class="block font-label-md text-label-md text-on-surface mb-1">Select Document Category</label>
+<div class="relative mb-3">
+<select class="w-full h-11 px-3 bg-surface-container-low border border-outline-variant rounded-lg font-body-sm text-body-sm text-on-surface focus:border-primary-container focus:ring-2 focus:ring-primary/20 appearance-none pr-9">
+<option value="10th">10th Marks Card</option>
+<option value="12th">12th Marks Card</option>
+<option value="id">Identity Proof / Aadhaar</option>
+<option selected="" value="tc">Transfer Certificate</option>
+<option value="rank">Entrance Exam Scorecard</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 pointer-events-none text-outline">expand_more</span>
+</div>
+<!-- Touch Target Upload Dropzone -->
+<div class="border-2 border-dashed border-primary/40 bg-surface-container-low/50 hover:bg-surface-container rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-[0.99] touch-manipulation">
+<div class="w-12 h-12 rounded-full bg-primary/10 text-primary-container flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-2xl">add_photo_alternate</span>
+</div>
+<p class="font-label-md text-label-md font-semibold text-on-surface">Tap to browse or take photo</p>
+<p class="font-caption text-caption text-on-surface-variant mt-1">Accepted: PDF, JPEG, PNG (Max 10 MB)</p>
+<div class="mt-3 flex items-center gap-2">
+<button class="h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg font-label-sm text-label-sm text-primary flex items-center gap-1.5 shadow-sm active:bg-surface-container">
+<span class="material-symbols-outlined text-[16px]">file_open</span> Files
+            </button>
+<button class="h-9 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg font-label-sm text-label-sm text-primary flex items-center gap-1.5 shadow-sm active:bg-surface-container">
+<span class="material-symbols-outlined text-[16px]">photo_camera</span> Camera
+            </button>
+</div>
+</div>
+<!-- Active Upload Progress Demonstration Card -->
+<div class="mt-3.5 bg-surface-container-low border border-primary/20 rounded-lg p-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-primary-container">description</span>
+<div class="truncate">
+<p class="font-label-md text-label-md font-semibold text-on-surface truncate">Transfer_Cert_Scan_v2.pdf</p>
+<p class="font-caption text-caption text-on-surface-variant">4.2 MB • 840 KB/s</p>
+</div>
+</div>
+<div class="flex items-center gap-1 shrink-0">
+<button class="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors" title="Cancel upload">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- Progress bar -->
+<div class="mt-2.5">
+<div class="w-full bg-outline-variant/30 h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary-container h-full rounded-full transition-all duration-300" style="width: 68%;"></div>
+</div>
+<div class="flex justify-between items-center mt-1">
+<span class="font-caption text-[11px] text-primary-container font-medium">Uploading (68%)...</span>
+<button class="font-caption text-[11px] text-primary font-semibold hover:underline">Retry</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Document Status Card List (Vertical Stack) -->
+<section class="space-y-3">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Document Status</h2>
+<span class="font-caption text-caption text-on-surface-variant">5 Required items</span>
+</div>
+<!-- 1. 10th Marks Card: VERIFIED -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-3.5 shadow-sm hover:border-outline transition-colors">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-emerald-50 text-tertiary-container flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-xl">fact_check</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-[15px] font-semibold text-on-surface">10th Marks Card</h3>
+<span class="font-caption text-caption text-on-surface-variant block">PDF • 1.8 MB</span>
+</div>
+</div>
+<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-label-sm font-label-sm uppercase px-2 py-0.5 rounded-full shrink-0 font-semibold">
+              Verified
+            </span>
+</div>
+<div class="mt-2.5 pt-2.5 border-t border-outline-variant/30 flex items-center justify-between text-caption font-caption text-on-surface-variant">
+<span class="flex items-center gap-1 text-[11px]">
+<span class="material-symbols-outlined text-tertiary-container text-[14px]">verified</span>
+              By Registrar Dr. Sharma
+            </span>
+<div class="flex items-center gap-1">
+<button class="h-8 px-2.5 bg-surface-container-low text-primary hover:bg-surface-container rounded-lg font-label-sm text-label-sm font-medium transition-colors" onclick="openBottomSheet()">
+                View
+              </button>
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-low text-on-surface-variant hover:text-on-surface rounded-lg transition-colors" title="Download">
+<span class="material-symbols-outlined text-[16px]">download</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 2. 12th Marks Card: VERIFIED -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-3.5 shadow-sm hover:border-outline transition-colors">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-emerald-50 text-tertiary-container flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-[15px] font-semibold text-on-surface">12th Marks Card</h3>
+<span class="font-caption text-caption text-on-surface-variant block">PDF • 2.1 MB</span>
+</div>
+</div>
+<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-label-sm font-label-sm uppercase px-2 py-0.5 rounded-full shrink-0 font-semibold">
+              Verified
+            </span>
+</div>
+<div class="mt-2.5 pt-2.5 border-t border-outline-variant/30 flex items-center justify-between text-caption font-caption text-on-surface-variant">
+<span class="flex items-center gap-1 text-[11px]">
+<span class="material-symbols-outlined text-tertiary-container text-[14px]">sync_saved_locally</span>
+              Central Board DB Match
+            </span>
+<button class="h-8 px-3 bg-surface-container-low text-primary hover:bg-surface-container rounded-lg font-label-sm text-label-sm font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">download</span> Download
+            </button>
+</div>
+</div>
+<!-- 3. Aadhaar Card / ID Proof: UNDER REVIEW -->
+<div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-3.5 shadow-sm hover:border-outline transition-colors">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-xl">pending_actions</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-[15px] font-semibold text-on-surface">Aadhaar Card / ID Proof</h3>
+<span class="font-caption text-caption text-on-surface-variant block">JPG • 850 KB</span>
+</div>
+</div>
+<span class="bg-amber-50 text-amber-700 border border-amber-200 text-label-sm font-label-sm uppercase px-2 py-0.5 rounded-full shrink-0 font-semibold">
+              Under Review
+            </span>
+</div>
+<div class="mt-2.5 pt-2.5 border-t border-outline-variant/30 flex items-center justify-between text-caption font-caption text-on-surface-variant">
+<span class="flex items-center gap-1 text-[11px] text-amber-800">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+              Submitted 2d ago • SLA ~24h
+            </span>
+<button class="h-8 px-2.5 bg-surface-container-low text-primary hover:bg-surface-container rounded-lg font-label-sm text-label-sm font-medium" onclick="openBottomSheet()">
+              View Details
+            </button>
+</div>
+</div>
+<!-- 4. Transfer Certificate: REJECTED -->
+<div class="bg-surface-container-lowest border border-error/30 rounded-xl p-3.5 shadow-sm">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-red-50 text-error flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-xl">cancel</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-[15px] font-semibold text-on-surface">Transfer Certificate</h3>
+<span class="font-caption text-caption text-on-surface-variant block">Action Required immediately</span>
+</div>
+</div>
+<span class="bg-red-50 text-error border border-red-200 text-label-sm font-label-sm uppercase px-2 py-0.5 rounded-full shrink-0 font-semibold">
+              Rejected
+            </span>
+</div>
+<!-- Rejection Warning Callout -->
+<div class="mt-2.5 bg-error-container/40 border border-error/20 rounded-lg p-2.5 flex items-start gap-2">
+<span class="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5">warning</span>
+<p class="font-caption text-caption text-on-surface leading-tight">
+<strong class="font-semibold text-error">Reason:</strong> Blurry scan - please re-upload clear front and back.
+            </p>
+</div>
+<div class="mt-3 flex items-center justify-end">
+<button class="w-full h-11 bg-primary-container hover:bg-primary text-on-primary rounded-lg font-label-md text-label-md font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform touch-manipulation">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+              Re-upload Document
+            </button>
+</div>
+</div>
+<!-- 5. Entrance Rank Card: NOT SUBMITTED -->
+<div class="bg-surface-container-lowest border border-dashed border-outline-variant rounded-xl p-3.5 shadow-sm">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-start gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-surface-container text-outline flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-xl">file_present</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-[15px] font-semibold text-on-surface">Entrance Rank Card</h3>
+<span class="font-caption text-caption text-on-surface-variant block">Target: JEE Main / State CET</span>
+</div>
+</div>
+<span class="bg-surface-container text-on-surface-variant text-label-sm font-label-sm uppercase px-2 py-0.5 rounded-full shrink-0 font-medium">
+              Not Submitted
+            </span>
+</div>
+<div class="mt-3 flex items-center justify-between pt-2 border-t border-outline-variant/30">
+<span class="font-caption text-[11px] text-on-surface-variant">Mandatory for seat allocation</span>
+<button class="h-9 px-3 bg-surface-container text-on-surface hover:bg-surface-container-high rounded-lg font-label-sm text-label-sm font-semibold flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span> Upload Now
+            </button>
+</div>
+</div>
+</section>
+<!-- Tip Callout for First-Time Applicants -->
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-3 flex items-start gap-2.5">
+<span class="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">lightbulb</span>
+<div>
+<p class="font-label-md text-label-md font-medium text-on-surface">Document Verification SLA</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">Registrar reviews take up to 24–48 hours. Ensure scans include all 4 document corners with readable institution stamps.</p>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar (Shared Components JSON Anchor) -->
+<nav class="fixed bottom-0 left-0 w-full max-w-[390px] z-50 flex justify-around items-center px-gutter-sm py-space-xs bg-surface-container-lowest shadow-md border-t border-outline-variant mx-auto inset-x-0">
+<!-- 1. Overview -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-1 px-3 hover:text-primary transition-colors duration-150 active:scale-95" title="Overview">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-sm text-[10px] mt-0.5">Overview</span>
+</button>
+<!-- 2. Documents (ACTIVE) -->
+<button class="flex flex-col items-center justify-center bg-secondary-container text-primary font-medium rounded-lg py-1 px-3 active:scale-95 transition-transform" title="Documents">
+<span class="material-symbols-outlined fill-icon text-primary">folder_open</span>
+<span class="font-label-sm text-[10px] mt-0.5 font-semibold text-primary">Documents</span>
+</button>
+<!-- 3. Status -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-1 px-3 hover:text-primary transition-colors duration-150 active:scale-95" title="Status">
+<span class="material-symbols-outlined">fact_check</span>
+<span class="font-label-sm text-[10px] mt-0.5">Status</span>
+</button>
+<!-- 4. Support -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-1 px-3 hover:text-primary transition-colors duration-150 active:scale-95" title="Support">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-label-sm text-[10px] mt-0.5">Support</span>
+</button>
+</nav>
+<!-- Interactive Document Detail Bottom Sheet Drawer -->
+<div class="fixed inset-0 bg-[#0B1F3A]/45 z-50 hidden transition-opacity" id="bottom-sheet-scrim" onclick="closeBottomSheet()"></div>
+<div class="fixed bottom-0 left-0 w-full max-w-[390px] mx-auto inset-x-0 z-50 bg-surface-container-lowest rounded-t-2xl shadow-2xl border-t border-outline-variant p-4 transform translate-y-full transition-transform duration-300 ease-out hidden" id="bottom-sheet">
+<!-- Drag handle -->
+<div class="w-12 h-1 bg-outline-variant rounded-full mx-auto mb-3 cursor-pointer" onclick="closeBottomSheet()"></div>
+<div class="flex items-start justify-between border-b border-outline-variant/40 pb-3">
+<div>
+<span class="bg-emerald-50 text-emerald-700 text-label-sm font-label-sm px-2 py-0.5 rounded-full font-semibold uppercase">Verified</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1">10th Standard High School Marks Card</h3>
+<p class="font-caption text-caption text-on-surface-variant font-mono text-[11px]">ID: DOC-VERIF-98214</p>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:text-on-surface" onclick="closeBottomSheet()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Sheet Content -->
+<div class="py-3 space-y-3">
+<div class="bg-surface-container-low rounded-lg p-2.5 space-y-1">
+<div class="flex justify-between font-caption text-caption">
+<span class="text-on-surface-variant">File Metadata:</span>
+<span class="text-on-surface font-medium">PDF • 1.8 MB</span>
+</div>
+<div class="flex justify-between font-caption text-caption">
+<span class="text-on-surface-variant">Timestamp:</span>
+<span class="text-on-surface font-medium">Oct 15, 2026 • 14:22 IST</span>
+</div>
+</div>
+<!-- SHA-256 Hash with quick copy -->
+<div class="bg-surface-container-low rounded-lg p-2.5">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">SHA-256 Integrity Hash</span>
+<button class="text-primary font-caption text-[11px] font-semibold flex items-center gap-0.5 hover:underline" onclick="copyHash()">
+<span class="material-symbols-outlined text-[14px]">content_copy</span> Copy
+            </button>
+</div>
+<code class="font-mono text-caption text-[11px] text-on-surface bg-surface-container px-2 py-1 rounded block truncate" id="hash-text">4e9a8f219c00bd82a19e8821fa018c</code>
+</div>
+<!-- Remarks -->
+<div class="border-l-2 border-tertiary-container pl-3 py-0.5">
+<span class="font-caption text-caption text-tertiary-container font-semibold block">Registrar Verification Remarks</span>
+<p class="font-body-sm text-body-sm text-on-surface mt-0.5">All grades verified against National Academic Depository (NAD). Stamp authentic.</p>
+</div>
+<!-- Action Row (44px touch targets) -->
+<div class="pt-2 grid grid-cols-3 gap-2">
+<button class="h-11 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-lg font-label-md text-label-md font-semibold flex items-center justify-center gap-1 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]">visibility</span> View
+          </button>
+<button class="h-11 bg-primary-container text-on-primary hover:bg-primary rounded-lg font-label-md text-label-md font-semibold flex items-center justify-center gap-1 active:scale-95 transition-transform shadow-sm">
+<span class="material-symbols-outlined text-[18px]">download</span> PDF
+          </button>
+<button class="h-11 border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low rounded-lg font-label-md text-label-md font-medium flex items-center justify-center gap-1 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]">sync</span> Replace
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Inline Script for Bottom Sheet & Drawer Interactivity -->
+<script>
+    function openBottomSheet() {
+      const scrim = document.getElementById('bottom-sheet-scrim');
+      const sheet = document.getElementById('bottom-sheet');
+      scrim.classList.remove('hidden');
+      sheet.classList.remove('hidden');
+      setTimeout(() => {
+        sheet.classList.remove('translate-y-full');
+      }, 10);
+    }
+
+    function closeBottomSheet() {
+      const scrim = document.getElementById('bottom-sheet-scrim');
+      const sheet = document.getElementById('bottom-sheet');
+      sheet.classList.add('translate-y-full');
+      setTimeout(() => {
+        sheet.classList.add('hidden');
+        scrim.classList.add('hidden');
+      }, 250);
+    }
+
+    function copyHash() {
+      navigator.clipboard.writeText('4e9a8f219c00bd82a19e8821fa018c');
+      const btn = event.currentTarget;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">done</span> Copied!`;
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+      }, 1500);
+    }
+  </script>
+</body></html>
