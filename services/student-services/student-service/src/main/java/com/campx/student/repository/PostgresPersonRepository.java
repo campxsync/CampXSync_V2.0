@@ -55,7 +55,7 @@ public class PostgresPersonRepository implements PersonRepository {
 
         return context.executeInTransaction(connectionManager, conn -> {
             String sql = "SELECT id, tenant_id, first_name, middle_name, last_name, display_name, " +
-                    "date_of_birth, gender, primary_email, primary_phone, status, created_at, updated_at, " +
+                    "date_of_birth, gender, primary_email, primary_phone, permanent_address_id, current_address_id, status, created_at, updated_at, " +
                     "created_by, updated_by, row_version, deleted_at " +
                     "FROM core.persons WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -78,7 +78,7 @@ public class PostgresPersonRepository implements PersonRepository {
 
         return context.executeInTransaction(connectionManager, conn -> {
             String sql = "SELECT id, tenant_id, first_name, middle_name, last_name, display_name, " +
-                    "date_of_birth, gender, primary_email, primary_phone, status, created_at, updated_at, " +
+                    "date_of_birth, gender, primary_email, primary_phone, permanent_address_id, current_address_id, status, created_at, updated_at, " +
                     "created_by, updated_by, row_version, deleted_at " +
                     "FROM core.persons WHERE tenant_id = ? AND LOWER(primary_email) = LOWER(?) AND deleted_at IS NULL";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -155,7 +155,8 @@ public class PostgresPersonRepository implements PersonRepository {
 
     private PersonEntity updatePerson(Connection conn, UserSecurityContext context, PersonEntity person) throws SQLException {
         String sql = "UPDATE core.persons SET first_name = ?, middle_name = ?, last_name = ?, display_name = ?, " +
-                "date_of_birth = ?, gender = ?, primary_email = ?, primary_phone = ?, updated_by = ?, updated_at = now(), " +
+                "date_of_birth = ?, gender = ?, primary_email = ?, primary_phone = ?, " +
+                "permanent_address_id = ?, current_address_id = ?, updated_by = ?, updated_at = now(), " +
                 "row_version = row_version + 1 " +
                 "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL " +
                 "RETURNING updated_at, row_version";
@@ -170,12 +171,14 @@ public class PostgresPersonRepository implements PersonRepository {
             } else {
                 ps.setNull(5, Types.DATE);
             }
-            ps.setString(6, person.getGender() != null ? person.getGender().name() : "U");
+            ps.setString(6, person.getGender() != null ? person.getGender().name() : null);
             ps.setString(7, person.getPrimaryEmail());
             ps.setString(8, person.getPrimaryPhone());
-            ps.setObject(9, context.getUserId());
-            ps.setObject(10, person.getId());
-            ps.setObject(11, context.getTenantId());
+            ps.setObject(9, person.getPermanentAddressId());
+            ps.setObject(10, person.getCurrentAddressId());
+            ps.setObject(11, context.getUserId());
+            ps.setObject(12, person.getId());
+            ps.setObject(13, context.getTenantId());
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -209,6 +212,8 @@ public class PostgresPersonRepository implements PersonRepository {
 
         p.setPrimaryEmail(rs.getString("primary_email"));
         p.setPrimaryPhone(rs.getString("primary_phone"));
+        p.setPermanentAddressId((UUID) rs.getObject("permanent_address_id"));
+        p.setCurrentAddressId((UUID) rs.getObject("current_address_id"));
         p.setStatus(rs.getString("status"));
 
         Timestamp cat = rs.getTimestamp("created_at");

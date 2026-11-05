@@ -524,4 +524,248 @@ public class LivePostgresStudentPersistenceTest {
             ds.close();
         }
     }
+
+    @Test
+    public void executeLiveStudentAddressLinkingAndRollback() throws Exception {
+        boolean isApproved = Boolean.getBoolean("campx.approve.wave4.write")
+                || APPROVAL_TOKEN.equals(System.getProperty("campx.approval.token"));
+        if (!isApproved) {
+            System.out.println("[SKIP] Live student address linking test skipped (set -Dcampx.approve.wave4.write=true to run)");
+            return;
+        }
+
+        HikariDataSource ds = createDevDataSource();
+        if (ds == null) {
+            System.out.println("[SKIP] Missing staging database credentials for live persistence test");
+            return;
+        }
+
+        UUID tenantId = UUID.fromString("a0000000-0000-0000-0000-000000000001");
+        UUID student1AuthId = UUID.fromString("81dd67d3-1d5f-4d8e-8061-a6764861f924");
+        UUID addressId = UUID.randomUUID();
+
+        try (Connection conn = ds.getConnection()) {
+            conn.setAutoCommit(false);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("SET LOCAL ROLE authenticated");
+                String claims = String.format("{\"sub\":\"%s\",\"role\":\"authenticated\",\"tenant_id\":\"%s\",\"app_metadata\":{\"tenant_id\":\"%s\"}}",
+                        student1AuthId, tenantId, tenantId);
+                stmt.execute("SELECT set_config('request.jwt.claims', '" + claims + "', true)");
+
+                // 1. Insert address created by student1
+                String insertAddr = "INSERT INTO core.addresses (id, tenant_id, line1, city, state_code, postal_code, country_code, created_by, updated_by) " +
+                        "VALUES (?, ?, '42 Knowledge Way', 'Bengaluru', 'KA', '560001', 'IND', ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertAddr)) {
+                    ps.setObject(1, addressId);
+                    ps.setObject(2, tenantId);
+                    ps.setObject(3, student1AuthId);
+                    ps.setObject(4, student1AuthId);
+                    ps.executeUpdate();
+                }
+
+                // 2. Fetch existing person record
+                String selectPerson = "SELECT id, tenant_id, first_name, middle_name, last_name, display_name, " +
+                        "date_of_birth, gender, primary_email, primary_phone, permanent_address_id, current_address_id, " +
+                        "status, created_at, updated_at, created_by, updated_by, row_version, deleted_at " +
+                        "FROM core.persons WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL";
+                String firstName = null, middleName = null, lastName = null, displayName = null, primaryEmail = null, primaryPhone = null, gender = null;
+                Date dob = null;
+                try (PreparedStatement ps = conn.prepareStatement(selectPerson)) {
+                    ps.setObject(1, student1AuthId);
+                    ps.setObject(2, tenantId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue("Student1 person record must exist", rs.next());
+                        firstName = rs.getString("first_name");
+                        middleName = rs.getString("middle_name");
+                        lastName = rs.getString("last_name");
+                        displayName = rs.getString("display_name");
+                        dob = rs.getDate("date_of_birth");
+                        gender = rs.getString("gender");
+                        primaryEmail = rs.getString("primary_email");
+                        primaryPhone = rs.getString("primary_phone");
+                    }
+                }
+
+                // 3. Update person address link as authenticated student (exercising guard trigger and real updatePerson SQL)
+                String updatePersonSql = "UPDATE core.persons SET first_name = ?, middle_name = ?, last_name = ?, display_name = ?, " +
+                        "date_of_birth = ?, gender = ?, primary_email = ?, primary_phone = ?, " +
+                        "permanent_address_id = ?, current_address_id = ?, updated_by = ?, updated_at = now(), " +
+                        "row_version = row_version + 1 " +
+                        "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL " +
+                        "RETURNING updated_at, row_version";
+                try (PreparedStatement ps = conn.prepareStatement(updatePersonSql)) {
+                    ps.setString(1, firstName);
+                    ps.setString(2, middleName);
+                    ps.setString(3, lastName);
+                    ps.setString(4, displayName);
+                    if (dob != null) {
+                        ps.setDate(5, dob);
+                    } else {
+                        ps.setNull(5, java.sql.Types.DATE);
+                    }
+                    ps.setString(6, gender);
+                    ps.setString(7, primaryEmail);
+                    ps.setString(8, primaryPhone);
+                    ps.setObject(9, addressId);
+                    ps.setObject(10, addressId);
+                    ps.setObject(11, student1AuthId);
+                    ps.setObject(12, student1AuthId);
+                    ps.setObject(13, tenantId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue("Update must succeed and return updated row", rs.next());
+                    }
+                }
+
+                // 4. Read back verified address link (simulating /students/me profile read)
+                try (PreparedStatement ps = conn.prepareStatement(selectPerson)) {
+                    ps.setObject(1, student1AuthId);
+                    ps.setObject(2, tenantId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Permanent address must be linked", addressId, rs.getObject("permanent_address_id"));
+                        assertEquals("Current address must be linked", addressId, rs.getObject("current_address_id"));
+                    }
+                }
+
+                // 5. Unconditional rollback
+                conn.rollback();
+                System.out.println("[SUCCESS] Live student address linking and read-back verified under student role; transaction rolled back.");
+            } finally {
+                conn.rollback();
+            }
+
+            // 6. Post-rollback check: Address and links MUST NOT exist
+            try (Connection checkConn = ds.getConnection();
+                 Statement stmt = checkConn.createStatement()) {
+                checkConn.setAutoCommit(false);
+                stmt.execute("SET LOCAL ROLE authenticated");
+                String claims = String.format("{\"sub\":\"%s\",\"role\":\"authenticated\",\"tenant_id\":\"%s\",\"app_metadata\":{\"tenant_id\":\"%s\"}}",
+                        student1AuthId, tenantId, tenantId);
+                stmt.execute("SELECT set_config('request.jwt.claims', '" + claims + "', true)");
+
+                try (PreparedStatement ps = checkConn.prepareStatement("SELECT permanent_address_id, current_address_id FROM core.persons WHERE id = ?")) {
+                    ps.setObject(1, student1AuthId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Permanent address must remain null post-rollback", null, rs.getObject("permanent_address_id"));
+                        assertEquals("Current address must remain null post-rollback", null, rs.getObject("current_address_id"));
+                    }
+                }
+                try (PreparedStatement ps = checkConn.prepareStatement("SELECT count(*) FROM core.addresses WHERE id = ?")) {
+                    ps.setObject(1, addressId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Address record must not exist post-rollback", 0, rs.getInt(1));
+                    }
+                }
+                stmt.execute("RESET ROLE");
+            }
+        } finally {
+            ds.close();
+        }
+    }
+
+    @Test
+    public void executeLiveStudentCorrectionSubmitAndRollback() throws Exception {
+        boolean isApproved = Boolean.getBoolean("campx.approve.wave4.write")
+                || APPROVAL_TOKEN.equals(System.getProperty("campx.approval.token"));
+        if (!isApproved) {
+            System.out.println("[SKIP] Live student correction submit test skipped (set -Dcampx.approve.wave4.write=true to run)");
+            return;
+        }
+
+        HikariDataSource ds = createDevDataSource();
+        if (ds == null) {
+            System.out.println("[SKIP] Missing staging database credentials for live persistence test");
+            return;
+        }
+
+        UUID tenantId = UUID.fromString("a0000000-0000-0000-0000-000000000001");
+        UUID student1AuthId = UUID.fromString("81dd67d3-1d5f-4d8e-8061-a6764861f924");
+        UUID student1RecordId = UUID.fromString("81dd67d3-1d5f-4d8e-8061-a67648610002");
+        UUID requestId = UUID.randomUUID();
+        UUID outboxId = UUID.randomUUID();
+
+        try (Connection conn = ds.getConnection()) {
+            conn.setAutoCommit(false);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("SET LOCAL ROLE authenticated");
+                String claims = String.format("{\"sub\":\"%s\",\"role\":\"authenticated\",\"tenant_id\":\"%s\",\"app_metadata\":{\"tenant_id\":\"%s\"}}",
+                        student1AuthId, tenantId, tenantId);
+                stmt.execute("SELECT set_config('request.jwt.claims', '" + claims + "', true)");
+
+                // 1. Insert into doc.lifecycle_requests as authenticated student (matching PostgresCorrectionRequestRepository)
+                String sql = "INSERT INTO doc.lifecycle_requests (" +
+                        "id, tenant_id, entity_type, entity_id, request_type, reason, status, " +
+                        "requested_by, new_document_id, created_at, updated_at, created_by, updated_by, row_version" +
+                        ") VALUES (?, ?, 'STUDENT', ?, 'CORRECTION', ?, 'PENDING', ?, NULL, now(), now(), ?, ?, 1)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setObject(1, requestId);
+                    ps.setObject(2, tenantId);
+                    ps.setObject(3, student1RecordId);
+                    ps.setString(4, "{\"targetField\":\"displayName\",\"oldValue\":\"Student One\",\"newValue\":\"Student Uno\",\"reason\":\"Typo correction\"}");
+                    ps.setObject(5, student1AuthId);
+                    ps.setObject(6, student1AuthId);
+                    ps.setObject(7, student1AuthId);
+                    int inserted = ps.executeUpdate();
+                    assertEquals("Correction request insert must succeed under student role", 1, inserted);
+                }
+
+                // 2. Insert outbox event for student.profile.correction.requested.v1
+                String outboxSql = "INSERT INTO sys.outbox_events (" +
+                        "id, tenant_id, service, aggregate_type, aggregate_id, event_type, " +
+                        "payload, headers, status, attempts, created_at, updated_at" +
+                        ") VALUES (?, ?, 'student-service', 'STUDENT', ?, 'student.profile.correction.requested.v1', ?::jsonb, ?::jsonb, 'PENDING', 0, now(), now())";
+                try (PreparedStatement ps = conn.prepareStatement(outboxSql)) {
+                    ps.setObject(1, outboxId);
+                    ps.setObject(2, tenantId);
+                    ps.setObject(3, student1RecordId);
+                    ps.setString(4, String.format("{\"studentId\":\"%s\",\"requestId\":\"%s\",\"targetField\":\"displayName\",\"status\":\"PENDING\"}", student1RecordId, requestId));
+                    ps.setString(5, "{}");
+                    int insertedOutbox = ps.executeUpdate();
+                    assertEquals("Outbox event insert must succeed", 1, insertedOutbox);
+                }
+
+                // 3. Read back correction request under student role
+                String selectSql = "SELECT id, status, entity_id, request_type FROM doc.lifecycle_requests WHERE id = ? AND tenant_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                    ps.setObject(1, requestId);
+                    ps.setObject(2, tenantId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue("Correction request must be visible to student", rs.next());
+                        assertEquals("PENDING", rs.getString("status"));
+                        assertEquals(student1RecordId, rs.getObject("entity_id"));
+                        assertEquals("CORRECTION", rs.getString("request_type"));
+                    }
+                }
+
+                // 4. Rollback
+                conn.rollback();
+                System.out.println("[SUCCESS] Live student correction submission and outbox event verified under student role; transaction rolled back.");
+            } finally {
+                conn.rollback();
+            }
+
+            // 5. Post-rollback verification: 0 rows remain
+            try (Connection checkConn = ds.getConnection();
+                 Statement stmt = checkConn.createStatement()) {
+                checkConn.setAutoCommit(false);
+                stmt.execute("SET LOCAL ROLE authenticated");
+                String claims = String.format("{\"sub\":\"%s\",\"role\":\"authenticated\",\"tenant_id\":\"%s\",\"app_metadata\":{\"tenant_id\":\"%s\"}}",
+                        student1AuthId, tenantId, tenantId);
+                stmt.execute("SELECT set_config('request.jwt.claims', '" + claims + "', true)");
+
+                try (PreparedStatement ps = checkConn.prepareStatement("SELECT count(*) FROM doc.lifecycle_requests WHERE id = ?")) {
+                    ps.setObject(1, requestId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Correction request must not exist post-rollback", 0, rs.getInt(1));
+                    }
+                }
+                stmt.execute("RESET ROLE");
+            }
+        } finally {
+            ds.close();
+        }
+    }
 }
