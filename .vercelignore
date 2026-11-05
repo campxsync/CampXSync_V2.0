@@ -1,0 +1,13 @@
+/docs
+/services
+/api-gateway
+/logger
+/database
+/infrastructure
+/platform
+/mobile-app
+/frontend-web
+**/target
+**/*.har
+**/*.log
+**/*.docx

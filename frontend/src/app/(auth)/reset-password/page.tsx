@@ -457,7 +457,7 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="mt-12 pt-6 border-t border-white/10 flex items-center justify-between text-xs text-[#E3E8EF]/60">
-          <span>Staging Ref: kpwdvvcschankgggitnj</span>
+          <span>Dev Ref: azulbaxszsqxymqmlwfe</span>
           <span>v2.0 Security Baseline</span>
         </div>
       </section>

@@ -19,7 +19,7 @@ export interface ResolvedUserSession {
 
 export type RoleResolutionResult =
   | { success: true; session: ResolvedUserSession }
-  | { success: false; reason: 'unauthenticated' | 'no_profile' | 'inactive_membership' | 'tenant_suspended' | 'no_role_assigned' };
+  | { success: false; reason: 'unauthenticated' | 'no_profile' | 'inactive_membership' | 'tenant_suspended' | 'no_role_assigned' | 'db_error' };
 
 export async function resolveUserRole(
   supabase: SupabaseClient
@@ -63,6 +63,7 @@ export async function resolveUserRole(
 
   const userId = user.id;
   const userEmail = user.email || '';
+  let dbConnectionError: string | null = null;
 
   // 2. Check if user is Platform Admin (authoritative check against plat.platform_admins via direct PostgreSQL query)
   let platAdmin: any = null;
@@ -74,7 +75,11 @@ export async function resolveUserRole(
     if (paRes.rows.length > 0) {
       platAdmin = paRes.rows[0];
     }
-  } catch {}
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    console.error('[resolveUserRole] Platform admin lookup query error:', msg);
+    dbConnectionError = msg;
+  }
 
   if (platAdmin) {
     return {
@@ -147,7 +152,17 @@ export async function resolveUserRole(
         roles: { code: r.role_code, name: r.role_name },
       }));
     }
-  } catch {}
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    console.error('[resolveUserRole] Profile/assignments query error:', msg);
+    dbConnectionError = msg;
+  }
+
+  // If a database connectivity error occurred, fail closed with a distinct diagnostic reason
+  // NEVER misclassify database connection errors as a missing profile
+  if (dbConnectionError) {
+    return { success: false, reason: 'db_error' };
+  }
 
   if (!profile || profile.deleted_at !== null) {
     // Only in gated test session mode: allow mock session with test cookie
@@ -213,8 +228,9 @@ export async function resolveUserRole(
     } else {
       return { success: false, reason: 'tenant_suspended' };
     }
-  } catch {
-    return { success: false, reason: 'tenant_suspended' };
+  } catch (err: any) {
+    console.error('[resolveUserRole] Tenant lookup query error:', err?.message || err);
+    return { success: false, reason: 'db_error' };
   }
 
   if (tenant.deleted_at !== null || tenant.status === 'SUSPENDED') {

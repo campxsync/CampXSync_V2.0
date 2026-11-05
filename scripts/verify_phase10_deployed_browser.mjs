@@ -1,7 +1,7 @@
 /**
  * CampXSync MVP V4 — Phase 10: Live Vercel Deployment & Interactive Acceptance Suite
  * Target: https://frontend-murex-one-58.vercel.app (Preview: https://frontend-n34dbtn83-camp-xs-ync.vercel.app)
- * Approved Staging Ref: kpwdvvcschankgggitnj
+ * Approved Dev Ref: azulbaxszsqxymqmlwfe
  */
 
 import fs from 'fs';

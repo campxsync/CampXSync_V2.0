@@ -4,6 +4,8 @@ import type { QueryResult, QueryResultRow } from 'pg';
 let pool: Pool | null = null;
 
 const FORBIDDEN_PROD_REF = 'ekspahbsbwdpraaqfqui';
+const FORBIDDEN_LEGACY_STAGING_REF = 'kpwdvvcschankgggitnj';
+const AUTHORIZED_DEV_REF = 'azulbaxszsqxymqmlwfe';
 
 export function getDbPool(): Pool {
   if (!pool) {
@@ -15,21 +17,32 @@ export function getDbPool(): Pool {
       throw new Error('Database JDBC URL is not configured. Configure SUPABASE_JDBC_URL or CAMPX_JDBC_URL.');
     }
 
-    // Master Prompt Rule 1: Fail-fast assertion refusing forbidden production reference
+    // Fail-fast assertions refusing forbidden production or obsolete legacy staging references
     if (jdbcUrl.includes(FORBIDDEN_PROD_REF) || (username && username.includes(FORBIDDEN_PROD_REF))) {
       throw new Error('FATAL SECURITY VIOLATION: Database connection string targets forbidden production reference!');
     }
+    if (jdbcUrl.includes(FORBIDDEN_LEGACY_STAGING_REF) || (username && username.includes(FORBIDDEN_LEGACY_STAGING_REF))) {
+      throw new Error('FATAL SECURITY VIOLATION: Database connection string targets obsolete legacy staging reference!');
+    }
 
     let connString = jdbcUrl.replace(/^jdbc:/, '');
+    if (connString.includes('ap-southeast-1')) {
+      connString = connString.replace('ap-southeast-1', 'ap-south-1');
+    }
     const urlObj = new URL(connString);
     if (username) urlObj.username = username;
     if (password) urlObj.password = password;
     urlObj.searchParams.delete('sslmode');
 
+    if (urlObj.hostname.includes('ap-southeast-1')) {
+      urlObj.hostname = urlObj.hostname.replace('ap-southeast-1', 'ap-south-1');
+    }
+
     pool = new Pool({
       connectionString: urlObj.toString(),
       ssl: { rejectUnauthorized: false },
-      max: 10,
+      max: 3,
+      connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,
     });
 

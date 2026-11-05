@@ -10,7 +10,7 @@ const require = createRequire(path.resolve('frontend/package.json'));
 const { createClient } = require('@supabase/supabase-js');
 const pg = require('pg');
 
-const SUPABASE_URL = 'https://kpwdvvcschankgggitnj.supabase.co';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://azulbaxszsqxymqmlwfe.supabase.co';
 const ANON_KEY = 'sb_publishable_1B6QXXcsRiUaxj-Bk1pPuw_JMqgh4-J';
 
 function getEnvVar(varName) {

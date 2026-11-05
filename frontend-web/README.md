@@ -1,16 +1,19 @@
-# React + Vite
+# CampXSync — Legacy Frontend Web (RETIRED)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> [!WARNING]
+> **DEPRECATION & RETIREMENT NOTICE**
+> This directory (`frontend-web/`) is a legacy Vite placeholder that has been retired per the Master Execution Directive.
+> It must NOT be used as a competing frontend, deployment root, application entry point, or development target.
 
-Currently, two official plugins are available:
+## Canonical Frontend
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The **ONLY** canonical, active frontend for CampXSync is:
 
-## React Compiler
+```
+CampXSync_V2.0/frontend/
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- **Technology**: Next.js 15 (React 19) App Router
+- **Database**: Strictly connected to authorized development Supabase project `azulbaxszsqxymqmlwfe`
+- **Role Dashboards**: Platform Admin (`/platform`), College Admin (`/college`), Faculty (`/faculty`), Student (`/student`)
+- **Deployment**: Canonical Vercel deployment with Root Directory set to `frontend`

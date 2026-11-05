@@ -24,6 +24,13 @@ function AccessDeniedContent() {
 
   const getReasonDetails = () => {
     switch (reason) {
+      case 'db_error':
+        return {
+          title: 'Institutional Database Service Unavailable',
+          description:
+            'A connectivity issue occurred while verifying your institutional profile against the database. The system administrator has been logged with diagnostic details. Please retry shortly.',
+          icon: AlertTriangle,
+        };
       case 'no_profile':
         return {
           title: 'Institutional Profile Not Found',

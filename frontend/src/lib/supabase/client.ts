@@ -12,7 +12,7 @@ export function createClient() {
   }
 
   return createBrowserClient(
-    url || 'https://kpwdvvcschankgggitnj.supabase.co',
+    url || 'https://azulbaxszsqxymqmlwfe.supabase.co',
     anonKey || 'placeholder_anon_key'
   );
 }

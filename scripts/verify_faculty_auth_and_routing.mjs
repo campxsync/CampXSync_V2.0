@@ -9,7 +9,7 @@ import ssr from '../frontend/node_modules/@supabase/ssr/dist/main/index.js';
 const { Pool } = pg;
 const { createChunks } = ssr;
 
-const SUPABASE_URL = 'https://kpwdvvcschankgggitnj.supabase.co';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://azulbaxszsqxymqmlwfe.supabase.co';
 const ANON_KEY = 'sb_publishable_1B6QXXcsRiUaxj-Bk1pPuw_JMqgh4-J';
 const FACULTY_EMAIL = 'faculty.campx@gmail.com';
 function getEnvVar(varName) {
@@ -172,7 +172,7 @@ async function main() {
     expires_in: authData.expires_in,
     expires_at: authData.expires_at,
   };
-  const cookieName = 'sb-kpwdvvcschankgggitnj-auth-token';
+  const cookieName = 'sb-azulbaxszsqxymqmlwfe-auth-token';
   const chunks = await createChunks(cookieName, JSON.stringify(sessionPayload));
   const authCookieHeader = chunks.map((c) => `${c.name}=${encodeURIComponent(c.value)}`).join('; ');
 

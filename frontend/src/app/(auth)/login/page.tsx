@@ -253,7 +253,7 @@ function LoginForm() {
             onClick={() => handleSelectDemoAccount('faculty')}
             disabled={isLoading}
             className={`flex flex-col items-center justify-center p-2.5 rounded-[6px] border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] min-h-[44px] ${
-              email === 'prof.p5.616747@institution.edu'
+              email === 'faculty.campx@gmail.com'
                 ? 'border-[#0D9488] bg-[#F0FAF9] text-[#0D9488]'
                 : 'border-[#E3E8EF] bg-[#F6F8FB] hover:border-[#0D9488] text-[#0B1F3A]'
             }`}
@@ -428,7 +428,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-12 pt-6 border-t border-white/10 flex items-center justify-between text-xs text-[#E3E8EF]/60">
-          <span>Staging Ref: kpwdvvcschankgggitnj</span>
+          <span>Dev Ref: azulbaxszsqxymqmlwfe</span>
           <span>v2.0 Trial Baseline</span>
         </div>
       </section>

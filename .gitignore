@@ -13,3 +13,6 @@ logs/
 scratch/
 *.patch
 .vercel
+
+*.har
+**/*.har

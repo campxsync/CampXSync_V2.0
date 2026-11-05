@@ -3,7 +3,8 @@ import pg from '../frontend/node_modules/pg/lib/index.js';
 
 const { Pool } = pg;
 const FORBIDDEN_PROD_REF = 'ekspahbsbwdpraaqfqui';
-const STAGING_REF = 'kpwdvvcschankgggitnj';
+const FORBIDDEN_LEGACY_STAGING_REF = 'kpwdvvcschankgggitnj';
+const STAGING_REF = 'azulbaxszsqxymqmlwfe';
 
 let pool = null;
 
@@ -19,6 +20,9 @@ function getDbPool() {
 
     if (jdbcUrl.includes(FORBIDDEN_PROD_REF) || (username && username.includes(FORBIDDEN_PROD_REF))) {
       throw new Error('FATAL SECURITY VIOLATION: Database connection string targets forbidden production reference!');
+    }
+    if (jdbcUrl.includes(FORBIDDEN_LEGACY_STAGING_REF) || (username && username.includes(FORBIDDEN_LEGACY_STAGING_REF))) {
+      throw new Error('FATAL SECURITY VIOLATION: Database connection string targets obsolete legacy staging reference!');
     }
 
     let connString = jdbcUrl.replace(/^jdbc:/, '');

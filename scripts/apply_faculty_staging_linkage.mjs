@@ -5,7 +5,8 @@ import pg from '../frontend/node_modules/pg/lib/index.js';
 
 const { Pool } = pg;
 const FORBIDDEN_PROD_REF = 'ekspahbsbwdpraaqfqui';
-const EXPECTED_STAGING_REF = 'kpwdvvcschankgggitnj';
+const FORBIDDEN_LEGACY_STAGING_REF = 'kpwdvvcschankgggitnj';
+const EXPECTED_STAGING_REF = 'azulbaxszsqxymqmlwfe';
 
 const TARGET_FACULTY_AUTH_UUID = '619b460b-d7f9-46b6-b11a-56045a130a52';
 const TARGET_FACULTY_EMAIL = 'faculty.campx@gmail.com';
@@ -25,6 +26,9 @@ function getDbPool() {
   // Security Guard: Production isolation
   if (jdbcUrl.includes(FORBIDDEN_PROD_REF) || (username && username.includes(FORBIDDEN_PROD_REF))) {
     throw new Error('FATAL SECURITY VIOLATION: Database connection string targets forbidden production reference!');
+  }
+  if (jdbcUrl.includes(FORBIDDEN_LEGACY_STAGING_REF) || (username && username.includes(FORBIDDEN_LEGACY_STAGING_REF))) {
+    throw new Error('FATAL SECURITY VIOLATION: Database connection string targets obsolete legacy staging reference!');
   }
 
   // Staging assertion

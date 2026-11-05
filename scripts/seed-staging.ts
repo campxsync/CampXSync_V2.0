@@ -2,7 +2,7 @@
  * CampXSync Staging Database Seed Script
  *
  * Requirements:
- * - Staging only: strictly checks project ref kpwdvvcschankgggitnj
+ * - Development only: strictly checks project ref azulbaxszsqxymqmlwfe
  * - Aborts on any production ref
  * - Idempotent: safe to run multiple times without creating duplicate tenants, roles, users, or records
  * - Seeds College A ("Demo Institute of Technology") and College B ("Test College of Science")
@@ -13,7 +13,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const STAGING_REF = 'kpwdvvcschankgggitnj';
+const STAGING_REF = 'azulbaxszsqxymqmlwfe';
+const PROHIBITED_PROD_REF = 'ekspahbsbwdpraaqfqui';
+const PROHIBITED_LEGACY_STAGING_REF = 'kpwdvvcschankgggitnj';
 const STAGING_URL = `https://${STAGING_REF}.supabase.co`;
 
 // Verify safety
@@ -21,13 +23,16 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || '';
 
 if (!supabaseUrl.includes(STAGING_REF)) {
-  console.error(`FATAL SAFETY ERROR: Target URL ${supabaseUrl} does NOT match approved staging ref ${STAGING_REF}!`);
+  console.error(`FATAL SAFETY ERROR: Target URL ${supabaseUrl} does NOT match approved development ref ${STAGING_REF}!`);
   process.exit(1);
 }
 
-// Check for any protected production ref in environment strings
+// Check for any protected production ref or obsolete staging ref in environment strings
 const envDump = JSON.stringify(process.env);
-if (envDump.includes('ekspahbsbwdpraaqfqui')) {
+if (envDump.includes(PROHIBITED_PROD_REF) || envDump.includes(PROHIBITED_LEGACY_STAGING_REF)) {
+  console.error('FATAL SAFETY ERROR: Environment contains prohibited database project reference!');
+  process.exit(1);
+}
   console.error('FATAL SAFETY ERROR: Production Supabase reference detected in environment! Aborting immediately.');
   process.exit(1);
 }

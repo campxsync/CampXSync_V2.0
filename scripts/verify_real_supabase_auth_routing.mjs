@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SUPABASE_URL = 'https://kpwdvvcschankgggitnj.supabase.co';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://azulbaxszsqxymqmlwfe.supabase.co';
 const ANON_KEY = 'sb_publishable_1B6QXXcsRiUaxj-Bk1pPuw_JMqgh4-J';
 const EMAIL = 'campxsync@gmail.com';
 

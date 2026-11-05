@@ -126,7 +126,7 @@ async function runPhase5Verification() {
   console.log('='.repeat(80));
   console.log('CAMPXSYNC MVP V4 — PHASE 5 VERIFICATION SUITE');
   console.log('Target: College Admin Setup Views, People, and Assignments');
-  console.log('Staging Database: kpwdvvcschankgggitnj');
+  console.log('Database: azulbaxszsqxymqmlwfe');
   console.log('='.repeat(80));
 
   let passed = 0;
