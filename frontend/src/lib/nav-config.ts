@@ -48,5 +48,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   student: [
     { title: 'My Attendance', href: '/student', icon: ClipboardCheck },
     { title: 'Admissions & Applications', href: '/student/admissions', icon: FileText },
+    { title: 'Contact & Address', href: '/student/address', icon: Building2 },
+    { title: 'Profile Corrections', href: '/student/corrections', icon: History },
   ],
 };

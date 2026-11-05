@@ -1,12 +1,26 @@
 import { redirect } from 'next/navigation';
-import { GraduationCap, CalendarCheck2, CheckCircle2, AlertTriangle, Clock, BookOpen } from 'lucide-react';
+import Link from 'next/link';
+import {
+  GraduationCap,
+  CalendarCheck2,
+  CheckCircle2,
+  AlertTriangle,
+  BookOpen,
+  FileText,
+  Building2,
+  History,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { query } from '@/lib/db';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
+import { fetchApplications } from '@/lib/api/admissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +42,7 @@ export default async function StudentDashboardPage() {
   let student: any = null;
   let subjectAttendance: any[] = [];
   let recentSessions: any[] = [];
+  let latestApplication: any = null;
 
   const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -38,7 +53,7 @@ export default async function StudentDashboardPage() {
         'Accept': 'application/json',
         'X-User-Id': userId,
         'X-Tenant-Id': tenantId,
-        'X-User-Role': 'student',
+        'X-User-Role': 'STUDENT',
       };
       if (resolution.session.collegeId) {
         gwHeaders['X-College-Id'] = resolution.session.collegeId;
@@ -63,7 +78,7 @@ export default async function StudentDashboardPage() {
         };
       }
     } catch (_gwErr) {
-      // Gateway offline during local development or build; fall through to query fallback
+      // Gateway offline during local build; fall through to query fallback
     }
 
     if (!student) {
@@ -144,6 +159,16 @@ export default async function StudentDashboardPage() {
 
       recentSessions = sessionsRes.rows;
     }
+
+    // 4. Fetch Admissions Application for Handover Bridge Card
+    try {
+      const apps = await fetchApplications(tenantId, userId, 'APPLICANT');
+      if (apps && apps.length > 0) {
+        latestApplication = apps[0];
+      }
+    } catch (_appErr) {
+      // Non-fatal if admissions service is silent
+    }
   } catch (err) {
     console.error('Failed to query student attendance data:', err);
   }
@@ -196,6 +221,95 @@ export default async function StudentDashboardPage() {
           icon={GraduationCap}
           description={student?.college_name || 'Institutional Campus'}
         />
+      </div>
+
+      {/* Admissions Handover Bridge Card & Quick Actions Hub */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Admissions Handover Bridge Card */}
+        <Card className="lg:col-span-2 border-[#B8D3FC] bg-gradient-to-r from-[#F0F6FF] to-white">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-[#1F6FEB]" />
+                <CardTitle className="text-sm font-semibold text-[#0B1F3A]">
+                  Admissions Enrolment Handover (STM-02 &rarr; STM-01)
+                </CardTitle>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-[#1E9E6A]/10 px-2 py-0.5 text-[10px] font-semibold text-[#1E9E6A]">
+                {latestApplication?.status || 'HANDED_OVER'}
+              </span>
+            </div>
+            <CardDescription className="text-xs text-[#475569]">
+              Application record verified and officially transitioned into active academic matriculation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs pt-2 border-t border-[#E3E8EF]/60">
+              <div className="flex flex-wrap items-center gap-4 text-[#6B7688]">
+                <div>
+                  Application No:{' '}
+                  <span className="font-mono font-semibold text-[#0B1F3A]">
+                    {latestApplication?.applicationNumber || 'APP-DEV-2026-0001'}
+                  </span>
+                </div>
+                <div>
+                  Enrolment Status:{' '}
+                  <span className="font-semibold text-[#1E9E6A]">Matriculated</span>
+                </div>
+              </div>
+              <Link href="/student/admissions">
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-[#1F6FEB] text-[#1F6FEB] hover:bg-[#F0F6FF]">
+                  <FileText className="h-3.5 w-3.5" />
+                  View Admissions Dossier
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions Hub */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-[#0B1F3A]">
+              Self-Service Hub
+            </CardTitle>
+            <CardDescription className="text-xs text-[#6B7688]">
+              Manage records and profile changes
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link href="/student/address" className="block">
+              <div className="flex items-center justify-between p-2 rounded-[6px] border border-[#E3E8EF] hover:border-[#1F6FEB] hover:bg-[#F8FAFC] transition-colors text-xs">
+                <div className="flex items-center gap-2 text-[#0B1F3A] font-medium">
+                  <Building2 className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                  Contact & Address
+                </div>
+                <ArrowRight className="h-3 w-3 text-[#6B7688]" />
+              </div>
+            </Link>
+
+            <Link href="/student/corrections" className="block">
+              <div className="flex items-center justify-between p-2 rounded-[6px] border border-[#E3E8EF] hover:border-[#1F6FEB] hover:bg-[#F8FAFC] transition-colors text-xs">
+                <div className="flex items-center gap-2 text-[#0B1F3A] font-medium">
+                  <History className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                  Profile Corrections
+                </div>
+                <ArrowRight className="h-3 w-3 text-[#6B7688]" />
+              </div>
+            </Link>
+
+            <Link href="/student/admissions" className="block">
+              <div className="flex items-center justify-between p-2 rounded-[6px] border border-[#E3E8EF] hover:border-[#1F6FEB] hover:bg-[#F8FAFC] transition-colors text-xs">
+                <div className="flex items-center gap-2 text-[#0B1F3A] font-medium">
+                  <FileText className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                  Admissions & Intakes
+                </div>
+                <ArrowRight className="h-3 w-3 text-[#6B7688]" />
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Course-Wise Attendance Table */}
@@ -263,18 +377,19 @@ export default async function StudentDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Attendance Session Logs */}
+      {/* Recent Conducted Sessions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Attendance History</CardTitle>
+          <CardTitle>Recent Conducted Class Sessions</CardTitle>
           <CardDescription>
-            Individual session records verified by appointed instructors
+            Chronological audit of sessions conducted by course faculty with attendance outcomes
           </CardDescription>
         </CardHeader>
         <CardContent>
           {recentSessions.length === 0 ? (
-            <div className="text-center py-6 text-xs text-[#6B7688]">
-              No closed attendance sessions recorded for this semester yet.
+            <div className="text-center py-8">
+              <CalendarCheck2 className="mx-auto h-8 w-8 text-[#6B7688]/40" />
+              <p className="text-xs text-[#6B7688] mt-2">No class sessions conducted for your section yet.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -323,4 +438,3 @@ export default async function StudentDashboardPage() {
     </div>
   );
 }
-
