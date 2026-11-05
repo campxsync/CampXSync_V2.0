@@ -40,7 +40,7 @@ async function main() {
   console.log('=== CAMPXSYNC V4 PHASE 3 — GATE B ROLE ROUTING VERIFICATION ===\n');
 
   const roles = ['platform_admin', 'college_admin', 'faculty', 'student'];
-  const routes = ['/', '/platform', '/college', '/faculty', '/student'];
+  const routes = ['/', '/platform', '/college', '/faculty', '/student', '/student/address', '/student/corrections', '/student/documents'];
 
   // Expected outcomes:
   // For unauthenticated:
@@ -68,6 +68,9 @@ async function main() {
       '/college': { type: 'forbidden' },
       '/faculty': { type: 'forbidden' },
       '/student': { type: 'forbidden' },
+      '/student/address': { type: 'forbidden' },
+      '/student/corrections': { type: 'forbidden' },
+      '/student/documents': { type: 'forbidden' },
     },
     college_admin: {
       '/': { type: 'redirect', to: '/college' },
@@ -75,6 +78,9 @@ async function main() {
       '/college': { type: 'allow', status: 200 },
       '/faculty': { type: 'allow', status: 200 },
       '/student': { type: 'forbidden' },
+      '/student/address': { type: 'forbidden' },
+      '/student/corrections': { type: 'forbidden' },
+      '/student/documents': { type: 'forbidden' },
     },
     faculty: {
       '/': { type: 'redirect', to: '/faculty' },
@@ -82,6 +88,9 @@ async function main() {
       '/college': { type: 'forbidden' },
       '/faculty': { type: 'allow', status: 200 },
       '/student': { type: 'forbidden' },
+      '/student/address': { type: 'forbidden' },
+      '/student/corrections': { type: 'forbidden' },
+      '/student/documents': { type: 'forbidden' },
     },
     student: {
       '/': { type: 'redirect', to: '/student' },
@@ -89,6 +98,9 @@ async function main() {
       '/college': { type: 'forbidden' },
       '/faculty': { type: 'forbidden' },
       '/student': { type: 'allow', status: 200 },
+      '/student/address': { type: 'allow', status: 200 },
+      '/student/corrections': { type: 'allow', status: 200 },
+      '/student/documents': { type: 'allow', status: 200 },
     },
   };
 
