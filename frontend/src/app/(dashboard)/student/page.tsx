@@ -299,6 +299,16 @@ export default async function StudentDashboardPage() {
               </div>
             </Link>
 
+            <Link href="/student/enrollment" className="block">
+              <div className="flex items-center justify-between p-2 rounded-[6px] border border-[#E3E8EF] hover:border-[#1F6FEB] hover:bg-[#F8FAFC] transition-colors text-xs">
+                <div className="flex items-center gap-2 text-[#0B1F3A] font-medium">
+                  <GraduationCap className="h-3.5 w-3.5 text-[#1F6FEB]" />
+                  Course Registration
+                </div>
+                <ArrowRight className="h-3 w-3 text-[#6B7688]" />
+              </div>
+            </Link>
+
             <Link href="/student/admissions" className="block">
               <div className="flex items-center justify-between p-2 rounded-[6px] border border-[#E3E8EF] hover:border-[#1F6FEB] hover:bg-[#F8FAFC] transition-colors text-xs">
                 <div className="flex items-center gap-2 text-[#0B1F3A] font-medium">

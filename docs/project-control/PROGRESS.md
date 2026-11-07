@@ -1,6 +1,6 @@
 # CampXSync Java Backend Integration — Progress
 
-**Updated:** 2026-10-22  
+**Updated:** 2026-11-07  
 **Branch:** `feature/java-backend-integration`
 
 > Based on user-provided execution reports and recorded context; not an independent re-verification of current repository or live database.
@@ -10,6 +10,8 @@
 - Waves 1–10 complete/accepted; their uncommitted changes must be preserved.
 - **Wave 10 Status:** **COMPLETE** (Frontend direct database-access retirement across 10 API routes and dashboard pages, production test session / mock impersonation gate hard-disabled, integrated cross-service regression verified across all 6 services with 345/345 tests passing, TypeScript compilation 0 errors).
 - **Controller status:** `STOPPED_AT_WAVE_10`. Next wave (Wave 11 Production Readiness & Cutover) is strictly out of scope and halted until explicitly authorized.
+- **STM-03 (Student track):** Targeted completion + live JDBC/HTTP hardening recorded in `docs/project-control/STM-03_TARGETED_COMPLETION_REPORT.md` and `docs/project-control/STM-03_HARDENING_AND_STM-04_COMPLETION_REPORT.md`. Live JDBC 1/1 PASS (rollback); HTTP E2E 1/1 PASS.
+- **STM-04 (authorized 2026-11-07):** `lifecycle-service` :8096 covers status, leave, reinstatement, transfer, withdrawal, graduation, reports, and advisor assignment. Unit tests extended. Live JDBC suite for lifecycle is still not run. Kafka/notifications broker and STM-07/08/10 links remain external. See hardening/STM-04 report.
 - Revised sequence: W4 Student (COMPLETE) → W5 Timetable (COMPLETE) → W6 Attendance (COMPLETE) → W7 Corrections (COMPLETE) → W8 Dashboards (COMPLETE) → W9 Onboarding (COMPLETE) → W10 Frontend DB retirement/E2E (COMPLETE) → W11 Production readiness (HALTED).
 - No reset, clean, stash, branch switch, commit or push without explicit user authorization.
 
@@ -375,6 +377,30 @@
     - Failure and recovery retry test verified: Pointed `STM01_SERVICE_URL` to dead port `http://localhost:59999` -> handover transitioned to `FAILED` with error `Connection refused: connect` captured -> restarted with live STM-01 on port 8093 -> handover recovered to `STUDENT_CREATED`.
     - Intelligence events verified: `admissions.application.submitted.v1`, `admissions.application.reviewed.v1`, `admissions.offer.issued.v1`, `admissions.offer.accepted.v1`, `admissions.enrolment.handover_requested.v1`.
     - Automated regression suites: `admissions-service` 53/53 tests PASS; frontend `npx tsc --noEmit` 0 errors; frontend `npm run build` PASS (24/24 static & dynamic pages compiled cleanly).
+
+## STM-03 to STM-05 story position (2026-11-07)
+
+STM-03 and STM-04 product stories exercised on UI → gateway → Java → development Supabase are recorded in the session work. STM-03-US-018 notification delivery and STM-04-US-003 HOD review, US-015 live downstream delivery, US-017 parent view, and US-018 persisted advisor assignment remain open.
+
+STM-05-US-001 Add parent or guardian is closed on the live path. College admin `70a8ffae-b5ad-4c61-a401-16f220893df4` saved guardianship `74a51f01-3901-46ad-8971-4c13220eb45a` for student `c3d00000-0000-0000-0000-000000000013` at 2026-11-07 12:23:00 UTC. Read-back: person Mahesh Mehtha, relationship `FATHER`, primary, status `ACTIVE`, email `mm@gmail.com`, phone `89889988989`. Service log persisted that id, audited `guardian.linked`, and emitted `student.guardian.linked.v1` event `5036b60a-3e8a-4c6a-93c5-9aa8c5225e91` with `liveEndpoint=false`.
+
+STM-05-US-002 relationship update is proven on the live path. College admin updated guardianship `74a51f01-3901-46ad-8971-4c13220eb45a` from `FATHER` to `MOTHER` at 2026-11-07 18:01:33. The gateway received POST because its HTTP client cannot send PATCH. The service audited `guardian.updated` and emitted `student.guardian.updated.v1` event `24e9a76d-f7cc-4c83-9489-0f4f2ea403dc` with `liveEndpoint=false`. Contact fields on `core.persons` are still unchanged: a college-admin update of the person changes 0 rows under the current update policy.
+
+STM-05-US-001 implementation notes:
+
+- Registrar (college or institution admin) adds a guardian. Students are rejected with 403 `REGISTRAR_FORBIDDEN`.
+- Persistence target is the existing `stu.guardianships` table plus a `core.persons` row. No new DDL and no RLS change.
+- Gateway route `/api/v1/guardians` → `http://localhost:8097/api/v1/guardians`. Gateway was restarted so the route is loaded. Guardian service listens on 127.0.0.1:8097 with PostgreSQL mode.
+- College UI `/college/guardians` and BFF `/api/college/guardians`.
+- Intelligence contract `student.guardian.linked.v1` schema `1.0.0` through `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- Logging and exceptions use `CampXLogger`, audit events, and `GuardianException`. A row-security denial (`42501`) returns 403 `GUARDIAN_PERSISTENCE_DENIED` without the database message.
+- Unit evidence: `GuardianDomainServiceTest` exit 0 (registrar add, student 403, blank name 422, cross-student list 403, intelligence emit `liveEndpoint=false`). `GuardianGatewayRouteTest` 1 test, exit 0.
+- Live insert was blocked, then approved. Migration `database/migrations/20261107000600_persons_insert_null_photo_pii_write.sql` is applied on development ref `azulbaxszsqxymqmlwfe` only. `persons_insert` still requires the tenant match. A photoless person is allowed when `iam.has_permission('core.pii.write')` is already true. Update and delete policies are unchanged. Rollback file is alongside the migration.
+- Rolled-back probe as college admin `70a8ffae-b5ad-4c61-a401-16f220893df4` inserted `core.persons` and `stu.guardianships` and raised `INSERT_OK`. The probe row is not left in the table. The college admin browser save is the remaining live read-back.
+
+Paused 2026-11-07 at the user's request. Local processes on ports 3000, 8080, 8093, 8095, 8096, 8097, and the logger on 9898 were stopped. Nothing was left running for this session. No commit was made.
+
+Resume at STM-05-US-003 Verify guardian relationship. Restart the UI on port 3000, the API gateway on 8080, student-service on 8093, enrollment-service on 8095, lifecycle-service on 8096, and guardian-service on 8097 with PostgreSQL mode against development ref `azulbaxszsqxymqmlwfe`. The college desk is `http://localhost:3000/college/guardians`. The saved guardianship is `74a51f01-3901-46ad-8971-4c13220eb45a` for student `c3d00000-0000-0000-0000-000000000013`: Mahesh Mehtha, relationship `MOTHER`, primary, status `ACTIVE`. Contact-detail updates still need an approved `core.persons` update-policy change. Do not start Wave 11.
 
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–10 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

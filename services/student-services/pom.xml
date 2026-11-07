@@ -22,6 +22,9 @@
     <modules>
         <module>student-service</module>
         <module>admissions-service</module>
+        <module>enrollment-service</module>
+        <module>lifecycle-service</module>
+        <module>guardian-service</module>
     </modules>
 </project>
 

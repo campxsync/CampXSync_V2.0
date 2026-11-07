@@ -34,7 +34,17 @@ export function HandoverTriggerButton({ applicationId }: HandoverTriggerButtonPr
         throw new Error(data.error || 'Failed to trigger student handover');
       }
 
+      const data = await res.json().catch(() => ({}));
       setDone(true);
+      const studentId = data?.createdStudentId;
+      if (studentId) {
+        const params = new URLSearchParams({
+          studentId: String(studentId),
+          applicationId,
+        });
+        router.push(`/college/enrollment?${params.toString()}`);
+        return;
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Error triggering handover');

@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: CampXSync STM-04 Student Lifecycle Management API
+  description: >
+    Student lifecycle status, requests, transition rules, graduation validation/recording,
+    and parent linked view. Authorization uses approved catalogue roles R25, R26, R31.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8096
+    description: Direct STM-04 loopback
+  - url: http://localhost:8080
+    description: API Gateway
+paths:
+  /api/v1/lifecycle/students/{studentId}/status:
+    get:
+      summary: View lifecycle status (R25 own, R31 any)
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Status returned }
+        '403': { description: Forbidden }
+  /api/v1/lifecycle/students/{studentId}/history:
+    get:
+      summary: List lifecycle history (R25 own, R31 any)
+      responses:
+        '200': { description: History returned }
+  /api/v1/lifecycle/linked/{studentId}/status:
+    get:
+      summary: Parent linked status (R26, X-Linked-Student-Id must match)
+      parameters:
+        - in: header
+          name: X-Linked-Student-Id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Limited status returned }
+        '403': { description: Forbidden }
+  /api/v1/lifecycle/requests:
+    post:
+      summary: Submit lifecycle request (R25)
+      responses:
+        '201': { description: Request created }
+  /api/v1/lifecycle/requests/{requestId}/decide:
+    post:
+      summary: Approve or reject request (R31)
+      responses:
+        '200': { description: Decision recorded }
+  /api/v1/lifecycle/rules:
+    post:
+      summary: Configure transition rule (R31)
+      responses:
+        '201': { description: Rule saved }
+  /api/v1/lifecycle/graduation/validate:
+    post:
+      summary: Validate graduation eligibility (R31)
+      responses:
+        '200': { description: Validation result }
+  /api/v1/lifecycle/graduation/record:
+    post:
+      summary: Record graduation (R31)
+      responses:
+        '201': { description: Graduation recorded }

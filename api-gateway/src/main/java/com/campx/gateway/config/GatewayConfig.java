@@ -22,7 +22,9 @@ import java.util.Map;
  *   <li><b>Academic Tier (ACD-09)</b>: Assessment Mapping Service on port 8091</li>
  *   <li><b>Academic Tier (ACD-10)</b>: Reporting & Analytics Service on port 8092</li>
  *   <li><b>Student Tier (STU-01)</b>: Student Service on port 8093</li>
- *   <li><b>Student Tier (STM-02)</b>: Admissions & Application Management Service on port 8094</li>
+     *   <li><b>Student Tier (STM-02)</b>: Admissions & Application Management Service on port 8094</li>
+     *   <li><b>Student Tier (STM-03)</b>: Enrolment & Registration Service on port 8095</li>
+     *   <li><b>Student Tier (STM-04)</b>: Student Lifecycle Management Service on port 8096</li>
  * </ul>
  * </p>
  *
@@ -205,6 +207,18 @@ public class GatewayConfig {
         routeTable.put("/v1/admissions", "http://localhost:8094/api/v1/admissions");
         routeTable.put("/api/v1/applications", "http://localhost:8094/api/v1/admissions/applications");
         routeTable.put("/v1/applications", "http://localhost:8094/api/v1/admissions/applications");
+
+        // Student Domain Tier -> Enrolment & Registration Service (STM-03, Port 8095)
+        routeTable.put("/api/v1/enrollment", "http://localhost:8095/api/v1/enrollment");
+        routeTable.put("/v1/enrollment", "http://localhost:8095/api/v1/enrollment");
+
+        // Student Domain Tier -> Lifecycle Management Service (STM-04, Port 8096)
+        routeTable.put("/api/v1/lifecycle", "http://localhost:8096/api/v1/lifecycle");
+        routeTable.put("/v1/lifecycle", "http://localhost:8096/api/v1/lifecycle");
+
+        // Student Domain Tier -> Guardian & Relationships Service (STM-05, Port 8097)
+        routeTable.put("/api/v1/guardians", "http://localhost:8097/api/v1/guardians");
+        routeTable.put("/v1/guardians", "http://localhost:8097/api/v1/guardians");
     }
 
     /**

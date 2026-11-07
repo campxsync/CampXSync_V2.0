@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: CampXSync STM-03 Enrolment & Registration Service API
+  description: >
+    Enrolment handover, registration windows, course/section selection, waitlist,
+    roster, and status workflows. Authorization is enforced in the Java service
+    using approved catalogue roles (R25, R10, R31, R07, R08).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8095
+    description: Direct STM-03 loopback
+  - url: http://localhost:8080
+    description: API Gateway
+paths:
+  /api/v1/enrollment/terms:
+    post:
+      summary: Configure academic term (STM-03-US-016)
+      responses:
+        '201': { description: Term created }
+        '403': { description: Forbidden }
+  /api/v1/enrollment/windows:
+    post:
+      summary: Configure registration window (STM-03-US-015)
+      responses:
+        '201': { description: Window created }
+  /api/v1/enrollment/handovers:
+    post:
+      summary: Convert approved admission into enrolment (STM-03-US-001)
+      responses:
+        '201': { description: Enrolment opened }
+  /api/v1/enrollment/enrolments/{enrolmentId}:
+    get:
+      summary: View enrolment details (STM-03-US-002)
+      parameters:
+        - in: path
+          name: enrolmentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Enrolment returned }
+  /api/v1/enrollment/enrolments/{enrolmentId}/register:
+    post:
+      summary: Register course selections (STM-03-US-006/007/008/009)
+      parameters:
+        - in: path
+          name: enrolmentId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string }
+      responses:
+        '200': { description: Registered }
+  /api/v1/enrollment/enrolments/{enrolmentId}/eligibility:
+    post:
+      summary: Validate enrolment eligibility (STM-03-US-003)
+      responses:
+        '200': { description: Eligibility evaluated }
+  /api/v1/enrollment/enrolments/{enrolmentId}/status:
+    post:
+      summary: Update enrolment status (STM-03-US-004)
+      responses:
+        '200': { description: Status updated }
+  /api/v1/enrollment/enrolments/{enrolmentId}/history:
+    get:
+      summary: View enrolment history (STM-03-US-005/017)
+      responses:
+        '200': { description: History returned }
+  /api/v1/enrollment/enrolments/{enrolmentId}/courses:
+    get:
+      summary: List programme/term courses (STM-03-US-006)
+      responses:
+        '200': { description: Courses returned }
+  /api/v1/enrollment/enrolments/{enrolmentId}/courses/{courseId}/sections:
+    get:
+      summary: List course sections (STM-03-US-007)
+      responses:
+        '200': { description: Sections returned }
+  /api/v1/enrollment/enrolments/{enrolmentId}/drop:
+    post:
+      summary: Remove course during window (STM-03-US-010)
+      responses:
+        '200': { description: Course dropped }
+  /api/v1/enrollment/allocations:
+    post:
+      summary: Allocate student to section (STM-03-US-011)
+      responses:
+        '200': { description: Allocated }
+  /api/v1/enrollment/waitlist/join:
+    post:
+      summary: Join full-section waitlist (STM-03-US-012)
+      responses:
+        '200': { description: Joined }
+  /api/v1/enrollment/waitlist/promote:
+    post:
+      summary: Promote waitlisted student (STM-03-US-013)
+      responses:
+        '200': { description: Promoted }
+  /api/v1/enrollment/sections/{sectionId}/waitlist/position:
+    get:
+      summary: View waitlist position (STM-03-US-014)
+      responses:
+        '200': { description: Position returned }
+  /api/v1/enrollment/sections/{sectionId}/roster:
+    get:
+      summary: View assigned section roster (STM-03-US-019)
+      responses:
+        '200': { description: Roster returned }
+  /api/v1/enrollment/courses:
+    post:
+      summary: Catalogue a registration course
+      responses:
+        '201': { description: Course created }
+  /api/v1/enrollment/sections:
+    post:
+      summary: Open a course section
+      responses:
+        '201': { description: Section created }
+components:
+  parameters:
+    X-Tenant-Id:
+      in: header
+      name: X-Tenant-Id
+      required: true
+      schema: { type: string, format: uuid }
+    X-User-Id:
+      in: header
+      name: X-User-Id
+      required: true
+      schema: { type: string, format: uuid }
+    X-User-Role:
+      in: header
+      name: X-User-Role
+      required: true
+      schema: { type: string }

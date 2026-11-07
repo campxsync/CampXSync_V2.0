@@ -50,11 +50,25 @@ On 30 October 2026, the entire STM-02 backlog (all 55 backlog items: 44 User Sto
 
 ---
 
-## 2. Next Task: STM-03 Academic Enrollment & Course Registration OR Wave 11 Production Readiness (Awaiting User Authorization)
+## 2. Next Task: STM-05-US-003 Verify guardian relationship
+
+Paused 2026-11-07. The UI and Java services were stopped. On return, start port 3000, gateway 8080, student-service 8093, enrollment-service 8095, lifecycle-service 8096, and guardian-service 8097 in PostgreSQL mode. Do not start Wave 11.
+
+STM-05-US-001 and the relationship part of STM-05-US-002 are read back. Guardianship `74a51f01-3901-46ad-8971-4c13220eb45a` is `MOTHER`, primary, `ACTIVE`, person Mahesh Mehtha, student `c3d00000-0000-0000-0000-000000000013`. The gateway must receive POST for this update; its client cannot send PATCH.
+
+Continue STM-05-US-003 on guardian-service. Do not update `core.persons` contact fields until `persons_update` is approved. Do not add a relationship-history table unless that schema change is approved.
+
+## 2-archive. Previous options: STM-04 remaining P1 / STM-05 OR Wave 11 (Awaiting User Authorization)
+
+**STM-03 status (2026-11-07):** Targeted completion + live JDBC (`LivePostgresEnrollmentPersistenceTest` 1/1 PASS, rollback) + HTTP register E2E (1/1 PASS). Authenticated browser E2E still needs a live student session against Next+Gateway.
+
+**STM-04 status (2026-11-07):** Transfer, withdrawal, reinstatement, advisor assignment, and lifecycle report are in the domain and college/faculty UI. Live JDBC suite for lifecycle is still not run. Kafka broker delivery and STM-07/08/10 links remain external.
 
 When explicitly authorized by the user, the next task can be:
-- **Option A (Student Domain Track):** Begin STM-03 Academic Enrollment & Course Registration (consuming the `admissions.enrolment.handover_requested.v1` contract from STM-02 and batch assignment from ACD-04).
-- **Option B (Platform Go-Live Track):** Proceed with Wave 11 Production Readiness & Final Cutover.
+- **Option A:** Complete remaining **STM-04 P1** stories + live JDBC lifecycle tests.
+- **Option B:** Begin **STM-05** from the validated backlog (approved catalogue only).
+- **Option C:** Wave 11 Production Readiness & Final Cutover.
+- **Option D:** Authenticated browser E2E for STM-03/04 with a provisioned student session.
 
 ### Wave 11 Scope Reference:
 
