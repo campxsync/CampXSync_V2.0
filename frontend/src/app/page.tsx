@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 
-import { CampXSyncLandingPage } from '@/components/landing/campx-landing-page';
+import { CampXSyncPlatformLanding } from '@/components/landing/platform/campx-platform-landing';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,7 @@ export default async function HomePage() {
 
   if (!resolution.success) {
     if (resolution.reason === 'unauthenticated') {
-      return <CampXSyncLandingPage />;
+      return <CampXSyncPlatformLanding />;
     }
     redirect(`/access-denied?reason=${resolution.reason}`);
   }
