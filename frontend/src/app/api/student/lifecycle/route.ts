@@ -16,8 +16,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ title: 'studentId is required', status: 400 }, { status: 400 });
   }
   const view = req.nextUrl.searchParams.get('view') || 'status';
-  const role = resolution.session.role === 'PARENT' ? 'PARENT' : 'STUDENT';
-  const headers = await getGatewayHeaders(req, supabase, resolution.session, role);
+  const headers = await getGatewayHeaders(req, supabase, resolution.session, 'STUDENT');
   headers['X-Student-Record-Id'] = studentId;
   let path = `/api/v1/lifecycle/students/${studentId}/status`;
   if (view === 'history') {
