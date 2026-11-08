@@ -50,13 +50,11 @@ On 30 October 2026, the entire STM-02 backlog (all 55 backlog items: 44 User Sto
 
 ---
 
-## 2. Next Task: STM-05-US-003 Verify guardian relationship
+## 2. Next Task: STM-05-US-015 link one guardian to several students
 
-Paused 2026-11-07. The UI and Java services were stopped. On return, start port 3000, gateway 8080, student-service 8093, enrollment-service 8095, lifecycle-service 8096, and guardian-service 8097 in PostgreSQL mode. Do not start Wave 11.
+STM-05-US-014 is read back. Student `c3d00000-0000-0000-0000-000000000013` has 4 read-only history entries. The new grant row is `addbcf31-d84c-4587-802b-4000fb20335b`.
 
-STM-05-US-001 and the relationship part of STM-05-US-002 are read back. Guardianship `74a51f01-3901-46ad-8971-4c13220eb45a` is `MOTHER`, primary, `ACTIVE`, person Mahesh Mehtha, student `c3d00000-0000-0000-0000-000000000013`. The gateway must receive POST for this update; its client cannot send PATCH.
-
-Continue STM-05-US-003 on guardian-service. Do not update `core.persons` contact fields until `persons_update` is approved. Do not add a relationship-history table unless that schema change is approved.
+Use the existing `stu.guardianships` rows. Do not add `stu_relationship_history`. STM-05-US-007 remains blocked. Do not change `person_emergency_contacts` policy until that exact step is approved. Do not redesign pages. Do not start Wave 11.
 
 ## 2-archive. Previous options: STM-04 remaining P1 / STM-05 OR Wave 11 (Awaiting User Authorization)
 
