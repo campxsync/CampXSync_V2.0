@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { HomeLanding } from '../../../../frontend/src/components/landing/home-landing';
+import { CampXSyncLandingPage } from '../../../../frontend/src/components/landing/campx-landing-page';
 
 export const metadata: Metadata = {
   title: 'CampXSync — the college operating record',
@@ -17,5 +17,5 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return <HomeLanding />;
+  return <CampXSyncLandingPage />;
 }
