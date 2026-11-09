@@ -8,6 +8,7 @@ interface LogoProps {
   showTile?: boolean;
   className?: string;
   href?: string;
+  tone?: 'ink' | 'light';
 }
 
 export function Logo({
@@ -15,6 +16,7 @@ export function Logo({
   showTile = true,
   className = '',
   href = '/',
+  tone = 'ink',
 }: LogoProps) {
   const sizeClasses = {
     sm: {
@@ -38,17 +40,17 @@ export function Logo({
     <div className={`inline-flex items-center gap-2.5 font-display tracking-tight select-none group ${className}`}>
       {showTile && (
         <div
-          className={`${sizeClasses.tile} font-bold font-sora flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg shadow-blue-500/25 border border-white/20 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-blue-500/40`}
+          className={`${sizeClasses.tile} font-bold font-sora flex items-center justify-center ${tone === 'light' ? 'bg-[#1F6FEB] text-white' : 'bg-[#0B1F3A] text-white'}`}
           aria-hidden="true"
         >
           CX
         </div>
       )}
       <div className="flex flex-col leading-none">
-        <span className={`${sizeClasses.text} font-extrabold tracking-tight text-white`}>
-          Camp<span className="bg-gradient-to-r from-blue-400 via-violet-300 to-teal-300 bg-clip-text text-transparent">XSync</span>
+        <span className={`${sizeClasses.text} font-extrabold tracking-tight ${tone === 'light' ? 'text-white' : 'text-[#0B1F3A]'}`}>
+          CampXSync
         </span>
-        <span className={`${sizeClasses.sub} text-slate-400 font-sans uppercase tracking-widest font-semibold mt-0.5`}>
+        <span className={`${sizeClasses.sub} ${tone === 'light' ? 'text-[#E3E8EF]' : 'text-[#6B7688]'} font-sans uppercase tracking-widest font-semibold mt-0.5`}>
           Institutional OS
         </span>
       </div>
