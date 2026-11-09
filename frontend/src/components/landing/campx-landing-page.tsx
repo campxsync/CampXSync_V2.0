@@ -326,7 +326,7 @@ export function CampXSyncLandingPage() {
                     }}
                     className="w-full text-center py-2.5 rounded-lg bg-[#1F6FEB] text-white font-bold shadow-lg"
                   >
-                    Request Institutional Demo
+                    See the record
                   </button>
                 </div>
               </div>
@@ -363,7 +363,7 @@ export function CampXSyncLandingPage() {
                 className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white border border-[#1F6FEB]/25 text-[#1F6FEB] text-xs font-semibold tracking-wide  mb-6"
               >
                 <span className="w-2 h-2 rounded-full bg-[#1F6FEB] animate-pulse" />
-                <span>Unified Academic Operating System</span>
+                <span>College operating record</span>
                 <span className="text-[#6B7688] font-mono">v2.0</span>
               </motion.div>
 
@@ -375,8 +375,8 @@ export function CampXSyncLandingPage() {
                 }}
                 className="font-display font-semibold text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.08] text-[#0B1F3A] mb-6"
               >
-                Higher Education Operations, <br className="hidden sm:inline" />
-                <span className="gradient-text font-semibold">Unified In Real Time.</span>
+                One college record, <br className="hidden sm:inline" />
+                <span className="gradient-text font-semibold">from roster to result.</span>
               </motion.h1>
 
               {/* Short Supporting Copy */}
@@ -387,8 +387,7 @@ export function CampXSyncLandingPage() {
                 }}
                 className="text-lg sm:text-xl text-[#3E4C63] max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed mb-8"
               >
-                CampXSync eliminates operational silos across curricula, automated timetables,
-                examinations, and institutional governance with an immutable audit ledger.
+                The college admin keeps students, faculty, the timetable, attendance, office fees, exams, staff pay, one campus, and in-app notices.
               </motion.p>
 
               {/* Coordinated Action CTAs */}
@@ -406,7 +405,7 @@ export function CampXSyncLandingPage() {
                   <div className="absolute inset-0 bg-[#1F6FEB] transition-transform duration-300 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="relative flex items-center justify-center gap-2.5">
-                    Request Institutional Demo
+                    See the record
                     <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1.5" />
                   </span>
                 </button>
@@ -429,12 +428,12 @@ export function CampXSyncLandingPage() {
               >
                 <span className="inline-flex items-center gap-1.5 text-emerald-400 font-medium">
                   <ShieldCheck className="w-4 h-4" />
-                  Cryptographic Tenancy
+                  College admin creates the rows
                 </span>
                 <span className="text-[#6B7688]">•</span>
-                <span>Deterministic Clash Solver</span>
+                <span>Faculty mark attendance</span>
                 <span className="text-[#6B7688]">•</span>
-                <span className="text-[#1F6FEB] font-mono">Sample Roster Pacing</span>
+                <span className="text-[#1F6FEB] font-mono">No SGPA, no gateway</span>
               </motion.div>
             </motion.div>
 
@@ -492,12 +491,11 @@ export function CampXSyncLandingPage() {
               Enterprise Governance
             </span>
             <h2 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-[#0B1F3A] mt-4 mb-5">
-              One Shared Foundation. <br />
+              One college record. <br />
               <span className="text-[#6B7688] font-normal">Four Interlocking Pillars.</span>
             </h2>
             <p className="text-[#3E4C63] text-base sm:text-lg leading-relaxed">
-              Academic operations cannot succeed as isolated software islands. CampXSync connects
-              the entire lifecycle on a single, synchronized database core.
+              Academic, learning, examinations, and college operations are four views of the same college record.
             </p>
           </div>
 
@@ -561,11 +559,11 @@ export function CampXSyncLandingPage() {
                 Technical Capabilities
               </span>
               <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
-                Deep Infrastructure, <span className="gradient-text font-semibold">Zero Compromise.</span>
+                What the workspace keeps, <span className="gradient-text font-semibold">section by section.</span>
               </h2>
             </div>
             <p className="text-[#6B7688] text-sm max-w-md mt-4 md:mt-0">
-              Each capability module delivers automated verification, cryptographic data persistence, and instantaneous audit compliance.
+              Each tab is a part of the college record that is already built.
             </p>
           </div>
 
@@ -667,22 +665,22 @@ export function CampXSyncLandingPage() {
                   {activeCapability.previewType === 'curriculum' && (
                     <div className="space-y-3 font-mono text-xs">
                       <div className="p-3 rounded-lg bg-blue-950/30 border border-blue-500/20 text-blue-200">
-                        <div className="text-[11px] text-blue-400 uppercase font-bold mb-1">Scheme Validator Active</div>
-                        <div className="text-[#0B1F3A] font-semibold">B.Tech Computer Science (Scheme 2026-R)</div>
-                        <div className="text-[11px] text-[#6B7688] mt-1">Prerequisite Check: Sequential DAG Validated (0 Cycles)</div>
+                        <div className="text-[11px] text-blue-400 uppercase font-bold mb-1">Academic record</div>
+                        <div className="text-[#0B1F3A] font-semibold">Programme, batch, and subject</div>
+                        <div className="text-[11px] text-[#6B7688] mt-1">Created by the college admin. No outcome score is calculated.</div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <div className="p-2.5 rounded bg-[#F6F8FB] border border-[#E3E8EF]">
-                          <span className="text-[#6B7688]">Course Outcome (CO):</span>
-                          <div className="text-emerald-400 font-bold mt-0.5">CO-1 to PO-4 Attainment: 92%</div>
+                          <span className="text-[#6B7688]">Timetable slot:</span>
+                          <div className="text-emerald-400 font-bold mt-0.5">Subject, faculty, room, day</div>
                         </div>
                         <div className="p-2.5 rounded bg-[#F6F8FB] border border-[#E3E8EF]">
-                          <span className="text-[#6B7688]">BoS Approval Hash:</span>
-                          <div className="text-violet-400 font-bold mt-0.5 font-mono text-[10px]">0x7F2...8E9 (Signed)</div>
+                          <span className="text-[#6B7688]">Who creates it:</span>
+                          <div className="text-violet-400 font-bold mt-0.5">College admin only</div>
                         </div>
                       </div>
                       <div className="p-2.5 rounded bg-white text-[11px] text-[#6B7688] border border-dashed border-[#E3E8EF]">
-                        Sample Institutional Scheme: Enforcing 160 Minimum Total Credits
+                        Faculty cannot enrol students.
                       </div>
                     </div>
                   )}
@@ -691,20 +689,20 @@ export function CampXSyncLandingPage() {
                     <div className="space-y-3 font-mono text-xs">
                       <div className="p-3 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-cyan-200">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-[#1F6FEB] uppercase font-bold">Constraint Solver: Complete</span>
+                          <span className="text-[11px] text-[#1F6FEB] uppercase font-bold">Attendance</span>
                           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                         </div>
-                        <div className="text-[#0B1F3A] font-semibold mt-1">Zero Clashes in 1,240 Course Allocations</div>
-                        <div className="text-[11px] text-[#6B7688] mt-1">Solver latency: 42ms • Room occupancy: 91.4%</div>
+                        <div className="text-[#0B1F3A] font-semibold mt-1">Marked on the timetable session</div>
+                        <div className="text-[11px] text-[#6B7688] mt-1">A correction keeps a reason. No biometric device.</div>
                       </div>
                       <div className="space-y-1.5 text-[11px]">
                         <div className="flex items-center justify-between p-2 rounded bg-[#F6F8FB] border border-[#E3E8EF]">
-                          <span className="text-[#3E4C63]">Room LH-301: CS302 (Algorithms)</span>
-                          <span className="text-emerald-400 font-bold">Allocated (60/60)</span>
+                          <span className="text-[#3E4C63]">Session on the timetable</span>
+                          <span className="text-emerald-400 font-bold">Faculty marks it</span>
                         </div>
                         <div className="flex items-center justify-between p-2 rounded bg-[#F6F8FB] border border-[#E3E8EF]">
-                          <span className="text-[#3E4C63]">Lab NL-04: AI Systems Lab</span>
-                          <span className="text-[#1F6FEB] font-bold">Biometric Ready</span>
+                          <span className="text-[#3E4C63]">Later change</span>
+                          <span className="text-[#1F6FEB] font-bold">Reason required</span>
                         </div>
                       </div>
                     </div>
@@ -713,22 +711,22 @@ export function CampXSyncLandingPage() {
                   {activeCapability.previewType === 'compliance' && (
                     <div className="space-y-3 font-mono text-xs">
                       <div className="p-3 rounded-lg bg-violet-950/30 border border-violet-500/20 text-violet-200">
-                        <div className="text-[11px] text-violet-400 uppercase font-bold mb-1">Tamper-Proof Ledger</div>
-                        <div className="text-[#0B1F3A] font-semibold">Semester VI End-Term Examination</div>
-                        <div className="text-[11px] text-[#6B7688] mt-1">Audit status: Cryptographic seals locked on 4,820 papers</div>
+                        <div className="text-[11px] text-violet-400 uppercase font-bold mb-1">Published result</div>
+                        <div className="text-[#0B1F3A] font-semibold">Subject marks and pass or fail</div>
+                        <div className="text-[11px] text-[#6B7688] mt-1">No hall-ticket PDF. No SGPA.</div>
                       </div>
                       <div className="p-2.5 rounded bg-[#F6F8FB] border border-[#E3E8EF] text-[11px] space-y-1">
                         <div className="flex justify-between">
-                          <span className="text-[#6B7688]">Moderator 1 Score:</span>
-                          <span className="text-[#0B1F3A]">78 / 100</span>
+                          <span className="text-[#6B7688]">Script:</span>
+                          <span className="text-[#0B1F3A]">Recorded</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-[#6B7688]">Moderator 2 Score:</span>
-                          <span className="text-[#0B1F3A]">80 / 100</span>
+                          <span className="text-[#6B7688]">Marks:</span>
+                          <span className="text-[#0B1F3A]">Entered, then published</span>
                         </div>
                         <div className="flex justify-between pt-1 border-t border-[#E3E8EF] font-bold">
-                          <span className="text-emerald-400">Final Resolved:</span>
-                          <span className="text-emerald-400">79.0 (Variance: 1.0%)</span>
+                          <span className="text-emerald-400">Result:</span>
+                          <span className="text-emerald-400">Pass or fail</span>
                         </div>
                       </div>
                     </div>
@@ -737,19 +735,19 @@ export function CampXSyncLandingPage() {
                   {activeCapability.previewType === 'governance' && (
                     <div className="space-y-3 font-mono text-xs">
                       <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-500/20 text-amber-200">
-                        <div className="text-[11px] text-amber-400 uppercase font-bold mb-1">Multi-Tenant Isolation</div>
-                        <div className="text-[#0B1F3A] font-semibold">Decentralized College Cluster Sync</div>
-                        <div className="text-[11px] text-[#6B7688] mt-1">Row-Level Security: Active • Foreign Key Isolation: Enforced</div>
+                        <div className="text-[11px] text-amber-400 uppercase font-bold mb-1">College operations</div>
+                        <div className="text-[#0B1F3A] font-semibold">Office receipt, payslip, campus, notice</div>
+                        <div className="text-[11px] text-[#6B7688] mt-1">Receipt matched at the office. Payslip calculated, not paid out.</div>
                       </div>
                       <div className="p-2.5 rounded bg-[#F6F8FB] border border-[#E3E8EF] text-[11px] flex items-center justify-between">
-                        <span className="text-[#6B7688]">Accreditation Telemetry:</span>
-                        <span className="text-[#1F6FEB] font-bold">NAAC Criterion 2: 100% Ready</span>
+                        <span className="text-[#6B7688]">Notice:</span>
+                        <span className="text-[#1F6FEB] font-bold">In-app, delivered</span>
                       </div>
                     </div>
                   )}
 
                   <div className="mt-4 pt-3 border-t border-[#E3E8EF] flex items-center justify-between text-[11px] text-[#6B7688]">
-                    <span>Target Ref: azulbaxszsqxymqmlwfe</span>
+                    <span>College workspace</span>
                     <span className="text-emerald-400/90 flex items-center gap-1 font-semibold">
                       <CheckCircle2 className="w-3 h-3" /> Sample Feed Synchronized
                     </span>
@@ -778,7 +776,7 @@ export function CampXSyncLandingPage() {
                 Persona Isolation
               </span>
               <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
-                Tailored Cockpits for Every Stakeholder.
+                Four workspaces.
               </h2>
             </div>
             <div className="flex items-center gap-3 mt-4 md:mt-0">
@@ -904,10 +902,10 @@ export function CampXSyncLandingPage() {
               Measurable Performance
             </span>
             <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
-              Institutional Reliability by the Numbers.
+              What is on the sample college.
             </h2>
             <p className="text-[#6B7688] text-sm mt-3">
-              Configured targets demonstrate computational throughput and governance audit capabilities.
+              These counts describe the sample college. They are not a performance score.
             </p>
           </div>
 
@@ -974,10 +972,10 @@ export function CampXSyncLandingPage() {
               System Execution Walkthrough
             </span>
             <h2 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl text-[#0B1F3A] mt-4 tracking-tight">
-              See How CampXSync Executes.
+              How a college record is filled.
             </h2>
             <p className="text-[#3E4C63] text-base mt-4">
-              From scheme onboarding to live telemetry, experience how our transactional engine operates in three straightforward phases.
+              Three steps: the admin creates the rows, learning and exams follow them, then staff, campus, and a notice.
             </p>
           </div>
 
@@ -1027,7 +1025,7 @@ export function CampXSyncLandingPage() {
                     Interactive Walkthrough Slot
                   </span>
                   <h4 className="text-lg font-bold text-[#0B1F3A] mt-2">
-                    CampXSync Technical Overview Video
+                    Walkthrough notes
                   </h4>
                   <p className="text-xs text-[#6B7688] max-w-sm mx-auto mt-1">
                     Dedicated slot for university leadership video briefing and live architecture walkthrough demonstration.
@@ -1055,14 +1053,14 @@ export function CampXSyncLandingPage() {
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <span className="text-xs font-bold uppercase tracking-widest text-white bg-white/10 border border-[#1F6FEB]/20 px-3.5 py-1 rounded-full">
-            Modernize Your Academic Enterprise
+            Open the college workspace
           </span>
           <h2 className="font-display font-semibold text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight mt-6 mb-6 leading-tight">
-            Ready to Unify Your Campus <br />
-            <span className="gradient-text font-semibold">Under One Sovereign Core?</span>
+            The public page shows the record. <br />
+            <span className="gradient-text font-semibold">Sign-in is on the app.</span>
           </h2>
           <p className="text-lg sm:text-xl text-[#E3E8EF] max-w-2xl mx-auto mb-10 leading-relaxed">
-            Eliminate scheduling deadlocks, automate attendance verification, and ensure audit-ready compliance across all your academic units.
+            This site is the feature showcase. The college admin, faculty, and student workspaces open on the application.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -1073,7 +1071,7 @@ export function CampXSyncLandingPage() {
               <div className="absolute inset-0 bg-[#1F6FEB] transition-transform duration-300 group-hover:scale-105" />
               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               <span className="relative flex items-center justify-center gap-2">
-                Request Executive Briefing
+                Ask about the record
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1.5" />
               </span>
             </button>
@@ -1108,10 +1106,10 @@ export function CampXSyncLandingPage() {
                 Core Architecture
               </h4>
               <ul className="space-y-2 text-[#6B7688]">
-                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Curriculum Schemes</a></li>
-                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Deterministic Timetable</a></li>
-                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Examination Ledger</a></li>
-                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Executive Governance</a></li>
+                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Academic record</a></li>
+                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Learning</a></li>
+                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Examinations</a></li>
+                <li><a href="#foundation" className="hover:text-[#1F6FEB] transition-colors">Fees, staff, campus</a></li>
               </ul>
             </div>
 
@@ -1120,10 +1118,10 @@ export function CampXSyncLandingPage() {
                 Workspaces
               </h4>
               <ul className="space-y-2 text-[#6B7688]">
-                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">Scholars & Students</a></li>
-                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">Faculty & Mentors</a></li>
-                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">Deans & Academic Chairs</a></li>
-                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">University Core Chancellors</a></li>
+                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">Students</a></li>
+                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">Faculty</a></li>
+                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">College admin</a></li>
+                <li><a href="#personas" className="hover:text-[#1F6FEB] transition-colors">Platform admin</a></li>
               </ul>
             </div>
 
@@ -1132,10 +1130,10 @@ export function CampXSyncLandingPage() {
                 Governance & Security
               </h4>
               <ul className="space-y-2 text-[#6B7688]">
-                <li><span className="hover:text-[#0B1F3A] cursor-pointer">Multi-Tenant Isolation</span></li>
-                <li><span className="hover:text-[#0B1F3A] cursor-pointer">Cryptographic Audit Trails</span></li>
-                <li><span className="hover:text-[#0B1F3A] cursor-pointer">NAAC / NBA / ABET Readiness</span></li>
-                <li><span className="hover:text-[#0B1F3A] cursor-pointer">Sovereign Cloud Deployment</span></li>
+                <li><span>College admin creates people</span></li>
+                <li><span>Faculty cannot enrol students</span></li>
+                <li><span>No payment gateway</span></li>
+                <li><span>No SGPA on the published result</span></li>
               </ul>
             </div>
           </div>
@@ -1258,11 +1256,10 @@ export function CampXSyncLandingPage() {
                         onChange={(e) => setDemoForm({ ...demoForm, role: e.target.value })}
                         className="w-full px-4 py-2.5 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm focus-ring"
                       >
-                        <option>Dean / Department Chair</option>
-                        <option>Registrar / Controller of Examinations</option>
-                        <option>Chancellor / Provost</option>
-                        <option>Chief Information Officer (CIO)</option>
-                        <option>Senior Faculty Member</option>
+                        <option>College admin</option>
+                        <option>Faculty</option>
+                        <option>Platform admin</option>
+                        <option>Student</option>
                       </select>
                     </div>
 

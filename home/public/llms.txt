@@ -1,0 +1,15 @@
+# CampXSync
+
+CampXSync is the operating record for one college.
+
+Students see their programme, timetable, attendance, the fee receipt taken at the office, and a published result with marks and pass or fail.
+Faculty mark attendance for the scheduled class. A later change keeps its reason.
+The college office creates the roster, the academic year, examinations, staff pay, one campus, and in-app notices.
+
+The public site is the product explanation. Workspace sign-in opens on the college application.
+
+## Pages
+
+- https://campxsync.com/ — home
+- https://campxsync.com/#answers — direct answers
+- https://campxsync.com/login — sign-in is not hosted on this public site

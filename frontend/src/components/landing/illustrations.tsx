@@ -176,12 +176,12 @@ export function HeroIllustration({ className = '' }: { className?: string }) {
         </div>
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-white tracking-wide">Clash Resolution</span>
+            <span className="text-xs font-bold text-white tracking-wide">College record</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium border border-emerald-500/30">
               Active
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">0 Schedule Conflicts across rooms</p>
+          <p className="text-[11px] text-slate-400">Roster, timetable, result</p>
         </div>
       </motion.div>
 
@@ -200,7 +200,7 @@ export function HeroIllustration({ className = '' }: { className?: string }) {
             <span className="text-xs font-bold text-white tracking-wide">Telemetry Relay</span>
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           </div>
-          <p className="text-[11px] text-cyan-300/80 font-mono">Biometric Sync: 99.8%</p>
+          <p className="text-[11px] text-cyan-300/80 font-mono">Attendance on the session</p>
         </div>
       </motion.div>
 
@@ -320,7 +320,7 @@ export function RoleIllustration({
       ),
     },
     core: {
-      title: 'University Core Chancellor',
+      title: 'Platform admin',
       accent: '#34D399',
       bgGrad: 'from-emerald-500/20 via-teal-500/15 to-transparent',
       badge: 'Multi-Campus Sync',
