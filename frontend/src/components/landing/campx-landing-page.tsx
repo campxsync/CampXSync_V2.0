@@ -90,7 +90,7 @@ function AnimatedCounter({
   }, [isInView, target, shouldReduceMotion]);
 
   return (
-    <span ref={ref} className="tabular-nums font-extrabold tracking-tight">
+    <span ref={ref} className="tabular-nums font-semibold tracking-tight">
       {prefix}
       {displayValue.toFixed(decimals)}
       {suffix}
@@ -195,14 +195,8 @@ export function CampXSyncLandingPage() {
       />
 
       {/* 2. STICKY FROSTED NAVIGATION HEADER */}
-      <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          isScrolled
-            ? 'bg-white/95 backdrop-blur-md border-b border-[#E3E8EF] py-3.5'
-            : 'bg-transparent py-5'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-40 h-16 border-b border-[#E3E8EF] bg-white">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo size="md" />
 
           {/* Desktop Navigation Links */}
@@ -249,7 +243,7 @@ export function CampXSyncLandingPage() {
             </Link>
             <button
               onClick={() => setIsDemoModalOpen(true)}
-              className="relative group px-5 py-2.5 rounded-xl text-sm font-bold text-white overflow-hidden bg-[#1F6FEB]  transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 focus-ring"
+              className="relative group px-5 py-2.5 rounded-[8px] text-sm font-bold text-white overflow-hidden bg-[#1F6FEB]  transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 focus-ring"
             >
               {/* Vibrant Coral to Amber gradient background */}
               <div className="absolute inset-0 bg-[#1F6FEB] transition-transform duration-300 group-hover:scale-105" />
@@ -342,7 +336,7 @@ export function CampXSyncLandingPage() {
       </header>
 
       {/* 3. HERO SECTION WITH FLOWING GRADIENT MESH & FOCAL VISUAL */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden">
+      <section className="relative pt-24 pb-16 md:pt-28 md:pb-20 overflow-hidden">
         {/* Slow flowing ambient mesh blobs (24s cycle) */}
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -379,10 +373,10 @@ export function CampXSyncLandingPage() {
                   hidden: { opacity: 0, y: 20 },
                   visible: { opacity: 1, y: 0 },
                 }}
-                className="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.08] text-[#0B1F3A] mb-6"
+                className="font-display font-semibold text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.08] text-[#0B1F3A] mb-6"
               >
                 Higher Education Operations, <br className="hidden sm:inline" />
-                <span className="gradient-text font-black">Unified In Real Time.</span>
+                <span className="gradient-text font-semibold">Unified In Real Time.</span>
               </motion.h1>
 
               {/* Short Supporting Copy */}
@@ -407,7 +401,7 @@ export function CampXSyncLandingPage() {
               >
                 <button
                   onClick={() => setIsDemoModalOpen(true)}
-                  className="w-full sm:w-auto relative group px-7 py-4 rounded-xl text-base font-bold text-white overflow-hidden bg-[#1F6FEB]  transition-all duration-300 hover:-translate-y-1 active:translate-y-0 focus-ring"
+                  className="w-full sm:w-auto relative group px-7 py-4 rounded-[8px] text-base font-bold text-white overflow-hidden bg-[#1F6FEB]  transition-all duration-300 hover:-translate-y-1 active:translate-y-0 focus-ring"
                 >
                   <div className="absolute inset-0 bg-[#1F6FEB] transition-transform duration-300 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -419,7 +413,7 @@ export function CampXSyncLandingPage() {
 
                 <a
                   href="#foundation"
-                  className="w-full sm:w-auto px-6 py-4 rounded-xl text-base font-semibold text-[#1B2433] bg-white hover:bg-[#F6F8FB] border border-[#E3E8EF] hover:border-[#1F6FEB] transition-all duration-200 text-center focus-ring"
+                  className="w-full sm:w-auto px-6 py-4 rounded-[8px] text-base font-semibold text-[#1B2433] bg-white hover:bg-[#F6F8FB] border border-[#E3E8EF] hover:border-[#1F6FEB] transition-all duration-200 text-center focus-ring"
                 >
                   Explore Foundation Architecture
                 </a>
@@ -473,7 +467,7 @@ export function CampXSyncLandingPage() {
             {[...PLACEHOLDERS.marqueePartners, ...PLACEHOLDERS.marqueePartners].map((partner, idx) => (
               <div
                 key={`${partner.id}-${idx}`}
-                className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white border border-[#E3E8EF] text-[#3E4C63] whitespace-nowrap hover:border-[#1F6FEB] transition-colors"
+                className="flex items-center gap-3 px-5 py-3 rounded-[8px] bg-white border border-[#E3E8EF] text-[#3E4C63] whitespace-nowrap hover:border-[#1F6FEB] transition-colors"
               >
                 <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
                   {partner.name.charAt(0)}
@@ -497,7 +491,7 @@ export function CampXSyncLandingPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-[#1F6FEB] bg-[#E8F0FE] border border-[#1F6FEB]/20 px-3.5 py-1 rounded-full">
               Enterprise Governance
             </span>
-            <h2 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-[#0B1F3A] mt-4 mb-5">
+            <h2 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-[#0B1F3A] mt-4 mb-5">
               One Shared Foundation. <br />
               <span className="text-[#6B7688] font-normal">Four Interlocking Pillars.</span>
             </h2>
@@ -525,10 +519,10 @@ export function CampXSyncLandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-40px' }}
                   transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  className={`group relative p-6 rounded-2xl bg-gradient-to-b from-slate-900/80 to-slate-950/80 border border-[#E3E8EF] ${colors.border} transition-all duration-300 hover:-translate-y-1.5 shadow-xl`}
+                  className={`group relative p-6 rounded-[12px] bg-gradient-to-b from-slate-900/80 to-slate-950/80 border border-[#E3E8EF] ${colors.border} transition-all duration-300 hover:-translate-y-1.5 shadow-xl`}
                 >
                   <div className="flex items-center justify-between mb-5">
-                    <div className={`w-12 h-12 rounded-xl ${colors.bg} border border-[#E3E8EF] flex items-center justify-center text-[#1B2433] ${colors.glow} transition-colors`}>
+                    <div className={`w-12 h-12 rounded-[8px] ${colors.bg} border border-[#E3E8EF] flex items-center justify-center text-[#1B2433] ${colors.glow} transition-colors`}>
                       <IconComp className="w-6 h-6" />
                     </div>
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/5 text-[#6B7688] border border-[#E3E8EF]">
@@ -566,8 +560,8 @@ export function CampXSyncLandingPage() {
               <span className="text-xs font-bold uppercase tracking-widest text-violet-400 bg-violet-400/10 border border-violet-400/20 px-3.5 py-1 rounded-full">
                 Technical Capabilities
               </span>
-              <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
-                Deep Infrastructure, <span className="gradient-text font-black">Zero Compromise.</span>
+              <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
+                Deep Infrastructure, <span className="gradient-text font-semibold">Zero Compromise.</span>
               </h2>
             </div>
             <p className="text-[#6B7688] text-sm max-w-md mt-4 md:mt-0">
@@ -576,7 +570,7 @@ export function CampXSyncLandingPage() {
           </div>
 
           {/* Interactive Navigation Tabs */}
-          <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-[#F6F8FB] border border-[#E3E8EF] max-w-3xl mb-8" role="tablist" aria-label="Capabilities Showcase">
+          <div className="flex flex-wrap gap-2 p-1.5 rounded-[12px] bg-[#F6F8FB] border border-[#E3E8EF] max-w-3xl mb-8" role="tablist" aria-label="Capabilities Showcase">
             {PLACEHOLDERS.capabilities.map((tab, idx) => {
               const isActive = activeCapabilityTab === idx;
               return (
@@ -587,7 +581,7 @@ export function CampXSyncLandingPage() {
                   aria-selected={isActive}
                   aria-controls={`capability-panel-${idx}`}
                   onClick={() => setActiveCapabilityTab(idx)}
-                  className={`relative flex-1 min-w-[140px] py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all focus-ring ${
+                  className={`relative flex-1 min-w-[140px] py-3 px-4 rounded-[8px] text-xs sm:text-sm font-bold transition-all focus-ring ${
                     isActive ? 'text-white' : 'text-[#6B7688] hover:text-[#1B2433]'
                   }`}
                 >
@@ -595,7 +589,7 @@ export function CampXSyncLandingPage() {
                     <motion.div
                       layoutId="activeCapabilityPill"
                       transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                      className="absolute inset-0 bg-[#1F6FEB] rounded-xl shadow-lg shadow-blue-900/40 border border-white/20 -z-0"
+                      className="absolute inset-0 bg-[#1F6FEB] rounded-[8px] shadow-lg shadow-blue-900/40 border border-white/20 -z-0"
                     />
                   )}
                   <span className="relative z-10 tracking-tight">{tab.label}</span>
@@ -616,7 +610,7 @@ export function CampXSyncLandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.35, ease: 'easeInOut' }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white border border-[#E3E8EF] rounded-3xl p-6 sm:p-10 backdrop-blur-md"
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white border border-[#E3E8EF] rounded-[12px] p-6 sm:p-10 backdrop-blur-md"
               >
                 {/* Left Description & Bullet Points */}
                 <div className="lg:col-span-6">
@@ -635,7 +629,7 @@ export function CampXSyncLandingPage() {
 
                   <div className="space-y-4">
                     {activeCapability.bullets.map((bullet, bIdx) => (
-                      <div key={bIdx} className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-950/60 border border-[#E3E8EF]">
+                      <div key={bIdx} className="flex items-start gap-3 p-3.5 rounded-[8px] bg-slate-950/60 border border-[#E3E8EF]">
                         <div className="w-6 h-6 rounded-md bg-cyan-500/15 border border-[#1F6FEB]/25 flex items-center justify-center text-[#1F6FEB] shrink-0 mt-0.5">
                           <Check className="w-3.5 h-3.5" />
                         </div>
@@ -653,7 +647,7 @@ export function CampXSyncLandingPage() {
                 </div>
 
                 {/* Right Interactive Simulator Preview Panel */}
-                <div className="lg:col-span-6 bg-slate-950/85 border border-[#E3E8EF] rounded-2xl p-5 shadow-2xl overflow-hidden font-mono text-xs">
+                <div className="lg:col-span-6 bg-slate-950/85 border border-[#E3E8EF] rounded-[12px] p-5 shadow-2xl overflow-hidden font-mono text-xs">
                   {/* Console Header Bar */}
                   <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#E3E8EF] text-[#6B7688]">
                     <div className="flex items-center gap-2">
@@ -783,7 +777,7 @@ export function CampXSyncLandingPage() {
               <span className="text-xs font-bold uppercase tracking-widest text-[#1F6FEB] bg-[#E8F0FE] border border-[#1F6FEB]/20 px-3.5 py-1 rounded-full">
                 Persona Isolation
               </span>
-              <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
+              <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
                 Tailored Cockpits for Every Stakeholder.
               </h2>
             </div>
@@ -794,7 +788,7 @@ export function CampXSyncLandingPage() {
                     (prev) => (prev - 1 + PLACEHOLDERS.personas.length) % PLACEHOLDERS.personas.length
                   )
                 }
-                className="w-10 h-10 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] flex items-center justify-center text-[#3E4C63] hover:text-[#0B1F3A] hover:border-[#1F6FEB] focus-ring"
+                className="w-10 h-10 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] flex items-center justify-center text-[#3E4C63] hover:text-[#0B1F3A] hover:border-[#1F6FEB] focus-ring"
                 aria-label="Previous persona"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -803,7 +797,7 @@ export function CampXSyncLandingPage() {
                 onClick={() =>
                   setActivePersonaIdx((prev) => (prev + 1) % PLACEHOLDERS.personas.length)
                 }
-                className="w-10 h-10 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] flex items-center justify-center text-[#3E4C63] hover:text-[#0B1F3A] hover:border-[#1F6FEB] focus-ring"
+                className="w-10 h-10 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] flex items-center justify-center text-[#3E4C63] hover:text-[#0B1F3A] hover:border-[#1F6FEB] focus-ring"
                 aria-label="Next persona"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -829,7 +823,7 @@ export function CampXSyncLandingPage() {
                   tabIndex={isSelected ? 0 : -1}
                   onKeyDown={(e) => handlePersonaKeyDown(e, idx)}
                   onClick={() => setActivePersonaIdx(idx)}
-                  className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all focus-ring ${
+                  className={`px-5 py-2.5 rounded-[8px] text-xs sm:text-sm font-bold transition-all focus-ring ${
                     isSelected
                       ? 'bg-[#1F6FEB] text-white shadow-lg shadow-blue-900/50 border border-white/20'
                       : 'bg-white text-[#6B7688] hover:text-[#1B2433] border border-[#E3E8EF]'
@@ -852,7 +846,7 @@ export function CampXSyncLandingPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#F6F8FB]/70 border border-[#E3E8EF] rounded-3xl p-6 sm:p-10 backdrop-blur-xl"
+              className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#F6F8FB]/70 border border-[#E3E8EF] rounded-[12px] p-6 sm:p-10 backdrop-blur-xl"
             >
               {/* Left Column: Dedicated Character Illustration */}
               <div className="lg:col-span-5 flex justify-center">
@@ -874,7 +868,7 @@ export function CampXSyncLandingPage() {
                   {activePersona.description}
                 </p>
 
-                <div className="p-4 rounded-xl bg-slate-950/70 border border-[#E3E8EF] mb-6">
+                <div className="p-4 rounded-[8px] bg-slate-950/70 border border-[#E3E8EF] mb-6">
                   <h4 className="text-xs font-bold text-[#3E4C63] uppercase tracking-wider mb-3">
                     Core Operational Cockpit Features
                   </h4>
@@ -909,7 +903,7 @@ export function CampXSyncLandingPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3.5 py-1 rounded-full">
               Measurable Performance
             </span>
-            <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
+            <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#0B1F3A] mt-4 tracking-tight">
               Institutional Reliability by the Numbers.
             </h2>
             <p className="text-[#6B7688] text-sm mt-3">
@@ -935,16 +929,16 @@ export function CampXSyncLandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-40px' }}
                   transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  className="p-6 rounded-2xl bg-white border border-[#E3E8EF] relative overflow-hidden group hover:border-[#1F6FEB] transition-colors"
+                  className="p-6 rounded-[12px] bg-white border border-[#E3E8EF] relative overflow-hidden group hover:border-[#1F6FEB] transition-colors"
                 >
                   {/* Glowing icon */}
-                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center mb-5 ${colors}`}>
+                  <div className={`w-12 h-12 rounded-[8px] border flex items-center justify-center mb-5 ${colors}`}>
                     <IconComp className="w-6 h-6" />
                   </div>
 
                   {/* Animated Counter with Sample Marker */}
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-4xl sm:text-5xl font-display font-extrabold text-[#0B1F3A] tracking-tight">
+                    <span className="text-4xl sm:text-5xl font-display font-semibold text-[#0B1F3A] tracking-tight">
                       <AnimatedCounter
                         target={metric.target}
                         decimals={metric.decimals}
@@ -979,7 +973,7 @@ export function CampXSyncLandingPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-rose-400 bg-rose-400/10 border border-rose-400/20 px-3.5 py-1 rounded-full">
               System Execution Walkthrough
             </span>
-            <h2 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl text-[#0B1F3A] mt-4 tracking-tight">
+            <h2 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl text-[#0B1F3A] mt-4 tracking-tight">
               See How CampXSync Executes.
             </h2>
             <p className="text-[#3E4C63] text-base mt-4">
@@ -996,7 +990,7 @@ export function CampXSyncLandingPage() {
                   <button
                     key={step.step}
                     onClick={() => setActiveWalkthroughStep(idx)}
-                    className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 focus-ring ${
+                    className={`w-full text-left p-5 rounded-[12px] border transition-all duration-300 focus-ring ${
                       isCurrent
                         ? 'bg-[#F6F8FB] border-cyan-500/40 shadow-xl shadow-cyan-950/30'
                         : 'bg-slate-950/40 border-[#E3E8EF] hover:border-white/20'
@@ -1021,10 +1015,10 @@ export function CampXSyncLandingPage() {
             </div>
 
             {/* Right Product Walkthrough & Video Placeholder Slot */}
-            <div className="lg:col-span-7 bg-white border border-[#E3E8EF] rounded-3xl p-6 sm:p-8 backdrop-blur-xl relative overflow-hidden">
-              <div className="relative aspect-video rounded-2xl bg-[#F6F8FB] border border-[#E3E8EF] flex flex-col items-center justify-center p-6 text-center overflow-hidden group">
+            <div className="lg:col-span-7 bg-white border border-[#E3E8EF] rounded-[12px] p-6 sm:p-8 backdrop-blur-xl relative overflow-hidden">
+              <div className="relative aspect-video rounded-[12px] bg-[#F6F8FB] border border-[#E3E8EF] flex flex-col items-center justify-center p-6 text-center overflow-hidden group">
                 {/* Video Play Placeholder Button */}
-                <div className="relative z-10 w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 mb-4 shadow-xl shadow-rose-950/60 transition-transform group-hover:scale-110">
+                <div className="relative z-10 w-16 h-16 rounded-[12px] bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 mb-4 shadow-xl shadow-rose-950/60 transition-transform group-hover:scale-110">
                   <Play className="w-7 h-7 fill-rose-400 ml-1" />
                 </div>
 
@@ -1063,9 +1057,9 @@ export function CampXSyncLandingPage() {
           <span className="text-xs font-bold uppercase tracking-widest text-white bg-white/10 border border-[#1F6FEB]/20 px-3.5 py-1 rounded-full">
             Modernize Your Academic Enterprise
           </span>
-          <h2 className="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight mt-6 mb-6 leading-tight">
+          <h2 className="font-display font-semibold text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight mt-6 mb-6 leading-tight">
             Ready to Unify Your Campus <br />
-            <span className="gradient-text font-black">Under One Sovereign Core?</span>
+            <span className="gradient-text font-semibold">Under One Sovereign Core?</span>
           </h2>
           <p className="text-lg sm:text-xl text-[#E3E8EF] max-w-2xl mx-auto mb-10 leading-relaxed">
             Eliminate scheduling deadlocks, automate attendance verification, and ensure audit-ready compliance across all your academic units.
@@ -1074,7 +1068,7 @@ export function CampXSyncLandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={() => setIsDemoModalOpen(true)}
-              className="w-full sm:w-auto relative group px-8 py-4 rounded-xl text-base font-bold text-white overflow-hidden bg-[#1F6FEB]  transition-all duration-300 hover:-translate-y-1 active:translate-y-0 focus-ring"
+              className="w-full sm:w-auto relative group px-8 py-4 rounded-[8px] text-base font-bold text-white overflow-hidden bg-[#1F6FEB]  transition-all duration-300 hover:-translate-y-1 active:translate-y-0 focus-ring"
             >
               <div className="absolute inset-0 bg-[#1F6FEB] transition-transform duration-300 group-hover:scale-105" />
               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1086,7 +1080,7 @@ export function CampXSyncLandingPage() {
 
             <Link
               href="/login"
-              className="w-full sm:w-auto px-7 py-4 rounded-xl text-base font-semibold text-[#1B2433] bg-white hover:bg-[#F6F8FB] border border-[#E3E8EF] hover:border-[#1F6FEB] transition-colors text-center focus-ring"
+              className="w-full sm:w-auto px-7 py-4 rounded-[8px] text-base font-semibold text-[#1B2433] bg-white hover:bg-[#F6F8FB] border border-[#E3E8EF] hover:border-[#1F6FEB] transition-colors text-center focus-ring"
             >
               Access Institutional Workspace
             </Link>
@@ -1179,14 +1173,14 @@ export function CampXSyncLandingPage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               transition={{ duration: 0.25 }}
-              className="relative w-full max-w-lg bg-white border border-[#E3E8EF] rounded-3xl p-6 sm:p-8 shadow-2xl shadow-blue-950/80 z-10 text-[#0B1F3A]"
+              className="relative w-full max-w-lg bg-white border border-[#E3E8EF] rounded-[12px] p-6 sm:p-8 shadow-2xl shadow-blue-950/80 z-10 text-[#0B1F3A]"
               role="dialog"
               aria-modal="true"
               aria-labelledby="demo-modal-title"
             >
               <button
                 onClick={closeDemoModal}
-                className="absolute top-5 right-5 p-2 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] text-[#6B7688] hover:text-[#0B1F3A] focus-ring"
+                className="absolute top-5 right-5 p-2 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-[#6B7688] hover:text-[#0B1F3A] focus-ring"
                 aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
@@ -1194,7 +1188,7 @@ export function CampXSyncLandingPage() {
 
               {demoSubmitted ? (
                 <div className="text-center py-8">
-                  <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 rounded-[12px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
                   <h3 id="demo-modal-title" className="text-2xl font-bold font-display text-[#0B1F3A] mb-2">
@@ -1206,7 +1200,7 @@ export function CampXSyncLandingPage() {
                   </p>
                   <button
                     onClick={closeDemoModal}
-                    className="px-6 py-2.5 rounded-xl bg-[#0B1F3A] text-[#0B1F3A] text-sm font-semibold hover:bg-[#12315C] transition-colors focus-ring"
+                    className="px-6 py-2.5 rounded-[8px] bg-[#0B1F3A] text-[#0B1F3A] text-sm font-semibold hover:bg-[#12315C] transition-colors focus-ring"
                   >
                     Close Window
                   </button>
@@ -1237,7 +1231,7 @@ export function CampXSyncLandingPage() {
                         value={demoForm.name}
                         onChange={(e) => setDemoForm({ ...demoForm, name: e.target.value })}
                         placeholder="Dr. Katherine Vance"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm placeholder:text-[#6B7688] focus-ring"
+                        className="w-full px-4 py-2.5 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm placeholder:text-[#6B7688] focus-ring"
                       />
                     </div>
 
@@ -1251,7 +1245,7 @@ export function CampXSyncLandingPage() {
                         value={demoForm.institution}
                         onChange={(e) => setDemoForm({ ...demoForm, institution: e.target.value })}
                         placeholder="State University of Technology"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm placeholder:text-[#6B7688] focus-ring"
+                        className="w-full px-4 py-2.5 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm placeholder:text-[#6B7688] focus-ring"
                       />
                     </div>
 
@@ -1262,7 +1256,7 @@ export function CampXSyncLandingPage() {
                       <select
                         value={demoForm.role}
                         onChange={(e) => setDemoForm({ ...demoForm, role: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm focus-ring"
+                        className="w-full px-4 py-2.5 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm focus-ring"
                       >
                         <option>Dean / Department Chair</option>
                         <option>Registrar / Controller of Examinations</option>
@@ -1282,13 +1276,13 @@ export function CampXSyncLandingPage() {
                         value={demoForm.email}
                         onChange={(e) => setDemoForm({ ...demoForm, email: e.target.value })}
                         placeholder="dean.office@university.edu"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm placeholder:text-[#6B7688] focus-ring"
+                        className="w-full px-4 py-2.5 rounded-[8px] bg-[#F6F8FB] border border-[#E3E8EF] text-[#1B2433] text-sm placeholder:text-[#6B7688] focus-ring"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full mt-2 py-3 rounded-xl bg-[#1F6FEB] text-white font-bold text-sm  hover:brightness-110 transition-all flex items-center justify-center gap-2 focus-ring"
+                      className="w-full mt-2 py-3 rounded-[8px] bg-[#1F6FEB] text-white font-bold text-sm  hover:brightness-110 transition-all flex items-center justify-center gap-2 focus-ring"
                     >
                       <span>Submit Request</span>
                       <Send className="w-4 h-4" />

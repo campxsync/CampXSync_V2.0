@@ -2,6 +2,6 @@
 
 html,
 body {
-  background: #f6f8fb;
-  color: #1b2433;
+  background: #f6f8fb !important;
+  color: #1b2433 !important;
 }
