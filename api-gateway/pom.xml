@@ -24,6 +24,13 @@
             <artifactId>campx-logger</artifactId>
         </dependency>
 
+        <!-- Jackson JSON Parser for AST-based JWT parsing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.4</version>
+        </dependency>
+
         <!-- Downstream Services (Test Scope for End-to-End Gateway Integration Testing) -->
         <dependency>
             <groupId>com.campx</groupId>

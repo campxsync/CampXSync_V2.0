@@ -27,10 +27,9 @@ public class PostgresGlobalPolicyRepositoryTest {
 
     @Before
     public void setUp() {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Requires live JDBC configuration", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
+
         repository = new PostgresGlobalPolicyRepository(connectionManager);
 
         UUID adminId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
@@ -39,11 +38,12 @@ public class PostgresGlobalPolicyRepositoryTest {
 
     @After
     public void tearDown() {
-        if (testPolicyCode != null) {
-            try {
-                repository.deletePolicy(platformContext, testPolicyCode);
-            } catch (Exception ignored) {}
+        if (connectionManager == null || connectionManager.isClosed() || testPolicyCode == null) {
+            return;
         }
+        try {
+            repository.deletePolicy(platformContext, testPolicyCode);
+        } catch (Exception ignored) {}
     }
 
     @Test

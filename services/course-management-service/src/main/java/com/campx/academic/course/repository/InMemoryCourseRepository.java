@@ -90,7 +90,20 @@ public class InMemoryCourseRepository implements CourseRepository {
     }
 
     @Override
+    public void updateStatus(UserSecurityContext context, String courseId, String status) {
+        if (courseId != null && status != null) {
+            Course c = store.get(courseId);
+            if (c != null) {
+                c.setStatus(status);
+                c.setUpdatedAt(System.currentTimeMillis());
+            }
+        }
+    }
+
+    @Override
     public void deleteCourse(UserSecurityContext context, String id) {
-        store.remove(id);
+        if (id != null) {
+            store.remove(id);
+        }
     }
 }

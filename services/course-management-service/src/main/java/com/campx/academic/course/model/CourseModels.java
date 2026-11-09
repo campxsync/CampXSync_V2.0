@@ -38,6 +38,7 @@ public final class CourseModels {
         private List<String> accreditationReferences = new ArrayList<>();
         private long createdAt = System.currentTimeMillis();
         private long updatedAt = System.currentTimeMillis();
+        private String level = "100";
         private String createdBy = "admin";
 
         public String getId() { return id; }
@@ -54,6 +55,8 @@ public final class CourseModels {
         public void setCourseName(String courseName) { this.courseName = courseName; }
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
+        public String getLevel() { return level; }
+        public void setLevel(String level) { this.level = level; }
         public int getDurationYears() { return durationYears; }
         public void setDurationYears(int durationYears) { this.durationYears = durationYears; }
         public double getTotalCredits() { return totalCredits; }
@@ -250,7 +253,7 @@ public final class CourseModels {
         private String courseId;
         private String batchId;
         private String term;
-        private String status = "ACTIVE"; // ACTIVE, CLOSED
+        private String status = "ACTIVE"; // UPCOMING, ACTIVE, COMPLETED, CANCELLED, CLOSED
         private String academicYear = "2026-2027";
 
         public String getId() { return id; }

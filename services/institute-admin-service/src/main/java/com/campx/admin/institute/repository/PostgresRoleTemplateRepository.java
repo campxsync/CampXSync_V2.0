@@ -4,6 +4,7 @@ import com.campx.admin.institute.config.DatabaseConnectionManager;
 import com.campx.admin.institute.exception.MalformedPayloadException;
 import com.campx.admin.institute.exception.ResourceNotFoundException;
 import com.campx.admin.institute.exception.SecurityViolationException;
+import com.campx.admin.institute.exception.UserProfileAccessDeniedException;
 import com.campx.admin.institute.model.InstituteModels.RoleTemplate;
 import com.campx.admin.institute.model.InstituteModels.RoleTemplatePermission;
 import com.campx.admin.institute.security.UserSecurityContext;
@@ -30,9 +31,6 @@ public class PostgresRoleTemplateRepository implements RoleTemplateRepository {
     }
 
     public PostgresRoleTemplateRepository(DatabaseConnectionManager connectionManager) {
-        if (connectionManager == null) {
-            throw new IllegalArgumentException("DatabaseConnectionManager cannot be null");
-        }
         this.connectionManager = connectionManager;
     }
 
@@ -45,6 +43,9 @@ public class PostgresRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public RoleTemplate createRoleTemplate(UserSecurityContext context, RoleTemplate template) {
+        if (context == null) {
+            throw new UserProfileAccessDeniedException("Missing required security context");
+        }
         UserSecurityContext effectiveContext = resolveContext(context);
         if (template == null) {
             throw new MalformedPayloadException("RoleTemplate payload cannot be null");
@@ -161,6 +162,9 @@ public class PostgresRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public RoleTemplate updateRoleTemplate(UserSecurityContext context, RoleTemplate template) {
+        if (context == null) {
+            throw new UserProfileAccessDeniedException("Missing required security context");
+        }
         UserSecurityContext effectiveContext = resolveContext(context);
         if (template == null || template.getId() == null || template.getId().trim().isEmpty()) {
             throw new MalformedPayloadException("Template ID is required for update");
@@ -210,6 +214,9 @@ public class PostgresRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public void deleteRoleTemplate(UserSecurityContext context, String id) {
+        if (context == null) {
+            throw new UserProfileAccessDeniedException("Missing required security context");
+        }
         UserSecurityContext effectiveContext = resolveContext(context);
         if (id == null || id.trim().isEmpty()) {
             throw new MalformedPayloadException("Template ID is required for deletion");
@@ -239,6 +246,9 @@ public class PostgresRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public RoleTemplatePermission addPermission(UserSecurityContext context, String roleCode, String permissionCode) {
+        if (context == null) {
+            throw new UserProfileAccessDeniedException("Missing required security context");
+        }
         UserSecurityContext effectiveContext = resolveContext(context);
         if (roleCode == null || roleCode.trim().isEmpty()) {
             throw new MalformedPayloadException("roleCode is required");
@@ -313,6 +323,9 @@ public class PostgresRoleTemplateRepository implements RoleTemplateRepository {
 
     @Override
     public void removePermission(UserSecurityContext context, String roleCode, String permissionCode) {
+        if (context == null) {
+            throw new UserProfileAccessDeniedException("Missing required security context");
+        }
         UserSecurityContext effectiveContext = resolveContext(context);
         if (roleCode == null || permissionCode == null) return;
 

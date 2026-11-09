@@ -625,25 +625,52 @@ public class CollegeAdminController implements HttpHandler {
 
     private void handleGetProfile(HttpExchange exchange) throws IOException {
         CollegeProfile p = domainService.getProfile();
-        String json = "{"
-                + "\"code\":\"" + p.getCollegeCode() + "\","
-                + "\"name\":\"" + escape(p.getLegalName()) + "\","
-                + "\"displayName\":\"" + escape(p.getDisplayName()) + "\","
-                + "\"status\":\"" + p.getStatus() + "\","
-                + "\"version\":" + p.getCurrentVersion()
-                + "}";
-        sendJson(exchange, 200, json);
+        if (p == null) {
+            throw new CollegeResourceNotFoundException("College profile not found for tenant");
+        }
+        sendJson(exchange, 200, serializeProfileJson(p));
     }
 
     private void handleUpdateProfile(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
         CollegeProfile update = new CollegeProfile();
         update.setDisplayName(extract(body, "displayName", null));
+        update.setLegalName(extract(body, "legalName", null));
         update.setAddress(extract(body, "address", null));
         update.setStatus(extract(body, "status", null));
 
+        String acc = extract(body, "accreditationRefs", null);
+        if (acc != null && !acc.trim().isEmpty()) {
+            List<String> list = new ArrayList<>();
+            String cleaned = acc.replace("[", "").replace("]", "").replace("\"", "");
+            for (String item : cleaned.split(",")) {
+                if (!item.trim().isEmpty()) list.add(item.trim());
+            }
+            update.setAccreditationRefs(list);
+        }
+
         CollegeProfile updated = domainService.updateProfile(update);
-        sendJson(exchange, 200, "{\"status\":\"UPDATED\",\"version\":" + updated.getCurrentVersion() + "}");
+        sendJson(exchange, 200, serializeProfileJson(updated));
+    }
+
+    private String serializeProfileJson(CollegeProfile p) {
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("\"code\":\"").append(p.getCollegeCode()).append("\",");
+        sb.append("\"collegeCode\":\"").append(p.getCollegeCode()).append("\",");
+        sb.append("\"name\":\"").append(escape(p.getLegalName())).append("\",");
+        sb.append("\"legalName\":\"").append(escape(p.getLegalName())).append("\",");
+        sb.append("\"displayName\":\"").append(escape(p.getDisplayName())).append("\",");
+        sb.append("\"status\":\"").append(p.getStatus()).append("\",");
+        sb.append("\"version\":").append(p.getCurrentVersion()).append(",");
+        sb.append("\"accreditationRefs\":[");
+        if (p.getAccreditationRefs() != null) {
+            for (int i = 0; i < p.getAccreditationRefs().size(); i++) {
+                if (i > 0) sb.append(",");
+                sb.append("\"").append(escape(p.getAccreditationRefs().get(i))).append("\"");
+            }
+        }
+        sb.append("]}");
+        return sb.toString();
     }
 
     private void handleCreateDepartment(HttpExchange exchange) throws IOException {
@@ -797,7 +824,10 @@ public class CollegeAdminController implements HttpHandler {
         doc.setClassification(extract(body, "classification", null));
 
         GovernanceDocument registered = domainService.registerDocument(doc);
-        sendJson(exchange, 201, "{\"id\":\"" + registered.getId() + "\",\"checksum\":\"" + registered.getChecksum() + "\",\"status\":\"" + registered.getStatus() + "\"}");
+        sendJson(exchange, 201, "{\"id\":\"" + registered.getId() + "\",\"title\":\"" + escape(registered.getTitle())
+                + "\",\"classification\":\"" + escape(registered.getClassification() != null ? registered.getClassification() : "INTERNAL")
+                + "\",\"currentVersion\":" + registered.getCurrentVersion()
+                + ",\"checksum\":\"" + registered.getChecksum() + "\",\"status\":\"" + registered.getStatus() + "\"}");
     }
 
     private void handleApproveDocument(HttpExchange exchange, String docId) throws IOException {
@@ -812,7 +842,9 @@ public class CollegeAdminController implements HttpHandler {
             if (i > 0) sb.append(",");
             GovernanceDocument d = list.get(i);
             sb.append("{\"id\":\"").append(d.getId()).append("\",\"title\":\"").append(escape(d.getTitle()))
-              .append("\",\"status\":\"").append(d.getStatus()).append("\"}");
+              .append("\",\"classification\":\"").append(escape(d.getClassification() != null ? d.getClassification() : "INTERNAL"))
+              .append("\",\"currentVersion\":").append(d.getCurrentVersion())
+              .append(",\"status\":\"").append(d.getStatus()).append("\"}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
@@ -1202,7 +1234,11 @@ public class CollegeAdminController implements HttpHandler {
         s.setKey(extract(body, "key", null));
         s.setValue(extract(body, "value", null));
         s.setDataType(extract(body, "dataType", "STRING"));
-        s.setSecret("true".equalsIgnoreCase(extract(body, "isSecret", "false")));
+        String secVal = extract(body, "secret", null);
+        if (secVal == null) {
+            secVal = extract(body, "isSecret", "false");
+        }
+        s.setSecret("true".equalsIgnoreCase(secVal));
         String effFrom = extract(body, "effectiveFrom", null);
         if (effFrom != null) {
             try { s.setEffectiveFrom(Long.parseLong(effFrom)); } catch (NumberFormatException ignored) {}
@@ -1213,8 +1249,13 @@ public class CollegeAdminController implements HttpHandler {
         }
 
         CollegeSetting saved = domainService.setCollegeSetting(s);
-        sendJson(exchange, 200, "{\"id\":\"" + saved.getId() + "\",\"key\":\"" + saved.getKey()
-                + "\",\"version\":" + saved.getVersion() + ",\"status\":\"SAVED\"}");
+        String maskedVal = saved.isSecret() ? "********" : (saved.getValue() != null ? saved.getValue() : "");
+        sendJson(exchange, 200, "{\"id\":\"" + saved.getId() + "\",\"key\":\"" + escape(saved.getKey())
+                + "\",\"value\":\"" + escape(maskedVal)
+                + "\",\"dataType\":\"" + escape(saved.getDataType() != null ? saved.getDataType() : "STRING")
+                + "\",\"secret\":" + saved.isSecret()
+                + ",\"isSecret\":" + saved.isSecret()
+                + ",\"version\":" + saved.getVersion() + ",\"status\":\"SAVED\"}");
     }
 
     private void handleGetCollegeSettings(HttpExchange exchange) throws IOException {
@@ -1225,8 +1266,13 @@ public class CollegeAdminController implements HttpHandler {
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
             CollegeSetting s = list.get(i);
-            sb.append("{\"key\":\"").append(s.getKey()).append("\",\"value\":\"").append(escape(s.getValue()))
-              .append("\",\"secret\":").append(s.isSecret()).append(",\"version\":").append(s.getVersion()).append("}");
+            String maskedVal = s.isSecret() ? "********" : (s.getValue() != null ? s.getValue() : "");
+            sb.append("{\"key\":\"").append(escape(s.getKey()))
+              .append("\",\"value\":\"").append(escape(maskedVal))
+              .append("\",\"dataType\":\"").append(escape(s.getDataType() != null ? s.getDataType() : "STRING"))
+              .append("\",\"secret\":").append(s.isSecret())
+              .append(",\"isSecret\":").append(s.isSecret())
+              .append(",\"version\":").append(s.getVersion()).append("}");
         }
         sb.append("]}");
         sendJson(exchange, 200, sb.toString());
@@ -1261,6 +1307,7 @@ public class CollegeAdminController implements HttpHandler {
         String body = readBody(exchange);
         LocalPolicy policy = new LocalPolicy();
         policy.setPolicyCode(extract(body, "policyCode", null));
+        // Security (CWE-841): Never trust client-supplied status or approver on creation
         String rulesStr = extract(body, "rules", null);
         if (rulesStr != null && !rulesStr.isEmpty()) {
             policy.setRules(Arrays.asList(rulesStr.split(",")));
@@ -1268,7 +1315,8 @@ public class CollegeAdminController implements HttpHandler {
 
         LocalPolicy created = domainService.createLocalPolicy(policy);
         sendJson(exchange, 201, "{\"id\":\"" + created.getId() + "\",\"policyCode\":\"" + created.getPolicyCode()
-                + "\",\"version\":" + created.getVersion() + ",\"status\":\"" + created.getStatus() + "\"}");
+                + "\",\"version\":" + created.getVersion() + ",\"status\":\"" + created.getStatus()
+                + "\",\"approvedBy\":null}");
     }
 
     private void handleListLocalPolicies(HttpExchange exchange) throws IOException {
@@ -1287,7 +1335,21 @@ public class CollegeAdminController implements HttpHandler {
 
     private void handleApproveLocalPolicy(HttpExchange exchange, String policyCode) throws IOException {
         String body = readBody(exchange);
-        String approvedBy = extract(body, "approvedBy", LogContext.getUserId() != null ? LogContext.getUserId() : "COLLEGE_DIRECTOR");
+        String requestedApprover = extract(body, "approvedBy", null);
+        String authenticatedUser = LogContext.getUserId();
+
+        // Security: Disallow arbitrary approver identities
+        if (requestedApprover != null && !requestedApprover.trim().isEmpty()
+                && authenticatedUser != null && !authenticatedUser.trim().isEmpty()
+                && !requestedApprover.trim().equalsIgnoreCase(authenticatedUser.trim())) {
+            throw new com.campx.admin.college.exception.CollegeSecurityViolationException(403, "ADM02_ARBITRARY_APPROVER_FORBIDDEN",
+                    "Cannot specify arbitrary approver identity '" + requestedApprover + "'; approver must match authenticated principal '" + authenticatedUser + "'");
+        }
+
+        String approvedBy = (authenticatedUser != null && !authenticatedUser.trim().isEmpty())
+                ? authenticatedUser.trim()
+                : (requestedApprover != null && !requestedApprover.trim().isEmpty() ? requestedApprover.trim() : "COLLEGE_DIRECTOR");
+
         LocalPolicy approved = domainService.approveLocalPolicy(policyCode, approvedBy);
         sendJson(exchange, 200, "{\"policyCode\":\"" + approved.getPolicyCode() + "\",\"status\":\"" + approved.getStatus()
                 + "\",\"approvedBy\":\"" + approved.getApprovedBy() + "\"}");

@@ -60,6 +60,7 @@ public class PostgresCollegeRepositoryIntegrationTest {
     @BeforeClass
     public static void setupDatabase() throws Exception {
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
         connectionManager.initialize();
         tenantRepository = new PostgresTenantRepository(connectionManager);
         repository = new PostgresCollegeRepository(connectionManager);
@@ -116,6 +117,9 @@ public class PostgresCollegeRepositoryIntegrationTest {
 
     @AfterClass
     public static void cleanupDatabase() {
+        if (connectionManager == null || !connectionManager.isInitialized() || platformAdminUserId == null) {
+            return;
+        }
         if (connectionManager != null) {
             try (Connection conn = connectionManager.getConnection()) {
                 // Soft-delete test colleges to respect immutable change log trigger sys.forbid_mutation()

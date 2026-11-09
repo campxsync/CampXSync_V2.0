@@ -633,6 +633,24 @@ public class InstituteAdminDomainService {
     }
 
     /**
+     * User Story 8 / MVP-ADM01-04: Authorized retry for a FAILED tenant provisioning job.
+     */
+    public TenantProvisioning retryProvisioningJob(UserSecurityContext context, UUID id) {
+        if (tenantProvisioningRepository == null) {
+            throw new IllegalStateException("TenantProvisioningRepository is not configured");
+        }
+        TenantProvisioning retried = tenantProvisioningRepository.retryProvisioningJob(context, id);
+        provisioningJobs.put(retried.getProvisioningId(), retried);
+
+        // Propagate transactional outbox event
+        emitOutboxEvent("TenantProvisioningRetried", retried.getProvisioningId(), retried.getTenantId(),
+                "{\"provisioningId\":\"" + retried.getProvisioningId() + "\",\"tenantId\":\"" + retried.getTenantId()
+                        + "\",\"attempt\":" + retried.getAttempt() + ",\"status\":\"IN_PROGRESS\"}");
+
+        return retried;
+    }
+
+    /**
      * User Story 11: Define and update a global platform configuration setting with secret protection
      */
     public GlobalSetting setGlobalSetting(GlobalSetting setting) {

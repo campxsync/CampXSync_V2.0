@@ -37,22 +37,11 @@ public class PostgresCampusRepositoryTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require database configuration", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        tenantId = com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
         repository = new PostgresCampusRepository(connectionManager);
 
         try (Connection conn = connectionManager.getConnection()) {
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tenantId = (UUID) rs.getObject("id");
-                    }
-                }
-            }
-
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT id FROM core.colleges WHERE tenant_id = ? AND deleted_at IS NULL LIMIT 1")) {
                 ps.setObject(1, tenantId);
@@ -63,7 +52,6 @@ public class PostgresCampusRepositoryTest {
                 }
             }
         }
-        assumeNotNull("Requires an active tenant", tenantId);
         assumeNotNull("Requires an active college in tenant", collegeId);
 
         otherTenantId = UUID.randomUUID();
@@ -73,6 +61,7 @@ public class PostgresCampusRepositoryTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
+        if (tenantId == null || connectionManager == null || connectionManager.isClosed()) return;
         try (Connection conn = connectionManager.getConnection()) {
             conn.setAutoCommit(true);
             for (UUID cid : createdCampusIds) {

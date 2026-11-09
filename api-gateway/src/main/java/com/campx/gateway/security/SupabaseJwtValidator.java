@@ -3,6 +3,10 @@ package com.campx.gateway.security;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
@@ -11,8 +15,6 @@ import java.security.interfaces.ECPrivateKey;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -34,6 +36,9 @@ public final class SupabaseJwtValidator {
     private static final String REQUIRED_ALGORITHM = "ES256";
     private static final String REQUIRED_AUDIENCE = "authenticated";
     private static final String EC_SIGNATURE_ALGORITHM = "SHA256withECDSA";
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
 
     private SupabaseJwtValidator() {}
 
@@ -101,20 +106,31 @@ public final class SupabaseJwtValidator {
         } catch (IllegalArgumentException e) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Malformed JWT header encoding");
         }
-        String headerJson = new String(headerBytes, StandardCharsets.UTF_8);
+
+        JsonNode headerNode;
+        try {
+            headerNode = OBJECT_MAPPER.readTree(headerBytes);
+        } catch (Exception e) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Malformed JWT header encoding");
+        }
+        if (headerNode == null || !headerNode.isObject()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Malformed JWT header: expected JSON object");
+        }
 
         // Enforce ES256 ONLY. Strictly reject HS256, none, and all unexpected algorithms
-        String alg = extractJsonString(headerJson, "alg");
-        if (alg == null || !REQUIRED_ALGORITHM.equals(alg.trim())) {
+        JsonNode algNode = headerNode.get("alg");
+        if (algNode == null || !algNode.isTextual() || !REQUIRED_ALGORITHM.equals(algNode.asText().trim())) {
+            String alg = (algNode != null && algNode.isTextual()) ? algNode.asText().trim() : (algNode != null ? algNode.toString() : "NONE");
             throw new JwtValidationException(401, "GATEWAY_UNSUPPORTED_JWT_ALG",
-                    "Unsupported or missing JWT signing algorithm: " + (alg != null ? alg : "NONE"));
+                    "Unsupported or missing JWT signing algorithm: " + alg);
         }
 
         // Require valid kid in header
-        String kid = extractJsonString(headerJson, "kid");
-        if (kid == null || kid.trim().isEmpty()) {
+        JsonNode kidNode = headerNode.get("kid");
+        if (kidNode == null || !kidNode.isTextual() || kidNode.asText().trim().isEmpty()) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Missing required 'kid' in JWT header");
         }
+        String kid = kidNode.asText().trim();
 
         // 2. Select matching JWKS public key (fail-closed if JWKS unavailable or kid unknown)
         if (jwksClient == null) {
@@ -125,7 +141,7 @@ public final class SupabaseJwtValidator {
             }
         }
 
-        PublicKey publicKey = jwksClient.getPublicKey(kid.trim());
+        PublicKey publicKey = jwksClient.getPublicKey(kid);
         if (publicKey == null) {
             logger.warn("JWKS could not resolve public key for kid: {}", kid);
             throw new JwtValidationException(401, "GATEWAY_UNKNOWN_KEY_ID", "Unknown or unresolvable key ID: " + kid);
@@ -176,31 +192,43 @@ public final class SupabaseJwtValidator {
         } catch (IllegalArgumentException e) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Malformed JWT payload encoding");
         }
-        String payloadJson = new String(payloadBytes, StandardCharsets.UTF_8);
+
+        JsonNode payloadNode;
+        try {
+            payloadNode = OBJECT_MAPPER.readTree(payloadBytes);
+        } catch (Exception e) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Malformed JWT payload encoding");
+        }
+        if (payloadNode == null || !payloadNode.isObject()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Malformed JWT payload: expected JSON object");
+        }
 
         // 5. Validate Issuer (iss) - strictly required
         if (expectedIssuer == null || expectedIssuer.trim().isEmpty()) {
             throw new IllegalStateException("CAMPX_SUPABASE_JWT_ISSUER is required when Gateway security is enabled. "
                     + "Set environment variable CAMPX_SUPABASE_JWT_ISSUER or JVM system property campx.supabase.jwt.issuer.");
         }
-        String iss = extractJsonString(payloadJson, "iss");
-        if (iss == null || !expectedIssuer.trim().equals(iss.trim())) {
+        JsonNode issNode = payloadNode.get("iss");
+        if (issNode == null || !issNode.isTextual() || !expectedIssuer.trim().equals(issNode.asText().trim())) {
+            String iss = (issNode != null && issNode.isTextual()) ? issNode.asText().trim() : (issNode != null ? issNode.toString() : null);
             logger.warn("JWT issuer mismatch: expected '{}' but received '{}'", expectedIssuer, iss);
             throw new JwtValidationException(401, "GATEWAY_INVALID_TOKEN_ISSUER", "JWT issuer does not match expected Supabase project issuer");
         }
 
         // 6. Validate Audience (aud)
-        String aud = extractJsonString(payloadJson, "aud");
-        if (aud == null || !REQUIRED_AUDIENCE.equals(aud.trim())) {
+        JsonNode audNode = payloadNode.get("aud");
+        if (audNode == null || !audNode.isTextual() || !REQUIRED_AUDIENCE.equals(audNode.asText().trim())) {
+            String aud = (audNode != null && audNode.isTextual()) ? audNode.asText().trim() : (audNode != null ? audNode.toString() : null);
             logger.warn("JWT audience mismatch: expected '{}' but received '{}'", REQUIRED_AUDIENCE, aud);
             throw new JwtValidationException(401, "GATEWAY_INVALID_TOKEN_AUDIENCE", "JWT audience must be 'authenticated'");
         }
 
         // 7. Validate Expiration (exp)
-        Long exp = extractJsonLong(payloadJson, "exp");
-        if (exp == null) {
+        JsonNode expNode = payloadNode.get("exp");
+        if (expNode == null) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Missing required 'exp' claim in JWT");
         }
+        long exp = parseNumericDateClaim(expNode, "exp");
         long nowSeconds = Instant.now().getEpochSecond();
         if (nowSeconds >= exp) {
             logger.warn("Expired JWT presented: exp={}, now={}", exp, nowSeconds);
@@ -208,44 +236,65 @@ public final class SupabaseJwtValidator {
         }
 
         // 8. Validate Not Before (nbf) when present
-        Long nbf = extractJsonLong(payloadJson, "nbf");
-        if (nbf != null && nowSeconds < nbf) {
-            logger.warn("Premature JWT presented: nbf={}, now={}", nbf, nowSeconds);
-            throw new JwtValidationException(401, "GATEWAY_PREMATURE_TOKEN", "JWT is not yet active (nbf)");
+        JsonNode nbfNode = payloadNode.get("nbf");
+        if (nbfNode != null && !nbfNode.isNull()) {
+            long nbf = parseNumericDateClaim(nbfNode, "nbf");
+            if (nowSeconds < nbf) {
+                logger.warn("Premature JWT presented: nbf={}, now={}", nbf, nowSeconds);
+                throw new JwtValidationException(401, "GATEWAY_PREMATURE_TOKEN", "JWT is not yet active (nbf)");
+            }
         }
 
-        // 9. Extract and validate user ID (sub)
-        String sub = extractJsonString(payloadJson, "sub");
-        if (sub == null || sub.trim().isEmpty()) {
+        // 9. Extract and validate user ID (sub) strictly from root object
+        JsonNode subNode = payloadNode.get("sub");
+        if (subNode == null || !subNode.isTextual() || subNode.asText().trim().isEmpty()) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Missing required 'sub' claim in JWT");
         }
+        String sub = subNode.asText().trim();
         try {
-            UUID.fromString(sub.trim());
+            UUID.fromString(sub);
         } catch (IllegalArgumentException e) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Invalid UUID format for 'sub' claim");
         }
 
-        // 10. Extract and validate tenant ID from app_metadata.tenant_id
-        String tenantId = extractNestedField(payloadJson, "app_metadata", "tenant_id");
-        if (tenantId == null || tenantId.trim().isEmpty()) {
-            tenantId = extractJsonString(payloadJson, "tenant_id");
+        // 10. Extract and validate tenant ID strictly from root app_metadata.tenant_id
+        JsonNode appMetaNode = payloadNode.get("app_metadata");
+        if (appMetaNode == null || appMetaNode.isNull()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Missing required 'tenant_id' in app_metadata");
         }
-        if (tenantId == null || tenantId.trim().isEmpty()) {
+        if (!appMetaNode.isObject()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Unexpected type for 'app_metadata': expected JSON object");
+        }
+        JsonNode tenantNode = appMetaNode.get("tenant_id");
+        if (tenantNode == null || tenantNode.isNull()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Missing required 'tenant_id' in app_metadata");
+        }
+        if (!tenantNode.isTextual()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Unexpected type for 'tenant_id' in app_metadata: expected string");
+        }
+        String tenantId = tenantNode.asText().trim();
+        if (tenantId.isEmpty()) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Missing required 'tenant_id' in app_metadata");
         }
         try {
-            UUID.fromString(tenantId.trim());
+            UUID.fromString(tenantId);
         } catch (IllegalArgumentException e) {
             throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Invalid UUID format for 'tenant_id'");
         }
 
-        // 11. Extract role (defaults to 'authenticated')
-        String role = extractJsonString(payloadJson, "role");
-        if (role == null || role.trim().isEmpty()) {
-            role = "authenticated";
+        // 11. Extract role strictly from root object (defaults to 'authenticated')
+        String role = "authenticated";
+        JsonNode roleNode = payloadNode.get("role");
+        if (roleNode != null && !roleNode.isNull()) {
+            if (!roleNode.isTextual()) {
+                throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT", "Unexpected type for 'role' claim: expected string");
+            }
+            if (!roleNode.asText().trim().isEmpty()) {
+                role = roleNode.asText().trim();
+            }
         }
 
-        return new VerifiedClaims(sub.trim(), tenantId.trim(), role.trim());
+        return new VerifiedClaims(sub, tenantId, role);
     }
 
     /**
@@ -449,36 +498,25 @@ public final class SupabaseJwtValidator {
         return headerB64 + "." + payloadB64 + ".";
     }
 
-    // --- JSON Extraction Helpers ---
-
-    private static String extractJsonString(String json, String key) {
-        if (json == null || json.isEmpty()) return null;
-        Pattern p = Pattern.compile("(?i)\"" + Pattern.quote(key) + "\"\\s*:\\s*\"([^\"]*)\"");
-        Matcher m = p.matcher(json);
-        if (m.find()) return m.group(1);
-        return null;
-    }
-
-    private static Long extractJsonLong(String json, String key) {
-        if (json == null || json.isEmpty()) return null;
-        Pattern p = Pattern.compile("(?i)\"" + Pattern.quote(key) + "\"\\s*:\\s*(\\d+)");
-        Matcher m = p.matcher(json);
-        if (m.find()) {
-            try {
-                return Long.parseLong(m.group(1));
-            } catch (NumberFormatException ignored) {}
+    /**
+     * Parses and strictly validates RFC 7519 NumericDate claims (such as 'exp' and 'nbf').
+     * Enforces that the claim is an integral number representable as a non-negative signed 64-bit integer.
+     *
+     * @param node the JSON node containing the claim
+     * @param claimName the claim identifier for logging and error reporting
+     * @return the verified non-negative epoch second as a primitive long
+     * @throws JwtValidationException if the claim is non-numeric, fractional, out of range, or negative
+     */
+    private static long parseNumericDateClaim(JsonNode node, String claimName) {
+        if (node == null || !node.isNumber() || !node.isIntegralNumber() || !node.canConvertToLong()) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT",
+                    "Invalid '" + claimName + "' claim: expected integral 64-bit integer");
         }
-        return null;
-    }
-
-    private static String extractNestedField(String json, String parentObjKey, String childKey) {
-        if (json == null || json.isEmpty()) return null;
-        Pattern parentPattern = Pattern.compile("(?i)\"" + Pattern.quote(parentObjKey) + "\"\\s*:\\s*\\{([^}]*)\\}");
-        Matcher parentMatcher = parentPattern.matcher(json);
-        if (parentMatcher.find()) {
-            String innerJson = parentMatcher.group(1);
-            return extractJsonString(innerJson, childKey);
+        long val = node.asLong();
+        if (val < 0) {
+            throw new JwtValidationException(401, "GATEWAY_MALFORMED_JWT",
+                    "Invalid '" + claimName + "' claim: cannot be negative");
         }
-        return null;
+        return val;
     }
 }

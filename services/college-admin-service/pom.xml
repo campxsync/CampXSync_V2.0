@@ -43,6 +43,13 @@
             <version>${hikaricp.version}</version>
         </dependency>
 
+        <!-- Jackson Databind for Structured JSONB Serialization -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>junit</groupId>

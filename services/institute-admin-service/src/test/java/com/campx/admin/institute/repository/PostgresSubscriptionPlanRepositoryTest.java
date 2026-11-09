@@ -30,10 +30,9 @@ public class PostgresSubscriptionPlanRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require SUPABASE_JDBC_URL or CAMPX_JDBC_URL", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
+
         repository = new PostgresSubscriptionPlanRepository(connectionManager);
 
         // Platform administrator user registered in plat.platform_admins
@@ -43,7 +42,7 @@ public class PostgresSubscriptionPlanRepositoryTest {
 
     @After
     public void tearDown() throws Exception {
-        if (connectionManager == null || testPlanId == null) return;
+        if (connectionManager == null || connectionManager.isClosed() || testPlanId == null) return;
         try (Connection conn = connectionManager.getConnection()) {
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM plat.subscription_plans WHERE id = ?")) {
                 ps.setObject(1, UUID.fromString(testPlanId));

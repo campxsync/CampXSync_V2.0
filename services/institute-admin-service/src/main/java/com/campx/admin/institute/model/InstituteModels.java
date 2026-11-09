@@ -107,11 +107,18 @@ public final class InstituteModels {
         private String tenantId;
         private String targetScope;
         private String planId;
-        private String provisioningStatus = "REQUESTED"; // REQUESTED -> VALIDATED -> PROVISIONING -> COMPLETED
+        private String provisioningStatus = "REQUESTED"; // REQUESTED -> IN_PROGRESS -> COMPLETED | FAILED; FAILED -> IN_PROGRESS via retry
+        private String currentStep = "REQUESTED";
+        private int attempt = 1;
+        private String failureReason;
         private String requestedBy;
+        private String updatedBy;
         private String idempotencyKey;
         private long requestedAt = System.currentTimeMillis();
+        private Long updatedAt;
         private long completedAt;
+        private Long deletedAt;
+        private int rowVersion = 1;
 
         public String getProvisioningId() { return provisioningId; }
         public void setProvisioningId(String provisioningId) { this.provisioningId = provisioningId; }
@@ -123,13 +130,28 @@ public final class InstituteModels {
         public void setPlanId(String planId) { this.planId = planId; }
         public String getProvisioningStatus() { return provisioningStatus; }
         public void setProvisioningStatus(String provisioningStatus) { this.provisioningStatus = provisioningStatus; }
+        public String getCurrentStep() { return currentStep; }
+        public void setCurrentStep(String currentStep) { this.currentStep = currentStep; }
+        public int getAttempt() { return attempt; }
+        public void setAttempt(int attempt) { this.attempt = attempt; }
+        public String getFailureReason() { return failureReason; }
+        public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
         public String getRequestedBy() { return requestedBy; }
         public void setRequestedBy(String requestedBy) { this.requestedBy = requestedBy; }
+        public String getUpdatedBy() { return updatedBy; }
+        public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
         public String getIdempotencyKey() { return idempotencyKey; }
         public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
         public long getRequestedAt() { return requestedAt; }
+        public void setRequestedAt(long requestedAt) { this.requestedAt = requestedAt; }
+        public Long getUpdatedAt() { return updatedAt; }
+        public void setUpdatedAt(Long updatedAt) { this.updatedAt = updatedAt; }
         public long getCompletedAt() { return completedAt; }
         public void setCompletedAt(long completedAt) { this.completedAt = completedAt; }
+        public Long getDeletedAt() { return deletedAt; }
+        public void setDeletedAt(Long deletedAt) { this.deletedAt = deletedAt; }
+        public int getRowVersion() { return rowVersion; }
+        public void setRowVersion(int rowVersion) { this.rowVersion = rowVersion; }
     }
 
     /**

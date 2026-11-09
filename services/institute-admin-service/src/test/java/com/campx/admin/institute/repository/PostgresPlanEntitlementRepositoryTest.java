@@ -33,10 +33,9 @@ public class PostgresPlanEntitlementRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require SUPABASE_JDBC_URL or CAMPX_JDBC_URL", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
+
         planRepository = new PostgresSubscriptionPlanRepository(connectionManager);
         entitlementRepository = new PostgresPlanEntitlementRepository(connectionManager);
 
@@ -56,7 +55,7 @@ public class PostgresPlanEntitlementRepositoryTest {
 
     @After
     public void tearDown() throws Exception {
-        if (connectionManager == null) return;
+        if (connectionManager == null || connectionManager.isClosed()) return;
         try (Connection conn = connectionManager.getConnection()) {
             if (testPlanId != null) {
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM plat.plan_entitlements WHERE plan_id = ?")) {

@@ -152,8 +152,8 @@ public class ReverseProxyHandler implements HttpHandler {
 
             // 4. Validate incoming Supabase JWT at Gateway boundary when security is enabled
             SupabaseJwtValidator.VerifiedClaims verifiedClaims = null;
+            String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
             if (config.isInternalAuthEnabled()) {
-                String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
                 try {
                     verifiedClaims = SupabaseJwtValidator.validate(
                             authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
@@ -161,6 +161,17 @@ public class ReverseProxyHandler implements HttpHandler {
                     logger.warn("Gateway rejected unauthenticated request to [{} {}]: {}", method, path, e.getMessage());
                     sendError(exchange, e.getStatusCode(), e.getError(), e.getErrorCode(), e.getMessage(), path);
                     return;
+                }
+            } else if (authHeader != null && authHeader.trim().regionMatches(true, 0, "Bearer ", 0, 7)) {
+                // If internal auth is not strictly required, but a Bearer JWT is provided by caller,
+                // validate and derive trusted claims so caller headers cannot spoof or override identity
+                try {
+                    if (config.getSupabaseJwtIssuer() != null && !config.getSupabaseJwtIssuer().trim().isEmpty()) {
+                        verifiedClaims = SupabaseJwtValidator.validate(
+                                authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
+                    }
+                } catch (Exception e) {
+                    logger.debug("Non-enforcing mode: provided Bearer token was not verified as Supabase JWT: {}", e.getMessage());
                 }
             }
 
@@ -261,8 +272,8 @@ public class ReverseProxyHandler implements HttpHandler {
         for (Map.Entry<String, List<String>> header : incomingHeaders.entrySet()) {
             String name = header.getKey();
             if (name == null) continue;
-            String lowerName = name.toLowerCase(java.util.Locale.ROOT);
-            boolean isStripped = config.isInternalAuthEnabled()
+            String lowerName = name.trim().toLowerCase(java.util.Locale.ROOT);
+            boolean isStripped = (config.isInternalAuthEnabled() || verifiedClaims != null)
                     && com.campx.logger.security.GatewayHmacProtocol.STRIPPED_INBOUND_HEADERS.contains(lowerName);
             if (!"host".equals(lowerName) && !"content-length".equals(lowerName) && !isStripped) {
                 for (String val : header.getValue()) {
@@ -272,20 +283,24 @@ public class ReverseProxyHandler implements HttpHandler {
         }
 
         // 2. Gateway HMAC Signing & Verified Identity Injection
-        if (config.isInternalAuthEnabled() && verifiedClaims != null) {
+        if (verifiedClaims != null) {
             String timestamp = String.valueOf(System.currentTimeMillis());
             String path = targetUrl.getPath();
             String bodySha256 = com.campx.logger.security.GatewayHmacProtocol.sha256Hex(body);
-            String canonicalPayload = com.campx.logger.security.GatewayHmacProtocol.buildCanonicalPayload(
-                    timestamp, method, path, verifiedClaims.getUserId(), verifiedClaims.getTenantId(), bodySha256);
-            String signature = com.campx.logger.security.GatewayHmacProtocol.calculateHmac(
-                    canonicalPayload, config.getInternalSecret());
+            String internalSecret = config.getInternalSecret();
 
             conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ID, verifiedClaims.getUserId());
             conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID, verifiedClaims.getTenantId());
             conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ROLE, verifiedClaims.getRole());
-            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TIMESTAMP, timestamp);
-            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_SIGNATURE, signature);
+
+            if (internalSecret != null && !internalSecret.trim().isEmpty()) {
+                String canonicalPayload = com.campx.logger.security.GatewayHmacProtocol.buildCanonicalPayload(
+                        timestamp, method, path, verifiedClaims.getUserId(), verifiedClaims.getTenantId(), bodySha256);
+                String signature = com.campx.logger.security.GatewayHmacProtocol.calculateHmac(
+                        canonicalPayload, internalSecret);
+                conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TIMESTAMP, timestamp);
+                conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_SIGNATURE, signature);
+            }
         }
 
         // Propagate trace identifier if not already explicitly present in incoming headers

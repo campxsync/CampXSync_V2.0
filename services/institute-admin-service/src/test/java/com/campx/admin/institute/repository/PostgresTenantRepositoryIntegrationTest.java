@@ -51,6 +51,7 @@ public class PostgresTenantRepositoryIntegrationTest {
     @BeforeClass
     public static void setupDatabase() throws Exception {
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
         connectionManager.initialize();
         repository = new PostgresTenantRepository(connectionManager);
 
@@ -92,19 +93,20 @@ public class PostgresTenantRepositoryIntegrationTest {
 
     @AfterClass
     public static void cleanupDatabase() {
-        if (connectionManager != null) {
-            try (Connection conn = connectionManager.getConnection()) {
-                // Soft-delete test tenants to respect the immutable audit trail (sys.forbid_mutation)
-                // All repository operations filter WHERE deleted_at IS NULL, ensuring complete isolation
-                try (PreparedStatement psTenants = conn.prepareStatement(
-                        "UPDATE core.tenants SET deleted_at = now(), status = 'INACTIVE' WHERE code LIKE ? AND deleted_at IS NULL")) {
-                    psTenants.setString(1, TEST_CODE_PREFIX + "%");
-                    int count = psTenants.executeUpdate();
-                    System.out.println("[PostgreSQL Cleanup] Soft-deleted " + count + " test records from core.tenants");
-                }
-            } catch (SQLException e) {
-                System.err.println("[PostgreSQL Cleanup Error] " + e.getMessage());
+        if (connectionManager == null || !connectionManager.isInitialized() || platformAdminUserId == null) {
+            return;
+        }
+        try (Connection conn = connectionManager.getConnection()) {
+            // Soft-delete test tenants to respect the immutable audit trail (sys.forbid_mutation)
+            // All repository operations filter WHERE deleted_at IS NULL, ensuring complete isolation
+            try (PreparedStatement psTenants = conn.prepareStatement(
+                    "UPDATE core.tenants SET deleted_at = now(), status = 'INACTIVE' WHERE code LIKE ? AND deleted_at IS NULL")) {
+                psTenants.setString(1, TEST_CODE_PREFIX + "%");
+                int count = psTenants.executeUpdate();
+                System.out.println("[PostgreSQL Cleanup] Soft-deleted " + count + " test records from core.tenants");
             }
+        } catch (SQLException e) {
+            System.err.println("[PostgreSQL Cleanup Error] " + e.getMessage());
         }
     }
 

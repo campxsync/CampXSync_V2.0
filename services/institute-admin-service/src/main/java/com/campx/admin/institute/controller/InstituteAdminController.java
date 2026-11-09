@@ -7,6 +7,7 @@ import com.campx.admin.institute.model.InstituteModels.Calendar;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.AuditEvent;
 import com.campx.logger.api.FlowTracker;
 import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
@@ -15,6 +16,9 @@ import com.sun.net.httpserver.HttpHandler;
 import com.campx.admin.institute.model.UserProfileModels.*;
 import static com.campx.admin.institute.model.UserProfileModels.*;
 import com.campx.admin.institute.repository.UserProfileRepository;
+import com.campx.admin.institute.repository.RoleTemplateRepository;
+import com.campx.admin.institute.repository.InMemoryRoleTemplateRepository;
+import com.campx.admin.institute.repository.PostgresRoleTemplateRepository;
 import com.campx.admin.institute.security.UserSecurityContext;
 
 import java.io.BufferedReader;
@@ -44,15 +48,25 @@ public class InstituteAdminController implements HttpHandler {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(InstituteAdminController.class);
     private final InstituteAdminDomainService domainService;
     private final UserProfileRepository userProfileRepository;
+    private final RoleTemplateRepository roleTemplateRepository;
     private final com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier;
 
+    private static RoleTemplateRepository resolveDefaultRoleTemplateRepository() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if ("postgres".equalsIgnoreCase(mode) || "true".equalsIgnoreCase(System.getProperty("campx.db.enabled"))
+                || "postgres".equalsIgnoreCase(System.getenv("CAMPX_PERSISTENCE_MODE"))) {
+            return new PostgresRoleTemplateRepository();
+        }
+        return new InMemoryRoleTemplateRepository();
+    }
+
     /**
-     * Initializes the controller with default UserProfileRepository and GatewayHmacVerifier.
+     * Initializes the controller with default repositories and GatewayHmacVerifier.
      *
      * @param domainService domain service instance
      */
     public InstituteAdminController(InstituteAdminDomainService domainService) {
-        this(domainService, new UserProfileRepository(), new com.campx.admin.institute.security.GatewayHmacVerifier());
+        this(domainService, new UserProfileRepository(), resolveDefaultRoleTemplateRepository(), new com.campx.admin.institute.security.GatewayHmacVerifier());
     }
 
     /**
@@ -62,7 +76,7 @@ public class InstituteAdminController implements HttpHandler {
      * @param userProfileRepository user profile repository instance
      */
     public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository) {
-        this(domainService, userProfileRepository, new com.campx.admin.institute.security.GatewayHmacVerifier());
+        this(domainService, userProfileRepository, resolveDefaultRoleTemplateRepository(), new com.campx.admin.institute.security.GatewayHmacVerifier());
     }
 
     /**
@@ -74,8 +88,23 @@ public class InstituteAdminController implements HttpHandler {
      */
     public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
                                     com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier) {
+        this(domainService, userProfileRepository, resolveDefaultRoleTemplateRepository(), gatewayHmacVerifier);
+    }
+
+    /**
+     * Initializes the controller with custom UserProfileRepository, RoleTemplateRepository, and custom GatewayHmacVerifier.
+     *
+     * @param domainService          domain service instance
+     * @param userProfileRepository  user profile repository instance
+     * @param roleTemplateRepository role template repository instance
+     * @param gatewayHmacVerifier    HMAC verifier instance
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
+                                    RoleTemplateRepository roleTemplateRepository,
+                                    com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier) {
         this.domainService = domainService;
         this.userProfileRepository = userProfileRepository != null ? userProfileRepository : new UserProfileRepository();
+        this.roleTemplateRepository = roleTemplateRepository != null ? roleTemplateRepository : resolveDefaultRoleTemplateRepository();
         this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier : new com.campx.admin.institute.security.GatewayHmacVerifier();
     }
 
@@ -252,6 +281,57 @@ public class InstituteAdminController implements HttpHandler {
                     flow.step("handleDeleteRole");
                     handleDeleteRole(exchange, roleId);
                     return;
+                }
+            }
+
+            // 8b. Role Templates Management (ADM-01 Step 2)
+            if (path.equals("/api/v1/admin/role-templates")) {
+                if ("POST".equalsIgnoreCase(method)) {
+                    flow.step("handleCreateRoleTemplate");
+                    handleCreateRoleTemplate(exchange);
+                    return;
+                } else if ("GET".equalsIgnoreCase(method)) {
+                    flow.step("handleListRoleTemplates");
+                    handleListRoleTemplates(exchange);
+                    return;
+                }
+            } else if (path.startsWith("/api/v1/admin/role-templates/")) {
+                String subPath = path.substring("/api/v1/admin/role-templates/".length());
+                if (subPath.contains("/permissions")) {
+                    int permIdx = subPath.indexOf("/permissions");
+                    String roleCode = subPath.substring(0, permIdx);
+                    String afterPerm = subPath.substring(permIdx + "/permissions".length());
+                    if (afterPerm.isEmpty() || afterPerm.equals("/")) {
+                        if ("GET".equalsIgnoreCase(method)) {
+                            flow.step("handleListRoleTemplatePermissions");
+                            handleListRoleTemplatePermissions(exchange, roleCode);
+                            return;
+                        } else if ("POST".equalsIgnoreCase(method)) {
+                            flow.step("handleAddRoleTemplatePermission");
+                            handleAddRoleTemplatePermission(exchange, roleCode);
+                            return;
+                        }
+                    } else if (afterPerm.startsWith("/") && "DELETE".equalsIgnoreCase(method)) {
+                        String permissionCode = afterPerm.substring(1);
+                        flow.step("handleRemoveRoleTemplatePermission");
+                        handleRemoveRoleTemplatePermission(exchange, roleCode, permissionCode);
+                        return;
+                    }
+                } else {
+                    String idOrCode = subPath;
+                    if ("GET".equalsIgnoreCase(method)) {
+                        flow.step("handleGetRoleTemplate");
+                        handleGetRoleTemplate(exchange, idOrCode);
+                        return;
+                    } else if ("PUT".equalsIgnoreCase(method)) {
+                        flow.step("handleUpdateRoleTemplate");
+                        handleUpdateRoleTemplate(exchange, idOrCode);
+                        return;
+                    } else if ("DELETE".equalsIgnoreCase(method)) {
+                        flow.step("handleDeleteRoleTemplate");
+                        handleDeleteRoleTemplate(exchange, idOrCode);
+                        return;
+                    }
                 }
             }
 
@@ -722,6 +802,14 @@ public class InstituteAdminController implements HttpHandler {
             flow.markFailed(e);
             logger.warn("[InstituteAdminService] Invalid reference [{} {}]: {}", method, path, e.getMessage());
             sendError(exchange, e.getStatus(), "Bad Request", e.getErrorCode(), e.getMessage(), path);
+        } catch (ResourceNotFoundException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Resource not found [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Not Found", e.getErrorCode(), e.getMessage(), path);
+        } catch (ResourceConflictException e) {
+            flow.markFailed(e);
+            logger.warn("[InstituteAdminService] Resource conflict [{} {}]: {}", method, path, e.getMessage());
+            sendError(exchange, e.getStatus(), "Conflict", e.getErrorCode(), e.getMessage(), path);
         } catch (InstituteNotFoundException e) {
             flow.markFailed(e);
             logger.warn("[InstituteAdminService] Resource not found [{} {}]: {}", method, path, e.getMessage());
@@ -2481,5 +2569,250 @@ public class InstituteAdminController implements HttpHandler {
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
         }
+    }
+
+    // =========================================================================
+    // Role Template Management Handlers (ADM-01 Step 2)
+    // =========================================================================
+
+    private static final Set<String> FORBIDDEN_ROLE_TEMPLATE_CREATE_FIELDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "created_at", "createdat", "created_by", "createdby",
+            "updated_at", "updatedat", "updated_by", "updatedby",
+            "deleted_at", "deletedat", "row_version", "rowversion"
+    )));
+
+    private static final Set<String> FORBIDDEN_ROLE_TEMPLATE_UPDATE_FIELDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "id", "code", "created_at", "createdat", "created_by", "createdby",
+            "updated_at", "updatedat", "updated_by", "updatedby",
+            "deleted_at", "deletedat"
+    )));
+
+    private String roleTemplateToJson(RoleTemplate t) {
+        if (t == null) return "null";
+        return "{"
+                + "\"id\":\"" + t.getId() + "\","
+                + "\"code\":\"" + escape(t.getCode()) + "\","
+                + "\"name\":\"" + escape(t.getName()) + "\","
+                + "\"catalogueId\":" + (t.getCatalogueId() != null ? "\"" + escape(t.getCatalogueId()) + "\"" : "null") + ","
+                + "\"kind\":" + (t.getKind() != null ? "\"" + escape(t.getKind()) + "\"" : "null") + ","
+                + "\"scopeNote\":" + (t.getScopeNote() != null ? "\"" + escape(t.getScopeNote()) + "\"" : "null") + ","
+                + "\"createdAt\":" + t.getCreatedAt() + ","
+                + "\"updatedAt\":" + t.getUpdatedAt() + ","
+                + "\"createdBy\":" + (t.getCreatedBy() != null ? "\"" + escape(t.getCreatedBy()) + "\"" : "null") + ","
+                + "\"updatedBy\":" + (t.getUpdatedBy() != null ? "\"" + escape(t.getUpdatedBy()) + "\"" : "null") + ","
+                + "\"rowVersion\":" + t.getRowVersion()
+                + "}";
+    }
+
+    private String roleTemplatePermissionToJson(RoleTemplatePermission p) {
+        if (p == null) return "null";
+        return "{"
+                + "\"id\":\"" + p.getId() + "\","
+                + "\"roleCode\":\"" + escape(p.getRoleCode()) + "\","
+                + "\"permissionCode\":\"" + escape(p.getPermissionCode()) + "\","
+                + "\"createdAt\":" + p.getCreatedAt() + ","
+                + "\"updatedAt\":" + p.getUpdatedAt() + ","
+                + "\"createdBy\":" + (p.getCreatedBy() != null ? "\"" + escape(p.getCreatedBy()) + "\"" : "null") + ","
+                + "\"updatedBy\":" + (p.getUpdatedBy() != null ? "\"" + escape(p.getUpdatedBy()) + "\"" : "null") + ","
+                + "\"rowVersion\":" + p.getRowVersion()
+                + "}";
+    }
+
+    private void handleCreateRoleTemplate(HttpExchange exchange) throws IOException {
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+        validateNoForbiddenFields(body, FORBIDDEN_ROLE_TEMPLATE_CREATE_FIELDS);
+
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+
+        String code = extract(body, "code", null);
+        if (code == null || code.trim().isEmpty()) {
+            throw new MalformedPayloadException("RoleTemplate code is required");
+        }
+        String name = extract(body, "name", null);
+        if (name == null || name.trim().isEmpty()) {
+            throw new MalformedPayloadException("RoleTemplate name is required");
+        }
+
+        RoleTemplate template = new RoleTemplate();
+        template.setId(extract(body, "id", null));
+        template.setCode(code.trim());
+        template.setName(name.trim());
+        template.setKind(extract(body, "kind", null));
+        String scopeNote = extract(body, "scopeNote", null);
+        if (scopeNote == null) scopeNote = extract(body, "scope_note", null);
+        template.setScopeNote(scopeNote);
+        String catalogueId = extract(body, "catalogueId", null);
+        if (catalogueId == null) catalogueId = extract(body, "catalogue_id", null);
+        template.setCatalogueId(catalogueId);
+
+        RoleTemplate created = roleTemplateRepository.createRoleTemplate(ctx, template);
+
+        // Propagate transactional outbox event
+        domainService.emitOutboxEvent("RoleTemplateCreated", created.getId(), "GLOBAL", roleTemplateToJson(created));
+
+        // Propagate audit event
+        AuditEvent audit = AuditEvent.builder()
+                .action("ROLE_TEMPLATE_CREATED")
+                .principalId(ctx.getUserId() != null ? ctx.getUserId().toString() : "PLATFORM_ADMIN")
+                .principalRole("PLATFORM_ADMIN")
+                .resourceType("ROLE_TEMPLATE")
+                .resourceId(created.getId())
+                .status("SUCCESS")
+                .description("Created role template: " + created.getCode() + " [" + created.getName() + "]")
+                .build();
+        logger.audit(audit);
+
+        exchange.getResponseHeaders().set("Location", "/api/v1/admin/role-templates/" + created.getId());
+        exchange.getResponseHeaders().set("ETag", "\"" + created.getRowVersion() + "\"");
+        sendJson(exchange, 201, roleTemplateToJson(created));
+    }
+
+    private void handleListRoleTemplates(HttpExchange exchange) throws IOException {
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+        List<RoleTemplate> list = roleTemplateRepository.listRoleTemplates(ctx);
+        StringBuilder sb = new StringBuilder("{\"roleTemplates\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(roleTemplateToJson(list.get(i)));
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleGetRoleTemplate(HttpExchange exchange, String idOrCode) throws IOException {
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+        Optional<RoleTemplate> opt = roleTemplateRepository.findById(ctx, idOrCode);
+        if (!opt.isPresent()) {
+            opt = roleTemplateRepository.findByCode(ctx, idOrCode);
+        }
+        RoleTemplate template = opt.orElseThrow(() -> new ResourceNotFoundException("RoleTemplate", idOrCode));
+        exchange.getResponseHeaders().set("ETag", "\"" + template.getRowVersion() + "\"");
+        sendJson(exchange, 200, roleTemplateToJson(template));
+    }
+
+    private void handleUpdateRoleTemplate(HttpExchange exchange, String id) throws IOException {
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+        validateNoForbiddenFields(body, FORBIDDEN_ROLE_TEMPLATE_UPDATE_FIELDS);
+
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+
+        RoleTemplate update = new RoleTemplate();
+        update.setId(id);
+        update.setName(extract(body, "name", null));
+        update.setKind(extract(body, "kind", null));
+        String scopeNote = extract(body, "scopeNote", null);
+        if (scopeNote == null) scopeNote = extract(body, "scope_note", null);
+        update.setScopeNote(scopeNote);
+        String catalogueId = extract(body, "catalogueId", null);
+        if (catalogueId == null) catalogueId = extract(body, "catalogue_id", null);
+        update.setCatalogueId(catalogueId);
+
+        RoleTemplate updated = roleTemplateRepository.updateRoleTemplate(ctx, update);
+
+        domainService.emitOutboxEvent("RoleTemplateUpdated", updated.getId(), "GLOBAL", roleTemplateToJson(updated));
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("ROLE_TEMPLATE_UPDATED")
+                .principalId(ctx.getUserId() != null ? ctx.getUserId().toString() : "PLATFORM_ADMIN")
+                .principalRole("PLATFORM_ADMIN")
+                .resourceType("ROLE_TEMPLATE")
+                .resourceId(updated.getId())
+                .status("SUCCESS")
+                .description("Updated role template: " + updated.getCode() + " [" + updated.getName() + "]")
+                .build();
+        logger.audit(audit);
+
+        exchange.getResponseHeaders().set("ETag", "\"" + updated.getRowVersion() + "\"");
+        sendJson(exchange, 200, roleTemplateToJson(updated));
+    }
+
+    private void handleDeleteRoleTemplate(HttpExchange exchange, String id) throws IOException {
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+        roleTemplateRepository.deleteRoleTemplate(ctx, id);
+
+        domainService.emitOutboxEvent("RoleTemplateDeleted", id, "GLOBAL", "{\"id\":\"" + id + "\"}");
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("ROLE_TEMPLATE_DELETED")
+                .principalId(ctx.getUserId() != null ? ctx.getUserId().toString() : "PLATFORM_ADMIN")
+                .principalRole("PLATFORM_ADMIN")
+                .resourceType("ROLE_TEMPLATE")
+                .resourceId(id)
+                .status("SUCCESS")
+                .description("Soft-deleted role template: " + id)
+                .build();
+        logger.audit(audit);
+
+        exchange.sendResponseHeaders(204, -1);
+    }
+
+    private void handleListRoleTemplatePermissions(HttpExchange exchange, String roleCode) throws IOException {
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+        List<RoleTemplatePermission> list = roleTemplateRepository.listPermissions(ctx, roleCode);
+        StringBuilder sb = new StringBuilder("{\"roleCode\":\"").append(escape(roleCode)).append("\",\"permissions\":[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(roleTemplatePermissionToJson(list.get(i)));
+        }
+        sb.append("]}");
+        sendJson(exchange, 200, sb.toString());
+    }
+
+    private void handleAddRoleTemplatePermission(HttpExchange exchange, String roleCode) throws IOException {
+        String body = readBody(exchange);
+        if (body.isEmpty()) {
+            throw new MalformedPayloadException("Request body cannot be empty");
+        }
+        String permissionCode = extract(body, "permissionCode", null);
+        if (permissionCode == null) permissionCode = extract(body, "permission_code", null);
+        if (permissionCode == null || permissionCode.trim().isEmpty()) {
+            throw new MalformedPayloadException("permissionCode is required");
+        }
+
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+        RoleTemplatePermission perm = roleTemplateRepository.addPermission(ctx, roleCode, permissionCode.trim());
+
+        domainService.emitOutboxEvent("RoleTemplatePermissionBound", perm.getId(), "GLOBAL", roleTemplatePermissionToJson(perm));
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("ROLE_TEMPLATE_PERMISSION_BOUND")
+                .principalId(ctx.getUserId() != null ? ctx.getUserId().toString() : "PLATFORM_ADMIN")
+                .principalRole("PLATFORM_ADMIN")
+                .resourceType("ROLE_TEMPLATE_PERMISSION")
+                .resourceId(perm.getId())
+                .status("SUCCESS")
+                .description("Bound permission " + perm.getPermissionCode() + " to role template " + perm.getRoleCode())
+                .build();
+        logger.audit(audit);
+
+        exchange.getResponseHeaders().set("Location", "/api/v1/admin/role-templates/" + roleCode + "/permissions/" + perm.getPermissionCode());
+        sendJson(exchange, 201, roleTemplatePermissionToJson(perm));
+    }
+
+    private void handleRemoveRoleTemplatePermission(HttpExchange exchange, String roleCode, String permissionCode) throws IOException {
+        UserSecurityContext ctx = extractPlatformSecurityContext(exchange);
+        roleTemplateRepository.removePermission(ctx, roleCode, permissionCode);
+
+        domainService.emitOutboxEvent("RoleTemplatePermissionUnbound", roleCode + ":" + permissionCode, "GLOBAL",
+                "{\"roleCode\":\"" + roleCode + "\",\"permissionCode\":\"" + permissionCode + "\"}");
+
+        AuditEvent audit = AuditEvent.builder()
+                .action("ROLE_TEMPLATE_PERMISSION_UNBOUND")
+                .principalId(ctx.getUserId() != null ? ctx.getUserId().toString() : "PLATFORM_ADMIN")
+                .principalRole("PLATFORM_ADMIN")
+                .resourceType("ROLE_TEMPLATE_PERMISSION")
+                .resourceId(roleCode + ":" + permissionCode)
+                .status("SUCCESS")
+                .description("Unbound permission " + permissionCode + " from role template " + roleCode)
+                .build();
+        logger.audit(audit);
+
+        exchange.sendResponseHeaders(204, -1);
     }
 }

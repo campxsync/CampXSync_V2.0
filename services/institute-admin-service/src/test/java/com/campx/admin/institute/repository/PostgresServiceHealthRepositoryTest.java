@@ -31,10 +31,9 @@ public class PostgresServiceHealthRepositoryTest {
 
     @Before
     public void setUp() throws Exception {
-        DatabaseConfig config = DatabaseConfig.load();
-        assumeNotNull("Live integration tests require SUPABASE_JDBC_URL or CAMPX_JDBC_URL", config.getJdbcUrl());
-
         connectionManager = DatabaseConnectionManager.getInstance();
+        com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingEnvironment(connectionManager);
+
         repository = new PostgresServiceHealthRepository(connectionManager);
 
         UUID adminUserId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
@@ -45,7 +44,7 @@ public class PostgresServiceHealthRepositoryTest {
 
     @After
     public void tearDown() throws Exception {
-        if (connectionManager == null) return;
+        if (connectionManager == null || connectionManager.isClosed()) return;
         try (Connection conn = connectionManager.getConnection()) {
             if (testServiceName != null) {
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM plat.service_health WHERE service_name = ?")) {

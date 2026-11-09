@@ -1,0 +1,40 @@
+# Track A — Staging Bootstrap Scripts Audit & Inventory
+
+**Document**: `docs/staging/01-bootstrap-table.md`  
+**Date**: 2026-10-13  
+**Target Environment**: Supabase PostgreSQL Staging (`kpwdvvcschankgggitnj`)  
+**Source Scripts Directory**: `D:\CampXSync\Documentation\DatabaseDesign\Supabase\Scripts_V3.0\`  
+**Binding Constraints**: Absolute Safety Rules 1–11 from `docs/handover/MASTER_PROMPT.md`
+
+---
+
+## 1. Sequence & Inventory Table
+
+The CampXSync database architecture is deployed via a 13-script bootstrap sequence. The table below details each script, its parsed objects, dependencies, idempotency characteristics, and current evidence classification.
+
+| Seq | Script File | Purpose & Functional Scope | Dependencies | Objects Created (Parsed) | Idempotent? | Prior Execution Evidence | Recorded Errors / Gotchas | Next Action |
+| :---: | :--- | :--- | :--- | :--- | :---: | :---: | :--- | :--- |
+| **00** | `00_extensions_schemas.sql` | Installs extensions, defines 20 ERP schemas, secures `sys` schema, revokes default public execute. | None | **Extensions**: `pgcrypto`, `pg_trgm`, `btree_gist`<br>**Schemas (20)**: `iam`, `sys`, `core`, `stu`, `cfg`, `plat`, `wf`, `doc`, `audit`, `acd`, `lms`, `obe`, `exm`, `fin`, `tax`, `bud`, `pay`, `hrm`, `cam`, `rpt` | **YES**<br>(`IF NOT EXISTS`) | **REPORTED COMPLETE — NOT VERIFIED** | None recorded. Optional extensions (`pg_cron`, `pgmq`) managed in dashboard. | Verify schemas via Query 1 & 2 in `verify-readonly.sql`. |
+| **10** | `10_early_helpers.sql` | Foundational tenant resolution helper reading JWT `app_metadata`. | `00_extensions_schemas.sql` (`core` schema) | **Function**: `core.current_tenant_id() RETURNS uuid` | **YES**<br>(`CREATE OR REPLACE`) | **REPORTED COMPLETE — NOT VERIFIED** | Must be stable and parallel-safe for RLS policy evaluation. | Verify function signature and search path via Query 6. |
+| **20** | `20_tables.sql` | Core schema DDL: creates 458 application tables with primary keys, UUID defaults, and audit metadata. | `00_extensions_schemas.sql`, `10_early_helpers.sql` | **Tables**: 458 tables across all 20 schemas (e.g. `iam.user_profiles`, `core.tenants`, `acd.courses`, `audit.change_log`). | **CONDITIONAL**<br>(`CREATE TABLE IF NOT EXISTS`) | **REPORTED COMPLETE — NOT VERIFIED** | Partition parent tables cannot hold direct data; partitioned tables must precede partition scripts. | Introspect table counts and row counts via Query 3. |
+| **30** | `30_foreign_keys.sql` | Defines 1239 relational foreign key constraints ensuring referential integrity across modules and tenants. | `20_tables.sql` (all tables) | **Foreign Keys**: 1239 FK constraints (`contype = 'f'`) | **NO**<br>(`ALTER TABLE ADD CONSTRAINT` fails on collision) | **REPORTED COMPLETE — NOT VERIFIED** | **DO NOT RE-RUN.** If executed twice, throws duplicate constraint errors. | Introspect constraint counts via Query 4 & 5. |
+| **40** | `40_functions.sql` | Domain logic functions, sequence generators (`core.next_number`), college scoping, and finance helpers. | `20_tables.sql`, `30_foreign_keys.sql` | **Functions**: Business helper routines across `core`, `iam`, `cfg`, `fin`. | **YES**<br>(`CREATE OR REPLACE`) | **REPORTED COMPLETE — NOT VERIFIED** | Requires `SECURITY DEFINER` with explicit empty `search_path`. | Introspect function compilation and grants via Query 6. |
+| **45** | `45_partitions.sql` | Monthly partition manager for high-volume audit, LMS, HR, and communication tables. | `20_tables.sql` (partition bases) | **Function**: `sys.ensure_partitions(int)`<br>**Partitions**: Initial monthly children for `audit.change_log`, `audit.events`, etc. | **YES**<br>(Checks `to_regclass` before `CREATE TABLE`) | **REPORTED COMPLETE — NOT VERIFIED** | **CRITICAL**: Must execute BEFORE rows are written to parent tables; rows in default partition block new partition attachment. | Verify child partitions via Query 7. |
+| **50** | `50_triggers.sql` | Audit logging triggers, timestamp updates (`trg_updated_at`), and status transition validators. | `20_tables.sql`, `40_functions.sql` | **Triggers & Trigger Functions**: Automatic change logging and workflow validation. | **YES**<br>(`DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`) | **REPORTED COMPLETE — NOT VERIFIED** | Triggers must not fire recursively during batch migrations. | Verify trigger attachments via Query 8. |
+| **55** | `55_scope_functions.sql` | Fine-grained IAM grant-scope evaluation functions (`iam.sc_*`, `core.own_*`) powering RLS. | `20_tables.sql`, `40_functions.sql` | **Functions**: 130+ scope functions evaluated in RLS policies. | **YES**<br>(`CREATE OR REPLACE`) | **REPORTED COMPLETE — NOT VERIFIED** | High CPU overhead if not stable/parallel-safe. | Introspect scope functions via Query 6 & 9. |
+| **60** | `60_rls.sql` | Enables and forces RLS on all tables, creating tenant isolation and role-permission policies. | `20_tables.sql`, `55_scope_functions.sql` | **Policies**: 500+ RLS policies (`pg_policy`); `ENABLE` and `FORCE` row security on all tables. | **YES**<br>(`DROP POLICY IF EXISTS` + `CREATE POLICY`) | **REPORTED COMPLETE — NOT VERIFIED** | `acd.courses` policies had tenant scoping bugs patched in migration `V20261011_01`. | Verify RLS enabled/forced flags and policies via Query 10 & 11. |
+| **70** | `70_views.sql` | Defines 14 application views with `security_invoker = true` (or `false` for PII redaction). | `20_tables.sql`, `60_rls.sql` | **Views (14)**: `hrm.v_leave_balance`, `acd.v_attendance_summary`, `audit.v_change_log`, `stu.v_roster`, etc. | **YES**<br>(`CREATE OR REPLACE VIEW`) | **REPORTED COMPLETE — NOT VERIFIED** | `security_invoker = true` requires caller to possess underlying table SELECT grants. | Verify views via Query 12. |
+| **75** | `75_grants.sql` | Configures Data API privileges: grants DML to `authenticated`, revokes public execute on functions, allow-lists RLS helpers. | `00` through `70` | **Grants**: Schema USAGE, table SELECT/INSERT/UPDATE/DELETE, function EXECUTE. | **YES**<br>(Grant/Revoke is idempotent) | **REPORTED COMPLETE — NOT VERIFIED** | `anon` must have ZERO permissions on ERP schemas. | Verify table and function privileges via Query 13 & 14. |
+| **80** | `80_seed.sql` | Seeds permission catalogue, system role templates, role hierarchy, and default setting definitions. | `20_tables.sql`, `75_grants.sql` | **Seeds**: System roles, permissions, transition rules, settings.<br>**Trigger**: `trg_seed_roles` on `core.tenants`. | **PARTIALLY**<br>(Uses `ON CONFLICT DO NOTHING`, but prone to duplicate roles if conflict keys mismatch) | **REPORTED COMPLETE — NOT VERIFIED** | **RULE 7 STRICT WARNING**: Prior agent runs caused duplicate roles in `iam.roles`. Never re-run without current state evidence and explicit GO. | Run duplicate detection via Query 15 & 16. |
+| **85** | `85_auth_hook.sql` | Supabase Custom Access Token hook function stamping `tenant_id` into JWT `app_metadata`. | `20_tables.sql` (`iam.user_profiles`) | **Function**: `iam.custom_access_token_hook(jsonb) RETURNS jsonb`<br>**Grants**: Usage and Execute to `supabase_auth_admin`. | **YES**<br>(`CREATE OR REPLACE`) | **REPORTED COMPLETE — NOT VERIFIED** | Must be marked `SECURITY DEFINER` and granted to `supabase_auth_admin`. | Verify hook signature via Query 17 & 18. Complete Dashboard checklist `02-manual-checklist.md`. |
+
+---
+
+## 2. Evidence Classification & Risk Summary
+
+1. **Status of Prior Execution**: All 13 bootstrap scripts were claimed as executed by prior agent sessions. Under binding Evidence Rule 3, these claims are classified as **REPORTED COMPLETE — NOT VERIFIED**.
+2. **Re-Execution Policy**:
+   - `30_foreign_keys.sql` is **non-idempotent** and will fail if re-run against an already-constrained database.
+   - `80_seed.sql` has a history of causing duplicate role mappings. Under Rule 7, re-running is strictly forbidden.
+   - Any write operation requires the Rule 9 ritual ("GO <script>").
+3. **Primary Verification Path**: The user must execute the read-only catalog introspection script `docs/staging/verify-readonly.sql` in the Supabase SQL Editor and report output numbers back to the agent.
