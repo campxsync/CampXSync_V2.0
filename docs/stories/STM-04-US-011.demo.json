@@ -1,0 +1,103 @@
+{
+  "storyId": "STM-04-US-011",
+  "title": "Student Reinstatement Request & Return to Active Academic Standing",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "INSERT INTO stu.lifecycle_status (tenant_id, student_id, status, effective_from, updated_at) VALUES ('a0000000-0000-0000-0000-000000000001', '81dd67d3-1d5f-4d8e-8061-a6764861f924', 'ON_LEAVE', now() - interval '60 days', now()) ON CONFLICT (tenant_id, student_id) DO UPDATE SET status = 'ON_LEAVE', updated_at = now()"
+    },
+    {
+      "query": "INSERT INTO stu.lifecycle_transition_rules (tenant_id, id, from_status, to_status, requires_approval, active) VALUES ('a0000000-0000-0000-0000-000000000001', '44444444-0004-0000-0000-000000000004', 'ON_LEAVE', 'ACTIVE', true, true) ON CONFLICT (tenant_id, from_status, to_status) DO UPDATE SET active = true, requires_approval = true"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Portal Authentication",
+      "description": "Student on approved leave authenticates to CampXSync with authorized student session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Student Lifecycle Desk",
+      "description": "Verify student lifecycle workspace loads with verified ON_LEAVE academic standing badge",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-status-badge\"]",
+      "highlight": "[data-testid=\"lifecycle-status-badge\"]"
+    },
+    {
+      "title": "Select Reinstatement Request Type",
+      "description": "Student selects 'Reinstatement (REINSTATE)' from request type dropdown to resume active studies",
+      "action": "select",
+      "selector": "[data-testid=\"lifecycle-select-type\"]",
+      "value": "REINSTATE",
+      "highlight": "[data-testid=\"lifecycle-select-type\"]"
+    },
+    {
+      "title": "Validation Error Guardrail",
+      "description": "Attempting submission with empty rationale triggers immediate validation alert banner",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-submit-btn\"]",
+      "highlight": "[data-testid=\"lifecycle-submit-btn\"]"
+    },
+    {
+      "title": "Verify Validation Alert Banner",
+      "description": "System displays validation warning enforcing minimum 5-character clearance justification",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-error-msg\"]",
+      "highlight": "[data-testid=\"lifecycle-error-msg\"]"
+    },
+    {
+      "title": "Provide Valid Medical Clearance Rationale",
+      "description": "Student enters detailed medical clearance rationale and return-to-campus readiness petition",
+      "action": "fill",
+      "selector": "[data-testid=\"lifecycle-input-reason\"]",
+      "value": "{{DEMO_TAG}} Medical clearance certificate issued following successful orthopaedic recovery. Requesting formal reinstatement to active academic standing.",
+      "highlight": "[data-testid=\"lifecycle-input-reason\"]"
+    },
+    {
+      "title": "Submit Reinstatement Request",
+      "description": "Click 'Submit Request' button, dispatching POST /api/v1/lifecycle/requests through API Gateway to lifecycle-service",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-submit-btn\"]",
+      "highlight": "[data-testid=\"lifecycle-submit-btn\"]"
+    },
+    {
+      "title": "Verify Submission Confirmation",
+      "description": "System displays immediate success banner confirming reinstatement petition is recorded and awaiting registrar review",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"lifecycle-success-msg\"]"
+    },
+    {
+      "title": "Switch to My Requests Tab",
+      "description": "Navigate to 'My Requests' tab to review submitted lifecycle petitions",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-tab-requests\"]",
+      "highlight": "[data-testid=\"lifecycle-tab-requests\"]"
+    },
+    {
+      "title": "Verify Reinstatement Request Row and Status Badge",
+      "description": "Reinstatement petition is displayed live in requests table with PENDING status badge",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-req-status-0\"]",
+      "highlight": "[data-testid=\"lifecycle-req-row-0\"]"
+    },
+    {
+      "title": "PostgreSQL Database Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_requests has committed the request with type REINSTATE and status PENDING",
+      "action": "db_check",
+      "query": "SELECT id, student_id, request_type, status, reason FROM stu.lifecycle_requests WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924' AND request_type = 'REINSTATE' AND reason LIKE '%{{DEMO_TAG}}%'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Enforcement Check",
+      "description": "Unauthenticated API request to gateway lifecycle endpoints must fail closed with HTTP 401 Unauthorized",
+      "action": "api_call",
+      "url": "http://localhost:8080/api/v1/lifecycle/requests",
+      "method": "GET",
+      "expectedStatus": 401
+    }
+  ]
+}
+

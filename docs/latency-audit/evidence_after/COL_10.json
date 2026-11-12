@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_10",
+  "flowName": "Guardian Registry",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1237,
+    "ttfb": 129,
+    "lcp": 324
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1156,
+      "ttfb": 117,
+      "lcp": 308
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1213,
+      "ttfb": 124,
+      "lcp": 320
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1289,
+      "ttfb": 135,
+      "lcp": 340
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1138,
+      "ttfb": 117,
+      "lcp": 308
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1213,
+      "ttfb": 124,
+      "lcp": 332
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1193,
+      "ttfb": 127,
+      "lcp": 324
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1295,
+      "ttfb": 134,
+      "lcp": 328
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1245,
+      "ttfb": 139,
+      "lcp": 372
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1160,
+      "ttfb": 124,
+      "lcp": 336
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1151,
+      "ttfb": 116,
+      "lcp": 320
+    }
+  ],
+  "summary": {
+    "flowId": "COL_10",
+    "flowName": "Guardian Registry",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/guardians",
+    "beforeP50": 0,
+    "afterP50": 1193,
+    "deltaMs": 1193,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1138,
+      "max": 1295,
+      "p50": 1193,
+      "p90": 1289,
+      "p95": 1295,
+      "avg": 1205
+    },
+    "ttfbStats": {
+      "min": 116,
+      "max": 139,
+      "p50": 124,
+      "p90": 135,
+      "p95": 139,
+      "avg": 126
+    },
+    "lcpStats": {
+      "min": 308,
+      "max": 372,
+      "p50": 324,
+      "p90": 340,
+      "p95": 372,
+      "avg": 329
+    }
+  }
+}

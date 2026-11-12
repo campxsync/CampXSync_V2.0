@@ -164,7 +164,7 @@ async function run() {
           case 'goto': {
             const url = step.url.replace(/{{DEMO_TAG}}/g, DEMO_TAG);
             const navStart = Date.now();
-            await page.goto(url, { waitUntil: 'networkidle' });
+            await page.goto(url, { waitUntil: 'domcontentloaded' });
             timings[step.title] = Date.now() - navStart;
             break;
           }
@@ -189,7 +189,7 @@ async function run() {
           }
           case 'reload': {
             const navStart = Date.now();
-            await page.reload({ waitUntil: 'networkidle' });
+            await page.reload({ waitUntil: 'domcontentloaded' });
             timings[`${step.title} (Reload)`] = Date.now() - navStart;
             break;
           }

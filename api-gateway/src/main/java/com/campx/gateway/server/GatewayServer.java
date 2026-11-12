@@ -8,6 +8,8 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Embedded HTTP server hosting the API Gateway.
@@ -37,6 +39,11 @@ public class GatewayServer {
      * Underlying JDK HTTP server instance.
      */
     private HttpServer server;
+
+    /**
+     * Bounded thread pool executor for concurrent request dispatching (REC-04).
+     */
+    private ExecutorService executorService;
 
     /**
      * Flag indicating whether the HTTP server is currently active.
@@ -69,14 +76,19 @@ public class GatewayServer {
 
         server = HttpServer.create(new InetSocketAddress(config.getPort()), 0);
         config.setPort(server.getAddress().getPort());
-        server.setExecutor(null); // default executor
+
+        // REC-04: Multi-threaded executor with bounded pool (32 threads) to prevent head-of-line blocking
+        java.util.concurrent.ThreadPoolExecutor tpe = (java.util.concurrent.ThreadPoolExecutor) Executors.newFixedThreadPool(32);
+        tpe.prestartAllCoreThreads();
+        executorService = tpe;
+        server.setExecutor(executorService);
 
         ReverseProxyHandler proxyHandler = new ReverseProxyHandler(config);
         server.createContext("/", proxyHandler);
 
         server.start();
         running = true;
-        logger.info("CampXSync API Gateway started on port {}", config.getPort());
+        logger.info("CampXSync API Gateway started on port {} with 32 worker threads", config.getPort());
     }
 
     /**
@@ -85,6 +97,9 @@ public class GatewayServer {
     public synchronized void stop() {
         if (server != null && running) {
             server.stop(0);
+            if (executorService != null) {
+                executorService.shutdown();
+            }
             running = false;
             logger.info("CampXSync API Gateway stopped");
         }

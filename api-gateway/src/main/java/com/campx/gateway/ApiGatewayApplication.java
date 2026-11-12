@@ -50,6 +50,8 @@ public class ApiGatewayApplication {
                 CampXLoggerFactory.shutdown();
             }));
 
+            // Keep main thread alive
+            Thread.currentThread().join();
         } catch (Exception e) {
             logger.error("Failed to start CampXSync API Gateway: {}", e.getMessage(), e);
             System.exit(1);

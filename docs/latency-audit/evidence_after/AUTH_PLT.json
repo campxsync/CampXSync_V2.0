@@ -1,0 +1,106 @@
+{
+  "flowId": "AUTH_PLT",
+  "flowName": "Platform Admin Login to Dashboard",
+  "persona": "Platform Admin",
+  "coldRun": {
+    "actionToVisible": 1341,
+    "ttfb": 343,
+    "lcp": 424
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1250,
+      "ttfb": 320,
+      "lcp": 400
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1375,
+      "ttfb": 365,
+      "lcp": 444
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1224,
+      "ttfb": 301,
+      "lcp": 380
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1246,
+      "ttfb": 329,
+      "lcp": 392
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1224,
+      "ttfb": 307,
+      "lcp": 400
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1168,
+      "ttfb": 296,
+      "lcp": 360
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1155,
+      "ttfb": 286,
+      "lcp": 356
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1201,
+      "ttfb": 297,
+      "lcp": 380
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1251,
+      "ttfb": 310,
+      "lcp": 392
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1300,
+      "ttfb": 304,
+      "lcp": 400
+    }
+  ],
+  "summary": {
+    "flowId": "AUTH_PLT",
+    "flowName": "Platform Admin Login to Dashboard",
+    "persona": "Platform Admin",
+    "target": "/platform",
+    "beforeP50": 0,
+    "afterP50": 1224,
+    "deltaMs": 1224,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1155,
+      "max": 1375,
+      "p50": 1224,
+      "p90": 1300,
+      "p95": 1375,
+      "avg": 1239
+    },
+    "ttfbStats": {
+      "min": 286,
+      "max": 365,
+      "p50": 304,
+      "p90": 329,
+      "p95": 365,
+      "avg": 312
+    },
+    "lcpStats": {
+      "min": 356,
+      "max": 444,
+      "p50": 392,
+      "p90": 400,
+      "p95": 444,
+      "avg": 390
+    }
+  }
+}

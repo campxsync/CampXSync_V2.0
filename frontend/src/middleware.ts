@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
+import { verifySupabaseJwtLocally, extractAccessTokenFromCookies } from '@/lib/auth/jwt-verifier';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -47,17 +48,38 @@ export async function middleware(request: NextRequest) {
 
   // 3. Get session
   let user: any = null;
-  const { data } = await supabase.auth.getUser();
-  user = data?.user;
 
-  // Fallback to test session cookie for local/dev and Vercel Preview only
-  if (!user && isTestSessionAllowed()) {
+  // Fast-path test session cookie for local/dev and Vercel Preview
+  if (isTestSessionAllowed()) {
     const testCookie = request.cookies.get('campx_test_session')?.value;
     if (testCookie) {
       try {
         user = JSON.parse(testCookie);
       } catch {}
     }
+  }
+
+  // Local cryptographic ES256 JWT verification via JWKS (Sprint Item 3)
+  if (!user) {
+    const rawToken = extractAccessTokenFromCookies(request.cookies);
+    if (rawToken) {
+      const verified = verifySupabaseJwtLocally(rawToken);
+      if (verified.valid && verified.claims) {
+        user = {
+          id: verified.claims.sub,
+          email: verified.claims.email || '',
+          app_metadata: verified.claims.app_metadata || {},
+          user_metadata: verified.claims.user_metadata || {},
+          aud: 'authenticated',
+        };
+      }
+    }
+  }
+
+  // Fallback to Supabase GoTrue if neither test cookie nor local JWT was verified
+  if (!user) {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user;
   }
 
   if (!user) {

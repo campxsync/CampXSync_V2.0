@@ -1,0 +1,106 @@
+{
+  "flowId": "FAC_02",
+  "flowName": "Faculty Assigned Timetable",
+  "persona": "Faculty",
+  "coldRun": {
+    "actionToVisible": 1314,
+    "ttfb": 145,
+    "lcp": 380
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1227,
+      "ttfb": 131,
+      "lcp": 364
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1211,
+      "ttfb": 126,
+      "lcp": 356
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1222,
+      "ttfb": 129,
+      "lcp": 372
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1204,
+      "ttfb": 144,
+      "lcp": 368
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1209,
+      "ttfb": 149,
+      "lcp": 384
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1208,
+      "ttfb": 133,
+      "lcp": 364
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1218,
+      "ttfb": 128,
+      "lcp": 356
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1257,
+      "ttfb": 142,
+      "lcp": 372
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1213,
+      "ttfb": 134,
+      "lcp": 360
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1240,
+      "ttfb": 148,
+      "lcp": 388
+    }
+  ],
+  "summary": {
+    "flowId": "FAC_02",
+    "flowName": "Faculty Assigned Timetable",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/timetable",
+    "beforeP50": 0,
+    "afterP50": 1213,
+    "deltaMs": 1213,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1204,
+      "max": 1257,
+      "p50": 1213,
+      "p90": 1240,
+      "p95": 1257,
+      "avg": 1221
+    },
+    "ttfbStats": {
+      "min": 126,
+      "max": 149,
+      "p50": 133,
+      "p90": 148,
+      "p95": 149,
+      "avg": 136
+    },
+    "lcpStats": {
+      "min": 356,
+      "max": 388,
+      "p50": 364,
+      "p90": 384,
+      "p95": 388,
+      "avg": 368
+    }
+  }
+}

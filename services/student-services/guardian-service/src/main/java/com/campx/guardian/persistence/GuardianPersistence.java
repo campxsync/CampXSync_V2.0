@@ -57,4 +57,10 @@ public interface GuardianPersistence {
     List<HistoryEntry> findHistory(Actor actor, UUID studentId);
 
     List<GuardianLink> findGuardians(Actor actor, UUID studentId);
+
+    void linkExistingGuardian(Actor actor, GuardianLink link);
+
+    List<GuardianLink> findStudentsByGuardianPerson(Actor actor, UUID guardianPersonId);
+
+    GuardianLink findGuardianPersonDetails(Actor actor, UUID guardianPersonId);
 }

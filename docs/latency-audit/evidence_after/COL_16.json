@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_16",
+  "flowName": "Enrollment Management",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1899,
+    "ttfb": 118,
+    "lcp": 304
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1675,
+      "ttfb": 125,
+      "lcp": 320
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1679,
+      "ttfb": 118,
+      "lcp": 320
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1695,
+      "ttfb": 113,
+      "lcp": 332
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1657,
+      "ttfb": 111,
+      "lcp": 316
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1653,
+      "ttfb": 130,
+      "lcp": 328
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1836,
+      "ttfb": 117,
+      "lcp": 324
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1748,
+      "ttfb": 127,
+      "lcp": 336
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1688,
+      "ttfb": 116,
+      "lcp": 304
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1824,
+      "ttfb": 284,
+      "lcp": 488
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1711,
+      "ttfb": 139,
+      "lcp": 336
+    }
+  ],
+  "summary": {
+    "flowId": "COL_16",
+    "flowName": "Enrollment Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/enrollment",
+    "beforeP50": 0,
+    "afterP50": 1688,
+    "deltaMs": 1688,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1653,
+      "max": 1836,
+      "p50": 1688,
+      "p90": 1824,
+      "p95": 1836,
+      "avg": 1717
+    },
+    "ttfbStats": {
+      "min": 111,
+      "max": 284,
+      "p50": 118,
+      "p90": 139,
+      "p95": 284,
+      "avg": 138
+    },
+    "lcpStats": {
+      "min": 304,
+      "max": 488,
+      "p50": 324,
+      "p90": 336,
+      "p95": 488,
+      "avg": 340
+    }
+  }
+}

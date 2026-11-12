@@ -1,0 +1,2598 @@
+[
+  {
+    "flowId": "AUTH_PLT",
+    "flowName": "Platform Admin Login to Dashboard",
+    "persona": "Platform Admin",
+    "target": "/platform",
+    "actionStats": {
+      "min": 1208,
+      "max": 1604,
+      "p50": 1233,
+      "p90": 1325,
+      "p95": 1604,
+      "avg": 1282
+    },
+    "ttfbStats": {
+      "min": 282,
+      "max": 365,
+      "p50": 298,
+      "p90": 346,
+      "p95": 365,
+      "avg": 308
+    },
+    "lcpStats": {
+      "min": 364,
+      "max": 460,
+      "p50": 388,
+      "p90": 436,
+      "p95": 460,
+      "avg": 398
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 218628,
+      "max": 218628,
+      "p50": 218628,
+      "p90": 218628,
+      "p95": 218628,
+      "avg": 218628
+    },
+    "reqStats": {
+      "min": 21,
+      "max": 21,
+      "p50": 21,
+      "p90": 21,
+      "p95": 21,
+      "avg": 21
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 214,
+    "coldRunTime": 1280,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "PLT_01",
+    "flowName": "Platform Operator Dashboard",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform",
+    "actionStats": {
+      "min": 1106,
+      "max": 1220,
+      "p50": 1134,
+      "p90": 1166,
+      "p95": 1220,
+      "avg": 1144
+    },
+    "ttfbStats": {
+      "min": 274,
+      "max": 317,
+      "p50": 289,
+      "p90": 308,
+      "p95": 317,
+      "avg": 294
+    },
+    "lcpStats": {
+      "min": 392,
+      "max": 452,
+      "p50": 408,
+      "p90": 432,
+      "p95": 452,
+      "avg": 414
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 225282,
+      "max": 225282,
+      "p50": 225282,
+      "p90": 225282,
+      "p95": 225282,
+      "avg": 225282
+    },
+    "reqStats": {
+      "min": 21,
+      "max": 21,
+      "p50": 21,
+      "p90": 21,
+      "p95": 21,
+      "avg": 21
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 200,
+    "totalPayloadKB": 220,
+    "coldRunTime": 1118,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "PLT_02",
+    "flowName": "Institutes Registry",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/institutes",
+    "actionStats": {
+      "min": 958,
+      "max": 1031,
+      "p50": 982,
+      "p90": 1027,
+      "p95": 1031,
+      "avg": 994
+    },
+    "ttfbStats": {
+      "min": 131,
+      "max": 195,
+      "p50": 145,
+      "p90": 163,
+      "p95": 195,
+      "avg": 150
+    },
+    "lcpStats": {
+      "min": 232,
+      "max": 296,
+      "p50": 252,
+      "p90": 292,
+      "p95": 296,
+      "avg": 260
+    },
+    "tbtStats": {
+      "min": 3,
+      "max": 22,
+      "p50": 10,
+      "p90": 16,
+      "p95": 22,
+      "avg": 11
+    },
+    "payloadStats": {
+      "min": 223120,
+      "max": 223120,
+      "p50": 223120,
+      "p90": 223120,
+      "p95": 223120,
+      "avg": 223120
+    },
+    "reqStats": {
+      "min": 20,
+      "max": 20,
+      "p50": 20,
+      "p90": 20,
+      "p95": 20,
+      "avg": 20
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 199,
+    "totalPayloadKB": 218,
+    "coldRunTime": 985,
+    "verdict": "Good"
+  },
+  {
+    "flowId": "PLT_03",
+    "flowName": "Onboard New Institute View",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/institutes/new",
+    "actionStats": {
+      "min": 967,
+      "max": 1065,
+      "p50": 1007,
+      "p90": 1023,
+      "p95": 1065,
+      "avg": 1007
+    },
+    "ttfbStats": {
+      "min": 121,
+      "max": 156,
+      "p50": 133,
+      "p90": 137,
+      "p95": 156,
+      "avg": 134
+    },
+    "lcpStats": {
+      "min": 240,
+      "max": 292,
+      "p50": 280,
+      "p90": 288,
+      "p95": 292,
+      "avg": 270
+    },
+    "tbtStats": {
+      "min": 14,
+      "max": 34,
+      "p50": 23,
+      "p90": 33,
+      "p95": 34,
+      "avg": 23
+    },
+    "payloadStats": {
+      "min": 226928,
+      "max": 227095,
+      "p50": 227095,
+      "p90": 227095,
+      "p95": 227095,
+      "avg": 227062
+    },
+    "reqStats": {
+      "min": 20,
+      "max": 20,
+      "p50": 20,
+      "p90": 20,
+      "p95": 20,
+      "avg": 20
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 202,
+    "totalPayloadKB": 222,
+    "coldRunTime": 1015,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "PLT_04",
+    "flowName": "Platform Audit Trail",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/audit",
+    "actionStats": {
+      "min": 1102,
+      "max": 1291,
+      "p50": 1130,
+      "p90": 1213,
+      "p95": 1291,
+      "avg": 1156
+    },
+    "ttfbStats": {
+      "min": 279,
+      "max": 346,
+      "p50": 290,
+      "p90": 305,
+      "p95": 346,
+      "avg": 297
+    },
+    "lcpStats": {
+      "min": 376,
+      "max": 472,
+      "p50": 396,
+      "p90": 428,
+      "p95": 472,
+      "avg": 408
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 222671,
+      "max": 222671,
+      "p50": 222671,
+      "p90": 222671,
+      "p95": 222671,
+      "avg": 222671
+    },
+    "reqStats": {
+      "min": 20,
+      "max": 20,
+      "p50": 20,
+      "p90": 20,
+      "p95": 20,
+      "avg": 20
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 217,
+    "coldRunTime": 1228,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "AUTH_COL",
+    "flowName": "College Admin Login to Dashboard",
+    "persona": "College Admin",
+    "target": "/college",
+    "actionStats": {
+      "min": 1231,
+      "max": 1524,
+      "p50": 1274,
+      "p90": 1339,
+      "p95": 1524,
+      "avg": 1299
+    },
+    "ttfbStats": {
+      "min": 161,
+      "max": 184,
+      "p50": 177,
+      "p90": 184,
+      "p95": 184,
+      "avg": 176
+    },
+    "lcpStats": {
+      "min": 252,
+      "max": 324,
+      "p50": 288,
+      "p90": 320,
+      "p95": 324,
+      "avg": 289
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 328723,
+      "max": 328723,
+      "p50": 328723,
+      "p90": 328723,
+      "p95": 328723,
+      "avg": 328723
+    },
+    "reqStats": {
+      "min": 30,
+      "max": 30,
+      "p50": 30,
+      "p90": 30,
+      "p95": 30,
+      "avg": 30
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 305,
+    "totalPayloadKB": 321,
+    "coldRunTime": 1323,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "COL_01",
+    "flowName": "College Admin Dashboard",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college",
+    "actionStats": {
+      "min": 1132,
+      "max": 1241,
+      "p50": 1196,
+      "p90": 1226,
+      "p95": 1241,
+      "avg": 1193
+    },
+    "ttfbStats": {
+      "min": 137,
+      "max": 163,
+      "p50": 147,
+      "p90": 162,
+      "p95": 163,
+      "avg": 149
+    },
+    "lcpStats": {
+      "min": 268,
+      "max": 336,
+      "p50": 304,
+      "p90": 324,
+      "p95": 336,
+      "avg": 306
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 8,
+      "p50": 0,
+      "p90": 0,
+      "p95": 8,
+      "avg": 1
+    },
+    "payloadStats": {
+      "min": 337145,
+      "max": 337145,
+      "p50": 337145,
+      "p90": 337145,
+      "p95": 337145,
+      "avg": 337145
+    },
+    "reqStats": {
+      "min": 30,
+      "max": 30,
+      "p50": 30,
+      "p90": 30,
+      "p95": 30,
+      "avg": 30
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 303,
+    "totalPayloadKB": 329,
+    "coldRunTime": 1631,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "COL_02",
+    "flowName": "Departments Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/departments",
+    "actionStats": {
+      "min": 1059,
+      "max": 1132,
+      "p50": 1081,
+      "p90": 1120,
+      "p95": 1132,
+      "avg": 1091
+    },
+    "ttfbStats": {
+      "min": 103,
+      "max": 120,
+      "p50": 115,
+      "p90": 118,
+      "p95": 120,
+      "avg": 113
+    },
+    "lcpStats": {
+      "min": 220,
+      "max": 272,
+      "p50": 240,
+      "p90": 268,
+      "p95": 272,
+      "avg": 246
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 2,
+      "p50": 0,
+      "p90": 0,
+      "p95": 2,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 229410,
+      "max": 229410,
+      "p50": 229410,
+      "p90": 229410,
+      "p95": 229410,
+      "avg": 229410
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 200,
+    "totalPayloadKB": 224,
+    "coldRunTime": 1076,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "COL_03",
+    "flowName": "Academic Programs",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/programs",
+    "actionStats": {
+      "min": 809,
+      "max": 867,
+      "p50": 839,
+      "p90": 866,
+      "p95": 867,
+      "avg": 839
+    },
+    "ttfbStats": {
+      "min": 46,
+      "max": 62,
+      "p50": 50,
+      "p90": 61,
+      "p95": 62,
+      "avg": 54
+    },
+    "lcpStats": {
+      "min": 120,
+      "max": 168,
+      "p50": 140,
+      "p90": 160,
+      "p95": 168,
+      "avg": 144
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 133945,
+      "max": 133945,
+      "p50": 133945,
+      "p90": 133945,
+      "p95": 133945,
+      "avg": 133945
+    },
+    "reqStats": {
+      "min": 11,
+      "max": 11,
+      "p50": 11,
+      "p90": 11,
+      "p95": 11,
+      "avg": 11
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 117,
+    "totalPayloadKB": 131,
+    "coldRunTime": 858,
+    "verdict": "Good"
+  },
+  {
+    "flowId": "COL_04",
+    "flowName": "Academic Batches",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/batches",
+    "actionStats": {
+      "min": 5367,
+      "max": 8056,
+      "p50": 5403,
+      "p90": 5703,
+      "p95": 8056,
+      "avg": 5697
+    },
+    "ttfbStats": {
+      "min": 4194,
+      "max": 6873,
+      "p50": 4216,
+      "p90": 4498,
+      "p95": 6873,
+      "avg": 4516
+    },
+    "lcpStats": {
+      "min": 4396,
+      "max": 7096,
+      "p50": 4424,
+      "p90": 4704,
+      "p95": 7096,
+      "avg": 4714
+    },
+    "tbtStats": {
+      "min": 13,
+      "max": 47,
+      "p50": 26,
+      "p90": 34,
+      "p95": 47,
+      "avg": 27
+    },
+    "payloadStats": {
+      "min": 226757,
+      "max": 226757,
+      "p50": 226757,
+      "p90": 226757,
+      "p95": 226757,
+      "avg": 226757
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 221,
+    "coldRunTime": 5965,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "COL_05",
+    "flowName": "Student Roster",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/students",
+    "actionStats": {
+      "min": 3204,
+      "max": 3730,
+      "p50": 3313,
+      "p90": 3479,
+      "p95": 3730,
+      "avg": 3371
+    },
+    "ttfbStats": {
+      "min": 2142,
+      "max": 2614,
+      "p50": 2171,
+      "p90": 2196,
+      "p95": 2614,
+      "avg": 2212
+    },
+    "lcpStats": {
+      "min": 2328,
+      "max": 2812,
+      "p50": 2360,
+      "p90": 2404,
+      "p95": 2812,
+      "avg": 2410
+    },
+    "tbtStats": {
+      "min": 90,
+      "max": 165,
+      "p50": 115,
+      "p90": 140,
+      "p95": 165,
+      "avg": 119
+    },
+    "payloadStats": {
+      "min": 230359,
+      "max": 230359,
+      "p50": 230359,
+      "p90": 230359,
+      "p95": 230359,
+      "avg": 230359
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 225,
+    "coldRunTime": 3608,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "COL_07",
+    "flowName": "Timetable Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/timetable",
+    "actionStats": {
+      "min": 1224,
+      "max": 1293,
+      "p50": 1255,
+      "p90": 1278,
+      "p95": 1293,
+      "avg": 1257
+    },
+    "ttfbStats": {
+      "min": 260,
+      "max": 303,
+      "p50": 271,
+      "p90": 292,
+      "p95": 303,
+      "avg": 277
+    },
+    "lcpStats": {
+      "min": 396,
+      "max": 428,
+      "p50": 416,
+      "p90": 428,
+      "p95": 428,
+      "avg": 415
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 230645,
+      "max": 230645,
+      "p50": 230645,
+      "p90": 230645,
+      "p95": 230645,
+      "avg": 230645
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 225,
+    "coldRunTime": 1517,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "COL_08",
+    "flowName": "Attendance Oversight",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/attendance",
+    "actionStats": {
+      "min": 3207,
+      "max": 3780,
+      "p50": 3307,
+      "p90": 3432,
+      "p95": 3780,
+      "avg": 3356
+    },
+    "ttfbStats": {
+      "min": 2155,
+      "max": 2459,
+      "p50": 2156,
+      "p90": 2192,
+      "p95": 2459,
+      "avg": 2193
+    },
+    "lcpStats": {
+      "min": 2324,
+      "max": 2756,
+      "p50": 2348,
+      "p90": 2380,
+      "p95": 2756,
+      "avg": 2392
+    },
+    "tbtStats": {
+      "min": 8,
+      "max": 65,
+      "p50": 23,
+      "p90": 57,
+      "p95": 65,
+      "avg": 32
+    },
+    "payloadStats": {
+      "min": 233606,
+      "max": 233606,
+      "p50": 233606,
+      "p90": 233606,
+      "p95": 233606,
+      "avg": 233606
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 204,
+    "totalPayloadKB": 228,
+    "coldRunTime": 3230,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "COL_10",
+    "flowName": "Guardian Registry",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/guardians",
+    "actionStats": {
+      "min": 1054,
+      "max": 1107,
+      "p50": 1074,
+      "p90": 1102,
+      "p95": 1107,
+      "avg": 1080
+    },
+    "ttfbStats": {
+      "min": 98,
+      "max": 127,
+      "p50": 101,
+      "p90": 121,
+      "p95": 127,
+      "avg": 108
+    },
+    "lcpStats": {
+      "min": 224,
+      "max": 256,
+      "p50": 232,
+      "p90": 252,
+      "p95": 256,
+      "avg": 237
+    },
+    "tbtStats": {
+      "min": 6,
+      "max": 25,
+      "p50": 12,
+      "p90": 22,
+      "p95": 25,
+      "avg": 15
+    },
+    "payloadStats": {
+      "min": 226888,
+      "max": 226888,
+      "p50": 226888,
+      "p90": 226888,
+      "p95": 226888,
+      "avg": 226888
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 198,
+    "totalPayloadKB": 222,
+    "coldRunTime": 1825,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "COL_11",
+    "flowName": "Admissions Intakes",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/admissions/intakes",
+    "actionStats": {
+      "min": 3237,
+      "max": 3550,
+      "p50": 3324,
+      "p90": 3528,
+      "p95": 3550,
+      "avg": 3383
+    },
+    "ttfbStats": {
+      "min": 2136,
+      "max": 2477,
+      "p50": 2158,
+      "p90": 2179,
+      "p95": 2477,
+      "avg": 2191
+    },
+    "lcpStats": {
+      "min": 2300,
+      "max": 2668,
+      "p50": 2344,
+      "p90": 2464,
+      "p95": 2668,
+      "avg": 2402
+    },
+    "tbtStats": {
+      "min": 1,
+      "max": 84,
+      "p50": 25,
+      "p90": 72,
+      "p95": 84,
+      "avg": 39
+    },
+    "payloadStats": {
+      "min": 227677,
+      "max": 227677,
+      "p50": 227677,
+      "p90": 227677,
+      "p95": 227677,
+      "avg": 227677
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 197,
+    "totalPayloadKB": 222,
+    "coldRunTime": 3343,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "COL_12",
+    "flowName": "Admissions Applications",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/admissions",
+    "actionStats": {
+      "min": 7449,
+      "max": 7963,
+      "p50": 7575,
+      "p90": 7834,
+      "p95": 7963,
+      "avg": 7628
+    },
+    "ttfbStats": {
+      "min": 6252,
+      "max": 6744,
+      "p50": 6286,
+      "p90": 6561,
+      "p95": 6744,
+      "avg": 6375
+    },
+    "lcpStats": {
+      "min": 6436,
+      "max": 6956,
+      "p50": 6488,
+      "p90": 6760,
+      "p95": 6956,
+      "avg": 6578
+    },
+    "tbtStats": {
+      "min": 74,
+      "max": 146,
+      "p50": 103,
+      "p90": 143,
+      "p95": 146,
+      "avg": 110
+    },
+    "payloadStats": {
+      "min": 231023,
+      "max": 231023,
+      "p50": 231023,
+      "p90": 231023,
+      "p95": 231023,
+      "avg": 231023
+    },
+    "reqStats": {
+      "min": 31,
+      "max": 31,
+      "p50": 31,
+      "p90": 31,
+      "p95": 31,
+      "avg": 31
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 195,
+    "totalPayloadKB": 226,
+    "coldRunTime": 7494,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "COL_15",
+    "flowName": "Document Types Configuration",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/documents",
+    "actionStats": {
+      "min": 3205,
+      "max": 3714,
+      "p50": 3278,
+      "p90": 3315,
+      "p95": 3714,
+      "avg": 3317
+    },
+    "ttfbStats": {
+      "min": 92,
+      "max": 529,
+      "p50": 99,
+      "p90": 112,
+      "p95": 529,
+      "avg": 143
+    },
+    "lcpStats": {
+      "min": 344,
+      "max": 768,
+      "p50": 368,
+      "p90": 404,
+      "p95": 768,
+      "avg": 410
+    },
+    "tbtStats": {
+      "min": 122,
+      "max": 200,
+      "p50": 154,
+      "p90": 181,
+      "p95": 200,
+      "avg": 156
+    },
+    "payloadStats": {
+      "min": 228988,
+      "max": 228988,
+      "p50": 228988,
+      "p90": 228988,
+      "p95": 228988,
+      "avg": 228988
+    },
+    "reqStats": {
+      "min": 30,
+      "max": 30,
+      "p50": 30,
+      "p90": 30,
+      "p95": 30,
+      "avg": 30
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 198,
+    "totalPayloadKB": 224,
+    "coldRunTime": 3918,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "COL_16",
+    "flowName": "Enrollment Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/enrollment",
+    "actionStats": {
+      "min": 5405,
+      "max": 5966,
+      "p50": 5449,
+      "p90": 5842,
+      "p95": 5966,
+      "avg": 5541
+    },
+    "ttfbStats": {
+      "min": 94,
+      "max": 614,
+      "p50": 112,
+      "p90": 158,
+      "p95": 614,
+      "avg": 166
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 804,
+      "p50": 328,
+      "p90": 376,
+      "p95": 804,
+      "avg": 380
+    },
+    "tbtStats": {
+      "min": 88,
+      "max": 139,
+      "p50": 110,
+      "p90": 117,
+      "p95": 139,
+      "avg": 110
+    },
+    "payloadStats": {
+      "min": 226944,
+      "max": 226944,
+      "p50": 226944,
+      "p90": 226944,
+      "p95": 226944,
+      "avg": 226944
+    },
+    "reqStats": {
+      "min": 31,
+      "max": 31,
+      "p50": 31,
+      "p90": 31,
+      "p95": 31,
+      "avg": 31
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 197,
+    "totalPayloadKB": 222,
+    "coldRunTime": 5442,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "COL_17",
+    "flowName": "Lifecycle Operations",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/lifecycle",
+    "actionStats": {
+      "min": 3165,
+      "max": 3849,
+      "p50": 3222,
+      "p90": 3412,
+      "p95": 3849,
+      "avg": 3302
+    },
+    "ttfbStats": {
+      "min": 93,
+      "max": 611,
+      "p50": 101,
+      "p90": 128,
+      "p95": 611,
+      "avg": 158
+    },
+    "lcpStats": {
+      "min": 300,
+      "max": 860,
+      "p50": 340,
+      "p90": 388,
+      "p95": 860,
+      "avg": 391
+    },
+    "tbtStats": {
+      "min": 112,
+      "max": 182,
+      "p50": 135,
+      "p90": 165,
+      "p95": 182,
+      "avg": 138
+    },
+    "payloadStats": {
+      "min": 226419,
+      "max": 226419,
+      "p50": 226419,
+      "p90": 226419,
+      "p95": 226419,
+      "avg": 226419
+    },
+    "reqStats": {
+      "min": 30,
+      "max": 30,
+      "p50": 30,
+      "p90": 30,
+      "p95": 30,
+      "avg": 30
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 197,
+    "totalPayloadKB": 221,
+    "coldRunTime": 3297,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "COL_18",
+    "flowName": "Faculty Directory",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/faculty",
+    "actionStats": {
+      "min": 1100,
+      "max": 1380,
+      "p50": 1150,
+      "p90": 1195,
+      "p95": 1380,
+      "avg": 1168
+    },
+    "ttfbStats": {
+      "min": 149,
+      "max": 419,
+      "p50": 161,
+      "p90": 175,
+      "p95": 419,
+      "avg": 187
+    },
+    "lcpStats": {
+      "min": 260,
+      "max": 536,
+      "p50": 300,
+      "p90": 320,
+      "p95": 536,
+      "avg": 319
+    },
+    "tbtStats": {
+      "min": 9,
+      "max": 37,
+      "p50": 16,
+      "p90": 32,
+      "p95": 37,
+      "avg": 19
+    },
+    "payloadStats": {
+      "min": 233325,
+      "max": 233325,
+      "p50": 233325,
+      "p90": 233325,
+      "p95": 233325,
+      "avg": 233325
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 200,
+    "totalPayloadKB": 228,
+    "coldRunTime": 1516,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "COL_19",
+    "flowName": "College Audit Trail",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/audit",
+    "actionStats": {
+      "min": 1061,
+      "max": 1140,
+      "p50": 1084,
+      "p90": 1136,
+      "p95": 1140,
+      "avg": 1097
+    },
+    "ttfbStats": {
+      "min": 103,
+      "max": 134,
+      "p50": 107,
+      "p90": 129,
+      "p95": 134,
+      "avg": 113
+    },
+    "lcpStats": {
+      "min": 216,
+      "max": 284,
+      "p50": 240,
+      "p90": 264,
+      "p95": 284,
+      "avg": 246
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 1,
+      "p50": 0,
+      "p90": 0,
+      "p95": 1,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 226919,
+      "max": 226919,
+      "p50": 226919,
+      "p90": 226919,
+      "p95": 226919,
+      "avg": 226919
+    },
+    "reqStats": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "seqDepth": 3,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 222,
+    "coldRunTime": 1086,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "AUTH_FAC",
+    "flowName": "Faculty Login to Dashboard",
+    "persona": "Faculty",
+    "target": "/faculty",
+    "actionStats": {
+      "min": 996,
+      "max": 1137,
+      "p50": 1026,
+      "p90": 1130,
+      "p95": 1137,
+      "avg": 1058
+    },
+    "ttfbStats": {
+      "min": 168,
+      "max": 220,
+      "p50": 175,
+      "p90": 218,
+      "p95": 220,
+      "avg": 187
+    },
+    "lcpStats": {
+      "min": 328,
+      "max": 432,
+      "p50": 340,
+      "p90": 412,
+      "p95": 432,
+      "avg": 358
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 16,
+      "p50": 4,
+      "p90": 9,
+      "p95": 16,
+      "avg": 5
+    },
+    "payloadStats": {
+      "min": 217315,
+      "max": 217315,
+      "p50": 217315,
+      "p90": 217315,
+      "p95": 217315,
+      "avg": 217315
+    },
+    "reqStats": {
+      "min": 17,
+      "max": 17,
+      "p50": 17,
+      "p90": 17,
+      "p95": 17,
+      "avg": 17
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 202,
+    "totalPayloadKB": 212,
+    "coldRunTime": 1111,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "FAC_01",
+    "flowName": "Faculty Dashboard",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty",
+    "actionStats": {
+      "min": 833,
+      "max": 1546,
+      "p50": 842,
+      "p90": 894,
+      "p95": 1546,
+      "avg": 919
+    },
+    "ttfbStats": {
+      "min": 150,
+      "max": 863,
+      "p50": 159,
+      "p90": 177,
+      "p95": 863,
+      "avg": 231
+    },
+    "lcpStats": {
+      "min": 380,
+      "max": 1088,
+      "p50": 408,
+      "p90": 452,
+      "p95": 1088,
+      "avg": 475
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 220905,
+      "max": 220908,
+      "p50": 220906,
+      "p90": 220908,
+      "p95": 220908,
+      "avg": 220907
+    },
+    "reqStats": {
+      "min": 17,
+      "max": 17,
+      "p50": 17,
+      "p90": 17,
+      "p95": 17,
+      "avg": 17
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 200,
+    "totalPayloadKB": 216,
+    "coldRunTime": 852,
+    "verdict": "Good"
+  },
+  {
+    "flowId": "FAC_02",
+    "flowName": "Faculty Assigned Timetable",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/timetable",
+    "actionStats": {
+      "min": 978,
+      "max": 1065,
+      "p50": 1017,
+      "p90": 1045,
+      "p95": 1065,
+      "avg": 1019
+    },
+    "ttfbStats": {
+      "min": 97,
+      "max": 130,
+      "p50": 105,
+      "p90": 130,
+      "p95": 130,
+      "avg": 111
+    },
+    "lcpStats": {
+      "min": 224,
+      "max": 280,
+      "p50": 248,
+      "p90": 272,
+      "p95": 280,
+      "avg": 252
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 223568,
+      "max": 223569,
+      "p50": 223569,
+      "p90": 223569,
+      "p95": 223569,
+      "avg": 223569
+    },
+    "reqStats": {
+      "min": 21,
+      "max": 21,
+      "p50": 21,
+      "p90": 21,
+      "p95": 21,
+      "avg": 21
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 195,
+    "totalPayloadKB": 218,
+    "coldRunTime": 1144,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "FAC_03",
+    "flowName": "Faculty Class Roster",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/roster",
+    "actionStats": {
+      "min": 3131,
+      "max": 3581,
+      "p50": 3164,
+      "p90": 3249,
+      "p95": 3581,
+      "avg": 3218
+    },
+    "ttfbStats": {
+      "min": 98,
+      "max": 530,
+      "p50": 103,
+      "p90": 131,
+      "p95": 530,
+      "avg": 150
+    },
+    "lcpStats": {
+      "min": 2560,
+      "max": 3024,
+      "p50": 2604,
+      "p90": 2696,
+      "p95": 3024,
+      "avg": 2660
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 37,
+      "p50": 20,
+      "p90": 37,
+      "p95": 37,
+      "avg": 23
+    },
+    "payloadStats": {
+      "min": 221013,
+      "max": 221013,
+      "p50": 221013,
+      "p90": 221013,
+      "p95": 221013,
+      "avg": 221013
+    },
+    "reqStats": {
+      "min": 23,
+      "max": 23,
+      "p50": 23,
+      "p90": 23,
+      "p95": 23,
+      "avg": 23
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 216,
+    "coldRunTime": 3059,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "FAC_04",
+    "flowName": "Faculty Teaching Sessions",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/sessions",
+    "actionStats": {
+      "min": 3127,
+      "max": 3651,
+      "p50": 3198,
+      "p90": 3648,
+      "p95": 3651,
+      "avg": 3282
+    },
+    "ttfbStats": {
+      "min": 2134,
+      "max": 2610,
+      "p50": 2152,
+      "p90": 2607,
+      "p95": 2610,
+      "avg": 2240
+    },
+    "lcpStats": {
+      "min": 2300,
+      "max": 2816,
+      "p50": 2348,
+      "p90": 2784,
+      "p95": 2816,
+      "avg": 2432
+    },
+    "tbtStats": {
+      "min": 4,
+      "max": 43,
+      "p50": 22,
+      "p90": 41,
+      "p95": 43,
+      "avg": 26
+    },
+    "payloadStats": {
+      "min": 221547,
+      "max": 221547,
+      "p50": 221547,
+      "p90": 221547,
+      "p95": 221547,
+      "avg": 221547
+    },
+    "reqStats": {
+      "min": 21,
+      "max": 21,
+      "p50": 21,
+      "p90": 21,
+      "p95": 21,
+      "avg": 21
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 195,
+    "totalPayloadKB": 216,
+    "coldRunTime": 3167,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "FAC_05",
+    "flowName": "Attendance Marking View",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/attendance",
+    "actionStats": {
+      "min": 3165,
+      "max": 3705,
+      "p50": 3214,
+      "p90": 3285,
+      "p95": 3705,
+      "avg": 3261
+    },
+    "ttfbStats": {
+      "min": 2140,
+      "max": 2687,
+      "p50": 2154,
+      "p90": 2179,
+      "p95": 2687,
+      "avg": 2209
+    },
+    "lcpStats": {
+      "min": 2308,
+      "max": 2872,
+      "p50": 2344,
+      "p90": 2372,
+      "p95": 2872,
+      "avg": 2396
+    },
+    "tbtStats": {
+      "min": 79,
+      "max": 140,
+      "p50": 97,
+      "p90": 111,
+      "p95": 140,
+      "avg": 100
+    },
+    "payloadStats": {
+      "min": 229044,
+      "max": 229049,
+      "p50": 229046,
+      "p90": 229047,
+      "p95": 229049,
+      "avg": 229046
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 203,
+    "totalPayloadKB": 224,
+    "coldRunTime": 3166,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "FAC_06",
+    "flowName": "Student Advisees",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/advisees",
+    "actionStats": {
+      "min": 3158,
+      "max": 3647,
+      "p50": 3214,
+      "p90": 3391,
+      "p95": 3647,
+      "avg": 3270
+    },
+    "ttfbStats": {
+      "min": 95,
+      "max": 567,
+      "p50": 107,
+      "p90": 126,
+      "p95": 567,
+      "avg": 154
+    },
+    "lcpStats": {
+      "min": 2596,
+      "max": 3080,
+      "p50": 2660,
+      "p90": 2812,
+      "p95": 3080,
+      "avg": 2704
+    },
+    "tbtStats": {
+      "min": 10,
+      "max": 65,
+      "p50": 31,
+      "p90": 53,
+      "p95": 65,
+      "avg": 33
+    },
+    "payloadStats": {
+      "min": 220882,
+      "max": 220882,
+      "p50": 220882,
+      "p90": 220882,
+      "p95": 220882,
+      "avg": 220882
+    },
+    "reqStats": {
+      "min": 23,
+      "max": 23,
+      "p50": 23,
+      "p90": 23,
+      "p95": 23,
+      "avg": 23
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 216,
+    "coldRunTime": 3253,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "AUTH_STU1",
+    "flowName": "Student 1 Login to Dashboard",
+    "persona": "Student 1",
+    "target": "/student",
+    "actionStats": {
+      "min": 5468,
+      "max": 5765,
+      "p50": 5518,
+      "p90": 5749,
+      "p95": 5765,
+      "avg": 5599
+    },
+    "ttfbStats": {
+      "min": 4295,
+      "max": 4586,
+      "p50": 4319,
+      "p90": 4375,
+      "p95": 4586,
+      "avg": 4348
+    },
+    "lcpStats": {
+      "min": 4456,
+      "max": 4740,
+      "p50": 4472,
+      "p90": 4528,
+      "p95": 4740,
+      "avg": 4505
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 214771,
+      "max": 214771,
+      "p50": 214771,
+      "p90": 214771,
+      "p95": 214771,
+      "avg": 214771
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 210,
+    "coldRunTime": 5502,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU1_01",
+    "flowName": "Student Dashboard",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student",
+    "actionStats": {
+      "min": 5375,
+      "max": 5768,
+      "p50": 5419,
+      "p90": 5670,
+      "p95": 5768,
+      "avg": 5484
+    },
+    "ttfbStats": {
+      "min": 4252,
+      "max": 4653,
+      "p50": 4325,
+      "p90": 4612,
+      "p95": 4653,
+      "avg": 4370
+    },
+    "lcpStats": {
+      "min": 4496,
+      "max": 4900,
+      "p50": 4540,
+      "p90": 4812,
+      "p95": 4900,
+      "avg": 4601
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 33,
+      "p50": 10,
+      "p90": 31,
+      "p95": 33,
+      "avg": 14
+    },
+    "payloadStats": {
+      "min": 228590,
+      "max": 228590,
+      "p50": 228590,
+      "p90": 228590,
+      "p95": 228590,
+      "avg": 228590
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 195,
+    "totalPayloadKB": 223,
+    "coldRunTime": 5437,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU1_02",
+    "flowName": "Student Admissions Applications",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/admissions",
+    "actionStats": {
+      "min": 5252,
+      "max": 5862,
+      "p50": 5345,
+      "p90": 5438,
+      "p95": 5862,
+      "avg": 5395
+    },
+    "ttfbStats": {
+      "min": 4178,
+      "max": 4781,
+      "p50": 4212,
+      "p90": 4248,
+      "p95": 4781,
+      "avg": 4267
+    },
+    "lcpStats": {
+      "min": 4368,
+      "max": 4964,
+      "p50": 4404,
+      "p90": 4440,
+      "p95": 4964,
+      "avg": 4458
+    },
+    "tbtStats": {
+      "min": 10,
+      "max": 68,
+      "p50": 26,
+      "p90": 61,
+      "p95": 68,
+      "avg": 36
+    },
+    "payloadStats": {
+      "min": 223861,
+      "max": 223861,
+      "p50": 223861,
+      "p90": 223861,
+      "p95": 223861,
+      "avg": 223861
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 198,
+    "totalPayloadKB": 219,
+    "coldRunTime": 5300,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU1_03",
+    "flowName": "Student Profile & Address",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/address",
+    "actionStats": {
+      "min": 3201,
+      "max": 3688,
+      "p50": 3294,
+      "p90": 3392,
+      "p95": 3688,
+      "avg": 3345
+    },
+    "ttfbStats": {
+      "min": 91,
+      "max": 574,
+      "p50": 102,
+      "p90": 122,
+      "p95": 574,
+      "avg": 149
+    },
+    "lcpStats": {
+      "min": 2612,
+      "max": 3104,
+      "p50": 2716,
+      "p90": 2788,
+      "p95": 3104,
+      "avg": 2749
+    },
+    "tbtStats": {
+      "min": 9,
+      "max": 47,
+      "p50": 29,
+      "p90": 46,
+      "p95": 47,
+      "avg": 31
+    },
+    "payloadStats": {
+      "min": 225835,
+      "max": 225835,
+      "p50": 225835,
+      "p90": 225835,
+      "p95": 225835,
+      "avg": 225835
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 200,
+    "totalPayloadKB": 221,
+    "coldRunTime": 3838,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "STU1_04",
+    "flowName": "Student Attendance Corrections",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/corrections",
+    "actionStats": {
+      "min": 3224,
+      "max": 3706,
+      "p50": 3302,
+      "p90": 3372,
+      "p95": 3706,
+      "avg": 3335
+    },
+    "ttfbStats": {
+      "min": 91,
+      "max": 557,
+      "p50": 108,
+      "p90": 125,
+      "p95": 557,
+      "avg": 153
+    },
+    "lcpStats": {
+      "min": 2624,
+      "max": 3112,
+      "p50": 2708,
+      "p90": 2772,
+      "p95": 3112,
+      "avg": 2739
+    },
+    "tbtStats": {
+      "min": 12,
+      "max": 54,
+      "p50": 30,
+      "p90": 51,
+      "p95": 54,
+      "avg": 33
+    },
+    "payloadStats": {
+      "min": 226303,
+      "max": 226303,
+      "p50": 226303,
+      "p90": 226303,
+      "p95": 226303,
+      "avg": 226303
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 221,
+    "coldRunTime": 3306,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "STU1_05",
+    "flowName": "Student Documents Upload View",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/documents",
+    "actionStats": {
+      "min": 1008,
+      "max": 1052,
+      "p50": 1032,
+      "p90": 1046,
+      "p95": 1052,
+      "avg": 1032
+    },
+    "ttfbStats": {
+      "min": 94,
+      "max": 109,
+      "p50": 103,
+      "p90": 108,
+      "p95": 109,
+      "avg": 103
+    },
+    "lcpStats": {
+      "min": 460,
+      "max": 504,
+      "p50": 492,
+      "p90": 504,
+      "p95": 504,
+      "avg": 488
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 226980,
+      "max": 226980,
+      "p50": 226980,
+      "p90": 226980,
+      "p95": 226980,
+      "avg": 226980
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 222,
+    "coldRunTime": 1300,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "STU1_06",
+    "flowName": "Student Course Enrollment",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/enrollment",
+    "actionStats": {
+      "min": 5222,
+      "max": 5635,
+      "p50": 5308,
+      "p90": 5552,
+      "p95": 5635,
+      "avg": 5368
+    },
+    "ttfbStats": {
+      "min": 122,
+      "max": 557,
+      "p50": 140,
+      "p90": 483,
+      "p95": 557,
+      "avg": 214
+    },
+    "lcpStats": {
+      "min": 4684,
+      "max": 5088,
+      "p50": 4740,
+      "p90": 4996,
+      "p95": 5088,
+      "avg": 4815
+    },
+    "tbtStats": {
+      "min": 10,
+      "max": 86,
+      "p50": 29,
+      "p90": 35,
+      "p95": 86,
+      "avg": 32
+    },
+    "payloadStats": {
+      "min": 223849,
+      "max": 223849,
+      "p50": 223849,
+      "p90": 223849,
+      "p95": 223849,
+      "avg": 223849
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 198,
+    "totalPayloadKB": 219,
+    "coldRunTime": 5089,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU1_07",
+    "flowName": "Student Lifecycle Tracking",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/lifecycle",
+    "actionStats": {
+      "min": 3235,
+      "max": 3712,
+      "p50": 3243,
+      "p90": 3385,
+      "p95": 3712,
+      "avg": 3321
+    },
+    "ttfbStats": {
+      "min": 96,
+      "max": 511,
+      "p50": 105,
+      "p90": 112,
+      "p95": 511,
+      "avg": 144
+    },
+    "lcpStats": {
+      "min": 280,
+      "max": 752,
+      "p50": 304,
+      "p90": 336,
+      "p95": 752,
+      "avg": 354
+    },
+    "tbtStats": {
+      "min": 92,
+      "max": 164,
+      "p50": 108,
+      "p90": 154,
+      "p95": 164,
+      "avg": 123
+    },
+    "payloadStats": {
+      "min": 222514,
+      "max": 222514,
+      "p50": 222514,
+      "p90": 222514,
+      "p95": 222514,
+      "avg": 222514
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 197,
+    "totalPayloadKB": 217,
+    "coldRunTime": 3371,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "AUTH_STU2",
+    "flowName": "Student 2 Login to Dashboard",
+    "persona": "Student 2",
+    "target": "/student",
+    "actionStats": {
+      "min": 5451,
+      "max": 5719,
+      "p50": 5486,
+      "p90": 5678,
+      "p95": 5719,
+      "avg": 5548
+    },
+    "ttfbStats": {
+      "min": 4256,
+      "max": 4333,
+      "p50": 4294,
+      "p90": 4327,
+      "p95": 4333,
+      "avg": 4297
+    },
+    "lcpStats": {
+      "min": 4400,
+      "max": 4528,
+      "p50": 4460,
+      "p90": 4504,
+      "p95": 4528,
+      "avg": 4459
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadStats": {
+      "min": 214771,
+      "max": 214771,
+      "p50": 214771,
+      "p90": 214771,
+      "p95": 214771,
+      "avg": 214771
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 196,
+    "totalPayloadKB": 210,
+    "coldRunTime": 5351,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU2_01",
+    "flowName": "Student 2 Dashboard",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student",
+    "actionStats": {
+      "min": 5404,
+      "max": 6052,
+      "p50": 5457,
+      "p90": 5779,
+      "p95": 6052,
+      "avg": 5577
+    },
+    "ttfbStats": {
+      "min": 4278,
+      "max": 4948,
+      "p50": 4316,
+      "p90": 4592,
+      "p95": 4948,
+      "avg": 4415
+    },
+    "lcpStats": {
+      "min": 4480,
+      "max": 5156,
+      "p50": 4524,
+      "p90": 4808,
+      "p95": 5156,
+      "avg": 4627
+    },
+    "tbtStats": {
+      "min": 9,
+      "max": 55,
+      "p50": 23,
+      "p90": 34,
+      "p95": 55,
+      "avg": 27
+    },
+    "payloadStats": {
+      "min": 227197,
+      "max": 227197,
+      "p50": 227197,
+      "p90": 227197,
+      "p95": 227197,
+      "avg": 227197
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 195,
+    "totalPayloadKB": 222,
+    "coldRunTime": 5875,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU2_02",
+    "flowName": "Student 2 Admissions Applications",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/admissions",
+    "actionStats": {
+      "min": 5309,
+      "max": 6114,
+      "p50": 5400,
+      "p90": 5752,
+      "p95": 6114,
+      "avg": 5503
+    },
+    "ttfbStats": {
+      "min": 4167,
+      "max": 4754,
+      "p50": 4201,
+      "p90": 4585,
+      "p95": 4754,
+      "avg": 4292
+    },
+    "lcpStats": {
+      "min": 4324,
+      "max": 4936,
+      "p50": 4376,
+      "p90": 4764,
+      "p95": 4936,
+      "avg": 4474
+    },
+    "tbtStats": {
+      "min": 20,
+      "max": 39,
+      "p50": 28,
+      "p90": 36,
+      "p95": 39,
+      "avg": 28
+    },
+    "payloadStats": {
+      "min": 223863,
+      "max": 223863,
+      "p50": 223863,
+      "p90": 223863,
+      "p95": 223863,
+      "avg": 223863
+    },
+    "reqStats": {
+      "min": 22,
+      "max": 22,
+      "p50": 22,
+      "p90": 22,
+      "p95": 22,
+      "avg": 22
+    },
+    "seqDepth": 2,
+    "jsBundleSizeKB": 198,
+    "totalPayloadKB": 219,
+    "coldRunTime": 5401,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU2_03",
+    "flowName": "Student 2 Profile & Address",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/address",
+    "actionStats": {
+      "min": 3249,
+      "max": 4017,
+      "p50": 3342,
+      "p90": 3398,
+      "p95": 4017,
+      "avg": 3401
+    },
+    "ttfbStats": {
+      "min": 104,
+      "max": 812,
+      "p50": 126,
+      "p90": 141,
+      "p95": 812,
+      "avg": 193
+    },
+    "lcpStats": {
+      "min": 2696,
+      "max": 3456,
+      "p50": 2760,
+      "p90": 2824,
+      "p95": 3456,
+      "avg": 2830
+    },
+    "tbtStats": {
+      "min": 26,
+      "max": 42,
+      "p50": 28,
+      "p90": 32,
+      "p95": 42,
+      "avg": 30
+    },
+    "payloadStats": {
+      "min": 225835,
+      "max": 225835,
+      "p50": 225835,
+      "p90": 225835,
+      "p95": 225835,
+      "avg": 225835
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 200,
+    "totalPayloadKB": 221,
+    "coldRunTime": 3495,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "STU2_04",
+    "flowName": "Student 2 Attendance Corrections",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/corrections",
+    "actionStats": {
+      "min": 3233,
+      "max": 3995,
+      "p50": 3332,
+      "p90": 3413,
+      "p95": 3995,
+      "avg": 3393
+    },
+    "ttfbStats": {
+      "min": 105,
+      "max": 783,
+      "p50": 142,
+      "p90": 187,
+      "p95": 783,
+      "avg": 206
+    },
+    "lcpStats": {
+      "min": 2636,
+      "max": 3432,
+      "p50": 2756,
+      "p90": 2840,
+      "p95": 3432,
+      "avg": 2820
+    },
+    "tbtStats": {
+      "min": 26,
+      "max": 46,
+      "p50": 30,
+      "p90": 36,
+      "p95": 46,
+      "avg": 32
+    },
+    "payloadStats": {
+      "min": 226303,
+      "max": 226303,
+      "p50": 226303,
+      "p90": 226303,
+      "p95": 226303,
+      "avg": 226303
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 221,
+    "coldRunTime": 3362,
+    "verdict": "Slow"
+  },
+  {
+    "flowId": "STU2_05",
+    "flowName": "Student 2 Documents Upload View",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/documents",
+    "actionStats": {
+      "min": 1124,
+      "max": 1582,
+      "p50": 1301,
+      "p90": 1367,
+      "p95": 1582,
+      "avg": 1312
+    },
+    "ttfbStats": {
+      "min": 104,
+      "max": 168,
+      "p50": 126,
+      "p90": 167,
+      "p95": 168,
+      "avg": 134
+    },
+    "lcpStats": {
+      "min": 612,
+      "max": 1112,
+      "p50": 812,
+      "p90": 868,
+      "p95": 1112,
+      "avg": 813
+    },
+    "tbtStats": {
+      "min": 0,
+      "max": 53,
+      "p50": 23,
+      "p90": 30,
+      "p95": 53,
+      "avg": 24
+    },
+    "payloadStats": {
+      "min": 227385,
+      "max": 227385,
+      "p50": 227385,
+      "p90": 227385,
+      "p95": 227385,
+      "avg": 227385
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 201,
+    "totalPayloadKB": 222,
+    "coldRunTime": 1524,
+    "verdict": "Acceptable"
+  },
+  {
+    "flowId": "STU2_06",
+    "flowName": "Student 2 Course Enrollment",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/enrollment",
+    "actionStats": {
+      "min": 5279,
+      "max": 5908,
+      "p50": 5334,
+      "p90": 5709,
+      "p95": 5908,
+      "avg": 5416
+    },
+    "ttfbStats": {
+      "min": 154,
+      "max": 669,
+      "p50": 161,
+      "p90": 522,
+      "p95": 669,
+      "avg": 252
+    },
+    "lcpStats": {
+      "min": 4744,
+      "max": 5364,
+      "p50": 4788,
+      "p90": 5172,
+      "p95": 5364,
+      "avg": 4882
+    },
+    "tbtStats": {
+      "min": 18,
+      "max": 52,
+      "p50": 33,
+      "p90": 40,
+      "p95": 52,
+      "avg": 33
+    },
+    "payloadStats": {
+      "min": 223849,
+      "max": 223849,
+      "p50": 223849,
+      "p90": 223849,
+      "p95": 223849,
+      "avg": 223849
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 198,
+    "totalPayloadKB": 219,
+    "coldRunTime": 5218,
+    "verdict": "Critical"
+  },
+  {
+    "flowId": "STU2_07",
+    "flowName": "Student 2 Lifecycle Tracking",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/lifecycle",
+    "actionStats": {
+      "min": 3284,
+      "max": 4313,
+      "p50": 3321,
+      "p90": 3384,
+      "p95": 4313,
+      "avg": 3426
+    },
+    "ttfbStats": {
+      "min": 108,
+      "max": 1092,
+      "p50": 126,
+      "p90": 128,
+      "p95": 1092,
+      "avg": 219
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 1276,
+      "p50": 308,
+      "p90": 324,
+      "p95": 1276,
+      "avg": 405
+    },
+    "tbtStats": {
+      "min": 88,
+      "max": 112,
+      "p50": 101,
+      "p90": 106,
+      "p95": 112,
+      "avg": 100
+    },
+    "payloadStats": {
+      "min": 222514,
+      "max": 222514,
+      "p50": 222514,
+      "p90": 222514,
+      "p95": 222514,
+      "avg": 222514
+    },
+    "reqStats": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "seqDepth": 1,
+    "jsBundleSizeKB": 197,
+    "totalPayloadKB": 217,
+    "coldRunTime": 3462,
+    "verdict": "Slow"
+  }
+]

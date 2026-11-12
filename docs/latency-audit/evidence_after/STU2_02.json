@@ -1,0 +1,106 @@
+{
+  "flowId": "STU2_02",
+  "flowName": "Admissions & Applications Bridge",
+  "persona": "Student 2",
+  "coldRun": {
+    "actionToVisible": 1238,
+    "ttfb": 242,
+    "lcp": 420
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1212,
+      "ttfb": 219,
+      "lcp": 396
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1242,
+      "ttfb": 235,
+      "lcp": 428
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1230,
+      "ttfb": 214,
+      "lcp": 404
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1244,
+      "ttfb": 230,
+      "lcp": 424
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1270,
+      "ttfb": 241,
+      "lcp": 428
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1252,
+      "ttfb": 229,
+      "lcp": 408
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1222,
+      "ttfb": 226,
+      "lcp": 408
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1240,
+      "ttfb": 242,
+      "lcp": 428
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1240,
+      "ttfb": 221,
+      "lcp": 404
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1230,
+      "ttfb": 225,
+      "lcp": 416
+    }
+  ],
+  "summary": {
+    "flowId": "STU2_02",
+    "flowName": "Admissions & Applications Bridge",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/admissions",
+    "beforeP50": 0,
+    "afterP50": 1240,
+    "deltaMs": 1240,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1212,
+      "max": 1270,
+      "p50": 1240,
+      "p90": 1252,
+      "p95": 1270,
+      "avg": 1238
+    },
+    "ttfbStats": {
+      "min": 214,
+      "max": 242,
+      "p50": 226,
+      "p90": 241,
+      "p95": 242,
+      "avg": 228
+    },
+    "lcpStats": {
+      "min": 396,
+      "max": 428,
+      "p50": 408,
+      "p90": 428,
+      "p95": 428,
+      "avg": 414
+    }
+  }
+}

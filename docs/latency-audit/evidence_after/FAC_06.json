@@ -1,0 +1,106 @@
+{
+  "flowId": "FAC_06",
+  "flowName": "Student Advisees",
+  "persona": "Faculty",
+  "coldRun": {
+    "actionToVisible": 1216,
+    "ttfb": 116,
+    "lcp": 288
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1174,
+      "ttfb": 116,
+      "lcp": 296
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1211,
+      "ttfb": 177,
+      "lcp": 356
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1182,
+      "ttfb": 131,
+      "lcp": 320
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1220,
+      "ttfb": 137,
+      "lcp": 316
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1152,
+      "ttfb": 130,
+      "lcp": 304
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1167,
+      "ttfb": 119,
+      "lcp": 304
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1171,
+      "ttfb": 130,
+      "lcp": 308
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1272,
+      "ttfb": 153,
+      "lcp": 332
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1145,
+      "ttfb": 106,
+      "lcp": 276
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1161,
+      "ttfb": 115,
+      "lcp": 296
+    }
+  ],
+  "summary": {
+    "flowId": "FAC_06",
+    "flowName": "Student Advisees",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/advisees",
+    "beforeP50": 0,
+    "afterP50": 1171,
+    "deltaMs": 1171,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1145,
+      "max": 1272,
+      "p50": 1171,
+      "p90": 1220,
+      "p95": 1272,
+      "avg": 1186
+    },
+    "ttfbStats": {
+      "min": 106,
+      "max": 177,
+      "p50": 130,
+      "p90": 153,
+      "p95": 177,
+      "avg": 131
+    },
+    "lcpStats": {
+      "min": 276,
+      "max": 356,
+      "p50": 304,
+      "p90": 332,
+      "p95": 356,
+      "avg": 311
+    }
+  }
+}

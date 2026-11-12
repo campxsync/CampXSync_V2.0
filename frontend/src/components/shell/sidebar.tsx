@@ -88,6 +88,7 @@ export function Sidebar({
 
           {/* Desktop Collapse Toggle */}
           <button
+            suppressHydrationWarning
             onClick={onToggleCollapsed}
             className={cn(
               'hidden md:flex h-7 w-7 items-center justify-center rounded-[6px] text-[#E3E8EF]/70 hover:bg-[#12315C] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB]',
@@ -102,6 +103,7 @@ export function Sidebar({
           {/* Mobile Close Button */}
           {mobileOpen && (
             <button
+              suppressHydrationWarning
               onClick={onCloseMobile}
               className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#E3E8EF]/70 hover:bg-[#12315C] hover:text-white md:hidden"
               aria-label="Close navigation menu"
@@ -121,6 +123,7 @@ export function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 onClick={() => {
                   if (onCloseMobile) onCloseMobile();
                 }}
@@ -150,6 +153,7 @@ export function Sidebar({
         {collapsed && (
           <div className="hidden md:block p-2 border-t border-[#12315C]">
             <button
+              suppressHydrationWarning
               onClick={onToggleCollapsed}
               className="flex w-full h-8 items-center justify-center rounded-[6px] text-[#E3E8EF]/70 hover:bg-[#12315C] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB]"
               title="Expand sidebar"

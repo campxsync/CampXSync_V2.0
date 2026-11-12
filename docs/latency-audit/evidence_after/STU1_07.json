@@ -1,0 +1,106 @@
+{
+  "flowId": "STU1_07",
+  "flowName": "Document Vault",
+  "persona": "Student 1",
+  "coldRun": {
+    "actionToVisible": 1302,
+    "ttfb": 129,
+    "lcp": 740
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1218,
+      "ttfb": 109,
+      "lcp": 704
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1240,
+      "ttfb": 130,
+      "lcp": 704
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1195,
+      "ttfb": 123,
+      "lcp": 672
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1276,
+      "ttfb": 133,
+      "lcp": 740
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1280,
+      "ttfb": 125,
+      "lcp": 728
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1241,
+      "ttfb": 116,
+      "lcp": 728
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1072,
+      "ttfb": 128,
+      "lcp": 544
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1177,
+      "ttfb": 161,
+      "lcp": 648
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1936,
+      "ttfb": 110,
+      "lcp": 556
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1642,
+      "ttfb": 132,
+      "lcp": 1112
+    }
+  ],
+  "summary": {
+    "flowId": "STU1_07",
+    "flowName": "Document Vault",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/documents",
+    "beforeP50": 0,
+    "afterP50": 1240,
+    "deltaMs": 1240,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1072,
+      "max": 1936,
+      "p50": 1240,
+      "p90": 1642,
+      "p95": 1936,
+      "avg": 1328
+    },
+    "ttfbStats": {
+      "min": 109,
+      "max": 161,
+      "p50": 125,
+      "p90": 133,
+      "p95": 161,
+      "avg": 127
+    },
+    "lcpStats": {
+      "min": 544,
+      "max": 1112,
+      "p50": 704,
+      "p90": 740,
+      "p95": 1112,
+      "avg": 714
+    }
+  }
+}

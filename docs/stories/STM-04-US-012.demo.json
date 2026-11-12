@@ -1,0 +1,114 @@
+{
+  "storyId": "STM-04-US-012",
+  "title": "Registrar Review and Graduation Eligibility Certification & Degree Clearance",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "DELETE FROM stu.graduation_records WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND student_id = '81dd67d3-1d5f-4d8e-8061-a67648610008'"
+    },
+    {
+      "query": "INSERT INTO stu.lifecycle_status (tenant_id, student_id, status, effective_from, updated_at) VALUES ('a0000000-0000-0000-0000-000000000001', '81dd67d3-1d5f-4d8e-8061-a67648610008', 'ACTIVE', now() - interval '365 days', now()) ON CONFLICT (tenant_id, student_id) DO UPDATE SET status = 'ACTIVE', updated_at = now()"
+    },
+    {
+      "query": "DELETE FROM stu.lifecycle_requests WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a67648610008'"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Portal Authentication",
+      "description": "College Administrator / Registrar authenticates to CampXSync with authorized R31 staff session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Lifecycle Review Desk",
+      "description": "Verify College Lifecycle workspace loads with institutional review authority",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Input Student Record ID",
+      "description": "Registrar inputs candidate student record identifier for degree audit",
+      "action": "fill",
+      "selector": "[data-testid=\"college-lifecycle-grad-student-input\"]",
+      "value": "81dd67d3-1d5f-4d8e-8061-a67648610008",
+      "highlight": "[data-testid=\"college-lifecycle-grad-student-input\"]"
+    },
+    {
+      "title": "Input Programme ID",
+      "description": "Registrar inputs candidate degree programme identifier (B.Tech CSE)",
+      "action": "fill",
+      "selector": "[data-testid=\"college-lifecycle-grad-program-input\"]",
+      "value": "a0000000-0000-0000-0000-000000000040",
+      "highlight": "[data-testid=\"college-lifecycle-grad-program-input\"]"
+    },
+    {
+      "title": "Input Official Graduation Date",
+      "description": "Registrar sets formal convocation and degree conferral date",
+      "action": "fill",
+      "selector": "[data-testid=\"college-lifecycle-grad-date-input\"]",
+      "value": "2026-11-12",
+      "highlight": "[data-testid=\"college-lifecycle-grad-date-input\"]"
+    },
+    {
+      "title": "Execute Eligibility Pre-Validation",
+      "description": "Dispatch POST /api/v1/lifecycle/graduation/validate through Gateway to check standing and pending petitions",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-grad-check-btn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-grad-check-btn\"]"
+    },
+    {
+      "title": "Assert Eligibility Success Confirmation",
+      "description": "System displays green confirmation confirming student meets all graduation standing criteria",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-success-msg\"]"
+    },
+    {
+      "title": "Record Irreversible Graduation Certification",
+      "description": "Registrar executes formal degree clearance, dispatching POST /api/v1/lifecycle/graduation/record",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-grad-record-btn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-grad-record-btn\"]"
+    },
+    {
+      "title": "Verify Graduation Certification Notification",
+      "description": "System displays green success notification confirming degree conferral and status transition to GRADUATED",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-success-msg\"]"
+    },
+    {
+      "title": "PostgreSQL Graduation Records Committed Check",
+      "description": "Read-only query verifies stu.graduation_records contains committed degree certification record",
+      "action": "db_check",
+      "query": "SELECT id, student_id, program_id, graduated_on FROM stu.graduation_records WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a67648610008' AND program_id = 'a0000000-0000-0000-0000-000000000040'",
+      "minCount": 1
+    },
+    {
+      "title": "PostgreSQL Student Status Transition Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_status transitioned student standing from ACTIVE to GRADUATED",
+      "action": "db_check",
+      "query": "SELECT student_id, status FROM stu.lifecycle_status WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a67648610008' AND status = 'GRADUATED'",
+      "minCount": 1
+    },
+    {
+      "title": "PostgreSQL Lifecycle Audit History Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_history appended graduation transition entry",
+      "action": "db_check",
+      "query": "SELECT student_id, status, action FROM stu.lifecycle_history WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a67648610008' AND status = 'GRADUATED' AND action = 'graduation.recorded'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Enforcement Check",
+      "description": "Unauthenticated POST request to gateway graduation endpoints must fail closed with HTTP 401/403",
+      "action": "api_call",
+      "url": "http://localhost:8080/api/v1/lifecycle/graduation/record",
+      "method": "POST",
+      "expectedStatus": 401
+    }
+  ]
+}
+

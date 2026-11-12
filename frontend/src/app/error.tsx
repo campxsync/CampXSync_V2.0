@@ -33,6 +33,13 @@ export default function ErrorPage({
           </div>
         )}
 
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-mono text-[#6B7688]">
+          <span>Reference ID:</span>
+          <span className="rounded bg-[#E3E8EF] px-1.5 py-0.5 font-semibold text-[#1B2433]">
+            {error?.digest || 'REF-WORKSPACE-ERR'}
+          </span>
+        </div>
+
         <div className="mt-6 flex justify-center gap-3">
           <Button variant="outline" size="sm" onClick={() => (window.location.href = '/')}>
             Return Home

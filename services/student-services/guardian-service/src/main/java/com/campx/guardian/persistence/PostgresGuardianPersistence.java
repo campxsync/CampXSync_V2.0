@@ -763,4 +763,114 @@ public class PostgresGuardianPersistence implements GuardianPersistence {
                 rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant());
     }
+
+    @Override
+    public void linkExistingGuardian(final Actor actor, final GuardianLink link) {
+        GuardianSecurityContext.fromActor(actor).executeInTransaction(connectionManager, new GuardianSecurityContext.TransactionCallback<Void>() {
+            @Override
+            public Void execute(Connection conn) throws SQLException {
+                String checkPersonSql = "SELECT id FROM core.persons WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL";
+                try (PreparedStatement ps = conn.prepareStatement(checkPersonSql)) {
+                    ps.setObject(1, actor.getTenantId());
+                    ps.setObject(2, link.guardianPersonId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new GuardianException(404, "GUARDIAN_PERSON_NOT_FOUND", "Guardian person was not found in this tenant");
+                        }
+                    }
+                }
+
+                String checkDuplicateSql = "SELECT id FROM stu.guardianships WHERE tenant_id = ? AND student_id = ? AND guardian_person_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL";
+                try (PreparedStatement ps = conn.prepareStatement(checkDuplicateSql)) {
+                    ps.setObject(1, actor.getTenantId());
+                    ps.setObject(2, link.studentId);
+                    ps.setObject(3, link.guardianPersonId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            throw new GuardianException(409, "DUPLICATE_GUARDIAN_LINK", "Guardian is already actively linked to this student");
+                        }
+                    }
+                }
+
+                String linkSql = "INSERT INTO stu.guardianships "
+                        + "(id, tenant_id, student_id, guardian_person_id, relationship, is_primary, "
+                        + "can_view_academics, can_view_fees, can_pay_fees, status, created_at, updated_at, row_version) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, false, false, false, 'ACTIVE', ?, ?, 1)";
+                try (PreparedStatement ps = conn.prepareStatement(linkSql)) {
+                    ps.setObject(1, link.id);
+                    ps.setObject(2, link.tenantId);
+                    ps.setObject(3, link.studentId);
+                    ps.setObject(4, link.guardianPersonId);
+                    ps.setString(5, link.relationship);
+                    ps.setBoolean(6, link.primary);
+                    ps.setTimestamp(7, Timestamp.from(link.linkedAt));
+                    ps.setTimestamp(8, Timestamp.from(link.linkedAt));
+                    ps.executeUpdate();
+                }
+                logger.info("Persisted existing guardian link id={} studentId={} guardianPersonId={} tenantId={}",
+                        link.id, link.studentId, link.guardianPersonId, link.tenantId);
+                return null;
+            }
+        });
+    }
+
+    @Override
+    public List<GuardianLink> findStudentsByGuardianPerson(final Actor actor, final UUID guardianPersonId) {
+        return GuardianSecurityContext.fromActor(actor).executeInTransaction(connectionManager, new GuardianSecurityContext.TransactionCallback<List<GuardianLink>>() {
+            @Override
+            public List<GuardianLink> execute(Connection conn) throws SQLException {
+                String sql = "SELECT g.tenant_id, g.id, g.student_id, g.guardian_person_id, "
+                        + "p.first_name, p.last_name, g.relationship, p.primary_email, p.primary_phone, "
+                        + "g.is_primary, g.status, g.created_at "
+                        + "FROM stu.guardianships g "
+                        + "JOIN core.persons p ON p.id = g.guardian_person_id AND p.tenant_id = g.tenant_id "
+                        + "WHERE g.tenant_id = ? AND g.guardian_person_id = ? AND g.deleted_at IS NULL "
+                        + "ORDER BY g.created_at";
+                List<GuardianLink> rows = new ArrayList<GuardianLink>();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setObject(1, actor.getTenantId());
+                    ps.setObject(2, guardianPersonId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            rows.add(mapLink(rs));
+                        }
+                    }
+                }
+                return rows;
+            }
+        });
+    }
+
+    @Override
+    public GuardianLink findGuardianPersonDetails(final Actor actor, final UUID guardianPersonId) {
+        return GuardianSecurityContext.fromActor(actor).executeInTransaction(connectionManager, new GuardianSecurityContext.TransactionCallback<GuardianLink>() {
+            @Override
+            public GuardianLink execute(Connection conn) throws SQLException {
+                String sql = "SELECT id, tenant_id, first_name, last_name, primary_email, primary_phone "
+                        + "FROM core.persons WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setObject(1, actor.getTenantId());
+                    ps.setObject(2, guardianPersonId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            return null;
+                        }
+                        return new GuardianLink(
+                                (UUID) rs.getObject("tenant_id"),
+                                UUID.randomUUID(),
+                                null,
+                                (UUID) rs.getObject("id"),
+                                rs.getString("first_name"),
+                                rs.getString("last_name") == null ? "" : rs.getString("last_name"),
+                                "",
+                                rs.getString("primary_email") == null ? "" : rs.getString("primary_email"),
+                                rs.getString("primary_phone") == null ? "" : rs.getString("primary_phone"),
+                                false,
+                                "ACTIVE",
+                                java.time.Instant.now());
+                    }
+                }
+            }
+        });
+    }
 }

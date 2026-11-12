@@ -115,11 +115,13 @@ public class ErrorResponse {
                 + "\"timestamp\":" + timestamp + ","
                 + "\"status\":" + status + ","
                 + "\"error\":\"" + escape(error) + "\","
+                + "\"title\":\"" + escape(error) + "\","
                 + "\"code\":\"" + escape(errorCode) + "\","
                 + "\"errorCode\":\"" + escape(errorCode) + "\","
                 + "\"message\":\"" + escape(message) + "\","
                 + "\"path\":\"" + escape(path) + "\","
-                + "\"traceId\":\"" + escape(traceId) + "\""
+                + "\"traceId\":\"" + escape(traceId) + "\","
+                + "\"correlationId\":\"" + escape(traceId) + "\""
                 + "}";
     }
 

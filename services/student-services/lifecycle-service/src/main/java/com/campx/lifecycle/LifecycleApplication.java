@@ -20,6 +20,7 @@ import java.time.Clock;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
 public class LifecycleApplication {
 
@@ -65,8 +66,13 @@ public class LifecycleApplication {
                 os.close();
             }
         });
+        server.setExecutor(Executors.newCachedThreadPool());
         server.start();
         logger.info("STM-04 lifecycle service listening on 127.0.0.1:{} persistent={}", DEFAULT_PORT, domain.isPersistent());
+        try {
+            Thread.currentThread().join();
+        } catch (InterruptedException ignored) {
+        }
     }
 
     static boolean isDeployedEnvironment() {

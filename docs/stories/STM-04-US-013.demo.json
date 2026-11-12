@@ -1,0 +1,117 @@
+{
+  "storyId": "STM-04-US-013",
+  "title": "Faculty Advisor Assignment & Advisee Status Tracking",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "DELETE FROM stu.lifecycle_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND student_id = '81dd67d3-1d5f-4d8e-8061-a67648610013' AND action = 'advisor:11111111-9e05-0000-0000-000000000001'"
+    },
+    {
+      "query": "INSERT INTO stu.lifecycle_status (tenant_id, student_id, status, effective_from, updated_at) VALUES ('a0000000-0000-0000-0000-000000000001', '81dd67d3-1d5f-4d8e-8061-a67648610013', 'ACTIVE', now() - interval '90 days', now()) ON CONFLICT (tenant_id, student_id) DO UPDATE SET status = 'ACTIVE', updated_at = now()"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Registrar Portal Authentication",
+      "description": "College Administrator / Registrar authenticates to CampXSync with authorized R31 staff session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Lifecycle Review Desk",
+      "description": "Verify College Lifecycle workspace loads with institutional review and advisor assignment authority",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Input Student Record ID",
+      "description": "Registrar inputs candidate student record identifier for advisory allocation",
+      "action": "fill",
+      "selector": "[data-testid=\"college-lifecycle-advisor-student-input\"]",
+      "value": "81dd67d3-1d5f-4d8e-8061-a67648610013",
+      "highlight": "[data-testid=\"college-lifecycle-advisor-student-input\"]"
+    },
+    {
+      "title": "Input Faculty Advisor User ID",
+      "description": "Registrar inputs designated faculty advisor user ID (Dr. Rajesh Sharma)",
+      "action": "fill",
+      "selector": "[data-testid=\"college-lifecycle-advisor-user-input\"]",
+      "value": "11111111-9e05-0000-0000-000000000001",
+      "highlight": "[data-testid=\"college-lifecycle-advisor-user-input\"]"
+    },
+    {
+      "title": "Dispatch Faculty Advisor Assignment",
+      "description": "Registrar submits assignment, triggering POST /api/v1/lifecycle/advisors via API Gateway",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-advisor-assign-btn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-advisor-assign-btn\"]"
+    },
+    {
+      "title": "Assert Advisor Assignment Success",
+      "description": "System confirms faculty advisor has been linked to student with green notification",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-success-msg\"]"
+    },
+    {
+      "title": "PostgreSQL Lifecycle Audit History Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_history appended immutable advisor assignment record",
+      "action": "db_check",
+      "query": "SELECT id, student_id, action, actor_role FROM stu.lifecycle_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND student_id = '81dd67d3-1d5f-4d8e-8061-a67648610013' AND action = 'advisor:11111111-9e05-0000-0000-000000000001'",
+      "minCount": 1
+    },
+    {
+      "title": "Faculty Advisor Portal Authentication",
+      "description": "Faculty Member Dr. Rajesh Sharma authenticates to CampXSync with authorized R32 / R10 faculty session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=faculty&returnTo=/faculty/advisees",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Faculty Advisee Desk",
+      "description": "Verify Faculty Advisee workspace loads, fetching GET /api/v1/lifecycle/advisees via API Gateway",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisees-heading\"]",
+      "highlight": "[data-testid=\"faculty-advisees-heading\"]"
+    },
+    {
+      "title": "Verify Advisee on Faculty Roster",
+      "description": "System displays newly assigned student in the faculty advisor's active advisee table",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisee-row-81dd67d3-1d5f-4d8e-8061-a67648610013\"]",
+      "highlight": "[data-testid=\"faculty-advisee-row-81dd67d3-1d5f-4d8e-8061-a67648610013\"]"
+    },
+    {
+      "title": "Verify Advisee Standing Status Badge",
+      "description": "Faculty advisor inspects student's current standing status badge reflecting ACTIVE status",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisee-status-81dd67d3-1d5f-4d8e-8061-a67648610013\"]",
+      "highlight": "[data-testid=\"faculty-advisee-status-81dd67d3-1d5f-4d8e-8061-a67648610013\"]"
+    },
+    {
+      "title": "Negative RBAC Check — Unauthenticated Access Denied",
+      "description": "Gateway strictly blocks unauthenticated requests to /api/v1/lifecycle/advisees with HTTP 401 Unauthorized",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/advisees",
+      "expectedStatus": 401
+    },
+    {
+      "title": "Regression Check — College Lifecycle Desk Intact",
+      "description": "Verify registrar lifecycle desk remains intact and responsive after multi-role workflow",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Regression Check — Lifecycle Queue Responsive",
+      "description": "Verify registrar lifecycle desk components reload cleanly with zero console regressions",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    }
+  ]
+}
+

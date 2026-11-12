@@ -213,12 +213,15 @@ public class GatewayConfig {
         routeTable.put("/v1/enrollment", "http://localhost:8095/api/v1/enrollment");
 
         // Student Domain Tier -> Lifecycle Management Service (STM-04, Port 8096)
-        routeTable.put("/api/v1/lifecycle", "http://localhost:8096/api/v1/lifecycle");
-        routeTable.put("/v1/lifecycle", "http://localhost:8096/api/v1/lifecycle");
+        routeTable.put("/api/v1/lifecycle", "http://127.0.0.1:8096/api/v1/lifecycle");
+        routeTable.put("/v1/lifecycle", "http://127.0.0.1:8096/api/v1/lifecycle");
 
         // Student Domain Tier -> Guardian & Relationships Service (STM-05, Port 8097)
         routeTable.put("/api/v1/guardians", "http://localhost:8097/api/v1/guardians");
         routeTable.put("/v1/guardians", "http://localhost:8097/api/v1/guardians");
+
+        // Student Domain Tier -> Student Documents Service (STM-06, Port 8098)
+        routeTable.put("/api/v1/documents", "http://127.0.0.1:8098/api/v1/documents");
     }
 
     /**

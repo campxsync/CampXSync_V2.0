@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_03",
+  "flowName": "Academic Programs",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 979,
+    "ttfb": 59,
+    "lcp": 196
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 993,
+      "ttfb": 63,
+      "lcp": 204
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 999,
+      "ttfb": 58,
+      "lcp": 204
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1012,
+      "ttfb": 66,
+      "lcp": 204
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1001,
+      "ttfb": 65,
+      "lcp": 192
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1003,
+      "ttfb": 68,
+      "lcp": 208
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1029,
+      "ttfb": 58,
+      "lcp": 188
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1002,
+      "ttfb": 68,
+      "lcp": 212
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 988,
+      "ttfb": 53,
+      "lcp": 192
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1007,
+      "ttfb": 55,
+      "lcp": 196
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1101,
+      "ttfb": 65,
+      "lcp": 200
+    }
+  ],
+  "summary": {
+    "flowId": "COL_03",
+    "flowName": "Academic Programs",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/programs",
+    "beforeP50": 0,
+    "afterP50": 1002,
+    "deltaMs": 1002,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 988,
+      "max": 1101,
+      "p50": 1002,
+      "p90": 1029,
+      "p95": 1101,
+      "avg": 1014
+    },
+    "ttfbStats": {
+      "min": 53,
+      "max": 68,
+      "p50": 63,
+      "p90": 68,
+      "p95": 68,
+      "avg": 62
+    },
+    "lcpStats": {
+      "min": 188,
+      "max": 212,
+      "p50": 200,
+      "p90": 208,
+      "p95": 212,
+      "avg": 200
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "flowId": "STU1_03",
+  "flowName": "Enrollment & Academic Records",
+  "persona": "Student 1",
+  "coldRun": {
+    "actionToVisible": 1380,
+    "ttfb": 347,
+    "lcp": 536
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1365,
+      "ttfb": 354,
+      "lcp": 532
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1375,
+      "ttfb": 358,
+      "lcp": 536
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1411,
+      "ttfb": 385,
+      "lcp": 568
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1438,
+      "ttfb": 386,
+      "lcp": 568
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1393,
+      "ttfb": 367,
+      "lcp": 552
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1382,
+      "ttfb": 347,
+      "lcp": 536
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1379,
+      "ttfb": 368,
+      "lcp": 564
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1396,
+      "ttfb": 366,
+      "lcp": 540
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1622,
+      "ttfb": 613,
+      "lcp": 792
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1360,
+      "ttfb": 364,
+      "lcp": 528
+    }
+  ],
+  "summary": {
+    "flowId": "STU1_03",
+    "flowName": "Enrollment & Academic Records",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/enrollment",
+    "beforeP50": 0,
+    "afterP50": 1382,
+    "deltaMs": 1382,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1360,
+      "max": 1622,
+      "p50": 1382,
+      "p90": 1438,
+      "p95": 1622,
+      "avg": 1412
+    },
+    "ttfbStats": {
+      "min": 347,
+      "max": 613,
+      "p50": 366,
+      "p90": 386,
+      "p95": 613,
+      "avg": 391
+    },
+    "lcpStats": {
+      "min": 528,
+      "max": 792,
+      "p50": 540,
+      "p90": 568,
+      "p95": 792,
+      "avg": 572
+    }
+  }
+}

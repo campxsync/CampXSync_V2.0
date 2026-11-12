@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
-const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
+const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://127.0.0.1:8080';
 
 function staffRole(sessionRole?: string | null) {
   if (sessionRole === 'platform_admin') {
@@ -48,8 +48,11 @@ export async function POST(req: NextRequest) {
   const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
   const action = String(payload?.action || 'decide');
   let path = `/api/v1/lifecycle/requests/${payload.requestId}/decide`;
-  let body: Record<string, unknown> = { decision: payload.decision };
-  if (action === 'rule') {
+  let body: Record<string, unknown> = { decision: payload.decision, reason: payload.reason };
+  if (action === 'transition') {
+    path = `/api/v1/lifecycle/students/${payload.studentId}/transition`;
+    body = { targetStatus: payload.targetStatus, reason: payload.reason || 'Administrative status change' };
+  } else if (action === 'rule') {
     path = '/api/v1/lifecycle/rules';
     body = {
       fromStatus: payload.fromStatus,

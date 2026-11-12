@@ -27,6 +27,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const returnTo = searchParams ? searchParams.get('returnTo') : null;
 
+  const [isMounted, setIsMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +43,10 @@ function LoginForm() {
   const [resetError, setResetError] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     function checkAndRedirectRecovery() {
@@ -148,6 +153,23 @@ function LoginForm() {
     }
   };
 
+  if (!isMounted) {
+    return (
+      <div className="w-full max-w-[460px]">
+        <div className="rounded-xl border border-[#E3E8EF] bg-white p-8 sm:p-10 shadow-[0_4px_24px_-2px_rgba(8,22,41,0.06)] text-center">
+          <div className="mx-auto w-12 h-12 rounded-lg bg-[#EBF3FF] border border-[#D0E2FD] flex items-center justify-center text-[#1F6FEB] mb-3 shadow-sm">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0B1F3A]">Sign In to Workspace</h2>
+          <div className="flex items-center justify-center gap-2 text-sm text-[#6B7688] py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-[#1F6FEB]" />
+            <span>Initializing secure session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-[460px]">
       <div className="rounded-xl border border-[#E3E8EF] bg-white p-8 sm:p-10 shadow-[0_4px_24px_-2px_rgba(8,22,41,0.06)]">
@@ -174,7 +196,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4" suppressHydrationWarning>
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="institutional-email"
@@ -195,6 +217,7 @@ function LoginForm() {
                 autoComplete="email"
                 required
                 disabled={isLoading}
+                suppressHydrationWarning
                 className="block w-full rounded-lg border border-[#E3E8EF] pl-9 pr-3 py-2.5 text-sm text-[#1B2433] placeholder:text-[#6B7688]/70 focus:border-[#1F6FEB] focus:ring-2 focus:ring-[#1F6FEB]/15 focus:outline-none transition-colors disabled:opacity-50"
               />
             </div>
@@ -220,6 +243,7 @@ function LoginForm() {
                 autoComplete="current-password"
                 required
                 disabled={isLoading}
+                suppressHydrationWarning
                 className="block w-full rounded-lg border border-[#E3E8EF] pl-9 pr-10 py-2.5 text-sm text-[#1B2433] placeholder:text-[#6B7688]/70 focus:border-[#1F6FEB] focus:ring-2 focus:ring-[#1F6FEB]/15 focus:outline-none transition-colors disabled:opacity-50"
               />
               <button
@@ -239,6 +263,7 @@ function LoginForm() {
                 type="checkbox"
                 checked={rememberDevice}
                 onChange={(e) => setRememberDevice(e.target.checked)}
+                suppressHydrationWarning
                 className="rounded border-[#E3E8EF] text-[#1F6FEB] focus:ring-[#1F6FEB] h-3.5 w-3.5"
               />
               <span>Remember this device for 30 days</span>
@@ -257,6 +282,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
+              suppressHydrationWarning
               className="w-full py-3 px-4 rounded-lg bg-[#0B1F3A] hover:bg-[#12315C] text-white font-medium text-sm shadow-sm transition-all duration-150 flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
             >
               {isLoading ? (
@@ -280,6 +306,53 @@ function LoginForm() {
             </p>
           </div>
         </form>
+
+        {/* Quick Dev Test Sign-In */}
+        <div className="mt-6 pt-5 border-t border-[#E3E8EF] text-center">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">
+            Quick Dev Testing Sign-In
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            <a
+              id="btn-quick-login-documents"
+              href="/api/auth/test-session?role=college_admin&returnTo=/college/documents"
+              className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-semibold transition"
+            >
+              College Admin — Documents Desk
+            </a>
+            <a
+              id="btn-quick-login-student-documents"
+              data-testid="login-quick-student-documents"
+              href="/api/auth/test-session?role=student&returnTo=/student/documents"
+              className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-md text-xs font-semibold transition"
+            >
+              Student — Documents Desk
+            </a>
+            <a
+              id="btn-quick-login-guardians"
+              href="/api/auth/test-session?role=college_admin&returnTo=/college/guardians"
+              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-md text-xs font-semibold transition"
+            >
+              College Admin — Guardians Desk
+            </a>
+            <a
+              id="btn-quick-login-lifecycle"
+              data-testid="login-quick-college-lifecycle"
+              href="/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle"
+              className="px-3 py-1.5 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 rounded-md text-xs font-semibold transition"
+            >
+              College Admin — Lifecycle Desk
+            </a>
+            <a
+              id="btn-quick-login-faculty-advisees"
+              data-testid="login-quick-faculty-advisees"
+              href="/api/auth/test-session?role=faculty&returnTo=/faculty/advisees"
+              className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-md text-xs font-semibold transition"
+            >
+              Faculty Advisor — Advisees Desk
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Statutory Monitored Notice */}
@@ -338,6 +411,7 @@ function LoginForm() {
                   setIsResetting(false);
                 }
               }}
+              suppressHydrationWarning
               className="mt-4 space-y-3 text-left"
             >
               <div className="space-y-1">
@@ -351,6 +425,7 @@ function LoginForm() {
                   onChange={(e) => setResetEmail(e.target.value)}
                   required
                   disabled={isResetting}
+                  suppressHydrationWarning
                   className="block w-full rounded-lg border border-[#E3E8EF] px-3 py-2 text-sm text-[#1B2433] placeholder:text-[#6B7688] focus:border-[#1F6FEB] focus:ring-2 focus:ring-[#1F6FEB]/15 focus:outline-none"
                 />
               </div>
@@ -420,9 +495,6 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold tracking-tight text-white">CampXSync</span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-[#1F6FEB] text-white">
-                  R1 Core
-                </span>
               </div>
               <p className="text-[11px] font-medium tracking-wider uppercase text-[#E3E8EF]/70">
                 Autonomous Higher Education Infrastructure

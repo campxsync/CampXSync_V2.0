@@ -1,0 +1,106 @@
+{
+  "flowId": "FAC_03",
+  "flowName": "Faculty Class Roster",
+  "persona": "Faculty",
+  "coldRun": {
+    "actionToVisible": 1523,
+    "ttfb": 116,
+    "lcp": 304
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1385,
+      "ttfb": 118,
+      "lcp": 288
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1442,
+      "ttfb": 126,
+      "lcp": 308
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1414,
+      "ttfb": 113,
+      "lcp": 284
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1431,
+      "ttfb": 118,
+      "lcp": 296
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1390,
+      "ttfb": 120,
+      "lcp": 288
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1446,
+      "ttfb": 123,
+      "lcp": 300
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1430,
+      "ttfb": 124,
+      "lcp": 300
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1430,
+      "ttfb": 114,
+      "lcp": 284
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1391,
+      "ttfb": 113,
+      "lcp": 288
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1396,
+      "ttfb": 105,
+      "lcp": 284
+    }
+  ],
+  "summary": {
+    "flowId": "FAC_03",
+    "flowName": "Faculty Class Roster",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/roster",
+    "beforeP50": 0,
+    "afterP50": 1414,
+    "deltaMs": 1414,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1385,
+      "max": 1446,
+      "p50": 1414,
+      "p90": 1442,
+      "p95": 1446,
+      "avg": 1416
+    },
+    "ttfbStats": {
+      "min": 105,
+      "max": 126,
+      "p50": 118,
+      "p90": 124,
+      "p95": 126,
+      "avg": 117
+    },
+    "lcpStats": {
+      "min": 284,
+      "max": 308,
+      "p50": 288,
+      "p90": 300,
+      "p95": 308,
+      "avg": 292
+    }
+  }
+}

@@ -30,9 +30,10 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   ],
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },
-    { title: 'Admissions & Applications', href: '/college/admissions', icon: FileText, badge: 'STM-02' },
+    { title: 'Admissions & Applications', href: '/college/admissions', icon: FileText },
     { title: 'Course Registration Desk', href: '/college/enrollment', icon: BookOpen },
     { title: 'Lifecycle Desk', href: '/college/lifecycle', icon: GraduationCap },
+    { title: 'Documents Catalog', href: '/college/documents', icon: FileText },
     { title: 'Guardians', href: '/college/guardians', icon: Users },
     { title: 'Departments & Programs', href: '/college/departments', icon: Building2 },
     { title: 'Faculty Roster', href: '/college/faculty', icon: Users },

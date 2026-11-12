@@ -23,6 +23,12 @@ import { PreferenceModal } from '@/components/preferences/preference-modal';
 import { formatDate } from '@/lib/utils';
 import { UserPreferences, PRODUCT_DEFAULTS, ROLE_DEFAULT_WIDGETS } from '@/lib/preferences/preference-model';
 
+function formatTimeRange(startTime?: string, endTime?: string) {
+  const start = (startTime || '').slice(0, 5) || '--:--';
+  const end = (endTime || '').slice(0, 5) || '--:--';
+  return `${start} - ${end}`;
+}
+
 export interface FacultyDashboardProps {
   displayName: string;
   userId: string;
@@ -124,7 +130,7 @@ export function FacultyDashboardView({
                       <CardHeader className="py-3 px-4 border-b border-[#E3E8EF] bg-[#F6F8FB]/50">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-mono font-bold text-[#1D4ED8]">
-                            {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
+                            {formatTimeRange(slot.start_time || slot.startTime, slot.end_time || slot.endTime)}
                           </span>
                           <Badge
                             status={isSubmitted ? 'SUBMITTED' : isOpen ? 'OPEN' : 'DRAFT'}
@@ -140,20 +146,20 @@ export function FacultyDashboardView({
                       </CardHeader>
                       <CardContent className="p-4 space-y-3">
                         <div>
-                          <h3 className="text-sm font-bold text-[#0B1F3A]">{slot.subject_name}</h3>
+                          <h3 className="text-sm font-bold text-[#0B1F3A]">{slot.subject_name || slot.subjectName}</h3>
                           <div className="flex items-center gap-2 mt-1 text-xs text-[#475569] font-mono">
                             <span className="px-1.5 py-0.5 rounded bg-[#F0F2F5] text-[#1B2433]">
-                              {slot.subject_code}
+                              {slot.subject_code || slot.subjectCode}
                             </span>
                             <span>•</span>
                             <span className="text-[#1D4ED8] font-semibold">
-                              {slot.section_name || 'All Sections'}
+                              {slot.section_name || slot.sectionName || 'All Sections'}
                             </span>
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-[#E3E8EF] flex items-center justify-between">
-                          <span className="text-[11px] text-[#475569]">ACD-06 Compliance</span>
+                          <span className="text-[11px] text-[#475569]">Attendance Compliance</span>
                           <Link href={`/faculty/attendance?slotId=${slot.id}`}>
                             <Button
                               variant={isSubmitted ? 'outline' : 'primary'}
@@ -212,10 +218,10 @@ export function FacultyDashboardView({
                   <div key={ms.id} className="py-2.5 flex items-center justify-between">
                     <div>
                       <p className="text-xs font-semibold text-[#0B1F3A]">
-                        {ms.subject_name} ({ms.subject_code}) — Section {ms.section_name}
+                        {ms.subject_name || ms.subjectName} ({ms.subject_code || ms.subjectCode}) — Section {ms.section_name || ms.sectionName}
                       </p>
                       <p className="text-[11px] text-[#475569] font-mono mt-0.5">
-                        Session Date: {formatDate(ms.session_date)} ({ms.start_time.slice(0, 5)} - {ms.end_time.slice(0, 5)})
+                        Session Date: {formatDate(ms.session_date)} ({formatTimeRange(ms.start_time || ms.startTime, ms.end_time || ms.endTime)})
                       </p>
                     </div>
                     <Link href={`/faculty/attendance?sessionId=${ms.id}&slotId=${ms.timetable_entry_id}`}>
@@ -257,10 +263,10 @@ export function FacultyDashboardView({
                     <div key={slot.id} className="py-2.5 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-semibold text-[#0B1F3A]">
-                          {slot.subject_name} ({slot.subject_code})
+                          {slot.subject_name || slot.subjectName} ({slot.subject_code || slot.subjectCode})
                         </p>
                         <p className="text-[11px] text-[#6B7688] font-mono mt-0.5">
-                          Section: {slot.section_name} · Slot: {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
+                          Section: {slot.section_name || slot.sectionName || 'All Sections'} · Slot: {formatTimeRange(slot.start_time || slot.startTime, slot.end_time || slot.endTime)}
                         </p>
                       </div>
                       <Link href={`/faculty/attendance?slotId=${slot.id}`}>

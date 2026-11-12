@@ -16,5 +16,9 @@ export function isTestSessionAllowed(
   ) {
     return false;
   }
-  return env.ENABLE_TEST_SESSION === 'true';
+  return (
+    env.ENABLE_TEST_SESSION === 'true' ||
+    env.NEXT_PUBLIC_ENABLE_TEST_SESSION === 'true' ||
+    env.NODE_ENV === 'development'
+  );
 }

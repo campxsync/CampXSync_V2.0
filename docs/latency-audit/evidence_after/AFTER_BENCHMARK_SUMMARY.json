@@ -1,0 +1,1498 @@
+[
+  {
+    "flowId": "AUTH_PLT",
+    "flowName": "Platform Admin Login to Dashboard",
+    "persona": "Platform Admin",
+    "target": "/platform",
+    "beforeP50": 0,
+    "afterP50": 1224,
+    "deltaMs": 1224,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1155,
+      "max": 1375,
+      "p50": 1224,
+      "p90": 1300,
+      "p95": 1375,
+      "avg": 1239
+    },
+    "ttfbStats": {
+      "min": 286,
+      "max": 365,
+      "p50": 304,
+      "p90": 329,
+      "p95": 365,
+      "avg": 312
+    },
+    "lcpStats": {
+      "min": 356,
+      "max": 444,
+      "p50": 392,
+      "p90": 400,
+      "p95": 444,
+      "avg": 390
+    }
+  },
+  {
+    "flowId": "PLT_01",
+    "flowName": "Platform Operator Dashboard",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform",
+    "beforeP50": 0,
+    "afterP50": 1387,
+    "deltaMs": 1387,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1087,
+      "max": 1445,
+      "p50": 1387,
+      "p90": 1423,
+      "p95": 1445,
+      "avg": 1352
+    },
+    "ttfbStats": {
+      "min": 286,
+      "max": 364,
+      "p50": 330,
+      "p90": 350,
+      "p95": 364,
+      "avg": 329
+    },
+    "lcpStats": {
+      "min": 412,
+      "max": 576,
+      "p50": 524,
+      "p90": 544,
+      "p95": 576,
+      "avg": 512
+    }
+  },
+  {
+    "flowId": "PLT_02",
+    "flowName": "Institutes Registry",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/institutes",
+    "beforeP50": 0,
+    "afterP50": 1235,
+    "deltaMs": 1235,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1176,
+      "max": 1303,
+      "p50": 1235,
+      "p90": 1298,
+      "p95": 1303,
+      "avg": 1244
+    },
+    "ttfbStats": {
+      "min": 148,
+      "max": 187,
+      "p50": 169,
+      "p90": 183,
+      "p95": 187,
+      "avg": 170
+    },
+    "lcpStats": {
+      "min": 324,
+      "max": 388,
+      "p50": 364,
+      "p90": 380,
+      "p95": 388,
+      "avg": 361
+    }
+  },
+  {
+    "flowId": "PLT_03",
+    "flowName": "Onboard New Institute View",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/institutes/new",
+    "beforeP50": 0,
+    "afterP50": 1228,
+    "deltaMs": 1228,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 987,
+      "max": 1334,
+      "p50": 1228,
+      "p90": 1309,
+      "p95": 1334,
+      "avg": 1197
+    },
+    "ttfbStats": {
+      "min": 122,
+      "max": 225,
+      "p50": 160,
+      "p90": 174,
+      "p95": 225,
+      "avg": 163
+    },
+    "lcpStats": {
+      "min": 248,
+      "max": 420,
+      "p50": 368,
+      "p90": 392,
+      "p95": 420,
+      "avg": 356
+    }
+  },
+  {
+    "flowId": "PLT_04",
+    "flowName": "Platform Audit Trail",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/audit",
+    "beforeP50": 0,
+    "afterP50": 1408,
+    "deltaMs": 1408,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1197,
+      "max": 1456,
+      "p50": 1408,
+      "p90": 1452,
+      "p95": 1456,
+      "avg": 1397
+    },
+    "ttfbStats": {
+      "min": 325,
+      "max": 403,
+      "p50": 345,
+      "p90": 398,
+      "p95": 403,
+      "avg": 353
+    },
+    "lcpStats": {
+      "min": 480,
+      "max": 604,
+      "p50": 532,
+      "p90": 596,
+      "p95": 604,
+      "avg": 546
+    }
+  },
+  {
+    "flowId": "AUTH_COL",
+    "flowName": "College Admin Login to Dashboard",
+    "persona": "College Admin",
+    "target": "/college",
+    "beforeP50": 0,
+    "afterP50": 1431,
+    "deltaMs": 1431,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1360,
+      "max": 1634,
+      "p50": 1431,
+      "p90": 1594,
+      "p95": 1634,
+      "avg": 1480
+    },
+    "ttfbStats": {
+      "min": 189,
+      "max": 362,
+      "p50": 239,
+      "p90": 329,
+      "p95": 362,
+      "avg": 258
+    },
+    "lcpStats": {
+      "min": 356,
+      "max": 536,
+      "p50": 396,
+      "p90": 496,
+      "p95": 536,
+      "avg": 416
+    }
+  },
+  {
+    "flowId": "COL_01",
+    "flowName": "College Admin Dashboard",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college",
+    "beforeP50": 0,
+    "afterP50": 1406,
+    "deltaMs": 1406,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1368,
+      "max": 1539,
+      "p50": 1406,
+      "p90": 1488,
+      "p95": 1539,
+      "avg": 1433
+    },
+    "ttfbStats": {
+      "min": 170,
+      "max": 275,
+      "p50": 202,
+      "p90": 230,
+      "p95": 275,
+      "avg": 203
+    },
+    "lcpStats": {
+      "min": 404,
+      "max": 508,
+      "p50": 436,
+      "p90": 444,
+      "p95": 508,
+      "avg": 436
+    }
+  },
+  {
+    "flowId": "COL_02",
+    "flowName": "Departments Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/departments",
+    "beforeP50": 0,
+    "afterP50": 1601,
+    "deltaMs": 1601,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1517,
+      "max": 1713,
+      "p50": 1601,
+      "p90": 1695,
+      "p95": 1713,
+      "avg": 1616
+    },
+    "ttfbStats": {
+      "min": 413,
+      "max": 522,
+      "p50": 436,
+      "p90": 492,
+      "p95": 522,
+      "avg": 455
+    },
+    "lcpStats": {
+      "min": 656,
+      "max": 756,
+      "p50": 680,
+      "p90": 736,
+      "p95": 756,
+      "avg": 694
+    }
+  },
+  {
+    "flowId": "COL_03",
+    "flowName": "Academic Programs",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/programs",
+    "beforeP50": 0,
+    "afterP50": 1002,
+    "deltaMs": 1002,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 988,
+      "max": 1101,
+      "p50": 1002,
+      "p90": 1029,
+      "p95": 1101,
+      "avg": 1014
+    },
+    "ttfbStats": {
+      "min": 53,
+      "max": 68,
+      "p50": 63,
+      "p90": 68,
+      "p95": 68,
+      "avg": 62
+    },
+    "lcpStats": {
+      "min": 188,
+      "max": 212,
+      "p50": 200,
+      "p90": 208,
+      "p95": 212,
+      "avg": 200
+    }
+  },
+  {
+    "flowId": "COL_04",
+    "flowName": "Academic Batches",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/batches",
+    "beforeP50": 0,
+    "afterP50": 1201,
+    "deltaMs": 1201,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1166,
+      "max": 2085,
+      "p50": 1201,
+      "p90": 1557,
+      "p95": 2085,
+      "avg": 1336
+    },
+    "ttfbStats": {
+      "min": 125,
+      "max": 483,
+      "p50": 137,
+      "p90": 442,
+      "p95": 483,
+      "avg": 208
+    },
+    "lcpStats": {
+      "min": 324,
+      "max": 676,
+      "p50": 340,
+      "p90": 664,
+      "p95": 676,
+      "avg": 418
+    }
+  },
+  {
+    "flowId": "COL_05",
+    "flowName": "Student Roster",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/students",
+    "beforeP50": 0,
+    "afterP50": 1705,
+    "deltaMs": 1705,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1608,
+      "max": 2022,
+      "p50": 1705,
+      "p90": 2016,
+      "p95": 2022,
+      "avg": 1765
+    },
+    "ttfbStats": {
+      "min": 541,
+      "max": 834,
+      "p50": 610,
+      "p90": 677,
+      "p95": 834,
+      "avg": 634
+    },
+    "lcpStats": {
+      "min": 756,
+      "max": 1060,
+      "p50": 832,
+      "p90": 892,
+      "p95": 1060,
+      "avg": 854
+    }
+  },
+  {
+    "flowId": "COL_07",
+    "flowName": "Timetable Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/timetable",
+    "beforeP50": 0,
+    "afterP50": 1397,
+    "deltaMs": 1397,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1333,
+      "max": 1465,
+      "p50": 1397,
+      "p90": 1451,
+      "p95": 1465,
+      "avg": 1401
+    },
+    "ttfbStats": {
+      "min": 292,
+      "max": 399,
+      "p50": 305,
+      "p90": 356,
+      "p95": 399,
+      "avg": 325
+    },
+    "lcpStats": {
+      "min": 504,
+      "max": 632,
+      "p50": 540,
+      "p90": 584,
+      "p95": 632,
+      "avg": 554
+    }
+  },
+  {
+    "flowId": "COL_08",
+    "flowName": "Attendance Oversight",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/attendance",
+    "beforeP50": 0,
+    "afterP50": 1164,
+    "deltaMs": 1164,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1148,
+      "max": 1295,
+      "p50": 1164,
+      "p90": 1221,
+      "p95": 1295,
+      "avg": 1185
+    },
+    "ttfbStats": {
+      "min": 120,
+      "max": 143,
+      "p50": 129,
+      "p90": 143,
+      "p95": 143,
+      "avg": 131
+    },
+    "lcpStats": {
+      "min": 312,
+      "max": 376,
+      "p50": 328,
+      "p90": 352,
+      "p95": 376,
+      "avg": 332
+    }
+  },
+  {
+    "flowId": "COL_10",
+    "flowName": "Guardian Registry",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/guardians",
+    "beforeP50": 0,
+    "afterP50": 1193,
+    "deltaMs": 1193,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1138,
+      "max": 1295,
+      "p50": 1193,
+      "p90": 1289,
+      "p95": 1295,
+      "avg": 1205
+    },
+    "ttfbStats": {
+      "min": 116,
+      "max": 139,
+      "p50": 124,
+      "p90": 135,
+      "p95": 139,
+      "avg": 126
+    },
+    "lcpStats": {
+      "min": 308,
+      "max": 372,
+      "p50": 324,
+      "p90": 340,
+      "p95": 372,
+      "avg": 329
+    }
+  },
+  {
+    "flowId": "COL_11",
+    "flowName": "Admissions Intakes",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/admissions/intakes",
+    "beforeP50": 0,
+    "afterP50": 1257,
+    "deltaMs": 1257,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1222,
+      "max": 1303,
+      "p50": 1257,
+      "p90": 1300,
+      "p95": 1303,
+      "avg": 1259
+    },
+    "ttfbStats": {
+      "min": 183,
+      "max": 218,
+      "p50": 190,
+      "p90": 209,
+      "p95": 218,
+      "avg": 196
+    },
+    "lcpStats": {
+      "min": 376,
+      "max": 472,
+      "p50": 392,
+      "p90": 416,
+      "p95": 472,
+      "avg": 402
+    }
+  },
+  {
+    "flowId": "COL_12",
+    "flowName": "Admissions Applications",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/admissions",
+    "beforeP50": 0,
+    "afterP50": 1444,
+    "deltaMs": 1444,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1386,
+      "max": 1672,
+      "p50": 1444,
+      "p90": 1599,
+      "p95": 1672,
+      "avg": 1482
+    },
+    "ttfbStats": {
+      "min": 261,
+      "max": 357,
+      "p50": 287,
+      "p90": 298,
+      "p95": 357,
+      "avg": 293
+    },
+    "lcpStats": {
+      "min": 464,
+      "max": 564,
+      "p50": 508,
+      "p90": 528,
+      "p95": 564,
+      "avg": 508
+    }
+  },
+  {
+    "flowId": "COL_15",
+    "flowName": "Document Types Configuration",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/documents",
+    "beforeP50": 0,
+    "afterP50": 1264,
+    "deltaMs": 1264,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1217,
+      "max": 1316,
+      "p50": 1264,
+      "p90": 1281,
+      "p95": 1316,
+      "avg": 1265
+    },
+    "ttfbStats": {
+      "min": 110,
+      "max": 165,
+      "p50": 134,
+      "p90": 148,
+      "p95": 165,
+      "avg": 134
+    },
+    "lcpStats": {
+      "min": 352,
+      "max": 388,
+      "p50": 372,
+      "p90": 388,
+      "p95": 388,
+      "avg": 372
+    }
+  },
+  {
+    "flowId": "COL_16",
+    "flowName": "Enrollment Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/enrollment",
+    "beforeP50": 0,
+    "afterP50": 1688,
+    "deltaMs": 1688,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1653,
+      "max": 1836,
+      "p50": 1688,
+      "p90": 1824,
+      "p95": 1836,
+      "avg": 1717
+    },
+    "ttfbStats": {
+      "min": 111,
+      "max": 284,
+      "p50": 118,
+      "p90": 139,
+      "p95": 284,
+      "avg": 138
+    },
+    "lcpStats": {
+      "min": 304,
+      "max": 488,
+      "p50": 324,
+      "p90": 336,
+      "p95": 488,
+      "avg": 340
+    }
+  },
+  {
+    "flowId": "COL_17",
+    "flowName": "Lifecycle Operations",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/lifecycle",
+    "beforeP50": 0,
+    "afterP50": 2020,
+    "deltaMs": 2020,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1917,
+      "max": 2307,
+      "p50": 2020,
+      "p90": 2199,
+      "p95": 2307,
+      "avg": 2068
+    },
+    "ttfbStats": {
+      "min": 104,
+      "max": 181,
+      "p50": 120,
+      "p90": 166,
+      "p95": 181,
+      "avg": 132
+    },
+    "lcpStats": {
+      "min": 304,
+      "max": 400,
+      "p50": 324,
+      "p90": 392,
+      "p95": 400,
+      "avg": 340
+    }
+  },
+  {
+    "flowId": "COL_18",
+    "flowName": "Faculty Directory",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/faculty",
+    "beforeP50": 0,
+    "afterP50": 1233,
+    "deltaMs": 1233,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1179,
+      "max": 1595,
+      "p50": 1233,
+      "p90": 1297,
+      "p95": 1595,
+      "avg": 1276
+    },
+    "ttfbStats": {
+      "min": 173,
+      "max": 551,
+      "p50": 180,
+      "p90": 221,
+      "p95": 551,
+      "avg": 222
+    },
+    "lcpStats": {
+      "min": 332,
+      "max": 748,
+      "p50": 384,
+      "p90": 412,
+      "p95": 748,
+      "avg": 419
+    }
+  },
+  {
+    "flowId": "COL_19",
+    "flowName": "College Audit Trail",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/audit",
+    "beforeP50": 0,
+    "afterP50": 1153,
+    "deltaMs": 1153,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1126,
+      "max": 1215,
+      "p50": 1153,
+      "p90": 1214,
+      "p95": 1215,
+      "avg": 1170
+    },
+    "ttfbStats": {
+      "min": 116,
+      "max": 143,
+      "p50": 125,
+      "p90": 137,
+      "p95": 143,
+      "avg": 128
+    },
+    "lcpStats": {
+      "min": 304,
+      "max": 344,
+      "p50": 324,
+      "p90": 332,
+      "p95": 344,
+      "avg": 324
+    }
+  },
+  {
+    "flowId": "AUTH_FAC",
+    "flowName": "Faculty Login to Dashboard",
+    "persona": "Faculty",
+    "target": "/faculty",
+    "beforeP50": 0,
+    "afterP50": 1180,
+    "deltaMs": 1180,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1031,
+      "max": 1242,
+      "p50": 1180,
+      "p90": 1226,
+      "p95": 1242,
+      "avg": 1173
+    },
+    "ttfbStats": {
+      "min": 173,
+      "max": 259,
+      "p50": 215,
+      "p90": 255,
+      "p95": 259,
+      "avg": 220
+    },
+    "lcpStats": {
+      "min": 332,
+      "max": 548,
+      "p50": 504,
+      "p90": 544,
+      "p95": 548,
+      "avg": 483
+    }
+  },
+  {
+    "flowId": "FAC_01",
+    "flowName": "Faculty Dashboard",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty",
+    "beforeP50": 0,
+    "afterP50": 949,
+    "deltaMs": 949,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 823,
+      "max": 1102,
+      "p50": 949,
+      "p90": 977,
+      "p95": 1102,
+      "avg": 951
+    },
+    "ttfbStats": {
+      "min": 154,
+      "max": 370,
+      "p50": 196,
+      "p90": 218,
+      "p95": 370,
+      "avg": 207
+    },
+    "lcpStats": {
+      "min": 384,
+      "max": 788,
+      "p50": 644,
+      "p90": 684,
+      "p95": 788,
+      "avg": 633
+    }
+  },
+  {
+    "flowId": "FAC_02",
+    "flowName": "Faculty Assigned Timetable",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/timetable",
+    "beforeP50": 0,
+    "afterP50": 1213,
+    "deltaMs": 1213,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1204,
+      "max": 1257,
+      "p50": 1213,
+      "p90": 1240,
+      "p95": 1257,
+      "avg": 1221
+    },
+    "ttfbStats": {
+      "min": 126,
+      "max": 149,
+      "p50": 133,
+      "p90": 148,
+      "p95": 149,
+      "avg": 136
+    },
+    "lcpStats": {
+      "min": 356,
+      "max": 388,
+      "p50": 364,
+      "p90": 384,
+      "p95": 388,
+      "avg": 368
+    }
+  },
+  {
+    "flowId": "FAC_03",
+    "flowName": "Faculty Class Roster",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/roster",
+    "beforeP50": 0,
+    "afterP50": 1414,
+    "deltaMs": 1414,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1385,
+      "max": 1446,
+      "p50": 1414,
+      "p90": 1442,
+      "p95": 1446,
+      "avg": 1416
+    },
+    "ttfbStats": {
+      "min": 105,
+      "max": 126,
+      "p50": 118,
+      "p90": 124,
+      "p95": 126,
+      "avg": 117
+    },
+    "lcpStats": {
+      "min": 284,
+      "max": 308,
+      "p50": 288,
+      "p90": 300,
+      "p95": 308,
+      "avg": 292
+    }
+  },
+  {
+    "flowId": "FAC_04",
+    "flowName": "Faculty Teaching Sessions",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/sessions",
+    "beforeP50": 0,
+    "afterP50": 1169,
+    "deltaMs": 1169,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1122,
+      "max": 1204,
+      "p50": 1169,
+      "p90": 1188,
+      "p95": 1204,
+      "avg": 1163
+    },
+    "ttfbStats": {
+      "min": 112,
+      "max": 151,
+      "p50": 128,
+      "p90": 151,
+      "p95": 151,
+      "avg": 132
+    },
+    "lcpStats": {
+      "min": 292,
+      "max": 348,
+      "p50": 320,
+      "p90": 340,
+      "p95": 348,
+      "avg": 321
+    }
+  },
+  {
+    "flowId": "FAC_05",
+    "flowName": "Attendance Marking View",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/attendance",
+    "beforeP50": 0,
+    "afterP50": 1453,
+    "deltaMs": 1453,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1431,
+      "max": 1520,
+      "p50": 1453,
+      "p90": 1500,
+      "p95": 1520,
+      "avg": 1462
+    },
+    "ttfbStats": {
+      "min": 394,
+      "max": 434,
+      "p50": 414,
+      "p90": 428,
+      "p95": 434,
+      "avg": 416
+    },
+    "lcpStats": {
+      "min": 576,
+      "max": 640,
+      "p50": 604,
+      "p90": 620,
+      "p95": 640,
+      "avg": 605
+    }
+  },
+  {
+    "flowId": "FAC_06",
+    "flowName": "Student Advisees",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/advisees",
+    "beforeP50": 0,
+    "afterP50": 1171,
+    "deltaMs": 1171,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1145,
+      "max": 1272,
+      "p50": 1171,
+      "p90": 1220,
+      "p95": 1272,
+      "avg": 1186
+    },
+    "ttfbStats": {
+      "min": 106,
+      "max": 177,
+      "p50": 130,
+      "p90": 153,
+      "p95": 177,
+      "avg": 131
+    },
+    "lcpStats": {
+      "min": 276,
+      "max": 356,
+      "p50": 304,
+      "p90": 332,
+      "p95": 356,
+      "avg": 311
+    }
+  },
+  {
+    "flowId": "AUTH_STU1",
+    "flowName": "Student 1 Login to Portal",
+    "persona": "Student 1",
+    "target": "/student",
+    "beforeP50": 0,
+    "afterP50": 1471,
+    "deltaMs": 1471,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1416,
+      "max": 1602,
+      "p50": 1471,
+      "p90": 1562,
+      "p95": 1602,
+      "avg": 1490
+    },
+    "ttfbStats": {
+      "min": 192,
+      "max": 299,
+      "p50": 212,
+      "p90": 230,
+      "p95": 299,
+      "avg": 222
+    },
+    "lcpStats": {
+      "min": 348,
+      "max": 460,
+      "p50": 368,
+      "p90": 384,
+      "p95": 460,
+      "avg": 378
+    }
+  },
+  {
+    "flowId": "STU1_01",
+    "flowName": "Student Attendance & Classes",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student",
+    "beforeP50": 0,
+    "afterP50": 1129,
+    "deltaMs": 1129,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1018,
+      "max": 1315,
+      "p50": 1129,
+      "p90": 1296,
+      "p95": 1315,
+      "avg": 1174
+    },
+    "ttfbStats": {
+      "min": 158,
+      "max": 214,
+      "p50": 180,
+      "p90": 197,
+      "p95": 214,
+      "avg": 184
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 432,
+      "p50": 356,
+      "p90": 424,
+      "p95": 432,
+      "avg": 368
+    }
+  },
+  {
+    "flowId": "STU1_02",
+    "flowName": "Admissions & Applications Bridge",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/admissions",
+    "beforeP50": 0,
+    "afterP50": 1264,
+    "deltaMs": 1264,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1241,
+      "max": 1299,
+      "p50": 1264,
+      "p90": 1290,
+      "p95": 1299,
+      "avg": 1267
+    },
+    "ttfbStats": {
+      "min": 216,
+      "max": 257,
+      "p50": 224,
+      "p90": 248,
+      "p95": 257,
+      "avg": 229
+    },
+    "lcpStats": {
+      "min": 392,
+      "max": 444,
+      "p50": 416,
+      "p90": 432,
+      "p95": 444,
+      "avg": 418
+    }
+  },
+  {
+    "flowId": "STU1_03",
+    "flowName": "Enrollment & Academic Records",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/enrollment",
+    "beforeP50": 0,
+    "afterP50": 1382,
+    "deltaMs": 1382,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1360,
+      "max": 1622,
+      "p50": 1382,
+      "p90": 1438,
+      "p95": 1622,
+      "avg": 1412
+    },
+    "ttfbStats": {
+      "min": 347,
+      "max": 613,
+      "p50": 366,
+      "p90": 386,
+      "p95": 613,
+      "avg": 391
+    },
+    "lcpStats": {
+      "min": 528,
+      "max": 792,
+      "p50": 540,
+      "p90": 568,
+      "p95": 792,
+      "avg": 572
+    }
+  },
+  {
+    "flowId": "STU1_04",
+    "flowName": "Student Lifecycle Status",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/lifecycle",
+    "beforeP50": 0,
+    "afterP50": 2801,
+    "deltaMs": 2801,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 2711,
+      "max": 2898,
+      "p50": 2801,
+      "p90": 2865,
+      "p95": 2898,
+      "avg": 2804
+    },
+    "ttfbStats": {
+      "min": 108,
+      "max": 141,
+      "p50": 114,
+      "p90": 132,
+      "p95": 141,
+      "avg": 120
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 328,
+      "p50": 304,
+      "p90": 324,
+      "p95": 328,
+      "avg": 309
+    }
+  },
+  {
+    "flowId": "STU1_05",
+    "flowName": "Student Profile & Address",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/address",
+    "beforeP50": 0,
+    "afterP50": 1160,
+    "deltaMs": 1160,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1136,
+      "max": 1228,
+      "p50": 1160,
+      "p90": 1202,
+      "p95": 1228,
+      "avg": 1171
+    },
+    "ttfbStats": {
+      "min": 112,
+      "max": 148,
+      "p50": 120,
+      "p90": 146,
+      "p95": 148,
+      "avg": 126
+    },
+    "lcpStats": {
+      "min": 308,
+      "max": 364,
+      "p50": 328,
+      "p90": 340,
+      "p95": 364,
+      "avg": 330
+    }
+  },
+  {
+    "flowId": "STU1_06",
+    "flowName": "Profile Correction Requests",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/corrections",
+    "beforeP50": 0,
+    "afterP50": 2132,
+    "deltaMs": 2132,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 2099,
+      "max": 2198,
+      "p50": 2132,
+      "p90": 2172,
+      "p95": 2198,
+      "avg": 2139
+    },
+    "ttfbStats": {
+      "min": 991,
+      "max": 1089,
+      "p50": 1039,
+      "p90": 1081,
+      "p95": 1089,
+      "avg": 1046
+    },
+    "lcpStats": {
+      "min": 1212,
+      "max": 1320,
+      "p50": 1252,
+      "p90": 1296,
+      "p95": 1320,
+      "avg": 1262
+    }
+  },
+  {
+    "flowId": "STU1_07",
+    "flowName": "Document Vault",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/documents",
+    "beforeP50": 0,
+    "afterP50": 1240,
+    "deltaMs": 1240,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1072,
+      "max": 1936,
+      "p50": 1240,
+      "p90": 1642,
+      "p95": 1936,
+      "avg": 1328
+    },
+    "ttfbStats": {
+      "min": 109,
+      "max": 161,
+      "p50": 125,
+      "p90": 133,
+      "p95": 161,
+      "avg": 127
+    },
+    "lcpStats": {
+      "min": 544,
+      "max": 1112,
+      "p50": 704,
+      "p90": 740,
+      "p95": 1112,
+      "avg": 714
+    }
+  },
+  {
+    "flowId": "AUTH_STU2",
+    "flowName": "Student 2 Login to Portal",
+    "persona": "Student 2",
+    "target": "/student",
+    "beforeP50": 0,
+    "afterP50": 1458,
+    "deltaMs": 1458,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1419,
+      "max": 1551,
+      "p50": 1458,
+      "p90": 1539,
+      "p95": 1551,
+      "avg": 1477
+    },
+    "ttfbStats": {
+      "min": 188,
+      "max": 238,
+      "p50": 197,
+      "p90": 231,
+      "p95": 238,
+      "avg": 208
+    },
+    "lcpStats": {
+      "min": 336,
+      "max": 392,
+      "p50": 352,
+      "p90": 380,
+      "p95": 392,
+      "avg": 357
+    }
+  },
+  {
+    "flowId": "STU2_01",
+    "flowName": "Student Attendance & Classes",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student",
+    "beforeP50": 0,
+    "afterP50": 1268,
+    "deltaMs": 1268,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1244,
+      "max": 1475,
+      "p50": 1268,
+      "p90": 1333,
+      "p95": 1475,
+      "avg": 1295
+    },
+    "ttfbStats": {
+      "min": 172,
+      "max": 242,
+      "p50": 193,
+      "p90": 225,
+      "p95": 242,
+      "avg": 199
+    },
+    "lcpStats": {
+      "min": 380,
+      "max": 468,
+      "p50": 404,
+      "p90": 440,
+      "p95": 468,
+      "avg": 413
+    }
+  },
+  {
+    "flowId": "STU2_02",
+    "flowName": "Admissions & Applications Bridge",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/admissions",
+    "beforeP50": 0,
+    "afterP50": 1240,
+    "deltaMs": 1240,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1212,
+      "max": 1270,
+      "p50": 1240,
+      "p90": 1252,
+      "p95": 1270,
+      "avg": 1238
+    },
+    "ttfbStats": {
+      "min": 214,
+      "max": 242,
+      "p50": 226,
+      "p90": 241,
+      "p95": 242,
+      "avg": 228
+    },
+    "lcpStats": {
+      "min": 396,
+      "max": 428,
+      "p50": 408,
+      "p90": 428,
+      "p95": 428,
+      "avg": 414
+    }
+  },
+  {
+    "flowId": "STU2_03",
+    "flowName": "Enrollment & Academic Records",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/enrollment",
+    "beforeP50": 0,
+    "afterP50": 1388,
+    "deltaMs": 1388,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1339,
+      "max": 1473,
+      "p50": 1388,
+      "p90": 1412,
+      "p95": 1473,
+      "avg": 1394
+    },
+    "ttfbStats": {
+      "min": 334,
+      "max": 446,
+      "p50": 368,
+      "p90": 378,
+      "p95": 446,
+      "avg": 371
+    },
+    "lcpStats": {
+      "min": 492,
+      "max": 624,
+      "p50": 540,
+      "p90": 568,
+      "p95": 624,
+      "avg": 548
+    }
+  },
+  {
+    "flowId": "STU2_04",
+    "flowName": "Student Lifecycle Status",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/lifecycle",
+    "beforeP50": 0,
+    "afterP50": 2835,
+    "deltaMs": 2835,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 2756,
+      "max": 2939,
+      "p50": 2835,
+      "p90": 2895,
+      "p95": 2939,
+      "avg": 2836
+    },
+    "ttfbStats": {
+      "min": 112,
+      "max": 135,
+      "p50": 118,
+      "p90": 126,
+      "p95": 135,
+      "avg": 120
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 352,
+      "p50": 312,
+      "p90": 340,
+      "p95": 352,
+      "avg": 318
+    }
+  },
+  {
+    "flowId": "STU2_05",
+    "flowName": "Student Profile & Address",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/address",
+    "beforeP50": 0,
+    "afterP50": 1003,
+    "deltaMs": 1003,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 906,
+      "max": 1170,
+      "p50": 1003,
+      "p90": 1160,
+      "p95": 1170,
+      "avg": 1041
+    },
+    "ttfbStats": {
+      "min": 89,
+      "max": 140,
+      "p50": 114,
+      "p90": 124,
+      "p95": 140,
+      "avg": 111
+    },
+    "lcpStats": {
+      "min": 208,
+      "max": 336,
+      "p50": 244,
+      "p90": 336,
+      "p95": 336,
+      "avg": 271
+    }
+  },
+  {
+    "flowId": "STU2_06",
+    "flowName": "Profile Correction Requests",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/corrections",
+    "beforeP50": 0,
+    "afterP50": 2115,
+    "deltaMs": 2115,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 2062,
+      "max": 2196,
+      "p50": 2115,
+      "p90": 2181,
+      "p95": 2196,
+      "avg": 2131
+    },
+    "ttfbStats": {
+      "min": 1019,
+      "max": 1100,
+      "p50": 1035,
+      "p90": 1098,
+      "p95": 1100,
+      "avg": 1049
+    },
+    "lcpStats": {
+      "min": 1204,
+      "max": 1324,
+      "p50": 1268,
+      "p90": 1320,
+      "p95": 1324,
+      "avg": 1267
+    }
+  },
+  {
+    "flowId": "STU2_07",
+    "flowName": "Document Vault",
+    "persona": "Student 2",
+    "target": "http://localhost:3000/student/documents",
+    "beforeP50": 0,
+    "afterP50": 1229,
+    "deltaMs": 1229,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1206,
+      "max": 1296,
+      "p50": 1229,
+      "p90": 1266,
+      "p95": 1296,
+      "avg": 1239
+    },
+    "ttfbStats": {
+      "min": 110,
+      "max": 129,
+      "p50": 119,
+      "p90": 129,
+      "p95": 129,
+      "avg": 120
+    },
+    "lcpStats": {
+      "min": 724,
+      "max": 792,
+      "p50": 748,
+      "p90": 792,
+      "p95": 792,
+      "avg": 757
+    }
+  }
+]

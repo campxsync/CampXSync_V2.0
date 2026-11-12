@@ -8,6 +8,7 @@ import { useState } from 'react';
 export default function CollegeGuardiansPage() {
   const [studentId, setStudentId] = useState('');
   const [guardianId, setGuardianId] = useState('');
+  const [guardianPersonId, setGuardianPersonId] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [relationship, setRelationship] = useState('Mother');
@@ -46,6 +47,34 @@ export default function CollegeGuardiansPage() {
     }
     setMessage(text);
     try {
+      const saved = JSON.parse(text) as { id?: string; guardianPersonId?: string };
+      if (saved.id) {
+        setGuardianId(saved.id);
+      }
+      if (saved.guardianPersonId) {
+        setGuardianPersonId(saved.guardianPersonId);
+      }
+    } catch {
+      setGuardianId(guardianId);
+    }
+    await load();
+  }
+
+  async function linkExistingGuardian() {
+    setError('');
+    setMessage('');
+    const res = await fetch('/api/college/guardians', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'link-existing', studentId, guardianPersonId, relationship, primary }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      setError(text);
+      return;
+    }
+    setMessage(text);
+    try {
       const saved = JSON.parse(text) as { id?: string };
       if (saved.id) {
         setGuardianId(saved.id);
@@ -54,6 +83,24 @@ export default function CollegeGuardiansPage() {
       setGuardianId(guardianId);
     }
     await load();
+  }
+
+  async function loadStudentsByGuardianPerson() {
+    setError('');
+    setMessage('');
+    if (!guardianPersonId) {
+      setError('Guardian Person ID is required to load linked students');
+      return;
+    }
+    const res = await fetch(`/api/college/guardians?guardianPersonId=${encodeURIComponent(guardianPersonId)}`, {
+      method: 'GET',
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      setError(text);
+      return;
+    }
+    setList(text);
   }
 
   async function updateRelationship() {
@@ -272,6 +319,10 @@ export default function CollegeGuardiansPage() {
           <input className="mt-1 w-full rounded border px-2 py-1" value={guardianId} onChange={(e) => setGuardianId(e.target.value)} />
         </label>
         <label className="block text-sm">
+          Guardian Person id (STM-05-US-015)
+          <input className="mt-1 w-full rounded border px-2 py-1" placeholder="core.persons UUID for multi-student link" value={guardianPersonId} onChange={(e) => setGuardianPersonId(e.target.value)} />
+        </label>
+        <label className="block text-sm">
           First name
           <input className="mt-1 w-full rounded border px-2 py-1" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
         </label>
@@ -324,6 +375,9 @@ export default function CollegeGuardiansPage() {
         <div className="flex flex-wrap gap-2">
           <button type="button" className="rounded bg-[#0B1F3A] px-3 py-2 text-sm text-white" onClick={() => void addGuardian()}>
             Add guardian
+          </button>
+          <button type="button" className="rounded bg-[#1D4ED8] px-3 py-2 text-sm text-white" onClick={() => void linkExistingGuardian()}>
+            Link existing guardian (US-015)
           </button>
           <button type="button" className="rounded border px-3 py-2 text-sm" onClick={() => void updateRelationship()}>
             Update relationship
@@ -419,6 +473,9 @@ export default function CollegeGuardiansPage() {
           </button>
           <button type="button" className="rounded border px-3 py-2 text-sm" onClick={() => void load()}>
             Load guardians
+          </button>
+          <button type="button" className="rounded border px-3 py-2 text-sm" onClick={() => void loadStudentsByGuardianPerson()}>
+            Load students for guardian (US-015)
           </button>
           <button type="button" className="rounded border px-3 py-2 text-sm" onClick={() => void loadHistory()}>
             Load history

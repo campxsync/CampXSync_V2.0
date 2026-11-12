@@ -127,6 +127,37 @@ switch ($Service.ToLower()) {
         Wait-HealthCheck "http://127.0.0.1:8080/api/v1/documents/health"
     }
 
+    "lifecycle-service" {
+        Write-Host "1. Building lifecycle-service quickly..." -ForegroundColor Cyan
+        & "$baseDir\scripts\dev\build_lifecycle_service.ps1"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Build failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8096 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8096
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching lifecycle-service in background..." -ForegroundColor Cyan
+        $lifeDir = "$baseDir\services\student-services\lifecycle-service"
+        $cp = (Get-Content "$lifeDir\classpath.txt" -Raw).Trim()
+
+        $lifeProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=false",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.lifecycle.LifecycleApplication",
+            "8096"
+        ) -WorkingDirectory $lifeDir -RedirectStandardOutput "$baseDir\logs\stm-04.log" -RedirectStandardError "$baseDir\logs\stm-04.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started lifecycle-service PID $($lifeProc.Id)" -ForegroundColor DarkGray
+
+        Wait-HealthCheck "http://127.0.0.1:8096/health"
+    }
+
     "frontend" {
         Write-Host "1. Stopping port 3000 listener..." -ForegroundColor Cyan
         Stop-PortListener 3000
@@ -134,13 +165,18 @@ switch ($Service.ToLower()) {
 
         Write-Host "2. Launching Next.js frontend on port 3000..." -ForegroundColor Cyan
         $frontendDir = "$baseDir\frontend"
-        $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-        $pinfo.FileName = "cmd.exe"
-        $pinfo.Arguments = "/c set PORT=3000&& set NEXT_PUBLIC_ENABLE_TEST_SESSION=true&& npm run dev"
-        $pinfo.WorkingDirectory = $frontendDir
-        $pinfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Minimized
-        [System.Diagnostics.Process]::Start($pinfo) | Out-Null
+        $env:PORT = "3000"
+        $env:ENABLE_TEST_SESSION = "true"
+        $env:NEXT_PUBLIC_ENABLE_TEST_SESSION = "true"
 
+        $feProc = Start-Process -FilePath "node.exe" -ArgumentList @(
+            "node_modules\next\dist\bin\next",
+            "dev",
+            "-p",
+            "3000"
+        ) -WorkingDirectory $frontendDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\frontend.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\frontend.err" -WindowStyle Minimized -PassThru
+
+        Write-Host "Started frontend PID $($feProc.Id)" -ForegroundColor DarkGray
         Wait-HealthCheck "http://localhost:3000/login" 30
     }
 

@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_15",
+  "flowName": "Document Types Configuration",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 3703,
+    "ttfb": 129,
+    "lcp": 360
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1280,
+      "ttfb": 135,
+      "lcp": 388
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1271,
+      "ttfb": 148,
+      "lcp": 388
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1264,
+      "ttfb": 139,
+      "lcp": 372
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1269,
+      "ttfb": 134,
+      "lcp": 372
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1257,
+      "ttfb": 165,
+      "lcp": 388
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1281,
+      "ttfb": 110,
+      "lcp": 364
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1217,
+      "ttfb": 122,
+      "lcp": 356
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1263,
+      "ttfb": 140,
+      "lcp": 384
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1316,
+      "ttfb": 117,
+      "lcp": 352
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1228,
+      "ttfb": 128,
+      "lcp": 356
+    }
+  ],
+  "summary": {
+    "flowId": "COL_15",
+    "flowName": "Document Types Configuration",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/documents",
+    "beforeP50": 0,
+    "afterP50": 1264,
+    "deltaMs": 1264,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1217,
+      "max": 1316,
+      "p50": 1264,
+      "p90": 1281,
+      "p95": 1316,
+      "avg": 1265
+    },
+    "ttfbStats": {
+      "min": 110,
+      "max": 165,
+      "p50": 134,
+      "p90": 148,
+      "p95": 165,
+      "avg": 134
+    },
+    "lcpStats": {
+      "min": 352,
+      "max": 388,
+      "p50": 372,
+      "p90": 388,
+      "p95": 388,
+      "avg": 372
+    }
+  }
+}

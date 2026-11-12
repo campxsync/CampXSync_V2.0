@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_07",
+  "flowName": "Timetable Management",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1638,
+    "ttfb": 469,
+    "lcp": 704
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1333,
+      "ttfb": 305,
+      "lcp": 504
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1347,
+      "ttfb": 292,
+      "lcp": 516
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1396,
+      "ttfb": 325,
+      "lcp": 556
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1465,
+      "ttfb": 399,
+      "lcp": 632
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1397,
+      "ttfb": 303,
+      "lcp": 540
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1400,
+      "ttfb": 295,
+      "lcp": 536
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1385,
+      "ttfb": 300,
+      "lcp": 520
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1410,
+      "ttfb": 335,
+      "lcp": 572
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1422,
+      "ttfb": 356,
+      "lcp": 580
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1451,
+      "ttfb": 340,
+      "lcp": 584
+    }
+  ],
+  "summary": {
+    "flowId": "COL_07",
+    "flowName": "Timetable Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/timetable",
+    "beforeP50": 0,
+    "afterP50": 1397,
+    "deltaMs": 1397,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1333,
+      "max": 1465,
+      "p50": 1397,
+      "p90": 1451,
+      "p95": 1465,
+      "avg": 1401
+    },
+    "ttfbStats": {
+      "min": 292,
+      "max": 399,
+      "p50": 305,
+      "p90": 356,
+      "p95": 399,
+      "avg": 325
+    },
+    "lcpStats": {
+      "min": 504,
+      "max": 632,
+      "p50": 540,
+      "p90": 584,
+      "p95": 632,
+      "avg": 554
+    }
+  }
+}

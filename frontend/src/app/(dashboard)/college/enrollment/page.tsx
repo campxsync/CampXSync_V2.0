@@ -34,8 +34,10 @@ export default function CollegeEnrollmentDeskPage() {
 
   async function load() {
     setError('');
-    const termsRes = await fetch('/api/college/enrollment?view=terms', { cache: 'no-store' });
-    const enrolRes = await fetch('/api/college/enrollment?view=enrolments', { cache: 'no-store' });
+    const [termsRes, enrolRes] = await Promise.all([
+      fetch('/api/college/enrollment?view=terms', { cache: 'no-store' }),
+      fetch('/api/college/enrollment?view=enrolments', { cache: 'no-store' }),
+    ]);
     if (termsRes.ok) {
       const json = await termsRes.json();
       setTerms(json.terms || []);

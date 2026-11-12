@@ -1,0 +1,106 @@
+{
+  "flowId": "PLT_03",
+  "flowName": "Onboard New Institute View",
+  "persona": "Platform Admin",
+  "coldRun": {
+    "actionToVisible": 1046,
+    "ttfb": 142,
+    "lcp": 300
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1249,
+      "ttfb": 155,
+      "lcp": 368
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1217,
+      "ttfb": 170,
+      "lcp": 376
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1270,
+      "ttfb": 167,
+      "lcp": 420
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1236,
+      "ttfb": 174,
+      "lcp": 392
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1067,
+      "ttfb": 225,
+      "lcp": 336
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1309,
+      "ttfb": 131,
+      "lcp": 328
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1228,
+      "ttfb": 174,
+      "lcp": 380
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1069,
+      "ttfb": 155,
+      "lcp": 336
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 987,
+      "ttfb": 122,
+      "lcp": 248
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1334,
+      "ttfb": 160,
+      "lcp": 372
+    }
+  ],
+  "summary": {
+    "flowId": "PLT_03",
+    "flowName": "Onboard New Institute View",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/institutes/new",
+    "beforeP50": 0,
+    "afterP50": 1228,
+    "deltaMs": 1228,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 987,
+      "max": 1334,
+      "p50": 1228,
+      "p90": 1309,
+      "p95": 1334,
+      "avg": 1197
+    },
+    "ttfbStats": {
+      "min": 122,
+      "max": 225,
+      "p50": 160,
+      "p90": 174,
+      "p95": 225,
+      "avg": 163
+    },
+    "lcpStats": {
+      "min": 248,
+      "max": 420,
+      "p50": 368,
+      "p90": 392,
+      "p95": 420,
+      "avg": 356
+    }
+  }
+}

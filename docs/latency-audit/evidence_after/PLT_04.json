@@ -1,0 +1,106 @@
+{
+  "flowId": "PLT_04",
+  "flowName": "Platform Audit Trail",
+  "persona": "Platform Admin",
+  "coldRun": {
+    "actionToVisible": 1457,
+    "ttfb": 405,
+    "lcp": 600
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1391,
+      "ttfb": 327,
+      "lcp": 528
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1439,
+      "ttfb": 403,
+      "lcp": 596
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1408,
+      "ttfb": 364,
+      "lcp": 572
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1379,
+      "ttfb": 345,
+      "lcp": 532
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1197,
+      "ttfb": 325,
+      "lcp": 480
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1452,
+      "ttfb": 350,
+      "lcp": 540
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1456,
+      "ttfb": 338,
+      "lcp": 532
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1404,
+      "ttfb": 337,
+      "lcp": 548
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1424,
+      "ttfb": 347,
+      "lcp": 532
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1423,
+      "ttfb": 398,
+      "lcp": 604
+    }
+  ],
+  "summary": {
+    "flowId": "PLT_04",
+    "flowName": "Platform Audit Trail",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/audit",
+    "beforeP50": 0,
+    "afterP50": 1408,
+    "deltaMs": 1408,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1197,
+      "max": 1456,
+      "p50": 1408,
+      "p90": 1452,
+      "p95": 1456,
+      "avg": 1397
+    },
+    "ttfbStats": {
+      "min": 325,
+      "max": 403,
+      "p50": 345,
+      "p90": 398,
+      "p95": 403,
+      "avg": 353
+    },
+    "lcpStats": {
+      "min": 480,
+      "max": 604,
+      "p50": 532,
+      "p90": 596,
+      "p95": 604,
+      "avg": 546
+    }
+  }
+}

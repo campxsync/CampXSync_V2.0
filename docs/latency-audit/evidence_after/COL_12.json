@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_12",
+  "flowName": "Admissions Applications",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1854,
+    "ttfb": 485,
+    "lcp": 724
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1463,
+      "ttfb": 298,
+      "lcp": 508
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1453,
+      "ttfb": 298,
+      "lcp": 500
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1397,
+      "ttfb": 291,
+      "lcp": 508
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1386,
+      "ttfb": 276,
+      "lcp": 508
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1439,
+      "ttfb": 287,
+      "lcp": 504
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1599,
+      "ttfb": 284,
+      "lcp": 512
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1399,
+      "ttfb": 261,
+      "lcp": 464
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1672,
+      "ttfb": 357,
+      "lcp": 564
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1563,
+      "ttfb": 294,
+      "lcp": 528
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1444,
+      "ttfb": 286,
+      "lcp": 488
+    }
+  ],
+  "summary": {
+    "flowId": "COL_12",
+    "flowName": "Admissions Applications",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/admissions",
+    "beforeP50": 0,
+    "afterP50": 1444,
+    "deltaMs": 1444,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1386,
+      "max": 1672,
+      "p50": 1444,
+      "p90": 1599,
+      "p95": 1672,
+      "avg": 1482
+    },
+    "ttfbStats": {
+      "min": 261,
+      "max": 357,
+      "p50": 287,
+      "p90": 298,
+      "p95": 357,
+      "avg": 293
+    },
+    "lcpStats": {
+      "min": 464,
+      "max": 564,
+      "p50": 508,
+      "p90": 528,
+      "p95": 564,
+      "avg": 508
+    }
+  }
+}

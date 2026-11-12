@@ -20,11 +20,11 @@ export async function POST(req: NextRequest) {
         id: '70a8ffae-b5ad-4c61-a401-16f220893df4',
         email: 'campxsync@gmail.com',
         app_metadata: {
-          tenant_id: '11111111-1111-1111-1111-111111111111',
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
           role: 'COLLEGE_ADMIN',
         },
         user_metadata: {
-          full_name: 'CampXSync Staging Admin',
+          full_name: 'CampX Dev College Administrator',
         },
       };
       redirectTo = '/college';
@@ -33,24 +33,24 @@ export async function POST(req: NextRequest) {
         id: '11111111-9e05-0000-0000-000000000001',
         email: 'faculty.a1@demo.campxsync.test',
         app_metadata: {
-          tenant_id: '11111111-1111-1111-1111-111111111111',
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
           role: 'FACULTY',
         },
         user_metadata: {
           full_name: 'Dr. Rajesh Sharma',
         },
       };
-      redirectTo = '/faculty';
+      redirectTo = '/faculty/advisees';
     } else if (role === 'student') {
       userSession = {
-        id: '11111111-5700-0000-0000-000000000001',
-        email: 'student.a1@demo.campxsync.test',
+        id: '81dd67d3-1d5f-4d8e-8061-a6764861f924',
+        email: 'student1.campx@gmail.com',
         app_metadata: {
-          tenant_id: '11111111-1111-1111-1111-111111111111',
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
           role: 'STUDENT',
         },
         user_metadata: {
-          full_name: 'Student 1 Kumar',
+          full_name: 'CampX Student 1',
         },
       };
       redirectTo = '/student';
@@ -120,6 +120,71 @@ export async function POST(req: NextRequest) {
       maxAge: 86400,
     });
 
+    return res;
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    if (!isTestSessionAllowed()) {
+      return NextResponse.json(
+        { error: 'Trial test session endpoint is disabled in production.' },
+        { status: 403 }
+      );
+    }
+
+    const role = req.nextUrl.searchParams.get('role') || 'college_admin';
+    const returnTo = req.nextUrl.searchParams.get('returnTo') || '/college/documents';
+
+    let userSession: any;
+    if (role === 'college_admin') {
+      userSession = {
+        id: '70a8ffae-b5ad-4c61-a401-16f220893df4',
+        email: 'campxsync@gmail.com',
+        app_metadata: {
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
+          role: 'COLLEGE_ADMIN',
+        },
+        user_metadata: {
+          full_name: 'CampX Dev College Administrator',
+        },
+      };
+    } else if (role === 'faculty') {
+      userSession = {
+        id: '11111111-9e05-0000-0000-000000000001',
+        email: 'faculty.a1@demo.campxsync.test',
+        app_metadata: {
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
+          role: 'FACULTY',
+        },
+        user_metadata: {
+          full_name: 'Dr. Rajesh Sharma (Faculty Advisor)',
+        },
+      };
+    } else {
+      userSession = {
+        id: '81dd67d3-1d5f-4d8e-8061-a6764861f924',
+        email: 'student1.campx@gmail.com',
+        app_metadata: {
+          tenant_id: 'a0000000-0000-0000-0000-000000000001',
+          role: 'STUDENT',
+        },
+        user_metadata: {
+          full_name: 'CampX Student 1',
+        },
+      };
+    }
+
+    const res = NextResponse.redirect(new URL(returnTo, req.url));
+    res.cookies.set('campx_test_session', JSON.stringify(userSession), {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 86400,
+    });
     return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

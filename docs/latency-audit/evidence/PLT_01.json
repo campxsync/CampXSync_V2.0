@@ -1,0 +1,188 @@
+{
+  "flowId": "PLT_01",
+  "flowName": "Platform Operator Dashboard",
+  "persona": "Platform Admin",
+  "target": "http://localhost:3000/platform",
+  "timestamp": "2026-11-11T09:47:49.373Z",
+  "coldRun": {
+    "iter": "warmup",
+    "actionToVisible": 1118,
+    "ttfb": 280,
+    "lcp": 396,
+    "tbt": 0,
+    "jsBundleSize": 204611,
+    "totalPayload": 225282,
+    "requestCount": 21,
+    "sequentialDepth": 1
+  },
+  "timedIterations": [
+    {
+      "iter": 1,
+      "actionToVisible": 1166,
+      "ttfb": 317,
+      "lcp": 428,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1106,
+      "ttfb": 277,
+      "lcp": 400,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1129,
+      "ttfb": 274,
+      "lcp": 392,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1120,
+      "ttfb": 286,
+      "lcp": 396,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1138,
+      "ttfb": 286,
+      "lcp": 408,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1127,
+      "ttfb": 289,
+      "lcp": 420,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1220,
+      "ttfb": 308,
+      "lcp": 452,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1134,
+      "ttfb": 306,
+      "lcp": 412,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1135,
+      "ttfb": 302,
+      "lcp": 400,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1162,
+      "ttfb": 295,
+      "lcp": 432,
+      "tbt": 0,
+      "jsBundleSize": 204611,
+      "totalPayload": 225282,
+      "requestCount": 21,
+      "sequentialDepth": 1
+    }
+  ],
+  "statistics": {
+    "actionToVisible": {
+      "min": 1106,
+      "max": 1220,
+      "p50": 1134,
+      "p90": 1166,
+      "p95": 1220,
+      "avg": 1144
+    },
+    "ttfb": {
+      "min": 274,
+      "max": 317,
+      "p50": 289,
+      "p90": 308,
+      "p95": 317,
+      "avg": 294
+    },
+    "lcp": {
+      "min": 392,
+      "max": 452,
+      "p50": 408,
+      "p90": 432,
+      "p95": 452,
+      "avg": 414
+    },
+    "tbt": {
+      "min": 0,
+      "max": 0,
+      "p50": 0,
+      "p90": 0,
+      "p95": 0,
+      "avg": 0
+    },
+    "payloadBytes": {
+      "min": 225282,
+      "max": 225282,
+      "p50": 225282,
+      "p90": 225282,
+      "p95": 225282,
+      "avg": 225282
+    },
+    "requests": {
+      "min": 21,
+      "max": 21,
+      "p50": 21,
+      "p90": 21,
+      "p95": 21,
+      "avg": 21
+    },
+    "sequentialDepth": {
+      "min": 1,
+      "max": 1,
+      "p50": 1,
+      "p90": 1,
+      "p95": 1,
+      "avg": 1
+    }
+  }
+}

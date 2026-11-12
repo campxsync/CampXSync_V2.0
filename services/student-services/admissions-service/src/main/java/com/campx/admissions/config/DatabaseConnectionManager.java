@@ -43,6 +43,13 @@ public class DatabaseConnectionManager {
         hikariConfig.setPoolName("AdmissionsHikariPool");
 
         this.dataSource = new HikariDataSource(hikariConfig);
+        try (Connection c = dataSource.getConnection();
+             java.sql.Statement s = c.createStatement()) {
+            s.execute("SELECT 1");
+            logger.info("Admissions HikariCP connection pool pre-warmed successfully");
+        } catch (Exception ex) {
+            logger.warn("Admissions database pre-warming check encountered error: {}", ex.getMessage());
+        }
         logger.info("Admissions HikariCP connection pool initialized successfully");
     }
 

@@ -82,7 +82,6 @@ export default async function AdmissionsOfficerWorkspacePage({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">Admissions & Application Management</h1>
-            <Badge status="ACTIVE" label="STM-02" />
           </div>
           <p className="mt-1 text-sm text-[#475569]">
             Manage admission intakes, review applicant submissions, score rubrics, and orchestrate student handover.

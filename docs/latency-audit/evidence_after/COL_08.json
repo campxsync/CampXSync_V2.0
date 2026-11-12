@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_08",
+  "flowName": "Attendance Oversight",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1245,
+    "ttfb": 215,
+    "lcp": 424
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1221,
+      "ttfb": 143,
+      "lcp": 376
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1164,
+      "ttfb": 124,
+      "lcp": 328
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1204,
+      "ttfb": 126,
+      "lcp": 312
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1189,
+      "ttfb": 143,
+      "lcp": 336
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1163,
+      "ttfb": 133,
+      "lcp": 328
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1149,
+      "ttfb": 120,
+      "lcp": 320
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1150,
+      "ttfb": 129,
+      "lcp": 312
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1295,
+      "ttfb": 139,
+      "lcp": 352
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1166,
+      "ttfb": 130,
+      "lcp": 332
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1148,
+      "ttfb": 123,
+      "lcp": 320
+    }
+  ],
+  "summary": {
+    "flowId": "COL_08",
+    "flowName": "Attendance Oversight",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/attendance",
+    "beforeP50": 0,
+    "afterP50": 1164,
+    "deltaMs": 1164,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1148,
+      "max": 1295,
+      "p50": 1164,
+      "p90": 1221,
+      "p95": 1295,
+      "avg": 1185
+    },
+    "ttfbStats": {
+      "min": 120,
+      "max": 143,
+      "p50": 129,
+      "p90": 143,
+      "p95": 143,
+      "avg": 131
+    },
+    "lcpStats": {
+      "min": 312,
+      "max": 376,
+      "p50": 328,
+      "p90": 352,
+      "p95": 376,
+      "avg": 332
+    }
+  }
+}

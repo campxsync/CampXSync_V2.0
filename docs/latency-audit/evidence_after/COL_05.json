@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_05",
+  "flowName": "Student Roster",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 2085,
+    "ttfb": 901,
+    "lcp": 1148
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1608,
+      "ttfb": 541,
+      "lcp": 756
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1655,
+      "ttfb": 582,
+      "lcp": 796
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1759,
+      "ttfb": 604,
+      "lcp": 832
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1758,
+      "ttfb": 677,
+      "lcp": 892
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1705,
+      "ttfb": 633,
+      "lcp": 836
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1655,
+      "ttfb": 603,
+      "lcp": 812
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1793,
+      "ttfb": 642,
+      "lcp": 868
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 2022,
+      "ttfb": 834,
+      "lcp": 1060
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 2016,
+      "ttfb": 613,
+      "lcp": 856
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1682,
+      "ttfb": 610,
+      "lcp": 832
+    }
+  ],
+  "summary": {
+    "flowId": "COL_05",
+    "flowName": "Student Roster",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/students",
+    "beforeP50": 0,
+    "afterP50": 1705,
+    "deltaMs": 1705,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1608,
+      "max": 2022,
+      "p50": 1705,
+      "p90": 2016,
+      "p95": 2022,
+      "avg": 1765
+    },
+    "ttfbStats": {
+      "min": 541,
+      "max": 834,
+      "p50": 610,
+      "p90": 677,
+      "p95": 834,
+      "avg": 634
+    },
+    "lcpStats": {
+      "min": 756,
+      "max": 1060,
+      "p50": 832,
+      "p90": 892,
+      "p95": 1060,
+      "avg": 854
+    }
+  }
+}

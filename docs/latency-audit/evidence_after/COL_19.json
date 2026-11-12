@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_19",
+  "flowName": "College Audit Trail",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1158,
+    "ttfb": 142,
+    "lcp": 328
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1178,
+      "ttfb": 134,
+      "lcp": 324
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1126,
+      "ttfb": 116,
+      "lcp": 316
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1153,
+      "ttfb": 129,
+      "lcp": 332
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1214,
+      "ttfb": 124,
+      "lcp": 312
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1187,
+      "ttfb": 137,
+      "lcp": 332
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1142,
+      "ttfb": 125,
+      "lcp": 328
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1215,
+      "ttfb": 133,
+      "lcp": 344
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1151,
+      "ttfb": 122,
+      "lcp": 320
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1182,
+      "ttfb": 143,
+      "lcp": 332
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1149,
+      "ttfb": 120,
+      "lcp": 304
+    }
+  ],
+  "summary": {
+    "flowId": "COL_19",
+    "flowName": "College Audit Trail",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/audit",
+    "beforeP50": 0,
+    "afterP50": 1153,
+    "deltaMs": 1153,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1126,
+      "max": 1215,
+      "p50": 1153,
+      "p90": 1214,
+      "p95": 1215,
+      "avg": 1170
+    },
+    "ttfbStats": {
+      "min": 116,
+      "max": 143,
+      "p50": 125,
+      "p90": 137,
+      "p95": 143,
+      "avg": 128
+    },
+    "lcpStats": {
+      "min": 304,
+      "max": 344,
+      "p50": 324,
+      "p90": 332,
+      "p95": 344,
+      "avg": 324
+    }
+  }
+}

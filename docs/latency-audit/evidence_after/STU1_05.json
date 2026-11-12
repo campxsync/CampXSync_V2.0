@@ -1,0 +1,106 @@
+{
+  "flowId": "STU1_05",
+  "flowName": "Student Profile & Address",
+  "persona": "Student 1",
+  "coldRun": {
+    "actionToVisible": 2575,
+    "ttfb": 1449,
+    "lcp": 1664
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1188,
+      "ttfb": 119,
+      "lcp": 324
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1136,
+      "ttfb": 125,
+      "lcp": 324
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1158,
+      "ttfb": 120,
+      "lcp": 328
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1161,
+      "ttfb": 120,
+      "lcp": 324
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1158,
+      "ttfb": 119,
+      "lcp": 328
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1228,
+      "ttfb": 148,
+      "lcp": 364
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1169,
+      "ttfb": 126,
+      "lcp": 328
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1202,
+      "ttfb": 146,
+      "lcp": 340
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1160,
+      "ttfb": 126,
+      "lcp": 328
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1152,
+      "ttfb": 112,
+      "lcp": 308
+    }
+  ],
+  "summary": {
+    "flowId": "STU1_05",
+    "flowName": "Student Profile & Address",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/address",
+    "beforeP50": 0,
+    "afterP50": 1160,
+    "deltaMs": 1160,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1136,
+      "max": 1228,
+      "p50": 1160,
+      "p90": 1202,
+      "p95": 1228,
+      "avg": 1171
+    },
+    "ttfbStats": {
+      "min": 112,
+      "max": 148,
+      "p50": 120,
+      "p90": 146,
+      "p95": 148,
+      "avg": 126
+    },
+    "lcpStats": {
+      "min": 308,
+      "max": 364,
+      "p50": 328,
+      "p90": 340,
+      "p95": 364,
+      "avg": 330
+    }
+  }
+}

@@ -128,9 +128,6 @@ public class UserSecurityContext {
     public void applyPostgresRoleContext(Connection connection) throws SQLException {
         if (connection == null)
             return;
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("SET LOCAL ROLE authenticated");
-        }
 
         StringBuilder claimsJson = new StringBuilder();
         claimsJson.append("{\"sub\":\"").append(userId.toString()).append("\",");
@@ -144,10 +141,13 @@ public class UserSecurityContext {
         }
         claimsJson.append("}");
 
-        try (PreparedStatement pstmt = connection
-                .prepareStatement("SELECT set_config('request.jwt.claims', ?, true)")) {
-            pstmt.setString(1, claimsJson.toString());
-            pstmt.execute();
+        // Apply least-privilege authenticated role and bind claims strictly via parameter binding
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("SET LOCAL ROLE authenticated");
+        }
+        try (PreparedStatement ps = connection.prepareStatement("SELECT set_config('request.jwt.claims', ?, true)")) {
+            ps.setString(1, claimsJson.toString());
+            ps.execute();
         }
     }
 
@@ -182,13 +182,7 @@ public class UserSecurityContext {
     }
 
     public static void clearPostgresRoleContext(Connection connection) {
-        if (connection == null)
-            return;
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("RESET ROLE");
-            stmt.execute("SELECT set_config('request.jwt.claims', '', true)");
-        } catch (SQLException e) {
-            logger.warn("Failed to reset Postgres role/claims context cleanly: {}", e.getMessage());
-        }
+        // Because SET LOCAL ROLE and set_config(..., true) are transaction-local,
+        // commit() or rollback() automatically resets role and claims without extra network round trips.
     }
 }

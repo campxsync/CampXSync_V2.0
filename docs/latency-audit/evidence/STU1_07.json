@@ -1,0 +1,188 @@
+{
+  "flowId": "STU1_07",
+  "flowName": "Student Lifecycle Tracking",
+  "persona": "Student 1",
+  "target": "http://localhost:3000/student/lifecycle",
+  "timestamp": "2026-11-11T10:08:47.857Z",
+  "coldRun": {
+    "iter": "warmup",
+    "actionToVisible": 3371,
+    "ttfb": 151,
+    "lcp": 376,
+    "tbt": 127,
+    "jsBundleSize": 201534,
+    "totalPayload": 222814,
+    "requestCount": 24,
+    "sequentialDepth": 1
+  },
+  "timedIterations": [
+    {
+      "iter": 1,
+      "actionToVisible": 3235,
+      "ttfb": 111,
+      "lcp": 336,
+      "tbt": 134,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 3385,
+      "ttfb": 105,
+      "lcp": 332,
+      "tbt": 164,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 3712,
+      "ttfb": 511,
+      "lcp": 752,
+      "tbt": 154,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 3242,
+      "ttfb": 112,
+      "lcp": 304,
+      "tbt": 120,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 3320,
+      "ttfb": 105,
+      "lcp": 292,
+      "tbt": 108,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 3242,
+      "ttfb": 97,
+      "lcp": 280,
+      "tbt": 92,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 3243,
+      "ttfb": 99,
+      "lcp": 296,
+      "tbt": 100,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 3348,
+      "ttfb": 106,
+      "lcp": 328,
+      "tbt": 145,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 3245,
+      "ttfb": 96,
+      "lcp": 304,
+      "tbt": 103,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 3237,
+      "ttfb": 100,
+      "lcp": 312,
+      "tbt": 105,
+      "jsBundleSize": 201234,
+      "totalPayload": 222514,
+      "requestCount": 24,
+      "sequentialDepth": 1
+    }
+  ],
+  "statistics": {
+    "actionToVisible": {
+      "min": 3235,
+      "max": 3712,
+      "p50": 3243,
+      "p90": 3385,
+      "p95": 3712,
+      "avg": 3321
+    },
+    "ttfb": {
+      "min": 96,
+      "max": 511,
+      "p50": 105,
+      "p90": 112,
+      "p95": 511,
+      "avg": 144
+    },
+    "lcp": {
+      "min": 280,
+      "max": 752,
+      "p50": 304,
+      "p90": 336,
+      "p95": 752,
+      "avg": 354
+    },
+    "tbt": {
+      "min": 92,
+      "max": 164,
+      "p50": 108,
+      "p90": 154,
+      "p95": 164,
+      "avg": 123
+    },
+    "payloadBytes": {
+      "min": 222514,
+      "max": 222514,
+      "p50": 222514,
+      "p90": 222514,
+      "p95": 222514,
+      "avg": 222514
+    },
+    "requests": {
+      "min": 24,
+      "max": 24,
+      "p50": 24,
+      "p90": 24,
+      "p95": 24,
+      "avg": 24
+    },
+    "sequentialDepth": {
+      "min": 1,
+      "max": 1,
+      "p50": 1,
+      "p90": 1,
+      "p95": 1,
+      "avg": 1
+    }
+  }
+}

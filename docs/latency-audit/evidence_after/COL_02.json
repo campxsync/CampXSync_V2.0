@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_02",
+  "flowName": "Departments Management",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1936,
+    "ttfb": 777,
+    "lcp": 1036
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1695,
+      "ttfb": 436,
+      "lcp": 672
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1647,
+      "ttfb": 487,
+      "lcp": 724
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1642,
+      "ttfb": 492,
+      "lcp": 736
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1592,
+      "ttfb": 457,
+      "lcp": 692
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1517,
+      "ttfb": 432,
+      "lcp": 664
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1653,
+      "ttfb": 413,
+      "lcp": 656
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1601,
+      "ttfb": 444,
+      "lcp": 680
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1713,
+      "ttfb": 522,
+      "lcp": 756
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1535,
+      "ttfb": 432,
+      "lcp": 688
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1568,
+      "ttfb": 434,
+      "lcp": 676
+    }
+  ],
+  "summary": {
+    "flowId": "COL_02",
+    "flowName": "Departments Management",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/departments",
+    "beforeP50": 0,
+    "afterP50": 1601,
+    "deltaMs": 1601,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1517,
+      "max": 1713,
+      "p50": 1601,
+      "p90": 1695,
+      "p95": 1713,
+      "avg": 1616
+    },
+    "ttfbStats": {
+      "min": 413,
+      "max": 522,
+      "p50": 436,
+      "p90": 492,
+      "p95": 522,
+      "avg": 455
+    },
+    "lcpStats": {
+      "min": 656,
+      "max": 756,
+      "p50": 680,
+      "p90": 736,
+      "p95": 756,
+      "avg": 694
+    }
+  }
+}

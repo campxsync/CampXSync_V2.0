@@ -21,6 +21,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { fetchApplications } from '@/lib/api/admissions';
+import {
+  getCachedStudentProfile,
+  setCachedStudentProfile,
+  getCachedStudentAttendance,
+  setCachedStudentAttendance,
+} from '@/lib/cache/student-profile-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,45 +49,55 @@ export default async function StudentDashboardPage() {
   let subjectAttendance: any[] = [];
   let recentSessions: any[] = [];
   let latestApplication: any = null;
+  let gatewayFallback = false;
+
+  // Check in-memory profile cache first
+  student = getCachedStudentProfile(userId);
 
   const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
   try {
-    // Primary path: UI -> API Gateway -> Java student-service (STM-01)
-    try {
-      const gwHeaders: Record<string, string> = {
-        'Accept': 'application/json',
-        'X-User-Id': userId,
-        'X-Tenant-Id': tenantId,
-        'X-User-Role': 'STUDENT',
-      };
-      if (resolution.session.collegeId) {
-        gwHeaders['X-College-Id'] = resolution.session.collegeId;
-      }
-      const gwRes = await fetch(`${GATEWAY_BASE_URL}/api/v1/students/me`, {
-        headers: gwHeaders,
-        cache: 'no-store',
-      });
-      if (gwRes.ok) {
-        const profile = await gwRes.json();
-        student = {
-          id: profile.id,
-          first_name: profile.firstName || displayName?.split(' ')[0] || '',
-          last_name: profile.lastName || '',
-          enrollment_number: profile.enrollmentNo || '',
-          email: profile.primaryEmail || email,
-          status: profile.status || 'ACTIVE',
-          college_name: profile.collegeName || '',
-          program_name: profile.programName || '',
-          program_code: profile.programCode || '',
-          section_name: profile.sectionName || '',
+    if (!student) {
+      // Primary path: UI -> API Gateway -> Java student-service (STM-01)
+      try {
+        const gwHeaders: Record<string, string> = {
+          'Accept': 'application/json',
+          'X-User-Id': userId,
+          'X-Tenant-Id': tenantId,
+          'X-User-Role': 'STUDENT',
         };
+        if (resolution.session.collegeId) {
+          gwHeaders['X-College-Id'] = resolution.session.collegeId;
+        }
+        const gwRes = await fetch(`${GATEWAY_BASE_URL}/api/v1/students/me`, {
+          headers: gwHeaders,
+          cache: 'no-store',
+        });
+        if (gwRes.ok) {
+          const profile = await gwRes.json();
+          student = {
+            id: profile.id,
+            first_name: profile.firstName || displayName?.split(' ')[0] || '',
+            last_name: profile.lastName || '',
+            enrollment_number: profile.enrollmentNo || '',
+            email: profile.primaryEmail || email,
+            status: profile.status || 'ACTIVE',
+            college_name: profile.collegeName || '',
+            program_name: profile.programName || '',
+            program_code: profile.programCode || '',
+            section_name: profile.sectionName || '',
+          };
+          setCachedStudentProfile(userId, student);
+        } else {
+          gatewayFallback = true;
+        }
+      } catch (_gwErr) {
+        gatewayFallback = true;
       }
-    } catch (_gwErr) {
-      // Gateway offline during local build; fall through to query fallback
     }
 
     if (!student) {
+      gatewayFallback = true;
       const studentRes = await query(`
         SELECT 
           s.id, 
@@ -109,65 +125,72 @@ export default async function StudentDashboardPage() {
 
       if (studentRes.rows.length > 0) {
         student = studentRes.rows[0];
+        setCachedStudentProfile(userId, student);
       }
     }
 
     if (student) {
-      // 2. Fetch course-wise attendance breakdown
-      const summaryRes = await query(`
-        SELECT 
-          sub.id as subject_id,
-          sub.code as subject_code,
-          sub.name as subject_name,
-          count(DISTINCT sess.id)::int as total_conducted,
-          count(DISTINCT CASE WHEN ar.status = 'PRESENT' OR ar.status = 'ON_DUTY' THEN sess.id END)::int as attended_count,
-          count(DISTINCT CASE WHEN ar.status = 'ABSENT' THEN sess.id END)::int as absent_count
-        FROM acd.subjects sub
-        JOIN acd.timetable_entries te ON te.subject_id = sub.id AND te.deleted_at IS NULL
-        LEFT JOIN acd.attendance_sessions sess ON sess.timetable_entry_id = te.id AND sess.status = 'CLOSED' AND sess.deleted_at IS NULL
-        LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id AND ar.student_id = $1
-        WHERE sub.tenant_id = $2 AND sub.deleted_at IS NULL
-        GROUP BY sub.id, sub.code, sub.name
-        ORDER BY sub.code ASC
-      `, [student.id, tenantId]);
+      // Check cached attendance metrics first to avoid repeating multi-join RLS queries
+      const cachedAtt = getCachedStudentAttendance(student.id);
+      if (cachedAtt) {
+        subjectAttendance = cachedAtt.subjectAttendance;
+        recentSessions = cachedAtt.recentSessions;
+        const apps = await fetchApplications(tenantId, userId, 'APPLICANT').catch(() => []);
+        if (apps && apps.length > 0) {
+          latestApplication = apps[0];
+        }
+      } else {
+        // REC-05: Parallelize independent DB queries and Admissions fetch via Promise.all
+        const [summaryRes, sessionsRes, apps] = await Promise.all([
+          query(`
+            SELECT 
+              sub.id as subject_id,
+              sub.code as subject_code,
+              sub.name as subject_name,
+              count(DISTINCT sess.id)::int as total_conducted,
+              count(DISTINCT CASE WHEN ar.status = 'PRESENT' OR ar.status = 'ON_DUTY' THEN sess.id END)::int as attended_count,
+              count(DISTINCT CASE WHEN ar.status = 'ABSENT' THEN sess.id END)::int as absent_count
+            FROM acd.subjects sub
+            JOIN acd.timetable_entries te ON te.subject_id = sub.id AND te.deleted_at IS NULL
+            LEFT JOIN acd.attendance_sessions sess ON sess.timetable_entry_id = te.id AND sess.status = 'CLOSED' AND sess.deleted_at IS NULL
+            LEFT JOIN acd.attendance_records ar ON ar.session_id = sess.id AND ar.student_id = $1
+            WHERE sub.tenant_id = $2 AND sub.deleted_at IS NULL
+            GROUP BY sub.id, sub.code, sub.name
+            ORDER BY sub.code ASC
+          `, [student.id, tenantId]),
+          query(`
+            SELECT 
+              sess.id,
+              sess.session_date,
+              sess.start_time,
+              sess.end_time,
+              sub.code as subject_code,
+              sub.name as subject_name,
+              ar.status as attendance_status,
+              ar.remarks,
+              ar.marked_at,
+              p.display_name as faculty_name
+            FROM acd.attendance_records ar
+            JOIN acd.attendance_sessions sess ON sess.id = ar.session_id AND sess.deleted_at IS NULL
+            LEFT JOIN acd.timetable_entries te ON te.id = sess.timetable_entry_id
+            LEFT JOIN acd.subjects sub ON sub.id = te.subject_id
+            LEFT JOIN hrm.employees e ON e.id = sess.employee_id
+            LEFT JOIN core.persons p ON p.id = e.person_id
+            WHERE ar.student_id = $1 AND ar.tenant_id = $2
+            ORDER BY sess.session_date DESC, sess.start_time DESC
+            LIMIT 10
+          `, [student.id, tenantId]),
+          fetchApplications(tenantId, userId, 'APPLICANT').catch(() => []),
+        ]);
 
-      subjectAttendance = summaryRes.rows;
+        subjectAttendance = summaryRes.rows;
+        recentSessions = sessionsRes.rows;
+        setCachedStudentAttendance(student.id, { subjectAttendance, recentSessions }, 60);
 
-      // 3. Fetch recent session logs
-      const sessionsRes = await query(`
-        SELECT 
-          sess.id,
-          sess.session_date,
-          sess.start_time,
-          sess.end_time,
-          sub.code as subject_code,
-          sub.name as subject_name,
-          ar.status as attendance_status,
-          ar.remarks,
-          ar.marked_at,
-          p.display_name as faculty_name
-        FROM acd.attendance_records ar
-        JOIN acd.attendance_sessions sess ON sess.id = ar.session_id AND sess.deleted_at IS NULL
-        LEFT JOIN acd.timetable_entries te ON te.id = sess.timetable_entry_id
-        LEFT JOIN acd.subjects sub ON sub.id = te.subject_id
-        LEFT JOIN hrm.employees e ON e.id = sess.employee_id
-        LEFT JOIN core.persons p ON p.id = e.person_id
-        WHERE ar.student_id = $1 AND ar.tenant_id = $2
-        ORDER BY sess.session_date DESC, sess.start_time DESC
-        LIMIT 10
-      `, [student.id, tenantId]);
-
-      recentSessions = sessionsRes.rows;
-    }
-
-    // 4. Fetch Admissions Application for Handover Bridge Card
-    try {
-      const apps = await fetchApplications(tenantId, userId, 'APPLICANT');
-      if (apps && apps.length > 0) {
-        latestApplication = apps[0];
+        if (apps && apps.length > 0) {
+          latestApplication = apps[0];
+        }
       }
-    } catch (_appErr) {
-      // Non-fatal if admissions service is silent
     }
   } catch (err) {
     console.error('Failed to query student attendance data:', err);
@@ -176,8 +199,8 @@ export default async function StudentDashboardPage() {
   // Calculate totals
   const totalConducted = subjectAttendance.reduce((acc, row) => acc + (row.total_conducted || 0), 0);
   const totalAttended = subjectAttendance.reduce((acc, row) => acc + (row.attended_count || 0), 0);
-  const overallPercentage = totalConducted > 0 
-    ? Math.round((totalAttended / totalConducted) * 1000) / 10 
+  const overallPercentage = totalConducted > 0
+    ? Math.round((totalAttended / totalConducted) * 1000) / 10
     : 100;
   const isShortage = overallPercentage < 75.0 && totalConducted > 0;
 
@@ -200,6 +223,17 @@ export default async function StudentDashboardPage() {
           </Badge>
         )}
       </div>
+
+      {/* Visible Service Degradation Indicator (REC-01) */}
+      {gatewayFallback && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <span className="font-semibold text-amber-800">Backend Service Offline: </span>
+            <span>Java Student Domain Service is unreachable. Showing direct database fallback snapshot.</span>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -351,8 +385,8 @@ export default async function StudentDashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-[#E3E8EF]">
                   {subjectAttendance.map((row) => {
-                    const pct = row.total_conducted > 0 
-                      ? Math.round((row.attended_count / row.total_conducted) * 1000) / 10 
+                    const pct = row.total_conducted > 0
+                      ? Math.round((row.attended_count / row.total_conducted) * 1000) / 10
                       : 100;
                     const courseShortage = pct < 75.0 && row.total_conducted > 0;
 
@@ -371,9 +405,8 @@ export default async function StudentDashboardPage() {
                           </span>
                         </td>
                         <td className="py-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                            courseShortage ? 'bg-[#D9383A]/10 text-[#D9383A]' : 'bg-[#1E9E6A]/10 text-[#1E9E6A]'
-                          }`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${courseShortage ? 'bg-[#D9383A]/10 text-[#D9383A]' : 'bg-[#1E9E6A]/10 text-[#1E9E6A]'
+                            }`}>
                             {courseShortage ? 'Shortage Alert' : 'Satisfactory'}
                           </span>
                         </td>
@@ -426,13 +459,12 @@ export default async function StudentDashboardPage() {
                       </td>
                       <td className="py-3 text-[#1B2433]">{sess.faculty_name || 'Faculty Member'}</td>
                       <td className="py-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                          sess.attendance_status === 'PRESENT'
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${sess.attendance_status === 'PRESENT'
                             ? 'bg-[#1E9E6A]/10 text-[#1E9E6A]'
                             : sess.attendance_status === 'ABSENT'
-                            ? 'bg-[#D9383A]/10 text-[#D9383A]'
-                            : 'bg-[#F2994A]/10 text-[#F2994A]'
-                        }`}>
+                              ? 'bg-[#D9383A]/10 text-[#D9383A]'
+                              : 'bg-[#F2994A]/10 text-[#F2994A]'
+                          }`}>
                           {sess.attendance_status}
                         </span>
                       </td>

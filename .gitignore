@@ -16,3 +16,6 @@ scratch/
 
 *.har
 **/*.har
+cookies.txt
+home/
+sites/

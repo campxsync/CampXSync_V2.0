@@ -18,11 +18,21 @@ export async function GET(req: NextRequest) {
   if (!resolution.success || (resolution.session.role !== 'college_admin' && resolution.session.role !== 'platform_admin')) {
     return NextResponse.json({ title: 'Forbidden', status: 403 }, { status: 403 });
   }
+  const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
+  const guardianPersonId = req.nextUrl.searchParams.get('guardianPersonId');
+  if (guardianPersonId) {
+    const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/guardians/persons/${encodeURIComponent(guardianPersonId)}/students`, {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    const body = await res.text();
+    return new NextResponse(body, { status: res.status, headers: { 'Content-Type': 'application/json' } });
+  }
   const studentId = req.nextUrl.searchParams.get('studentId');
   if (!studentId) {
-    return NextResponse.json({ title: 'Student record id is required', status: 422 }, { status: 422 });
+    return NextResponse.json({ title: 'Student record id or Guardian Person id is required', status: 422 }, { status: 422 });
   }
-  const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
   const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/guardians/students/${encodeURIComponent(studentId)}`, {
     method: 'GET',
     headers,
@@ -40,6 +50,27 @@ export async function POST(req: NextRequest) {
   }
   const payload = await req.json();
   const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
+  if (payload.action === 'link-existing') {
+    if (!payload.studentId) {
+      return NextResponse.json({ title: 'Student record id is required', status: 422 }, { status: 422 });
+    }
+    if (!payload.guardianPersonId) {
+      return NextResponse.json({ title: 'Guardian person id is required', status: 422 }, { status: 422 });
+    }
+    const linked = await fetch(`${GATEWAY_BASE_URL}/api/v1/guardians/link-existing`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: payload.studentId,
+        guardianPersonId: payload.guardianPersonId,
+        relationship: payload.relationship,
+        primary: payload.primary === true,
+      }),
+      cache: 'no-store',
+    });
+    const linkedText = await linked.text();
+    return new NextResponse(linkedText, { status: linked.status, headers: { 'Content-Type': 'application/json' } });
+  }
   if (payload.action === 'save-contact' || payload.action === 'change-contact' || payload.action === 'remove-contact') {
     if (!payload.studentId) {
       return NextResponse.json({ title: 'Student record id is required', status: 422 }, { status: 422 });

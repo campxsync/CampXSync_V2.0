@@ -106,6 +106,10 @@ public class DocumentApplication {
         });
         server.start();
         logger.info("STM-06 student documents service listening on 127.0.0.1:{} persistent={}", DEFAULT_PORT, persistent);
+        try {
+            Thread.currentThread().join();
+        } catch (InterruptedException ignored) {
+        }
     }
 
     static boolean isDeployedEnvironment() {

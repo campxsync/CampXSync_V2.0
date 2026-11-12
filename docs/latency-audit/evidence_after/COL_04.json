@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_04",
+  "flowName": "Academic Batches",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1327,
+    "ttfb": 202,
+    "lcp": 392
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1207,
+      "ttfb": 147,
+      "lcp": 340
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1191,
+      "ttfb": 131,
+      "lcp": 324
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1282,
+      "ttfb": 189,
+      "lcp": 372
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1180,
+      "ttfb": 125,
+      "lcp": 332
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 2085,
+      "ttfb": 442,
+      "lcp": 664
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1184,
+      "ttfb": 137,
+      "lcp": 340
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1201,
+      "ttfb": 134,
+      "lcp": 332
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1308,
+      "ttfb": 160,
+      "lcp": 480
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1166,
+      "ttfb": 135,
+      "lcp": 324
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1557,
+      "ttfb": 483,
+      "lcp": 676
+    }
+  ],
+  "summary": {
+    "flowId": "COL_04",
+    "flowName": "Academic Batches",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/batches",
+    "beforeP50": 0,
+    "afterP50": 1201,
+    "deltaMs": 1201,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1166,
+      "max": 2085,
+      "p50": 1201,
+      "p90": 1557,
+      "p95": 2085,
+      "avg": 1336
+    },
+    "ttfbStats": {
+      "min": 125,
+      "max": 483,
+      "p50": 137,
+      "p90": 442,
+      "p95": 483,
+      "avg": 208
+    },
+    "lcpStats": {
+      "min": 324,
+      "max": 676,
+      "p50": 340,
+      "p90": 664,
+      "p95": 676,
+      "avg": 418
+    }
+  }
+}

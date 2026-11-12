@@ -35,5 +35,9 @@ public interface LifecyclePersistence {
 
     List<LifecycleRequest> findPendingRequests(Actor actor);
 
+    List<LifecycleRequest> findRequestsByStudent(Actor actor, UUID studentId);
+
     List<LifecycleStatus> findAllStatuses(Actor actor);
+
+    List<UUID> findAdviseesByAdvisor(Actor actor, UUID advisorUserId);
 }

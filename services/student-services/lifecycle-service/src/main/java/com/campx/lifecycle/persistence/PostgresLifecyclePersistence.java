@@ -303,6 +303,50 @@ public class PostgresLifecyclePersistence implements LifecyclePersistence {
         });
     }
 
+    @Override
+    public List<LifecycleRequest> findRequestsByStudent(Actor actor, final UUID studentId) {
+        return LifecycleSecurityContext.fromActor(actor).executeInTransaction(connectionManager, new LifecycleSecurityContext.TransactionCallback<List<LifecycleRequest>>() {
+            @Override
+            public List<LifecycleRequest> execute(Connection conn) throws SQLException {
+                String sql = "SELECT tenant_id, id, student_id, request_type, status, reason, effective_date, decided_by, decided_at, created_at "
+                        + "FROM stu.lifecycle_requests WHERE tenant_id = ? AND student_id = ? ORDER BY created_at DESC";
+                List<LifecycleRequest> rows = new ArrayList<LifecycleRequest>();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setObject(1, actor.getTenantId());
+                    ps.setObject(2, studentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            rows.add(mapRequest(rs));
+                        }
+                    }
+                }
+                return rows;
+            }
+        });
+    }
+
+    @Override
+    public List<UUID> findAdviseesByAdvisor(Actor actor, final UUID advisorUserId) {
+        return LifecycleSecurityContext.fromActor(actor).executeInTransaction(connectionManager, new LifecycleSecurityContext.TransactionCallback<List<UUID>>() {
+            @Override
+            public List<UUID> execute(Connection conn) throws SQLException {
+                String sql = "SELECT DISTINCT student_id FROM stu.lifecycle_history "
+                        + "WHERE tenant_id = ? AND action = ? ORDER BY student_id";
+                List<UUID> rows = new ArrayList<UUID>();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setObject(1, actor.getTenantId());
+                    ps.setString(2, "advisor:" + advisorUserId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            rows.add((UUID) rs.getObject("student_id"));
+                        }
+                    }
+                }
+                return rows;
+            }
+        });
+    }
+
     private LifecycleRequest mapRequest(ResultSet rs) throws SQLException {
         Instant decidedAt = rs.getTimestamp("decided_at") == null ? null : rs.getTimestamp("decided_at").toInstant();
         Date effective = rs.getDate("effective_date");

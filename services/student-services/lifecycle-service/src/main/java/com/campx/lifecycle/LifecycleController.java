@@ -45,6 +45,17 @@ public class LifecycleController {
      */
     public Response handle(String method, String path, Map<String, String> headers, String body) {
         String correlationId = header(headers, "x-correlation-id");
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = header(headers, "x-trace-id");
+        }
+        if ("GET".equals(method) && ("/health".equals(path) || "/api/v1/lifecycle/health".equals(path))) {
+            ObjectNode health = mapper.createObjectNode();
+            health.put("status", "UP");
+            health.put("service", "lifecycle-service");
+            health.put("module", "STM-04");
+            return json(200, health, correlationId);
+        }
+
         FlowTracker tracker = logger.flow((method == null ? "REQUEST" : method) + " " + path, correlationId);
         try {
             verifier.verify(method, path, header(headers, "x-gateway-timestamp"), header(headers, "x-gateway-signature"), body);
@@ -52,9 +63,26 @@ public class LifecycleController {
             String normalized = path.endsWith("/") && path.length() > 1 ? path.substring(0, path.length() - 1) : path;
             JsonNode json = body == null || body.trim().isEmpty() ? mapper.createObjectNode() : mapper.readTree(body);
 
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/lifecycle/students/") && normalized.endsWith("/requests")) {
+                UUID studentId = UUID.fromString(extractSegment(normalized, "/api/v1/lifecycle/students/", "/requests"));
+                List<LifecycleDomainService.LifecycleRequest> rows = domain.listStudentRequests(actor, studentId);
+                ObjectNode node = mapper.createObjectNode();
+                ArrayNode array = node.putArray("requests");
+                for (LifecycleDomainService.LifecycleRequest row : rows) {
+                    array.add(requestNode(row));
+                }
+                return json(200, node, correlationId);
+            }
             if ("GET".equals(method) && normalized.startsWith("/api/v1/lifecycle/students/") && normalized.endsWith("/status")) {
                 UUID studentId = UUID.fromString(extractSegment(normalized, "/api/v1/lifecycle/students/", "/status"));
                 return json(200, statusNode(domain.getStatus(actor, studentId)), correlationId);
+            }
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/lifecycle/students/") && normalized.endsWith("/transition")) {
+                UUID studentId = UUID.fromString(extractSegment(normalized, "/api/v1/lifecycle/students/", "/transition"));
+                String targetStatus = text(json, "targetStatus");
+                String reason = text(json, "reason");
+                LifecycleDomainService.LifecycleStatus status = domain.transitionStatus(actor, studentId, targetStatus, reason);
+                return json(200, statusNode(status), correlationId);
             }
             if ("GET".equals(method) && normalized.startsWith("/api/v1/lifecycle/students/") && normalized.endsWith("/history")) {
                 UUID studentId = UUID.fromString(extractSegment(normalized, "/api/v1/lifecycle/students/", "/history"));
@@ -70,6 +98,17 @@ public class LifecycleController {
                 }
                 node.put("correlationId", correlationId == null ? "" : correlationId);
                 return new Response(200, node.toString());
+            }
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/lifecycle/students/") && normalized.endsWith("/requests")) {
+                UUID studentId = UUID.fromString(extractSegment(normalized, "/api/v1/lifecycle/students/", "/requests"));
+                List<LifecycleDomainService.LifecycleRequest> rows = domain.listStudentRequests(actor, studentId);
+                ObjectNode node = mapper.createObjectNode();
+                ArrayNode array = node.putArray("requests");
+                for (LifecycleDomainService.LifecycleRequest req : rows) {
+                    array.add(requestNode(req));
+                }
+                node.put("correlationId", correlationId == null ? "" : correlationId);
+                return json(200, node, correlationId);
             }
             if ("GET".equals(method) && normalized.startsWith("/api/v1/lifecycle/linked/") && normalized.endsWith("/status")) {
                 UUID studentId = UUID.fromString(extractSegment(normalized, "/api/v1/lifecycle/linked/", "/status"));
@@ -116,7 +155,7 @@ public class LifecycleController {
                 ObjectNode node = mapper.createObjectNode();
                 ArrayNode array = node.putArray("requests");
                 for (LifecycleDomainService.LifecycleRequest request : domain.listPendingRequests(actor)) {
-                    array.add(requestNode(request));
+                    array.add(requestNode(request, actor));
                 }
                 return json(200, node, correlationId);
             }
@@ -134,9 +173,14 @@ public class LifecycleController {
                         text(json, "requestType"), text(json, "reason"), effectiveDate);
                 return json(201, requestNode(request), correlationId);
             }
-            if ("POST".equals(method) && normalized.startsWith("/api/v1/lifecycle/requests/") && normalized.endsWith("/decide")) {
-                String idPart = extractSegment(normalized, "/api/v1/lifecycle/requests/", "/decide");
-                LifecycleDomainService.LifecycleRequest request = domain.decideRequest(actor, UUID.fromString(idPart), text(json, "decision"));
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/lifecycle/requests/") && (normalized.endsWith("/decide") || normalized.endsWith("/decision"))) {
+                String suffix = normalized.endsWith("/decision") ? "/decision" : "/decide";
+                String idPart = extractSegment(normalized, "/api/v1/lifecycle/requests/", suffix);
+                String decision = text(json, "decision");
+                if (decision == null || decision.trim().isEmpty()) {
+                    decision = text(json, "status");
+                }
+                LifecycleDomainService.LifecycleRequest request = domain.decideRequest(actor, UUID.fromString(idPart), decision);
                 return json(200, requestNode(request), correlationId);
             }
             if ("POST".equals(method) && "/api/v1/lifecycle/rules".equals(normalized)) {
@@ -205,6 +249,10 @@ public class LifecycleController {
     }
 
     private ObjectNode requestNode(LifecycleDomainService.LifecycleRequest request) {
+        return requestNode(request, null);
+    }
+
+    private ObjectNode requestNode(LifecycleDomainService.LifecycleRequest request, Actor actor) {
         ObjectNode node = mapper.createObjectNode();
         node.put("id", request.id.toString());
         node.put("studentId", request.studentId.toString());
@@ -219,6 +267,15 @@ public class LifecycleController {
         }
         if (request.decidedAt != null) {
             node.put("decidedAt", request.decidedAt.toString());
+        }
+        if (actor != null) {
+            try {
+                LifecycleDomainService.LifecycleStatus current = domain.getStatus(actor, request.studentId);
+                if (current != null) {
+                    node.put("currentStatus", current.status);
+                }
+            } catch (Exception ignored) {
+            }
         }
         return node;
     }

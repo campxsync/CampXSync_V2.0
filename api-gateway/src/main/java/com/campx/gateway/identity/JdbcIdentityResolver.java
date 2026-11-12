@@ -10,16 +10,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Authoritative PostgreSQL implementation of {@link IdentityResolver}.
  * <p>
  * Directly queries trusted relational database records across:
  * <ul>
- *   <li>{@code plat.platform_admins} for super-administrative identities</li>
- *   <li>{@code iam.user_profiles} for user account and tenant association</li>
- *   <li>{@code core.tenants} for tenant status verification</li>
- *   <li>{@code iam.role_assignments} and {@code iam.roles} for business roles and permissions</li>
+ * <li>{@code plat.platform_admins} for super-administrative identities</li>
+ * <li>{@code iam.user_profiles} for user account and tenant association</li>
+ * <li>{@code core.tenants} for tenant status verification</li>
+ * <li>{@code iam.role_assignments} and {@code iam.roles} for business roles and
+ * permissions</li>
  * </ul>
  * Guarantees zero trust in unverified JWT metadata or client-supplied headers.
  * </p>
@@ -31,6 +33,49 @@ import java.util.UUID;
 public class JdbcIdentityResolver implements IdentityResolver {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(JdbcIdentityResolver.class);
+
+    /**
+     * Cache entry wrapping resolved identity with expiry timestamp (REC-02).
+     */
+    private static class CacheEntry {
+        final IdentityResolutionResult result;
+        final long expiresAt;
+
+        CacheEntry(IdentityResolutionResult result, long expiresAt) {
+            this.result = result;
+            this.expiresAt = expiresAt;
+        }
+    }
+
+    /**
+     * In-memory cache for authoritative identity resolutions (REC-02).
+     * Eliminates redundant PostgreSQL roundtrips on repeated API requests.
+     */
+    private static final ConcurrentHashMap<String, CacheEntry> IDENTITY_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * 5-minute TTL for cached identity resolutions.
+     */
+    private static final long CACHE_TTL_MS = 5 * 60 * 1000L;
+
+    /**
+     * Invalidates cached identity for a specific user ID upon role change or
+     * logout.
+     */
+    public static void invalidate(UUID userId) {
+        if (userId != null) {
+            IDENTITY_CACHE.remove(userId.toString());
+            logger.info("Invalidated identity cache for user {}", userId);
+        }
+    }
+
+    /**
+     * Flushes entire identity cache.
+     */
+    public static void invalidateAll() {
+        IDENTITY_CACHE.clear();
+        logger.info("Flushed all gateway identity cache entries");
+    }
 
     private final DataSource dataSource;
 
@@ -51,6 +96,13 @@ public class JdbcIdentityResolver implements IdentityResolver {
             return IdentityResolutionResult.notFound("User identity key (sub) cannot be null");
         }
 
+        String cacheKey = userId.toString();
+        CacheEntry cached = IDENTITY_CACHE.get(cacheKey);
+        if (cached != null && System.currentTimeMillis() < cached.expiresAt) {
+            logger.debug("Identity cache HIT for user {}", userId);
+            return cached.result;
+        }
+
         try (Connection conn = dataSource.getConnection()) {
 
             // 1. Authoritative check against plat.platform_admins
@@ -64,7 +116,8 @@ public class JdbcIdentityResolver implements IdentityResolver {
                     if (rs.next()) {
                         String status = rs.getString("status");
                         if (!"ACTIVE".equalsIgnoreCase(status)) {
-                            return IdentityResolutionResult.ineligible("inactive_membership", "Platform administrator account is " + status);
+                            return IdentityResolutionResult.ineligible("inactive_membership",
+                                    "Platform administrator account is " + status);
                         }
                         String fullName = rs.getString("full_name");
                         String roleCode = rs.getString("role_code");
@@ -83,9 +136,10 @@ public class JdbcIdentityResolver implements IdentityResolver {
                                 null,
                                 null,
                                 "ACTIVE",
-                                true
-                        );
-                        return IdentityResolutionResult.success(identity);
+                                true);
+                        IdentityResolutionResult res = IdentityResolutionResult.success(identity);
+                        IDENTITY_CACHE.put(cacheKey, new CacheEntry(res, System.currentTimeMillis() + CACHE_TTL_MS));
+                        return res;
                     }
                 }
             } catch (SQLException e) {
@@ -116,7 +170,8 @@ public class JdbcIdentityResolver implements IdentityResolver {
                         collegeId = (UUID) rs.getObject("college_id");
                         departmentId = (UUID) rs.getObject("department_id");
                     } else {
-                        return IdentityResolutionResult.notFound("No active user profile found for identity: " + userId);
+                        return IdentityResolutionResult
+                                .notFound("No active user profile found for identity: " + userId);
                     }
                 }
             }
@@ -126,7 +181,8 @@ public class JdbcIdentityResolver implements IdentityResolver {
             }
 
             if (tenantId == null) {
-                return IdentityResolutionResult.ineligible("no_profile", "User profile is not associated with any tenant");
+                return IdentityResolutionResult.ineligible("no_profile",
+                        "User profile is not associated with any tenant");
             }
 
             // 3. Query core.tenants
@@ -145,13 +201,15 @@ public class JdbcIdentityResolver implements IdentityResolver {
                         tenantName = rs.getString("name");
                         tenantStatus = rs.getString("status");
                     } else {
-                        return IdentityResolutionResult.ineligible("tenant_not_found", "Tenant not found for ID: " + tenantId);
+                        return IdentityResolutionResult.ineligible("tenant_not_found",
+                                "Tenant not found for ID: " + tenantId);
                     }
                 }
             }
 
             if (!"ACTIVE".equalsIgnoreCase(tenantStatus)) {
-                return IdentityResolutionResult.ineligible("tenant_suspended", "Tenant organization is " + tenantStatus);
+                return IdentityResolutionResult.ineligible("tenant_suspended",
+                        "Tenant organization is " + tenantStatus);
             }
 
             // 4. Query iam.role_assignments
@@ -200,16 +258,20 @@ public class JdbcIdentityResolver implements IdentityResolver {
             LocalDate today = LocalDate.now();
             List<RoleAssignmentDto> activeAssignments = new ArrayList<>();
             for (RoleAssignmentDto a : assignments) {
-                if (a.validFrom != null && a.validFrom.isAfter(today)) continue;
-                if (a.validTo != null && a.validTo.isBefore(today)) continue;
+                if (a.validFrom != null && a.validFrom.isAfter(today))
+                    continue;
+                if (a.validTo != null && a.validTo.isBefore(today))
+                    continue;
                 activeAssignments.add(a);
             }
 
             if (activeAssignments.isEmpty()) {
-                return IdentityResolutionResult.ineligible("no_role_assigned", "No active business role assignment found for user in tenant");
+                return IdentityResolutionResult.ineligible("no_role_assigned",
+                        "No active business role assignment found for user in tenant");
             }
 
-            // Preserve all assigned roles and derive effective role strictly according to canonical rules
+            // Preserve all assigned roles and derive effective role strictly according to
+            // canonical rules
             List<String> assignedRoles = new ArrayList<>();
             for (RoleAssignmentDto ra : activeAssignments) {
                 if (ra.roleCode != null && !ra.roleCode.trim().isEmpty()) {
@@ -228,26 +290,33 @@ public class JdbcIdentityResolver implements IdentityResolver {
                 String code = ra.roleCode != null ? ra.roleCode.toUpperCase(Locale.ROOT) : "";
                 if (isCollegeAdminRole(code)) {
                     resolvedRole = ra.roleCode != null ? ra.roleCode : "COLLEGE_ADMIN";
-                    if (ra.collegeId != null) matchedCollegeId = ra.collegeId;
-                    if (ra.departmentId != null) matchedDeptId = ra.departmentId;
+                    if (ra.collegeId != null)
+                        matchedCollegeId = ra.collegeId;
+                    if (ra.departmentId != null)
+                        matchedDeptId = ra.departmentId;
                     break;
                 } else if (isFacultyRole(code)) {
                     if (resolvedRole == null || isStudentRole(resolvedRole)) {
                         resolvedRole = ra.roleCode != null ? ra.roleCode : "FACULTY";
-                        if (ra.collegeId != null) matchedCollegeId = ra.collegeId;
-                        if (ra.departmentId != null) matchedDeptId = ra.departmentId;
+                        if (ra.collegeId != null)
+                            matchedCollegeId = ra.collegeId;
+                        if (ra.departmentId != null)
+                            matchedDeptId = ra.departmentId;
                     }
                 } else if (isStudentRole(code)) {
                     if (resolvedRole == null) {
                         resolvedRole = ra.roleCode != null ? ra.roleCode : "STUDENT";
-                        if (ra.collegeId != null) matchedCollegeId = ra.collegeId;
-                        if (ra.departmentId != null) matchedDeptId = ra.departmentId;
+                        if (ra.collegeId != null)
+                            matchedCollegeId = ra.collegeId;
+                        if (ra.departmentId != null)
+                            matchedDeptId = ra.departmentId;
                     }
                 }
             }
 
             if (resolvedRole == null) {
-                return IdentityResolutionResult.ineligible("no_role_assigned", "No active recognized business role assignment found for user in tenant");
+                return IdentityResolutionResult.ineligible("no_role_assigned",
+                        "No active recognized business role assignment found for user in tenant");
             }
 
             // Fallback college lookup by tenant if not assigned
@@ -260,7 +329,8 @@ public class JdbcIdentityResolver implements IdentityResolver {
                             matchedCollegeId = (UUID) rs.getObject("id");
                         }
                     }
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
             }
 
             ResolvedIdentity identity = new ResolvedIdentity(
@@ -277,19 +347,22 @@ public class JdbcIdentityResolver implements IdentityResolver {
                     matchedCollegeId != null ? matchedCollegeId.toString() : null,
                     matchedDeptId != null ? matchedDeptId.toString() : null,
                     userStatus,
-                    false
-            );
+                    false);
 
-            return IdentityResolutionResult.success(identity);
+            IdentityResolutionResult res = IdentityResolutionResult.success(identity);
+            IDENTITY_CACHE.put(cacheKey, new CacheEntry(res, System.currentTimeMillis() + CACHE_TTL_MS));
+            return res;
 
         } catch (SQLException e) {
             logger.error("Authoritative identity resolution database error for user {}: {}", userId, e.getMessage(), e);
-            return IdentityResolutionResult.ineligible("database_error", "Failed to resolve identity from authoritative storage");
+            return IdentityResolutionResult.ineligible("database_error",
+                    "Failed to resolve identity from authoritative storage");
         }
     }
 
     private static boolean isCollegeAdminRole(String code) {
-        if (code == null) return false;
+        if (code == null)
+            return false;
         String upper = code.toUpperCase(Locale.ROOT);
         return upper.equals("COLLEGE_ADMIN") || upper.equals("INSTITUTION_ADMIN")
                 || upper.equals("TENANT_ADMIN") || upper.equals("PRINCIPAL")
@@ -297,14 +370,16 @@ public class JdbcIdentityResolver implements IdentityResolver {
     }
 
     private static boolean isFacultyRole(String code) {
-        if (code == null) return false;
+        if (code == null)
+            return false;
         String upper = code.toUpperCase(Locale.ROOT);
         return upper.equals("FACULTY") || upper.equals("HOD") || upper.equals("DEAN")
                 || upper.equals("TEACHER") || upper.equals("SECTION_COORDINATOR");
     }
 
     private static boolean isStudentRole(String code) {
-        if (code == null) return false;
+        if (code == null)
+            return false;
         String upper = code.toUpperCase(Locale.ROOT);
         return upper.equals("STUDENT");
     }
@@ -322,9 +397,11 @@ public class JdbcIdentityResolver implements IdentityResolver {
         dto.collegeId = (UUID) rs.getObject("college_id");
         dto.departmentId = (UUID) rs.getObject("department_id");
         Date vf = rs.getDate("valid_from");
-        if (vf != null) dto.validFrom = vf.toLocalDate();
+        if (vf != null)
+            dto.validFrom = vf.toLocalDate();
         Date vt = rs.getDate("valid_to");
-        if (vt != null) dto.validTo = vt.toLocalDate();
+        if (vt != null)
+            dto.validTo = vt.toLocalDate();
         dto.roleCode = rs.getString("role_code");
         return dto;
     }
@@ -334,9 +411,11 @@ public class JdbcIdentityResolver implements IdentityResolver {
         dto.collegeId = (UUID) rs.getObject("college_id");
         dto.departmentId = (UUID) rs.getObject("department_id");
         Date vf = rs.getDate("valid_from");
-        if (vf != null) dto.validFrom = vf.toLocalDate();
+        if (vf != null)
+            dto.validFrom = vf.toLocalDate();
         Date vt = rs.getDate("valid_to");
-        if (vt != null) dto.validTo = vt.toLocalDate();
+        if (vt != null)
+            dto.validTo = vt.toLocalDate();
         dto.roleCode = rs.getString("role_code");
         return dto;
     }

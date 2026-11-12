@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_18",
+  "flowName": "Faculty Directory",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1621,
+    "ttfb": 549,
+    "lcp": 764
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1297,
+      "ttfb": 221,
+      "lcp": 412
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1233,
+      "ttfb": 183,
+      "lcp": 380
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1209,
+      "ttfb": 175,
+      "lcp": 384
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1254,
+      "ttfb": 177,
+      "lcp": 384
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1258,
+      "ttfb": 180,
+      "lcp": 388
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1179,
+      "ttfb": 173,
+      "lcp": 332
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1287,
+      "ttfb": 198,
+      "lcp": 400
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1214,
+      "ttfb": 188,
+      "lcp": 400
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1233,
+      "ttfb": 173,
+      "lcp": 364
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1595,
+      "ttfb": 551,
+      "lcp": 748
+    }
+  ],
+  "summary": {
+    "flowId": "COL_18",
+    "flowName": "Faculty Directory",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/faculty",
+    "beforeP50": 0,
+    "afterP50": 1233,
+    "deltaMs": 1233,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1179,
+      "max": 1595,
+      "p50": 1233,
+      "p90": 1297,
+      "p95": 1595,
+      "avg": 1276
+    },
+    "ttfbStats": {
+      "min": 173,
+      "max": 551,
+      "p50": 180,
+      "p90": 221,
+      "p95": 551,
+      "avg": 222
+    },
+    "lcpStats": {
+      "min": 332,
+      "max": 748,
+      "p50": 384,
+      "p90": 412,
+      "p95": 748,
+      "avg": 419
+    }
+  }
+}

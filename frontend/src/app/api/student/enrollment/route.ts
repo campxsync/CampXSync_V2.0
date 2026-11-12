@@ -5,12 +5,24 @@ import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
+const studentRecordCache = new Map<string, { id: string; expiresAt: number }>();
+
 async function withStudentRecordHeader(
   req: NextRequest,
   supabase: Awaited<ReturnType<typeof createClient>>,
   session: { tenantId?: string | null; userId?: string | null; collegeId?: string | null; role?: string },
 ) {
   const headers = await getGatewayHeaders(req, supabase, session, 'STUDENT');
+  const userId = session.userId;
+  if (!userId) return headers;
+
+  const now = Date.now();
+  const cached = studentRecordCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    headers['X-Student-Record-Id'] = cached.id;
+    return headers;
+  }
+
   try {
     const meRes = await fetch(`${GATEWAY_BASE_URL}/api/v1/students/me`, {
       method: 'GET',
@@ -22,6 +34,7 @@ async function withStudentRecordHeader(
       const studentId = me?.id || me?.studentId;
       if (studentId) {
         headers['X-Student-Record-Id'] = String(studentId);
+        studentRecordCache.set(userId, { id: String(studentId), expiresAt: now + 5 * 60 * 1000 });
       }
     }
   } catch {

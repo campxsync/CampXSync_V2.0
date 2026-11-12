@@ -1,0 +1,188 @@
+{
+  "flowId": "COL_04",
+  "flowName": "Academic Batches",
+  "persona": "College Admin",
+  "target": "http://localhost:3000/college/batches",
+  "timestamp": "2026-11-11T09:51:22.060Z",
+  "coldRun": {
+    "iter": "warmup",
+    "actionToVisible": 5965,
+    "ttfb": 4769,
+    "lcp": 4972,
+    "tbt": 21,
+    "jsBundleSize": 201485,
+    "totalPayload": 227057,
+    "requestCount": 29,
+    "sequentialDepth": 3
+  },
+  "timedIterations": [
+    {
+      "iter": 1,
+      "actionToVisible": 5413,
+      "ttfb": 4255,
+      "lcp": 4424,
+      "tbt": 26,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 2
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 5393,
+      "ttfb": 4206,
+      "lcp": 4400,
+      "tbt": 34,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 5426,
+      "ttfb": 4260,
+      "lcp": 4448,
+      "tbt": 26,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 5394,
+      "ttfb": 4216,
+      "lcp": 4424,
+      "tbt": 13,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 5388,
+      "ttfb": 4194,
+      "lcp": 4396,
+      "tbt": 31,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 5703,
+      "ttfb": 4498,
+      "lcp": 4704,
+      "tbt": 27,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 5367,
+      "ttfb": 4216,
+      "lcp": 4396,
+      "tbt": 31,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 5403,
+      "ttfb": 4216,
+      "lcp": 4456,
+      "tbt": 21,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 2
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 5423,
+      "ttfb": 4222,
+      "lcp": 4400,
+      "tbt": 47,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 8056,
+      "ttfb": 6873,
+      "lcp": 7096,
+      "tbt": 18,
+      "jsBundleSize": 201185,
+      "totalPayload": 226757,
+      "requestCount": 29,
+      "sequentialDepth": 3
+    }
+  ],
+  "statistics": {
+    "actionToVisible": {
+      "min": 5367,
+      "max": 8056,
+      "p50": 5403,
+      "p90": 5703,
+      "p95": 8056,
+      "avg": 5697
+    },
+    "ttfb": {
+      "min": 4194,
+      "max": 6873,
+      "p50": 4216,
+      "p90": 4498,
+      "p95": 6873,
+      "avg": 4516
+    },
+    "lcp": {
+      "min": 4396,
+      "max": 7096,
+      "p50": 4424,
+      "p90": 4704,
+      "p95": 7096,
+      "avg": 4714
+    },
+    "tbt": {
+      "min": 13,
+      "max": 47,
+      "p50": 26,
+      "p90": 34,
+      "p95": 47,
+      "avg": 27
+    },
+    "payloadBytes": {
+      "min": 226757,
+      "max": 226757,
+      "p50": 226757,
+      "p90": 226757,
+      "p95": 226757,
+      "avg": 226757
+    },
+    "requests": {
+      "min": 29,
+      "max": 29,
+      "p50": 29,
+      "p90": 29,
+      "p95": 29,
+      "avg": 29
+    },
+    "sequentialDepth": {
+      "min": 2,
+      "max": 3,
+      "p50": 3,
+      "p90": 3,
+      "p95": 3,
+      "avg": 3
+    }
+  }
+}

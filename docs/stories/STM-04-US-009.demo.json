@@ -1,0 +1,119 @@
+{
+  "storyId": "STM-04-US-009",
+  "title": "Registrar Review, Approval & Denial of Leave Requests",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "INSERT INTO stu.lifecycle_status (tenant_id, student_id, status, effective_from, updated_at) VALUES ('a0000000-0000-0000-0000-000000000001', '81dd67d3-1d5f-4d8e-8061-a6764861f924', 'ACTIVE', now() - interval '90 days', now()) ON CONFLICT (tenant_id, student_id) DO UPDATE SET status = 'ACTIVE', updated_at = now()"
+    },
+    {
+      "query": "INSERT INTO stu.lifecycle_transition_rules (tenant_id, id, from_status, to_status, requires_approval, active) VALUES ('a0000000-0000-0000-0000-000000000001', '44444444-0004-0000-0000-000000000002', 'ACTIVE', 'ON_LEAVE', true, true) ON CONFLICT (tenant_id, from_status, to_status) DO UPDATE SET active = true, requires_approval = true"
+    },
+    {
+      "query": "INSERT INTO stu.lifecycle_requests (tenant_id, id, student_id, request_type, status, reason, effective_date, created_at) VALUES ('a0000000-0000-0000-0000-000000000001', '77777777-0004-0000-0000-000000000001', '81dd67d3-1d5f-4d8e-8061-a6764861f924', 'LEAVE', 'PENDING', 'Medical leave of absence for semester recovery following surgery.', '2026-12-01', now()) ON CONFLICT (tenant_id, id) DO UPDATE SET status = 'PENDING', reason = EXCLUDED.reason, decided_by = null, decided_at = null, effective_date = EXCLUDED.effective_date"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Portal Authentication",
+      "description": "College Administrator / Registrar authenticates to CampXSync with authorized R31 staff session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Lifecycle Review Desk",
+      "description": "Verify College Lifecycle desk loads with institutional review authority",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Inspect Pending Leave Requests Queue",
+      "description": "Desk displays active queue of pending lifecycle and leave requests submitted by students",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-req-row-77777777-0004-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-lifecycle-req-row-77777777-0004-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Verify Leave Request Type and Pending Status",
+      "description": "Verify request type badge indicates LEAVE and status badge confirms PENDING state",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-req-type-77777777-0004-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-lifecycle-req-type-77777777-0004-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Open Rejection Remarks Modal",
+      "description": "Registrar initiates rejection workflow, exposing mandatory regulatory justification dialog",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-reject-btn-77777777-0004-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-lifecycle-reject-btn-77777777-0004-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Verify Rejection Guardrail Validation",
+      "description": "Attempting rejection without justification triggers client-side validation guardrail",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-confirm-reject-btn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-confirm-reject-btn\"]"
+    },
+    {
+      "title": "Assert Validation Guardrail Message",
+      "description": "System enforces minimum 5-character regulatory rejection justification",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-error-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-error-msg\"]"
+    },
+    {
+      "title": "Dismiss Rejection Modal",
+      "description": "Registrar dismisses rejection dialog to proceed with standard approval decision",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-cancel-reject-btn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-cancel-reject-btn\"]"
+    },
+    {
+      "title": "Approve Student Leave Request",
+      "description": "Registrar executes formal approval, dispatching POST /api/v1/lifecycle/requests/{id}/decide through API Gateway",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-approve-btn-77777777-0004-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-lifecycle-approve-btn-77777777-0004-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Verify Approval Success Confirmation",
+      "description": "System displays green success notification confirming request approval and student status transition",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-success-msg\"]"
+    },
+    {
+      "title": "PostgreSQL Lifecycle Request Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_requests has committed status APPROVED with registrar decision timestamp",
+      "action": "db_check",
+      "query": "SELECT id, student_id, request_type, status, decided_by FROM stu.lifecycle_requests WHERE id = '77777777-0004-0000-0000-000000000001' AND status = 'APPROVED'",
+      "minCount": 1
+    },
+    {
+      "title": "PostgreSQL Student Status Transition Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_status transitioned student standing from ACTIVE to ON_LEAVE",
+      "action": "db_check",
+      "query": "SELECT student_id, status FROM stu.lifecycle_status WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924' AND status = 'ON_LEAVE'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Enforcement Check",
+      "description": "API Gateway and Lifecycle Service reject unauthorized decision attempts by non-registrar students with HTTP 403",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/lifecycle/requests/77777777-0004-0000-0000-000000000001/decide",
+      "headers": {
+        "x-tenant-id": "a0000000-0000-0000-0000-000000000001",
+        "x-user-id": "81dd67d3-1d5f-4d8e-8061-a6764861f924",
+        "x-user-role": "STUDENT",
+        "x-student-record-id": "81dd67d3-1d5f-4d8e-8061-a6764861f924"
+      },
+      "body": {
+        "decision": "APPROVED"
+      },
+      "expectedStatus": 403
+    }
+  ]
+}

@@ -377,6 +377,10 @@ public class GuardianIntelligenceService {
     }
 
     public void publishGuardianLinked(Actor actor, GuardianLink link) {
+        publishGuardianLinked(actor, link, false);
+    }
+
+    public void publishGuardianLinked(Actor actor, GuardianLink link, boolean multiStudentLink) {
         if (actor == null || link == null || actor.getTenantId() == null) {
             return;
         }
@@ -388,6 +392,7 @@ public class GuardianIntelligenceService {
             payload.put("relationship", link.relationship);
             payload.put("primary", link.primary);
             payload.put("status", link.status);
+            payload.put("multiStudentLink", multiStudentLink);
             IntelligenceContextEvent event = IntelligenceContextEvent.builder()
                     .eventType(GuardianDomainService.GUARDIAN_LINKED)
                     .schemaVersion(GuardianDomainService.SCHEMA_VERSION)
@@ -400,8 +405,8 @@ public class GuardianIntelligenceService {
                     .payloadJson(objectMapper.writeValueAsString(payload))
                     .build();
             adapter.publish(event);
-            logger.info("stm05 intelligence contract emitted eventType={} tenantId={}",
-                    GuardianDomainService.GUARDIAN_LINKED, actor.getTenantId());
+            logger.info("stm05 intelligence contract emitted eventType={} tenantId={} multiStudentLink={}",
+                    GuardianDomainService.GUARDIAN_LINKED, actor.getTenantId(), multiStudentLink);
         } catch (Exception ex) {
             logger.error("Failed to emit STM-05 intelligence event", ex);
         }

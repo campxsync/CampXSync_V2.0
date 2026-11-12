@@ -1,0 +1,106 @@
+{
+  "flowId": "AUTH_COL",
+  "flowName": "College Admin Login to Dashboard",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1432,
+    "ttfb": 252,
+    "lcp": 420
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1360,
+      "ttfb": 208,
+      "lcp": 360
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1573,
+      "ttfb": 302,
+      "lcp": 440
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1569,
+      "ttfb": 329,
+      "lcp": 496
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1421,
+      "ttfb": 219,
+      "lcp": 356
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1594,
+      "ttfb": 362,
+      "lcp": 536
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1634,
+      "ttfb": 199,
+      "lcp": 360
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1374,
+      "ttfb": 189,
+      "lcp": 360
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1461,
+      "ttfb": 278,
+      "lcp": 432
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1431,
+      "ttfb": 253,
+      "lcp": 420
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1386,
+      "ttfb": 239,
+      "lcp": 396
+    }
+  ],
+  "summary": {
+    "flowId": "AUTH_COL",
+    "flowName": "College Admin Login to Dashboard",
+    "persona": "College Admin",
+    "target": "/college",
+    "beforeP50": 0,
+    "afterP50": 1431,
+    "deltaMs": 1431,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1360,
+      "max": 1634,
+      "p50": 1431,
+      "p90": 1594,
+      "p95": 1634,
+      "avg": 1480
+    },
+    "ttfbStats": {
+      "min": 189,
+      "max": 362,
+      "p50": 239,
+      "p90": 329,
+      "p95": 362,
+      "avg": 258
+    },
+    "lcpStats": {
+      "min": 356,
+      "max": 536,
+      "p50": 396,
+      "p90": 496,
+      "p95": 536,
+      "avg": 416
+    }
+  }
+}

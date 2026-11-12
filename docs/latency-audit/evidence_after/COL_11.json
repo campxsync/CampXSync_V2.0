@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_11",
+  "flowName": "Admissions Intakes",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 1679,
+    "ttfb": 527,
+    "lcp": 752
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1303,
+      "ttfb": 197,
+      "lcp": 388
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1260,
+      "ttfb": 190,
+      "lcp": 380
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1257,
+      "ttfb": 189,
+      "lcp": 416
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1277,
+      "ttfb": 209,
+      "lcp": 416
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1260,
+      "ttfb": 197,
+      "lcp": 392
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1244,
+      "ttfb": 190,
+      "lcp": 376
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1222,
+      "ttfb": 183,
+      "lcp": 472
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1229,
+      "ttfb": 186,
+      "lcp": 380
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1300,
+      "ttfb": 218,
+      "lcp": 412
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1233,
+      "ttfb": 202,
+      "lcp": 392
+    }
+  ],
+  "summary": {
+    "flowId": "COL_11",
+    "flowName": "Admissions Intakes",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/admissions/intakes",
+    "beforeP50": 0,
+    "afterP50": 1257,
+    "deltaMs": 1257,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1222,
+      "max": 1303,
+      "p50": 1257,
+      "p90": 1300,
+      "p95": 1303,
+      "avg": 1259
+    },
+    "ttfbStats": {
+      "min": 183,
+      "max": 218,
+      "p50": 190,
+      "p90": 209,
+      "p95": 218,
+      "avg": 196
+    },
+    "lcpStats": {
+      "min": 376,
+      "max": 472,
+      "p50": 392,
+      "p90": 416,
+      "p95": 472,
+      "avg": 402
+    }
+  }
+}

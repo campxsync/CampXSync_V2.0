@@ -525,4 +525,96 @@ public class GuardianDomainServiceTest {
             assertEquals("GUARDIAN_VIEW_FORBIDDEN", ex.getCode());
         }
     }
+
+    @Test
+    public void registrarCanLinkOneGuardianToSeveralStudents() {
+        // Step 1: Add guardian for student 1
+        GuardianDomainService.GuardianLink link1 = service.addGuardian(registrar, student, "Asha", "Rao", "MOTHER",
+                "asha@example.com", "9000000000", true);
+        UUID guardianPersonId = link1.guardianPersonId;
+
+        // Step 2: Link same guardian person to student 2 (sibling)
+        UUID student2 = UUID.randomUUID();
+        GuardianDomainService.GuardianLink link2 = service.linkExistingGuardian(registrar, student2, guardianPersonId, "MOTHER", false);
+
+        assertEquals(guardianPersonId, link2.guardianPersonId);
+        assertEquals(student2, link2.studentId);
+        assertEquals("MOTHER", link2.relationship);
+        assertEquals("ACTIVE", link2.status);
+        assertEquals("Asha", link2.firstName);
+
+        // Step 3: Verify listStudentsForGuardian returns both student links
+        java.util.List<GuardianDomainService.GuardianLink> linkedStudents = service.listStudentsForGuardian(registrar, guardianPersonId);
+        assertEquals(2, linkedStudents.size());
+
+        // Step 4: Verify student 2's own guardian list contains the link
+        java.util.List<GuardianDomainService.GuardianLink> student2Guardians = service.listGuardians(registrar, student2);
+        assertEquals(1, student2Guardians.size());
+        assertEquals(guardianPersonId, student2Guardians.get(0).guardianPersonId);
+    }
+
+    @Test
+    public void studentCannotLinkExistingGuardian() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "MOTHER", null, null, true);
+        UUID student2 = UUID.randomUUID();
+        try {
+            service.linkExistingGuardian(studentActor, student2, link.guardianPersonId, "MOTHER", false);
+            fail("Students must not link existing guardians");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void duplicateActiveLinkToSameStudentIsRejected() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "MOTHER", null, null, true);
+        try {
+            service.linkExistingGuardian(registrar, student, link.guardianPersonId, "MOTHER", false);
+            fail("Duplicate active link must be rejected");
+        } catch (GuardianException ex) {
+            assertEquals(409, ex.getStatus());
+            assertEquals("DUPLICATE_GUARDIAN_LINK", ex.getCode());
+        }
+    }
+
+    @Test
+    public void missingFieldsInLinkExistingAreRejected() {
+        UUID personId = UUID.randomUUID();
+        try {
+            service.linkExistingGuardian(registrar, null, personId, "MOTHER", false);
+            fail("Missing studentId must be rejected");
+        } catch (GuardianException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("STUDENT_REQUIRED", ex.getCode());
+        }
+
+        try {
+            service.linkExistingGuardian(registrar, student, null, "MOTHER", false);
+            fail("Missing guardianPersonId must be rejected");
+        } catch (GuardianException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("GUARDIAN_PERSON_REQUIRED", ex.getCode());
+        }
+
+        try {
+            service.linkExistingGuardian(registrar, student, personId, " ", false);
+            fail("Blank relationship must be rejected");
+        } catch (GuardianException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("FIELD_REQUIRED", ex.getCode());
+        }
+    }
+
+    @Test
+    public void unauthorizedCallerCannotListStudentsForGuardian() {
+        UUID personId = UUID.randomUUID();
+        try {
+            service.listStudentsForGuardian(studentActor, personId);
+            fail("Unrelated student must not list students for arbitrary guardian");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("GUARDIAN_VIEW_FORBIDDEN", ex.getCode());
+        }
+    }
 }

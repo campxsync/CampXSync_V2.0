@@ -1,0 +1,106 @@
+{
+  "flowId": "FAC_05",
+  "flowName": "Attendance Marking View",
+  "persona": "Faculty",
+  "coldRun": {
+    "actionToVisible": 1543,
+    "ttfb": 505,
+    "lcp": 704
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1458,
+      "ttfb": 426,
+      "lcp": 612
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1445,
+      "ttfb": 423,
+      "lcp": 608
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1462,
+      "ttfb": 416,
+      "lcp": 612
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1449,
+      "ttfb": 408,
+      "lcp": 588
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1520,
+      "ttfb": 434,
+      "lcp": 640
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1431,
+      "ttfb": 405,
+      "lcp": 588
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1453,
+      "ttfb": 428,
+      "lcp": 620
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1454,
+      "ttfb": 414,
+      "lcp": 604
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1500,
+      "ttfb": 394,
+      "lcp": 576
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1445,
+      "ttfb": 409,
+      "lcp": 604
+    }
+  ],
+  "summary": {
+    "flowId": "FAC_05",
+    "flowName": "Attendance Marking View",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/attendance",
+    "beforeP50": 0,
+    "afterP50": 1453,
+    "deltaMs": 1453,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1431,
+      "max": 1520,
+      "p50": 1453,
+      "p90": 1500,
+      "p95": 1520,
+      "avg": 1462
+    },
+    "ttfbStats": {
+      "min": 394,
+      "max": 434,
+      "p50": 414,
+      "p90": 428,
+      "p95": 434,
+      "avg": 416
+    },
+    "lcpStats": {
+      "min": 576,
+      "max": 640,
+      "p50": 604,
+      "p90": 620,
+      "p95": 640,
+      "avg": 605
+    }
+  }
+}

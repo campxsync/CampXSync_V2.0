@@ -1,0 +1,106 @@
+{
+  "flowId": "STU1_04",
+  "flowName": "Student Lifecycle Status",
+  "persona": "Student 1",
+  "coldRun": {
+    "actionToVisible": 3139,
+    "ttfb": 133,
+    "lcp": 492
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 2809,
+      "ttfb": 141,
+      "lcp": 328
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 2779,
+      "ttfb": 113,
+      "lcp": 300
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 2865,
+      "ttfb": 114,
+      "lcp": 304
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 2771,
+      "ttfb": 132,
+      "lcp": 312
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 2815,
+      "ttfb": 123,
+      "lcp": 316
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 2821,
+      "ttfb": 113,
+      "lcp": 300
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 2898,
+      "ttfb": 113,
+      "lcp": 304
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 2771,
+      "ttfb": 127,
+      "lcp": 324
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 2711,
+      "ttfb": 118,
+      "lcp": 308
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 2801,
+      "ttfb": 108,
+      "lcp": 296
+    }
+  ],
+  "summary": {
+    "flowId": "STU1_04",
+    "flowName": "Student Lifecycle Status",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/lifecycle",
+    "beforeP50": 0,
+    "afterP50": 2801,
+    "deltaMs": 2801,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 2711,
+      "max": 2898,
+      "p50": 2801,
+      "p90": 2865,
+      "p95": 2898,
+      "avg": 2804
+    },
+    "ttfbStats": {
+      "min": 108,
+      "max": 141,
+      "p50": 114,
+      "p90": 132,
+      "p95": 141,
+      "avg": 120
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 328,
+      "p50": 304,
+      "p90": 324,
+      "p95": 328,
+      "avg": 309
+    }
+  }
+}

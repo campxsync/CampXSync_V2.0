@@ -1,0 +1,106 @@
+{
+  "flowId": "AUTH_STU2",
+  "flowName": "Student 2 Login to Portal",
+  "persona": "Student 2",
+  "coldRun": {
+    "actionToVisible": 1558,
+    "ttfb": 209,
+    "lcp": 348
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1458,
+      "ttfb": 195,
+      "lcp": 356
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1551,
+      "ttfb": 231,
+      "lcp": 380
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1539,
+      "ttfb": 205,
+      "lcp": 364
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1485,
+      "ttfb": 214,
+      "lcp": 352
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1419,
+      "ttfb": 194,
+      "lcp": 336
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1419,
+      "ttfb": 197,
+      "lcp": 344
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1516,
+      "ttfb": 238,
+      "lcp": 392
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1423,
+      "ttfb": 188,
+      "lcp": 336
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1520,
+      "ttfb": 192,
+      "lcp": 340
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1440,
+      "ttfb": 230,
+      "lcp": 372
+    }
+  ],
+  "summary": {
+    "flowId": "AUTH_STU2",
+    "flowName": "Student 2 Login to Portal",
+    "persona": "Student 2",
+    "target": "/student",
+    "beforeP50": 0,
+    "afterP50": 1458,
+    "deltaMs": 1458,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1419,
+      "max": 1551,
+      "p50": 1458,
+      "p90": 1539,
+      "p95": 1551,
+      "avg": 1477
+    },
+    "ttfbStats": {
+      "min": 188,
+      "max": 238,
+      "p50": 197,
+      "p90": 231,
+      "p95": 238,
+      "avg": 208
+    },
+    "lcpStats": {
+      "min": 336,
+      "max": 392,
+      "p50": 352,
+      "p90": 380,
+      "p95": 392,
+      "avg": 357
+    }
+  }
+}

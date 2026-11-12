@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getCachedReference, setCachedReference, invalidateReferenceTag } from '@/lib/cache/reference-cache';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    invalidateReferenceTag(`programs:${tenantId}`);
     return NextResponse.json(
       {
         success: true,
@@ -156,6 +158,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const cacheKey = `programs:${tenantId}`;
+    const cached = getCachedReference(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
+
     const gatewayUrl = new URL('/api/v1/college-admin/programs', GATEWAY_BASE_URL);
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -178,6 +186,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: gatewayRes.status });
     }
 
+    setCachedReference(cacheKey, data);
     return NextResponse.json(data, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(

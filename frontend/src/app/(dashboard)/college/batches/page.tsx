@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { Layers, BookOpen, GraduationCap, CheckCircle2 } from 'lucide-react';
+import { Layers, BookOpen, GraduationCap, CheckCircle2, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { StatCard } from '@/components/ui/stat-card';
@@ -25,6 +25,8 @@ export default async function CollegeBatchesPage() {
 
   let batches: any[] = [];
   let subjects: any[] = [];
+  let serviceUnavailable = false;
+  let serviceErrorMessage = '';
 
   const headers: Record<string, string> = {
     'Accept': 'application/json',
@@ -37,15 +39,25 @@ export default async function CollegeBatchesPage() {
   }
 
   try {
-    // 1. Fetch batches via API Gateway backed by ACD-04 Batch Management Service
     const batchesUrl = new URL('/api/v1/academics/batches', GATEWAY_BASE_URL);
     batchesUrl.searchParams.set('pageSize', '100');
 
-    const batchesRes = await fetch(batchesUrl.toString(), {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-    });
+    const subjectsUrl = new URL('/api/v1/academics/subjects', GATEWAY_BASE_URL);
+    subjectsUrl.searchParams.set('limit', '100');
+
+    // REC-05: Parallelize independent downstream calls via Promise.all
+    const [batchesRes, subjectsRes] = await Promise.all([
+      fetch(batchesUrl.toString(), {
+        method: 'GET',
+        headers,
+        cache: 'no-store',
+      }).catch(() => ({ ok: false, status: 503, json: async () => ({}) } as Response)),
+      fetch(subjectsUrl.toString(), {
+        method: 'GET',
+        headers,
+        cache: 'no-store',
+      }).catch(() => ({ ok: false, status: 503, json: async () => ({}) } as Response)),
+    ]);
 
     if (batchesRes.ok) {
       const data = await batchesRes.json();
@@ -58,17 +70,10 @@ export default async function CollegeBatchesPage() {
         program_name: b.departmentId || 'Academic Program',
         program_code: b.departmentId ? b.departmentId.substring(0, 4).toUpperCase() : 'ACD',
       }));
+    } else {
+      serviceUnavailable = true;
+      serviceErrorMessage = 'ACD-04 Batch Management service offline';
     }
-
-    // 2. Fetch subjects via API Gateway backed by ACD-03 Subject Management Service
-    const subjectsUrl = new URL('/api/v1/academics/subjects', GATEWAY_BASE_URL);
-    subjectsUrl.searchParams.set('limit', '100');
-
-    const subjectsRes = await fetch(subjectsUrl.toString(), {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-    });
 
     if (subjectsRes.ok) {
       const data = await subjectsRes.json();
@@ -83,9 +88,15 @@ export default async function CollegeBatchesPage() {
         department_name: s.departmentId || 'Department',
         department_code: s.departmentId ? s.departmentId.substring(0, 4).toUpperCase() : 'DEPT',
       }));
+    } else {
+      serviceUnavailable = true;
+      serviceErrorMessage = serviceErrorMessage
+        ? serviceErrorMessage + ' & ACD-03 Subject Management service offline'
+        : 'ACD-03 Subject Management service offline';
     }
   } catch (err) {
     console.error('Failed to query batches and subjects via API Gateway:', err);
+    serviceUnavailable = true;
   }
 
   return (
@@ -99,6 +110,17 @@ export default async function CollegeBatchesPage() {
           Institutional batches, cohort sections, and registered curriculum subjects for {tenantName || 'Active College'}.
         </p>
       </div>
+
+      {/* Visible Service Degradation Indicator (REC-01) */}
+      {serviceUnavailable && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <span className="font-semibold text-amber-800">Service Temporarily Unavailable: </span>
+            <span>{serviceErrorMessage || 'One or more academic domain microservices are offline. Showing cached snapshot.'}</span>
+          </div>
+        </div>
+      )}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

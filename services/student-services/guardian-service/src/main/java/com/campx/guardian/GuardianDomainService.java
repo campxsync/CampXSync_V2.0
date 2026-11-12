@@ -103,6 +103,92 @@ public class GuardianDomainService {
     }
 
     /**
+     * Links an existing guardian person to an additional student record (STM-05-US-015).
+     * Enables linking one guardian to several students (e.g. siblings) without duplicating person records.
+     *
+     * @throws GuardianException 403 when the caller is not a registrar
+     * @throws GuardianException 422 when required fields are missing
+     * @throws GuardianException 404 when the guardian person is not found in this tenant
+     * @throws GuardianException 409 when the guardian is already actively linked to this student
+     */
+    public GuardianLink linkExistingGuardian(Actor actor, UUID studentId, UUID guardianPersonId,
+                                            String relationship, boolean primary) {
+        requireRegistrar(actor);
+        if (studentId == null) {
+            throw reject(422, "STUDENT_REQUIRED", "Student record id is required");
+        }
+        if (guardianPersonId == null) {
+            throw reject(422, "GUARDIAN_PERSON_REQUIRED", "Guardian person id is required");
+        }
+        requireText(relationship, "relationship");
+        String normRel = relationship.trim().toUpperCase();
+
+        // Check in-memory duplicate if present
+        String key = statusKey(actor.getTenantId(), studentId);
+        List<GuardianLink> rows = links.get(key);
+        if (rows != null) {
+            for (GuardianLink existing : rows) {
+                if (guardianPersonId.equals(existing.guardianPersonId) && "ACTIVE".equals(existing.status)) {
+                    throw reject(409, "DUPLICATE_GUARDIAN_LINK", "Guardian is already actively linked to this student");
+                }
+            }
+        }
+
+        String firstName = "Guardian";
+        String lastName = "";
+        String email = "";
+        String phone = "";
+
+        if (persistence != null) {
+            GuardianLink person = persistence.findGuardianPersonDetails(actor, guardianPersonId);
+            if (person == null) {
+                throw reject(404, "GUARDIAN_PERSON_NOT_FOUND", "Guardian person was not found in this tenant");
+            }
+            firstName = person.firstName;
+            lastName = person.lastName;
+            email = person.email;
+            phone = person.phone;
+        } else {
+            // In in-memory mode, search existing links across all students to resolve person details
+            boolean found = false;
+            for (List<GuardianLink> studentLinks : links.values()) {
+                for (GuardianLink l : studentLinks) {
+                    if (guardianPersonId.equals(l.guardianPersonId)) {
+                        firstName = l.firstName;
+                        lastName = l.lastName;
+                        email = l.email;
+                        phone = l.phone;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        Instant now = clock.instant();
+        GuardianLink link = new GuardianLink(actor.getTenantId(), UUID.randomUUID(), studentId, guardianPersonId,
+                firstName, lastName, normRel, email, phone, primary, "ACTIVE", now);
+
+        if (rows == null) {
+            rows = Collections.synchronizedList(new ArrayList<GuardianLink>());
+            links.put(key, rows);
+        }
+        rows.add(link);
+
+        if (persistence != null) {
+            persistence.linkExistingGuardian(actor, link);
+        }
+
+        logger.info("stm05 existing guardian linked guardianPersonId={} studentId={} guardianshipId={}",
+                guardianPersonId, studentId, link.id);
+        log(actor, "guardian.linked_existing", link.id);
+        recordHistory(actor, link, "MULTI_STUDENT_LINK", "NONE", link.relationship);
+        intelligenceService.publishGuardianLinked(actor, link, true);
+        return link;
+    }
+
+    /**
      * Updates the relationship and primary flag on an existing guardianship (STM-05-US-002).
      * Contact details stay on {@code core.persons}. This method does not write that table.
      *
@@ -766,6 +852,35 @@ public class GuardianDomainService {
             return Collections.emptyList();
         }
         return new ArrayList<GuardianLink>(rows);
+    }
+
+    /**
+     * Lists all student links for a particular guardian person (STM-05-US-015).
+     * Accessible by a registrar, or by the guardian person themselves.
+     *
+     * @throws GuardianException 403 when caller is not registrar or the guardian person
+     * @throws GuardianException 422 when guardianPersonId is missing
+     */
+    public List<GuardianLink> listStudentsForGuardian(Actor actor, UUID guardianPersonId) {
+        requireTenant(actor);
+        if (guardianPersonId == null) {
+            throw reject(422, "GUARDIAN_PERSON_REQUIRED", "Guardian person id is required");
+        }
+        if (!isRegistrar(actor) && !(actor.getUserId() != null && actor.getUserId().equals(guardianPersonId))) {
+            throw reject(403, "GUARDIAN_VIEW_FORBIDDEN", "Viewing linked students requires a registrar or the guardian themselves");
+        }
+        if (persistence != null) {
+            return persistence.findStudentsByGuardianPerson(actor, guardianPersonId);
+        }
+        List<GuardianLink> result = new ArrayList<GuardianLink>();
+        for (List<GuardianLink> studentLinks : links.values()) {
+            for (GuardianLink link : studentLinks) {
+                if (guardianPersonId.equals(link.guardianPersonId) && actor.getTenantId().equals(link.tenantId)) {
+                    result.add(link);
+                }
+            }
+        }
+        return result;
     }
 
     /**

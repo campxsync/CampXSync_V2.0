@@ -1,0 +1,106 @@
+{
+  "flowId": "STU1_01",
+  "flowName": "Student Attendance & Classes",
+  "persona": "Student 1",
+  "coldRun": {
+    "actionToVisible": 1264,
+    "ttfb": 187,
+    "lcp": 404
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1270,
+      "ttfb": 192,
+      "lcp": 416
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1062,
+      "ttfb": 169,
+      "lcp": 304
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1129,
+      "ttfb": 175,
+      "lcp": 356
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1043,
+      "ttfb": 165,
+      "lcp": 304
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1018,
+      "ttfb": 180,
+      "lcp": 308
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1047,
+      "ttfb": 158,
+      "lcp": 296
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1294,
+      "ttfb": 195,
+      "lcp": 424
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1296,
+      "ttfb": 197,
+      "lcp": 412
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1315,
+      "ttfb": 196,
+      "lcp": 432
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1266,
+      "ttfb": 214,
+      "lcp": 424
+    }
+  ],
+  "summary": {
+    "flowId": "STU1_01",
+    "flowName": "Student Attendance & Classes",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student",
+    "beforeP50": 0,
+    "afterP50": 1129,
+    "deltaMs": 1129,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1018,
+      "max": 1315,
+      "p50": 1129,
+      "p90": 1296,
+      "p95": 1315,
+      "avg": 1174
+    },
+    "ttfbStats": {
+      "min": 158,
+      "max": 214,
+      "p50": 180,
+      "p90": 197,
+      "p95": 214,
+      "avg": 184
+    },
+    "lcpStats": {
+      "min": 296,
+      "max": 432,
+      "p50": 356,
+      "p90": 424,
+      "p95": 432,
+      "avg": 368
+    }
+  }
+}

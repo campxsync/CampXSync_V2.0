@@ -68,6 +68,10 @@ public class GuardianController {
                     return json(200, emergencyNode(changed), correlationId);
                 }
             }
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/guardians/persons/") && normalized.endsWith("/students")) {
+                String personPart = normalized.substring("/api/v1/guardians/persons/".length(), normalized.length() - "/students".length());
+                return json(200, listNode(domain.listStudentsForGuardian(actor, UUID.fromString(personPart))), correlationId);
+            }
             if ("GET".equals(method) && normalized.startsWith("/api/v1/guardians/students/")) {
                 UUID studentId = UUID.fromString(normalized.substring("/api/v1/guardians/students/".length()));
                 return json(200, listNode(domain.listGuardians(actor, studentId)), correlationId);
@@ -159,6 +163,14 @@ public class GuardianController {
                 node.put("status", record.status);
                 node.put("fileStored", false);
                 return json(201, node, correlationId);
+            }
+            if ("POST".equals(method) && "/api/v1/guardians/link-existing".equals(normalized)) {
+                GuardianDomainService.GuardianLink link = domain.linkExistingGuardian(actor,
+                        uuid(json, "studentId"),
+                        uuid(json, "guardianPersonId"),
+                        text(json, "relationship"),
+                        json.path("primary").asBoolean(false));
+                return json(201, linkNode(link), correlationId);
             }
             if (("POST".equals(method) || "PATCH".equals(method)) && normalized.startsWith("/api/v1/guardians/")) {
                 String idPart = normalized.substring("/api/v1/guardians/".length());

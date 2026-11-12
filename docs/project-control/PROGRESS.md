@@ -544,5 +544,164 @@ STM-06-US-006 (Document Expiry, Retention & Regulatory Audit Trail) is closed on
   - Fast single-service recompile/restart via `scripts/dev/restart_service.ps1 document-service`.
 - **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 11/11 checkpoints (student authentication, desk load, submissions tab switch, expiry badge & retention code verification, regulatory audit trail modal inspection, empty initial log check, download & access log trigger, live committed regulatory access log entry verification in audit table, modal close, direct PostgreSQL read-only check on `doc.document_deliveries`, negative RBAC HTTP 403 check). Recorded in [`docs/demos/STM-06-US-006/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-006/demo.webm) and [`docs/demos/STM-06-US-006/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-006/DEMO.md).
 
+STM-04-US-007 (Program Transfer Request & Academic Standing) is closed on the live path at 2026-11-12 10:33:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/lifecycle`) → Next.js BFF (`/api/student/lifecycle`) → API Gateway (port 8080, route `/api/v1/lifecycle/*`) → Java Student Lifecycle Service (port 8096, `lifecycle-service`) → HikariCP Connection Pool (`LifecycleHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`stu.lifecycle_status`, `stu.lifecycle_requests`, `stu.lifecycle_transition_rules`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Status Transition Rules:**
+  - Implemented request submission and status lookup in `stu.lifecycle_requests` (`status='PENDING'`, `request_type='TRANSFER'`, `reason`).
+  - Validates current standing (`ACTIVE`) against transition rule `ACTIVE -> TRANSFERRED` configured in `stu.lifecycle_transition_rules`.
+  - Direct read-back verified row `5f93063a-dde5-4902-a087-95b7fea20a7e` committed in `stu.lifecycle_requests` with `student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924'`, `request_type = 'TRANSFER'`, `status = 'PENDING'`, and tag `DEMO-STM-04-US-007-559910`.
+- **UI & Student Self-Service Desk:**
+  - Displays Current Academic Standing badge (`ACTIVE`, emerald badge with shield icon).
+  - Multi-tab desk: "Request a Change", "My Requests", and "Lifecycle History".
+  - Form validation with mandatory rationale field.
+  - Immediate submission success banner and automatic switch to "My Requests" tab rendering the live pending request row and status badge.
+- **Security & RBAC Enforcement:**
+  - Student record authorization: `requireOrOpenOwn(actor, studentId)`.
+  - Negative RBAC verified: Cross-student request submission attempt by student `99999999-9999-9999-9999-999999999999` for record `81dd67d3-1d5f-4d8e-8061-a6764861f924` is rejected with HTTP 403 `FORBIDDEN` and RFC 7807 problem details (`REQUEST_FORBIDDEN: Students may only submit requests for their own record`).
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 9/9 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+  - Frontend Next.js production build: `npm run build` completed cleanly (39/39 routes compiled).
+- **Speed-up Tooling Utilized:**
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-007`) with declarative spec `docs/stories/STM-04-US-007.demo.json`.
+  - Fast single-service recompile/restart via `scripts/dev/restart_service.ps1 lifecycle-service`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 10/10 checkpoints (student authentication, desk load, standing badge verification, transfer request selection, rationale fill, request submission, success banner verification, switch to requests tab, live request row & pending status badge verification, direct PostgreSQL read-only check on `stu.lifecycle_requests`, negative RBAC HTTP 403 check). Recorded in [`docs/demos/STM-04-US-007/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-007/demo.webm) and [`docs/demos/STM-04-US-007/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-007/DEMO.md).
+
+STM-04-US-008 (Student Leave of Absence Request & Date Span Enforcement) is closed on the live path at 2026-11-12 11:20:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/lifecycle`) → Next.js BFF (`/api/student/lifecycle`) → API Gateway (port 8080, route `/api/v1/lifecycle/*`) → Java Student Lifecycle Service (port 8096, `lifecycle-service`) → HikariCP Connection Pool (`LifecycleHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`stu.lifecycle_status`, `stu.lifecycle_requests`, `stu.lifecycle_transition_rules`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Status Transition Rules:**
+  - Implemented leave-of-absence request submission with dynamic date spans in `stu.lifecycle_requests` (`status='PENDING'`, `request_type='LEAVE'`, `effective_date`, `reason` carrying `[Expected Return: YYYY-MM-DD]`).
+  - Validates current standing (`ACTIVE`) against transition rule `ACTIVE -> ON_LEAVE` configured in `stu.lifecycle_transition_rules`.
+  - Direct read-back verified row `e86ee2fb-948e-45bf-b016-63c4dc8227fa` committed in `stu.lifecycle_requests` with `student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924'`, `request_type = 'LEAVE'`, `status = 'PENDING'`, and tag `DEMO-STM-04-US-008-267637`.
+- **UI & Student Self-Service Desk:**
+  - Dynamic date inputs revealed upon selecting `Leave of Absence (LEAVE)`: `Effective Start Date` (`[data-testid="lifecycle-input-date"]`) and `Expected Return Date` (`[data-testid="lifecycle-input-return-date"]`).
+  - Date validation guardrails: past-date enforcement (cannot be earlier than today), date span order validation (`returnDate > effectiveDate`), and mandatory rationale (>= 5 chars).
+  - Validation error banner (`[data-testid="lifecycle-error-msg"]`) displayed on guardrail trigger.
+  - Immediate submission success banner (`[data-testid="lifecycle-success-msg"]`) and automatic switch to "My Requests" tab rendering the live pending leave row and status badge.
+- **Security & RBAC Enforcement:**
+  - Student record authorization: `requireOrOpenOwn(actor, studentId)`.
+  - Negative RBAC verified: Cross-student request submission attempt by student `99999999-9999-9999-9999-999999999999` for record `81dd67d3-1d5f-4d8e-8061-a6764861f924` is rejected with HTTP 403 `FORBIDDEN` and RFC 7807 problem details (`REQUEST_FORBIDDEN: Students may only submit requests for their own record`).
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS (including new unit test `leaveEffectiveDateCannotBeInPast`).
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-008`) with declarative spec `docs/stories/STM-04-US-008.demo.json`.
+  - Fast single-service recompile/restart via `scripts/dev/restart_service.ps1 lifecycle-service`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 13/13 checkpoints (student authentication, desk load, active standing badge, leave type selection, date span fields assertion, validation guardrail empty rationale check, validation error banner verification, valid date & rationale input, request submission, success banner verification, switch to requests tab, live leave row & pending status badge verification, direct PostgreSQL read-only check on `stu.lifecycle_requests`, negative RBAC HTTP 403 check). Recorded in [`docs/demos/STM-04-US-008/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-008/demo.webm) and [`docs/demos/STM-04-US-008/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-008/DEMO.md).
+
+STM-04-US-009 (Registrar Review, Approval & Denial of Leave Requests) is closed on the live path at 2026-11-12 11:38:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/lifecycle`) → Next.js BFF (`/api/college/lifecycle`) → API Gateway (port 8080, route `/api/v1/lifecycle/*`) → Java Student Lifecycle Service (port 8096, `lifecycle-service`) → HikariCP Connection Pool (`LifecycleHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`stu.lifecycle_requests`, `stu.lifecycle_status`, `stu.lifecycle_history`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Status Transition Rules:**
+  - Implemented decision review endpoint `POST /api/v1/lifecycle/requests/{id}/decide` (and `/decision`) updating `stu.lifecycle_requests` setting `status = 'APPROVED'`, `decided_by = caller_id`, and `decided_at = clock_timestamp()`.
+  - Atomically applies transition on `stu.lifecycle_status` updating student standing from `ACTIVE` to `ON_LEAVE` and appending a corresponding transition ledger entry to `stu.lifecycle_history` with `action='request.approved:LEAVE'` and `actor_role='COLLEGE_ADMIN'`.
+  - Direct read-back verified row `77777777-0004-0000-0000-000000000001` committed in `stu.lifecycle_requests` with `status = 'APPROVED'`, `decided_by = '70a8ffae-b5ad-4c61-a401-16f220893df4'` (College Admin), and student standing transitioned to `ON_LEAVE`.
+- **UI & Institutional Lifecycle Desk:**
+  - Enhanced `/college/lifecycle` desk displaying pending student lifecycle requests in a structured table.
+  - Action buttons per request: "Approve" and "Reject".
+  - Rejection workflow with modal dialog enforcing mandatory regulatory justification (>= 5 chars); client-side guardrail triggers on-screen alert banner.
+  - Formal approval execution with immediate green confirmation notification banner and live request queue refresh.
+- **Security & RBAC Enforcement:**
+  - Authoritative check: `requireRegistrar(actor)` allowing roles `R31`, `REGISTRAR`, `COLLEGE_ADMIN`, and `INSTITUTION_ADMIN`.
+  - Negative RBAC verified: Student attempting to decide a request (`POST /api/v1/lifecycle/requests/{id}/decide`) is rejected with HTTP 403 `FORBIDDEN` and RFC 7807 problem details (`REGISTRAR_FORBIDDEN: STM-04 configuration and approval require catalogue role R31 Registrar`).
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-009`) with declarative spec `docs/stories/STM-04-US-009.demo.json`.
+  - Supervisor daemon watchdog (`scripts/dev/start_stack.ps1`) monitoring and maintaining health of all 4 services.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 13/13 checkpoints (staff authentication, desk load, pending queue inspection, leave request badges assertion, rejection modal trigger, empty rejection reason guardrail, validation alert banner, modal dismissal, approval execution, success confirmation, committed PostgreSQL request check, committed student status transition check to `ON_LEAVE`, negative RBAC HTTP 403 check). Recorded in [`docs/demos/STM-04-US-009/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-009/demo.webm) and [`docs/demos/STM-04-US-009/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-009/DEMO.md).
+
+STM-04-US-010 (Student Voluntary Withdrawal Petition & Institutional Exit Request) is closed on the live path at 2026-11-12 12:13:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/lifecycle`) → Next.js BFF (`/api/student/lifecycle`) → API Gateway (port 8080) → Java Microservice (`lifecycle-service` on port 8096) → HikariCP Connection Pool → Supabase PostgreSQL (`stu.lifecycle_requests` on `azulbaxszsqxymqmlwfe`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database read-back on dev ref `azulbaxszsqxymqmlwfe`:**
+  - Direct read-back verified row committed in `stu.lifecycle_requests` with `student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924'`, `request_type = 'WITHDRAWAL'`, `status = 'PENDING'`, `effective_date = '2026-12-15'`, and tag `DEMO-STM-04-US-010-571259`.
+- **Validation & Multi-Tenant Isolation:**
+  - Enforced effective exit date and minimum 5-character formal rationale validation.
+  - Client-side validation guardrails prevent empty or malformed submissions with immediate error alerting.
+  - Fail-closed unauthenticated access: requests to `/api/v1/lifecycle/requests` rejected with HTTP 401 Unauthorized.
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Clean compiled bytecode rebuild (`scripts/dev/build_lifecycle_service.ps1`).
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-010`) with declarative spec `docs/stories/STM-04-US-010.demo.json`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 14/14 checkpoints (student authentication, desk load, standing badge verification, withdrawal request selection, effective exit date input, validation guardrail assertion, rationale fill, request submission, success banner verification, switch to requests tab, live request row & pending status badge verification, direct PostgreSQL read-only check on `stu.lifecycle_requests`, negative RBAC HTTP 401 check). Recorded in [`docs/demos/STM-04-US-010/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-010/demo.webm) and [`docs/demos/STM-04-US-010/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-010/DEMO.md).
+
+STM-04-US-011 (Student Reinstatement Request & Return to Active Academic Standing) is closed on the live path at 2026-11-12 12:23:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/lifecycle`) → Next.js BFF (`/api/student/lifecycle`) → API Gateway (port 8080) → Java Microservice (`lifecycle-service` on port 8096) → HikariCP Connection Pool → Supabase PostgreSQL (`stu.lifecycle_requests` on `azulbaxszsqxymqmlwfe`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database read-back on dev ref `azulbaxszsqxymqmlwfe`:**
+  - Direct read-back verified row committed in `stu.lifecycle_requests` with `student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924'`, `request_type = 'REINSTATE'`, `status = 'PENDING'`, and tag `DEMO-STM-04-US-011-170891`.
+- **Validation & Multi-Tenant Isolation:**
+  - Enforced standing prerequisite: student must have `ON_LEAVE` standing to initiate reinstatement (attempts while `ACTIVE` fail with HTTP 422 `TRANSITION_INVALID`).
+  - Minimum 5-character formal clearance justification enforced by client-side and server-side guardrails.
+  - Fail-closed unauthenticated access: requests to `/api/v1/lifecycle/requests` rejected with HTTP 401 Unauthorized.
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-011`) with declarative spec `docs/stories/STM-04-US-011.demo.json`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 12/12 checkpoints (student authentication, desk load, ON_LEAVE standing badge assertion, reinstatement request selection, validation guardrail assertion, medical clearance rationale fill, request submission, success banner verification, switch to requests tab, live request row & pending status badge verification, direct PostgreSQL read-only check on `stu.lifecycle_requests`, negative RBAC HTTP 401 check). Recorded in [`docs/demos/STM-04-US-011/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-011/demo.webm) and [`docs/demos/STM-04-US-011/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-011/DEMO.md).
+
+STM-04-US-012 (Registrar Review and Graduation Eligibility Certification & Degree Clearance) is closed on the live path at 2026-11-12 12:30:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/lifecycle`) → Next.js BFF (`/api/college/lifecycle`) → API Gateway (port 8080) → Java Microservice (`lifecycle-service` on port 8096) → HikariCP Connection Pool → Supabase PostgreSQL (`stu.graduation_records`, `stu.lifecycle_status` on `azulbaxszsqxymqmlwfe`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database read-back on dev ref `azulbaxszsqxymqmlwfe`:**
+  - Direct read-back verified row committed in `stu.graduation_records` with `student_id = '81dd67d3-1d5f-4d8e-8061-a67648610008'`, `program_id = 'a0000000-0000-0000-0000-000000000040'`, `graduated_on = '2026-11-12'`.
+  - Direct read-back verified student standing updated in `stu.lifecycle_status` to `GRADUATED`.
+  - Direct read-back verified audit ledger append in `stu.lifecycle_history` with action `graduation.recorded` and target status `GRADUATED`.
+- **Validation & Multi-Tenant Isolation:**
+  - Automated pre-validation gate (`validateGraduation()`): Enforces student `ACTIVE` standing and absence of pending lifecycle petitions before permitting graduation recording.
+  - Fail-closed unauthenticated access: requests to `/api/v1/lifecycle/graduation/record` rejected with HTTP 401 Unauthorized.
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-012`) with declarative spec `docs/stories/STM-04-US-012.demo.json`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 13/13 checkpoints (staff authentication, desk load, student ID input, programme ID input, graduation date input, eligibility pre-validation check, eligibility success assertion, irreversible graduation certification dispatch, graduation success banner verification, PostgreSQL graduation record committed check, PostgreSQL student status transition check to `GRADUATED`, PostgreSQL history ledger committed check, negative RBAC HTTP 401 check). Recorded in [`docs/demos/STM-04-US-012/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-012/demo.webm) and [`docs/demos/STM-04-US-012/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-012/DEMO.md).
+
+STM-04-US-013 (Faculty Advisor Assignment & Advisee Status Tracking) is closed on the live path at 2026-11-12 12:50:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/lifecycle`, `/faculty/advisees`) → Next.js BFF (`/api/college/lifecycle`, `/api/faculty/lifecycle`) → API Gateway (port 8080) → Java Microservice (`lifecycle-service` on port 8096) → HikariCP Connection Pool → Supabase PostgreSQL (`stu.lifecycle_history`, `stu.lifecycle_status` on `azulbaxszsqxymqmlwfe`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database read-back on dev ref `azulbaxszsqxymqmlwfe`:**
+  - Direct read-back verified row committed in `stu.lifecycle_history` with `student_id = '81dd67d3-1d5f-4d8e-8061-a67648610013'`, `action = 'advisor:11111111-9e05-0000-0000-000000000001'`, and `actor_role = 'COLLEGE_ADMIN'`.
+  - Direct read-back verified advisee roster for faculty advisor `11111111-9e05-0000-0000-000000000001` returns student `81dd67d3-1d5f-4d8e-8061-a67648610013` with `ACTIVE` standing and live effective timestamp from `stu.lifecycle_status`.
+- **Validation & Multi-Tenant Isolation:**
+  - Registrar authorization enforced: Only R31 / College Admin can execute advisor assignments (`assignAdvisor()`).
+  - Advisee roster RBAC enforced: `GET /api/v1/lifecycle/advisees` restricted strictly to assigned faculty advisors (`requireTenant`, `isAdvisor`); unauthenticated requests rejected with HTTP 401 Unauthorized, unauthorized students rejected with HTTP 403 `ADVISOR_FORBIDDEN`.
+- **Intelligence Layer Integration:** Emitted `student.lifecycle.changed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-013`) with declarative spec `docs/stories/STM-04-US-013.demo.json`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 14/14 checkpoints (staff authentication, desk load, student ID input, faculty advisor user ID input, assignment dispatch, success notification assertion, PostgreSQL audit history committed check, faculty advisor authentication, advisee desk load, advisee roster appearance, standing status badge check, negative RBAC HTTP 401 check, regression check on college lifecycle desk). Recorded in [`docs/demos/STM-04-US-013/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-013/demo.webm) and [`docs/demos/STM-04-US-013/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-013/DEMO.md).
+
+STM-04-US-014 (Institutional Lifecycle Summary & Status Transition Analytics) is closed on the live path at 2026-11-12 13:08:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/lifecycle`) → Next.js BFF (`/api/college/lifecycle?view=report`) → API Gateway (port 8080) → Java Microservice (`lifecycle-service` on port 8096) → HikariCP Connection Pool → Supabase PostgreSQL (`stu.lifecycle_status`, `stu.lifecycle_requests` on `azulbaxszsqxymqmlwfe`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database read-back on dev ref `azulbaxszsqxymqmlwfe`:**
+  - Real-time aggregation queries on `stu.lifecycle_status` and `stu.lifecycle_requests` via `persistence.findAllStatuses(actor)` and `persistence.findPendingRequests(actor)`.
+  - Returned live institutional metrics: Total Students: 7, Pending Requests: 4, Active Standing: 2, On Leave: 1, Graduated: 2, Transferred: 1, Withdrawn: 1.
+- **Validation & Multi-Tenant Isolation:**
+  - Enforced Registrar / Institutional Admin role check (`requireRegistrar`); unauthenticated requests rejected by API Gateway with HTTP 401 Unauthorized, student callers rejected with HTTP 403 `FORBIDDEN` / `REGISTRAR_FORBIDDEN`.
+- **Observability & Logging:** Instrumented with `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Lifecycle Service.
+- **Automated Tests:**
+  - Java Lifecycle Service Unit Tests: 10/10 PASS.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Multi-threaded executor configuration on `LifecycleApplication` (`Executors.newCachedThreadPool()`).
+  - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-014`) with declarative spec `docs/stories/STM-04-US-014.demo.json`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 15/15 checkpoints (staff authentication, desk load, summary analytics card inspection, total enrolled metric assertion, pending petitions metric assertion, active standing metric assertion, on-leave metric assertion, graduated metric assertion, transferred metric assertion, withdrawn metric assertion, direct PostgreSQL status aggregate count check, direct PostgreSQL pending queue count check, unauthenticated API Gateway direct check 401, student session role isolation check, student status badge regression check). Recorded in [`docs/demos/STM-04-US-014/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-014/demo.webm) and [`docs/demos/STM-04-US-014/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-014/DEMO.md).
+
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–10 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

@@ -109,6 +109,17 @@ public class LifecycleDomainServiceTest {
     }
 
     @Test
+    public void leaveEffectiveDateCannotBeInPast() {
+        try {
+            service.submitRequest(studentActor, student, "LEAVE", "Medical leave", LocalDate.parse("2026-11-01"));
+            fail("Effective date in the past must be rejected");
+        } catch (LifecycleException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("EFFECTIVE_DATE_INVALID", ex.getCode());
+        }
+    }
+
+    @Test
     public void registrarReportCountsStatusesAndAdvisorSeesOnlyAdvisees() {
         java.util.Map<String, Object> report = service.lifecycleReport(registrar);
         assertEquals(Integer.valueOf(2), report.get("studentCount"));

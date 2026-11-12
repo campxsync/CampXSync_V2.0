@@ -1,0 +1,118 @@
+{
+  "storyId": "STM-04-US-010",
+  "title": "Student Voluntary Withdrawal Petition & Institutional Exit Request",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "INSERT INTO stu.lifecycle_status (tenant_id, student_id, status, effective_from, updated_at) VALUES ('a0000000-0000-0000-0000-000000000001', '81dd67d3-1d5f-4d8e-8061-a6764861f924', 'ACTIVE', now() - interval '90 days', now()) ON CONFLICT (tenant_id, student_id) DO UPDATE SET status = 'ACTIVE', updated_at = now()"
+    },
+    {
+      "query": "INSERT INTO stu.lifecycle_transition_rules (tenant_id, id, from_status, to_status, requires_approval, active) VALUES ('a0000000-0000-0000-0000-000000000001', '44444444-0004-0000-0000-000000000003', 'ACTIVE', 'WITHDRAWN', true, true) ON CONFLICT (tenant_id, from_status, to_status) DO UPDATE SET active = true, requires_approval = true"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Portal Authentication",
+      "description": "Student authenticates to CampXSync with authorized student session and institutional tenant context",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Student Lifecycle Desk",
+      "description": "Verify student lifecycle workspace loads with verified ACTIVE academic standing badge",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-status-badge\"]",
+      "highlight": "[data-testid=\"lifecycle-status-badge\"]"
+    },
+    {
+      "title": "Select Voluntary Withdrawal Request Type",
+      "description": "Student selects 'Voluntary Withdrawal (WITHDRAWAL)' from request type dropdown",
+      "action": "select",
+      "selector": "[data-testid=\"lifecycle-select-type\"]",
+      "value": "WITHDRAWAL",
+      "highlight": "[data-testid=\"lifecycle-select-type\"]"
+    },
+    {
+      "title": "Verify Effective Date Field Displayed",
+      "description": "Form dynamically exposes mandatory Effective Exit Date input for regulatory archiving",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-input-date\"]",
+      "highlight": "[data-testid=\"lifecycle-input-date\"]"
+    },
+    {
+      "title": "Set Effective Withdrawal Date",
+      "description": "Student enters proposed effective institutional exit date",
+      "action": "fill",
+      "selector": "[data-testid=\"lifecycle-input-date\"]",
+      "value": "2026-12-15",
+      "highlight": "[data-testid=\"lifecycle-input-date\"]"
+    },
+    {
+      "title": "Validation Error Guardrail",
+      "description": "Attempting submission with empty rationale triggers immediate validation alert banner",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-submit-btn\"]",
+      "highlight": "[data-testid=\"lifecycle-submit-btn\"]"
+    },
+    {
+      "title": "Verify Validation Alert Banner",
+      "description": "System displays validation warning enforcing minimum 5-character exit justification",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-error-msg\"]",
+      "highlight": "[data-testid=\"lifecycle-error-msg\"]"
+    },
+    {
+      "title": "Provide Valid Withdrawal Rationale",
+      "description": "Student enters detailed formal voluntary withdrawal petition with career and relocation details",
+      "action": "fill",
+      "selector": "[data-testid=\"lifecycle-input-reason\"]",
+      "value": "{{DEMO_TAG}} Formal voluntary withdrawal petition due to career opportunity and interstate relocation.",
+      "highlight": "[data-testid=\"lifecycle-input-reason\"]"
+    },
+    {
+      "title": "Submit Withdrawal Request",
+      "description": "Click 'Submit Request' button, dispatching POST /api/v1/lifecycle/requests through API Gateway to lifecycle-service",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-submit-btn\"]",
+      "highlight": "[data-testid=\"lifecycle-submit-btn\"]"
+    },
+    {
+      "title": "Verify Submission Confirmation",
+      "description": "System displays immediate success banner confirming withdrawal petition is recorded and awaiting registrar review",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"lifecycle-success-msg\"]"
+    },
+    {
+      "title": "Switch to My Requests Tab",
+      "description": "Navigate to 'My Requests' tab to review submitted lifecycle petitions",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-tab-requests\"]",
+      "highlight": "[data-testid=\"lifecycle-tab-requests\"]"
+    },
+    {
+      "title": "Verify Withdrawal Request Row and Status Badge",
+      "description": "Withdrawal petition is displayed live in requests table with PENDING status badge",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-req-status-0\"]",
+      "highlight": "[data-testid=\"lifecycle-req-row-0\"]"
+    },
+    {
+      "title": "PostgreSQL Database Committed Check",
+      "description": "Read-only query verifies stu.lifecycle_requests has committed the request with type WITHDRAWAL and status PENDING",
+      "action": "db_check",
+      "query": "SELECT id, student_id, request_type, status, reason, effective_date FROM stu.lifecycle_requests WHERE student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924' AND request_type = 'WITHDRAWAL' AND reason LIKE '%{{DEMO_TAG}}%'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Enforcement Check",
+      "description": "Unauthenticated API request to gateway lifecycle endpoints must fail closed with HTTP 401 Unauthorized",
+      "action": "api_call",
+      "url": "http://localhost:8080/api/v1/lifecycle/requests",
+      "method": "GET",
+      "expectedStatus": 401
+    }
+  ]
+}
+

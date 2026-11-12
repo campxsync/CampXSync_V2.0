@@ -1,0 +1,106 @@
+{
+  "flowId": "COL_17",
+  "flowName": "Lifecycle Operations",
+  "persona": "College Admin",
+  "coldRun": {
+    "actionToVisible": 2116,
+    "ttfb": 132,
+    "lcp": 340
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 2021,
+      "ttfb": 125,
+      "lcp": 324
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1925,
+      "ttfb": 155,
+      "lcp": 368
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1991,
+      "ttfb": 127,
+      "lcp": 340
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 2020,
+      "ttfb": 181,
+      "lcp": 400
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1917,
+      "ttfb": 104,
+      "lcp": 304
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 2006,
+      "ttfb": 115,
+      "lcp": 316
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 2307,
+      "ttfb": 116,
+      "lcp": 308
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 2199,
+      "ttfb": 114,
+      "lcp": 324
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 2187,
+      "ttfb": 166,
+      "lcp": 392
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 2110,
+      "ttfb": 120,
+      "lcp": 324
+    }
+  ],
+  "summary": {
+    "flowId": "COL_17",
+    "flowName": "Lifecycle Operations",
+    "persona": "College Admin",
+    "target": "http://localhost:3000/college/lifecycle",
+    "beforeP50": 0,
+    "afterP50": 2020,
+    "deltaMs": 2020,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1917,
+      "max": 2307,
+      "p50": 2020,
+      "p90": 2199,
+      "p95": 2307,
+      "avg": 2068
+    },
+    "ttfbStats": {
+      "min": 104,
+      "max": 181,
+      "p50": 120,
+      "p90": 166,
+      "p95": 181,
+      "avg": 132
+    },
+    "lcpStats": {
+      "min": 304,
+      "max": 400,
+      "p50": 324,
+      "p90": 392,
+      "p95": 400,
+      "avg": 340
+    }
+  }
+}

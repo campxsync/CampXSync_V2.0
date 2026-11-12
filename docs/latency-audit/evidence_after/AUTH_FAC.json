@@ -1,0 +1,106 @@
+{
+  "flowId": "AUTH_FAC",
+  "flowName": "Faculty Login to Dashboard",
+  "persona": "Faculty",
+  "coldRun": {
+    "actionToVisible": 1238,
+    "ttfb": 264,
+    "lcp": 564
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1210,
+      "ttfb": 252,
+      "lcp": 540
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1242,
+      "ttfb": 259,
+      "lcp": 544
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1199,
+      "ttfb": 210,
+      "lcp": 488
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1168,
+      "ttfb": 215,
+      "lcp": 500
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1180,
+      "ttfb": 221,
+      "lcp": 524
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1226,
+      "ttfb": 255,
+      "lcp": 548
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1208,
+      "ttfb": 212,
+      "lcp": 504
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1178,
+      "ttfb": 228,
+      "lcp": 512
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1086,
+      "ttfb": 173,
+      "lcp": 340
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1031,
+      "ttfb": 173,
+      "lcp": 332
+    }
+  ],
+  "summary": {
+    "flowId": "AUTH_FAC",
+    "flowName": "Faculty Login to Dashboard",
+    "persona": "Faculty",
+    "target": "/faculty",
+    "beforeP50": 0,
+    "afterP50": 1180,
+    "deltaMs": 1180,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1031,
+      "max": 1242,
+      "p50": 1180,
+      "p90": 1226,
+      "p95": 1242,
+      "avg": 1173
+    },
+    "ttfbStats": {
+      "min": 173,
+      "max": 259,
+      "p50": 215,
+      "p90": 255,
+      "p95": 259,
+      "avg": 220
+    },
+    "lcpStats": {
+      "min": 332,
+      "max": 548,
+      "p50": 504,
+      "p90": 544,
+      "p95": 548,
+      "avg": 483
+    }
+  }
+}

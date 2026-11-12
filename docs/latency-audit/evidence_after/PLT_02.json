@@ -1,0 +1,106 @@
+{
+  "flowId": "PLT_02",
+  "flowName": "Institutes Registry",
+  "persona": "Platform Admin",
+  "coldRun": {
+    "actionToVisible": 1233,
+    "ttfb": 157,
+    "lcp": 340
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1176,
+      "ttfb": 149,
+      "lcp": 340
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1303,
+      "ttfb": 163,
+      "lcp": 336
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1291,
+      "ttfb": 169,
+      "lcp": 364
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1298,
+      "ttfb": 178,
+      "lcp": 380
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1227,
+      "ttfb": 183,
+      "lcp": 372
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1200,
+      "ttfb": 148,
+      "lcp": 324
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1235,
+      "ttfb": 179,
+      "lcp": 372
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1252,
+      "ttfb": 187,
+      "lcp": 372
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1216,
+      "ttfb": 168,
+      "lcp": 364
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1245,
+      "ttfb": 172,
+      "lcp": 388
+    }
+  ],
+  "summary": {
+    "flowId": "PLT_02",
+    "flowName": "Institutes Registry",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform/institutes",
+    "beforeP50": 0,
+    "afterP50": 1235,
+    "deltaMs": 1235,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1176,
+      "max": 1303,
+      "p50": 1235,
+      "p90": 1298,
+      "p95": 1303,
+      "avg": 1244
+    },
+    "ttfbStats": {
+      "min": 148,
+      "max": 187,
+      "p50": 169,
+      "p90": 183,
+      "p95": 187,
+      "avg": 170
+    },
+    "lcpStats": {
+      "min": 324,
+      "max": 388,
+      "p50": 364,
+      "p90": 380,
+      "p95": 388,
+      "avg": 361
+    }
+  }
+}

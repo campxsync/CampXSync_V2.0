@@ -25,6 +25,7 @@
         <module>enrollment-service</module>
         <module>lifecycle-service</module>
         <module>guardian-service</module>
+        <module>document-service</module>
     </modules>
 </project>
 

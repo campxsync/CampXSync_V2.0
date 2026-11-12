@@ -1,0 +1,113 @@
+{
+  "storyId": "STM-04-US-014",
+  "title": "Institutional Lifecycle Summary & Status Transition Analytics",
+  "slowMo": 350,
+  "steps": [
+    {
+      "title": "Registrar Portal Authentication",
+      "description": "College Administrator / Registrar authenticates to CampXSync with authorized R31 staff session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Lifecycle Review Desk",
+      "description": "Verify College Lifecycle Review workspace loads with institutional management authority",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Inspect Lifecycle Summary & Analytics Card",
+      "description": "System displays live aggregate analytics card queried via GET /api/v1/lifecycle/reports/summary",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-summary-section\"]",
+      "highlight": "[data-testid=\"college-lifecycle-summary-section\"]"
+    },
+    {
+      "title": "Verify Total Enrolled Students Metric",
+      "description": "Registrar reviews real-time total student count across all lifecycle states in tenant",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-total\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-total\"]"
+    },
+    {
+      "title": "Verify Pending Petitions Bottleneck Volume",
+      "description": "Registrar audits current pending leave, transfer, and reinstatement requests in review queue",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-pending\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-pending\"]"
+    },
+    {
+      "title": "Verify Active Standing Student Volume",
+      "description": "System renders active student count currently enrolled and in good academic standing",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-active\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-active\"]"
+    },
+    {
+      "title": "Verify On Leave Student Volume",
+      "description": "System renders count of students on approved formal leave of absence",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-on-leave\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-on-leave\"]"
+    },
+    {
+      "title": "Verify Graduated Conferred Student Metric",
+      "description": "System renders aggregate count of alumni who completed degree clearance",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-graduated\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-graduated\"]"
+    },
+    {
+      "title": "Verify Transferred Standing Metric",
+      "description": "System renders count of students migrated to new academic programmes or branches",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-transferred\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-transferred\"]"
+    },
+    {
+      "title": "Verify Withdrawn Student Metric",
+      "description": "System renders count of students who underwent voluntary institutional exit",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-withdrawn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-withdrawn\"]"
+    },
+    {
+      "title": "PostgreSQL Lifecycle Status Aggregate Check",
+      "description": "Read-only query verifies stu.lifecycle_status contains multi-record standing data for the tenant",
+      "action": "db_check",
+      "query": "SELECT count(*) AS total_students FROM stu.lifecycle_status WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'",
+      "minCount": 1
+    },
+    {
+      "title": "PostgreSQL Pending Requests Queue Check",
+      "description": "Read-only query verifies stu.lifecycle_requests contains active pending petition records",
+      "action": "db_check",
+      "query": "SELECT count(*) AS pending_count FROM stu.lifecycle_requests WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND status = 'PENDING'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Check — Gateway Direct Access Unauthenticated Denied",
+      "description": "Gateway strictly blocks unauthenticated requests to /api/v1/lifecycle/reports/summary with HTTP 401 Unauthorized",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/reports/summary",
+      "expectedStatus": 401
+    },
+    {
+      "title": "Regression Check — Student Desk Role Isolation",
+      "description": "Authenticate as Student (R25) to verify student workspace remains strictly role-isolated",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Regression Check — Student Standing Badge Responsive",
+      "description": "Verify student lifecycle workspace loads without administrative analytics leakage",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-status-badge\"]",
+      "highlight": "[data-testid=\"lifecycle-status-badge\"]"
+    }
+  ]
+}

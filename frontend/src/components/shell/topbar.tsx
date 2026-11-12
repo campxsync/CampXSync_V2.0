@@ -39,6 +39,11 @@ export function Topbar({
   const router = useRouter();
   const supabase = createClient();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -69,6 +74,7 @@ export function Topbar({
         {onToggleMobileMenu && (
           <button
             type="button"
+            suppressHydrationWarning
             onClick={onToggleMobileMenu}
             className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#0B1F3A] hover:bg-[#F6F8FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] md:hidden"
             aria-label="Toggle navigation menu"
@@ -86,13 +92,14 @@ export function Topbar({
       </div>
 
       {/* Right: Actions, Role Badge, Preferences & User Menu */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0" suppressHydrationWarning>
         {getRoleBadge()}
 
-        {onOpenPreferences && (
+        {mounted && onOpenPreferences && (
           <Button
             variant="ghost"
             size="sm"
+            suppressHydrationWarning
             onClick={onOpenPreferences}
             className="text-[#475569] hover:text-[#1B2433]"
             title="Workspace Preferences"
@@ -104,6 +111,8 @@ export function Topbar({
         {/* User Menu Trigger */}
         <div className="relative">
           <button
+            type="button"
+            suppressHydrationWarning
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 rounded-[8px] p-1.5 hover:bg-[#F6F8FB] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB]"
             aria-haspopup="menu"
@@ -132,6 +141,8 @@ export function Topbar({
 
               {onOpenPreferences && (
                 <button
+                  type="button"
+                  suppressHydrationWarning
                   onClick={() => {
                     setShowUserMenu(false);
                     onOpenPreferences();
@@ -146,6 +157,8 @@ export function Topbar({
               <div className="border-t border-[#E3E8EF] my-1" />
 
               <button
+                type="button"
+                suppressHydrationWarning
                 onClick={handleSignOut}
                 className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#D64545] hover:bg-[#FDECEC]"
               >

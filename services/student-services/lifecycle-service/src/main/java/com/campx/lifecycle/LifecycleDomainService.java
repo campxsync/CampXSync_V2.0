@@ -14,11 +14,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * STM-04 student lifecycle authority.
@@ -162,6 +164,9 @@ public class LifecycleDomainService {
         if ("WITHDRAWAL".equals(normalizedType) && effectiveDate == null) {
             throw reject(422, "EFFECTIVE_DATE_REQUIRED", "Withdrawal requires an effective date");
         }
+        if (effectiveDate != null && effectiveDate.isBefore(LocalDate.now(clock))) {
+            throw reject(422, "EFFECTIVE_DATE_INVALID", "Effective date cannot be in the past");
+        }
         LifecycleStatus current = requireStatus(actor.getTenantId(), studentId);
         String targetStatus = targetStatusForRequest(normalizedType, current.status);
         TransitionRule rule = findRule(actor.getTenantId(), current.status, targetStatus);
@@ -198,6 +203,15 @@ public class LifecycleDomainService {
         if (!"PENDING".equals(request.status)) {
             throw reject(409, "REQUEST_ALREADY_DECIDED", "Request has already been decided");
         }
+
+        LifecycleStatus current = null;
+        String target = null;
+        if ("APPROVED".equals(normalized)) {
+            current = requireStatus(actor.getTenantId(), request.studentId);
+            target = targetStatusForRequest(request.requestType, current.status);
+            assertTransitionAllowed(actor.getTenantId(), current.status, target);
+        }
+
         Instant now = clock.instant();
         request.status = normalized;
         request.decidedBy = actor.getUserId();
@@ -205,10 +219,7 @@ public class LifecycleDomainService {
         if (persistence != null) {
             persistence.saveRequest(actor, request);
         }
-        if ("APPROVED".equals(normalized)) {
-            LifecycleStatus current = requireStatus(actor.getTenantId(), request.studentId);
-            String target = targetStatusForRequest(request.requestType, current.status);
-            assertTransitionAllowed(actor.getTenantId(), current.status, target);
+        if ("APPROVED".equals(normalized) && current != null && target != null) {
             applyTransition(actor, current, target, "request.approved:" + request.requestType, request.id, request.effectiveDate);
         }
         log(actor, "lifecycle.request." + normalized.toLowerCase(), request.studentId);
@@ -226,7 +237,7 @@ public class LifecycleDomainService {
         if (advisorUserId == null || studentId == null) {
             throw reject(422, "ADVISOR_INVALID", "Advisor and student are required");
         }
-        requireOrOpenForStaff(actor, studentId);
+        LifecycleStatus status = requireOrOpenForStaff(actor, studentId);
         String key = advisorKey(actor.getTenantId(), advisorUserId);
         Set<UUID> advisees = adviseesByAdvisor.get(key);
         if (advisees == null) {
@@ -234,12 +245,46 @@ public class LifecycleDomainService {
             adviseesByAdvisor.put(key, advisees);
         }
         advisees.add(studentId);
-        log(actor, "lifecycle.advisor.assigned", studentId);
+
+        HistoryEntry entry = new HistoryEntry(actor.getTenantId(), UUID.randomUUID(), studentId, status.status,
+                "advisor:" + advisorUserId, actor.getRole(), Instant.now());
+        String historyKey = statusKey(actor.getTenantId(), studentId);
+        List<HistoryEntry> rows = history.get(historyKey);
+        if (rows == null) {
+            rows = new CopyOnWriteArrayList<HistoryEntry>();
+            history.put(historyKey, rows);
+        }
+        rows.add(entry);
+        if (persistence != null) {
+            persistence.appendHistory(actor, entry);
+        }
+
+        log(actor, "advisor:" + advisorUserId, studentId);
+        emitLifecycleChanged(actor, studentId, status.status, status.status, "advisor:" + advisorUserId, null, Instant.now());
+    }
+
+    /**
+     * Administratively transitions or reinstates a student's status.
+     *
+     * @throws LifecycleException 403 when caller is not a registrar
+     * @throws LifecycleException 422 when student or target status is missing
+     */
+    public LifecycleStatus transitionStatus(Actor actor, UUID studentId, String targetStatus, String reason) {
+        requireRegistrar(actor);
+        if (studentId == null) {
+            throw reject(422, "STUDENT_REQUIRED", "Student ID is required");
+        }
+        requireText(targetStatus, "targetStatus");
+        String normalized = targetStatus.trim().toUpperCase();
+        LifecycleStatus current = requireOrOpenForStaff(actor, studentId);
+        applyTransition(actor, current, normalized, "administrative.transition:" + (reason == null || reason.trim().isEmpty() ? "REGISTRAR" : reason.trim()), null);
+        log(actor, "lifecycle.status.transitioned", studentId);
+        return current;
     }
 
     /**
      * Returns limited status for advisees assigned to the calling faculty member.
-     * Assignment is held in memory until an advisor table is approved.
+     * Queries committed PostgreSQL history for persisted assignments as well as runtime state.
      *
      * @throws LifecycleException 403 when the caller is not faculty or an advisor
      */
@@ -248,12 +293,20 @@ public class LifecycleDomainService {
         if (!isAdvisor(actor)) {
             throw reject(403, "ADVISOR_FORBIDDEN", "Advisee status is limited to the assigned faculty advisor");
         }
-        Set<UUID> advisees = adviseesByAdvisor.get(advisorKey(actor.getTenantId(), actor.getUserId()));
-        List<Map<String, String>> rows = new ArrayList<Map<String, String>>();
-        if (advisees == null) {
-            return rows;
+        Set<UUID> adviseeIds = new LinkedHashSet<UUID>();
+        if (persistence != null && actor.getUserId() != null) {
+            try {
+                adviseeIds.addAll(persistence.findAdviseesByAdvisor(actor, actor.getUserId()));
+            } catch (Exception ex) {
+                // fallback to runtime state if db lookup encountered non-fatal issue
+            }
         }
-        for (UUID studentId : advisees) {
+        Set<UUID> inMem = adviseesByAdvisor.get(advisorKey(actor.getTenantId(), actor.getUserId()));
+        if (inMem != null) {
+            adviseeIds.addAll(inMem);
+        }
+        List<Map<String, String>> rows = new ArrayList<Map<String, String>>();
+        for (UUID studentId : adviseeIds) {
             LifecycleStatus status = requireStatus(actor.getTenantId(), studentId);
             Map<String, String> row = new LinkedHashMap<String, String>();
             row.put("studentId", studentId.toString());
@@ -301,9 +354,11 @@ public class LifecycleDomainService {
     public List<LifecycleRequest> listPendingRequests(Actor actor) {
         requireRegistrar(actor);
         if (persistence != null) {
-            for (LifecycleRequest loaded : persistence.findPendingRequests(actor)) {
+            List<LifecycleRequest> fromDb = persistence.findPendingRequests(actor);
+            for (LifecycleRequest loaded : fromDb) {
                 requests.put(requestKey(loaded.tenantId, loaded.id), loaded);
             }
+            return fromDb;
         }
         List<LifecycleRequest> pending = new ArrayList<LifecycleRequest>();
         for (LifecycleRequest request : requests.values()) {
@@ -312,6 +367,33 @@ public class LifecycleDomainService {
             }
         }
         return pending;
+    }
+
+    /**
+     * Lists all lifecycle requests submitted by or for a student.
+     *
+     * @throws LifecycleException 403 when a student tries to view another student's requests
+     */
+    public List<LifecycleRequest> listStudentRequests(Actor actor, UUID studentId) {
+        requireTenant(actor);
+        forbidFaculty(actor);
+        if (isStudent(actor) && !actor.subjectStudentId().equals(studentId)) {
+            throw reject(403, "REQUEST_FORBIDDEN", "Students may only view requests for their own record");
+        }
+        if (persistence != null) {
+            List<LifecycleRequest> fromDb = persistence.findRequestsByStudent(actor, studentId);
+            for (LifecycleRequest loaded : fromDb) {
+                requests.put(requestKey(loaded.tenantId, loaded.id), loaded);
+            }
+            return fromDb;
+        }
+        List<LifecycleRequest> result = new ArrayList<LifecycleRequest>();
+        for (LifecycleRequest request : requests.values()) {
+            if (request.tenantId.equals(actor.getTenantId()) && request.studentId.equals(studentId)) {
+                result.add(request);
+            }
+        }
+        return result;
     }
 
     /**
@@ -544,31 +626,35 @@ public class LifecycleDomainService {
         if (tenantId == null) {
             throw reject(401, "TENANT_REQUIRED", "Tenant context is required");
         }
-        LifecycleStatus status = statuses.get(statusKey(tenantId, studentId));
-        if (status != null) {
-            return status;
-        }
         if (persistence != null) {
             Actor lookup = new Actor(tenantId, tenantId, "REGISTRAR", "persistence-load");
-            status = persistence.findStatus(lookup, studentId);
-            statuses.put(statusKey(tenantId, studentId), status);
+            LifecycleStatus status = persistence.findStatus(lookup, studentId);
+            if (status != null) {
+                statuses.put(statusKey(tenantId, studentId), status);
+                return status;
+            }
+        }
+        LifecycleStatus status = statuses.get(statusKey(tenantId, studentId));
+        if (status != null) {
             return status;
         }
         throw reject(404, "STATUS_NOT_FOUND", "Lifecycle status was not found");
     }
 
     private LifecycleRequest requireRequest(UUID tenantId, UUID requestId) {
+        if (persistence != null) {
+            Actor lookup = new Actor(tenantId, tenantId, "REGISTRAR", "persistence-load");
+            LifecycleRequest request = persistence.findRequest(lookup, requestId);
+            if (request != null) {
+                requests.put(requestKey(tenantId, requestId), request);
+                return request;
+            }
+        }
         LifecycleRequest request = requests.get(requestKey(tenantId, requestId));
         if (request != null) {
             if (!request.tenantId.equals(tenantId)) {
                 throw reject(404, "REQUEST_NOT_FOUND", "Lifecycle request was not found");
             }
-            return request;
-        }
-        if (persistence != null) {
-            Actor lookup = new Actor(tenantId, tenantId, "REGISTRAR", "persistence-load");
-            request = persistence.findRequest(lookup, requestId);
-            requests.put(requestKey(tenantId, requestId), request);
             return request;
         }
         throw reject(404, "REQUEST_NOT_FOUND", "Lifecycle request was not found");
@@ -615,7 +701,10 @@ public class LifecycleDomainService {
 
     private boolean isAdvisor(Actor actor) {
         String role = actor.getRole();
-        return "FACULTY".equals(role) || "ADVISOR".equals(role) || "R10".equals(role);
+        if (role == null) {
+            return false;
+        }
+        return "FACULTY".equalsIgnoreCase(role) || "ADVISOR".equalsIgnoreCase(role) || "R10".equalsIgnoreCase(role) || "TEACHER".equalsIgnoreCase(role);
     }
 
     private static String advisorKey(UUID tenantId, UUID advisorUserId) {

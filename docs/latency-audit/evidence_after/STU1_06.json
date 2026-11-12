@@ -1,0 +1,106 @@
+{
+  "flowId": "STU1_06",
+  "flowName": "Profile Correction Requests",
+  "persona": "Student 1",
+  "coldRun": {
+    "actionToVisible": 2281,
+    "ttfb": 1171,
+    "lcp": 1376
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 2137,
+      "ttfb": 1039,
+      "lcp": 1248
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 2127,
+      "ttfb": 1056,
+      "lcp": 1272
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 2145,
+      "ttfb": 1035,
+      "lcp": 1252
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 2112,
+      "ttfb": 1032,
+      "lcp": 1240
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 2132,
+      "ttfb": 1045,
+      "lcp": 1276
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 2198,
+      "ttfb": 1089,
+      "lcp": 1320
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 2099,
+      "ttfb": 991,
+      "lcp": 1212
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 2172,
+      "ttfb": 1056,
+      "lcp": 1260
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 2114,
+      "ttfb": 1036,
+      "lcp": 1248
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 2150,
+      "ttfb": 1081,
+      "lcp": 1296
+    }
+  ],
+  "summary": {
+    "flowId": "STU1_06",
+    "flowName": "Profile Correction Requests",
+    "persona": "Student 1",
+    "target": "http://localhost:3000/student/corrections",
+    "beforeP50": 0,
+    "afterP50": 2132,
+    "deltaMs": 2132,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 2099,
+      "max": 2198,
+      "p50": 2132,
+      "p90": 2172,
+      "p95": 2198,
+      "avg": 2139
+    },
+    "ttfbStats": {
+      "min": 991,
+      "max": 1089,
+      "p50": 1039,
+      "p90": 1081,
+      "p95": 1089,
+      "avg": 1046
+    },
+    "lcpStats": {
+      "min": 1212,
+      "max": 1320,
+      "p50": 1252,
+      "p90": 1296,
+      "p95": 1320,
+      "avg": 1262
+    }
+  }
+}

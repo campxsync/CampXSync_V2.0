@@ -120,6 +120,14 @@ public class DatabaseConnectionManager implements AutoCloseable {
         this.dataSource = new HikariDataSource(hikariConfig);
         this.initialized = true;
 
+        try (Connection c = dataSource.getConnection();
+             java.sql.Statement s = c.createStatement()) {
+            s.execute("SELECT 1");
+            logger.info("HikariCP datasource [{}] pre-warmed successfully", config.getPoolName());
+        } catch (Exception ex) {
+            logger.warn("Pre-warming ping failed for [{}]: {}", config.getPoolName(), ex.getMessage());
+        }
+
         logger.info("Initialized HikariCP datasource [{}] connecting to [{}] as [{}] (maxPoolSize={}, minIdle={})",
                 config.getPoolName(), config.getSanitizedJdbcUrl(), config.getUsername(), config.getMaximumPoolSize(), config.getMinimumIdle());
     }

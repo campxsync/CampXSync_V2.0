@@ -100,10 +100,6 @@ public class UserSecurityContext {
      * @throws SQLException If database role switch or claims setting fails.
      */
     public void applyClaimsAndRole(Connection conn) throws SQLException {
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute("SET LOCAL ROLE authenticated");
-        }
-
         String claimsJson;
         if (tenantId != null) {
             claimsJson = String.format(
@@ -117,6 +113,10 @@ public class UserSecurityContext {
             );
         }
 
+        // Apply least-privilege authenticated role and bind claims strictly via parameter binding
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("SET LOCAL ROLE authenticated");
+        }
         try (PreparedStatement ps = conn.prepareStatement("SELECT set_config('request.jwt.claims', ?, true)")) {
             ps.setString(1, claimsJson);
             ps.execute();
@@ -160,7 +160,7 @@ public class UserSecurityContext {
                 }
                 throw new RuntimeException("Database operation failed: " + e.getMessage(), e);
             } finally {
-                // Ensure absolute connection hygiene before returning to HikariCP pool
+                // Ensure connection hygiene before returning to HikariCP pool
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute("RESET ROLE");
                 } catch (SQLException ignored) {}

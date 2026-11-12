@@ -1,0 +1,106 @@
+{
+  "flowId": "PLT_01",
+  "flowName": "Platform Operator Dashboard",
+  "persona": "Platform Admin",
+  "coldRun": {
+    "actionToVisible": 1175,
+    "ttfb": 299,
+    "lcp": 424
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1087,
+      "ttfb": 297,
+      "lcp": 412
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1244,
+      "ttfb": 286,
+      "lcp": 432
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1387,
+      "ttfb": 332,
+      "lcp": 528
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1405,
+      "ttfb": 350,
+      "lcp": 532
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1423,
+      "ttfb": 320,
+      "lcp": 524
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1445,
+      "ttfb": 364,
+      "lcp": 576
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1354,
+      "ttfb": 322,
+      "lcp": 508
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1398,
+      "ttfb": 330,
+      "lcp": 524
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1375,
+      "ttfb": 342,
+      "lcp": 536
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1401,
+      "ttfb": 350,
+      "lcp": 544
+    }
+  ],
+  "summary": {
+    "flowId": "PLT_01",
+    "flowName": "Platform Operator Dashboard",
+    "persona": "Platform Admin",
+    "target": "http://localhost:3000/platform",
+    "beforeP50": 0,
+    "afterP50": 1387,
+    "deltaMs": 1387,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1087,
+      "max": 1445,
+      "p50": 1387,
+      "p90": 1423,
+      "p95": 1445,
+      "avg": 1352
+    },
+    "ttfbStats": {
+      "min": 286,
+      "max": 364,
+      "p50": 330,
+      "p90": 350,
+      "p95": 364,
+      "avg": 329
+    },
+    "lcpStats": {
+      "min": 412,
+      "max": 576,
+      "p50": 524,
+      "p90": 544,
+      "p95": 576,
+      "avg": 512
+    }
+  }
+}

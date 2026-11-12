@@ -1,0 +1,106 @@
+{
+  "flowId": "FAC_04",
+  "flowName": "Faculty Teaching Sessions",
+  "persona": "Faculty",
+  "coldRun": {
+    "actionToVisible": 1180,
+    "ttfb": 140,
+    "lcp": 332
+  },
+  "results": [
+    {
+      "iter": 1,
+      "actionToVisible": 1145,
+      "ttfb": 120,
+      "lcp": 312
+    },
+    {
+      "iter": 2,
+      "actionToVisible": 1122,
+      "ttfb": 125,
+      "lcp": 308
+    },
+    {
+      "iter": 3,
+      "actionToVisible": 1179,
+      "ttfb": 135,
+      "lcp": 328
+    },
+    {
+      "iter": 4,
+      "actionToVisible": 1186,
+      "ttfb": 136,
+      "lcp": 320
+    },
+    {
+      "iter": 5,
+      "actionToVisible": 1172,
+      "ttfb": 139,
+      "lcp": 332
+    },
+    {
+      "iter": 6,
+      "actionToVisible": 1132,
+      "ttfb": 112,
+      "lcp": 292
+    },
+    {
+      "iter": 7,
+      "actionToVisible": 1188,
+      "ttfb": 151,
+      "lcp": 340
+    },
+    {
+      "iter": 8,
+      "actionToVisible": 1204,
+      "ttfb": 151,
+      "lcp": 348
+    },
+    {
+      "iter": 9,
+      "actionToVisible": 1169,
+      "ttfb": 128,
+      "lcp": 308
+    },
+    {
+      "iter": 10,
+      "actionToVisible": 1135,
+      "ttfb": 124,
+      "lcp": 320
+    }
+  ],
+  "summary": {
+    "flowId": "FAC_04",
+    "flowName": "Faculty Teaching Sessions",
+    "persona": "Faculty",
+    "target": "http://localhost:3000/faculty/sessions",
+    "beforeP50": 0,
+    "afterP50": 1169,
+    "deltaMs": 1169,
+    "pctChange": "N/A",
+    "actionStats": {
+      "min": 1122,
+      "max": 1204,
+      "p50": 1169,
+      "p90": 1188,
+      "p95": 1204,
+      "avg": 1163
+    },
+    "ttfbStats": {
+      "min": 112,
+      "max": 151,
+      "p50": 128,
+      "p90": 151,
+      "p95": 151,
+      "avg": 132
+    },
+    "lcpStats": {
+      "min": 292,
+      "max": 348,
+      "p50": 320,
+      "p90": 340,
+      "p95": 348,
+      "avg": 321
+    }
+  }
+}
