@@ -1,0 +1,105 @@
+{
+  "storyId": "STM-06-US-006",
+  "title": "Document Expiry, Retention & Regulatory Audit Trail",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "INSERT INTO doc.documents (id, tenant_id, college_id, document_type_id, title, classification, status, owner_id, storage_bucket, storage_path, mime_type, size_bytes, checksum_sha256, current_version_no, created_at, updated_at, created_by, updated_by, expires_at, row_version) VALUES ('11111111-0006-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'fdf88717-6db1-45f8-8e27-8e085304a14b', '{{DEMO_TAG}} National ID Card', 'CONFIDENTIAL', 'APPROVED', '81dd67d3-1d5f-4d8e-8061-a6764861f924', 'student-documents', 'tenants/a0000000-0000-0000-0000-000000000001/students/81dd67d3-1d5f-4d8e-8061-a6764861f924/11111111-0006-0000-0000-000000000001/v1-id.pdf', 'application/pdf', 1048576, 'sha256:expiring-soon', 1, now(), now(), '81dd67d3-1d5f-4d8e-8061-a6764861f924', '81dd67d3-1d5f-4d8e-8061-a6764861f924', now() + interval '12 days', 1) ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, expires_at = EXCLUDED.expires_at, status = 'APPROVED'"
+    },
+    {
+      "query": "INSERT INTO doc.document_versions (id, tenant_id, document_id, version_no, storage_path, size_bytes, checksum_sha256, change_note, created_at, created_by) VALUES ('22222222-0006-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', '11111111-0006-0000-0000-000000000001', 1, 'tenants/a0000000-0000-0000-0000-000000000001/students/81dd67d3-1d5f-4d8e-8061-a6764861f924/11111111-0006-0000-0000-000000000001/v1-id.pdf', 1048576, 'sha256:expiring-soon', 'Official national id copy', now(), '81dd67d3-1d5f-4d8e-8061-a6764861f924') ON CONFLICT (id) DO NOTHING"
+    },
+    {
+      "query": "INSERT INTO doc.documents (id, tenant_id, college_id, document_type_id, title, classification, status, owner_id, storage_bucket, storage_path, mime_type, size_bytes, checksum_sha256, current_version_no, created_at, updated_at, created_by, updated_by, expires_at, row_version) VALUES ('11111111-0006-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', '9337f376-bdc4-4c6f-813f-d60e5eac373a', '{{DEMO_TAG}} Medical Certificate', 'CONFIDENTIAL', 'APPROVED', '81dd67d3-1d5f-4d8e-8061-a6764861f924', 'student-documents', 'tenants/a0000000-0000-0000-0000-000000000001/students/81dd67d3-1d5f-4d8e-8061-a6764861f924/11111111-0006-0000-0000-000000000002/v1-receipt.pdf', 'application/pdf', 2097152, 'sha256:expired', 1, now() - interval '60 days', now(), '81dd67d3-1d5f-4d8e-8061-a6764861f924', '81dd67d3-1d5f-4d8e-8061-a6764861f924', now() - interval '4 days', 1) ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, expires_at = EXCLUDED.expires_at, status = 'APPROVED'"
+    },
+    {
+      "query": "INSERT INTO doc.document_versions (id, tenant_id, document_id, version_no, storage_path, size_bytes, checksum_sha256, change_note, created_at, created_by) VALUES ('22222222-0006-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', '11111111-0006-0000-0000-000000000002', 1, 'tenants/a0000000-0000-0000-0000-000000000001/students/81dd67d3-1d5f-4d8e-8061-a6764861f924/11111111-0006-0000-0000-000000000002/v1-receipt.pdf', 2097152, 'sha256:expired', 'Certified medical test copy', now() - interval '60 days', '81dd67d3-1d5f-4d8e-8061-a6764861f924') ON CONFLICT (id) DO NOTHING"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Portal Authentication",
+      "description": "Student authenticates to CampXSync with authorized student session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Student Documents Desk",
+      "description": "Student documents workspace loaded with checklist and active submissions tabs",
+      "action": "wait_for",
+      "selector": "[data-testid=\"docs-tab-submissions\"]",
+      "highlight": "[data-testid=\"docs-tab-submissions\"]"
+    },
+    {
+      "title": "Switch to My Submissions Tab",
+      "description": "View student's committed document records, versions, retention policies, and expiry warnings",
+      "action": "click",
+      "selector": "[data-testid=\"docs-tab-submissions\"]",
+      "highlight": "[data-testid=\"docs-tab-submissions\"]"
+    },
+    {
+      "title": "Verify Expiry Badges & Retention Policies",
+      "description": "System detects document expiration thresholds: EXPIRING SOON (<30d) and EXPIRED badges rendered with retention policy codes",
+      "action": "wait_for",
+      "selector": "[data-testid=\"docs-badge-expiring-soon-0\"]",
+      "highlight": "[data-testid=\"docs-badge-expiring-soon-0\"]"
+    },
+    {
+      "title": "Inspect Regulatory Audit Trail",
+      "description": "Click 'Audit Trail' button on the document to open the regulatory access history modal",
+      "action": "click",
+      "selector": "[data-testid=\"docs-audit-btn-0\"]",
+      "highlight": "[data-testid=\"docs-audit-btn-0\"]"
+    },
+    {
+      "title": "Verify Regulatory Details & Empty Initial Log",
+      "description": "Audit modal displays document retention policy (RET_10_YEARS), calculated expiry date, and access history",
+      "action": "wait_for",
+      "selector": "[data-testid=\"docs-audit-modal\"]",
+      "highlight": "[data-testid=\"docs-audit-modal\"]"
+    },
+    {
+      "title": "Trigger Regulatory Download & Access Log",
+      "description": "Student clicks 'Download & Record Access' button, dispatching POST /api/v1/documents/:id/access-log through API Gateway into doc.document_deliveries",
+      "action": "click",
+      "selector": "[data-testid=\"docs-download-log-btn\"]",
+      "highlight": "[data-testid=\"docs-download-log-btn\"]"
+    },
+    {
+      "title": "Verify Live Committed Regulatory Delivery Log",
+      "description": "Regulatory access entry appears live in the audit table with Channel DOWNLOAD, Status DOWNLOADED, and client IP",
+      "action": "wait_for",
+      "selector": "[data-testid=\"docs-audit-row-0\"]",
+      "highlight": "[data-testid=\"docs-audit-row-0\"]"
+    },
+    {
+      "title": "Close Audit Modal",
+      "description": "Close audit modal and return to submissions overview",
+      "action": "click",
+      "selector": "[data-testid=\"docs-audit-modal-close\"]",
+      "highlight": "[data-testid=\"docs-audit-modal-close\"]"
+    },
+    {
+      "title": "PostgreSQL Database committed check",
+      "description": "Read-only query verifies doc.document_deliveries has committed the audit log record with channel DOWNLOAD and status DOWNLOADED",
+      "action": "db_check",
+      "query": "SELECT id, channel, status, client_ip FROM doc.document_deliveries WHERE document_id = '11111111-0006-0000-0000-000000000001' AND channel = 'DOWNLOAD' AND status = 'DOWNLOADED'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Enforcement Check",
+      "description": "API Gateway and Document Service reject unauthenticated/unauthorized access to document audit trail with HTTP 401/403",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/11111111-0006-0000-0000-000000000001/audit-trail",
+      "headers": {
+        "x-tenant-id": "a0000000-0000-0000-0000-000000000001",
+        "x-user-id": "99999999-9999-9999-9999-999999999999",
+        "x-user-role": "STUDENT",
+        "x-user-email": "unauthorized.student@campx.edu"
+      },
+      "expectedStatus": 403
+    }
+  ]
+}

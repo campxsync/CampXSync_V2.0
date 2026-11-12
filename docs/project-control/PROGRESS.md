@@ -426,5 +426,123 @@ STM-05-US-013 is closed on the live path. College admin granted academics again 
 
 STM-05-US-014 is closed on the live path. College admin loaded relationship history for student `c3d00000-0000-0000-0000-000000000013` at 2026-11-08 16:38:24. The response has 4 read-only entries and `exportScope` `TENANT`. Existing evidence documents supply the claim and verification rows. The new grant is audit event `addbcf31-d84c-4587-802b-4000fb20335b`, action `guardian.history.GRANT`, old value `ACADEMICS`, new value `ACADEMICS`, principal college admin `70a8ffae-b5ad-4c61-a401-16f220893df4`. No history table was added. Audit `guardian.history_reviewed`. Intelligence event `8a24acdf-0055-4a59-a27d-6f2158b03dcc`, `student.guardian.history_reviewed.v1`, `liveEndpoint=false`. A student request returns 403. Do not start Wave 11.
 
+STM-05-US-015 (Link one guardian to several students) is closed on the live path at 2026-11-10 11:57:33 UTC. College admin `70a8ffae-b5ad-4c61-a401-16f220893df4` linked existing guardian person Sita Mehtha (`8fe28557-9869-491b-b434-1aeda4edcbd0`, already linked to student 1 `c3d00000-0000-0000-0000-000000000013`) to student 2 `bdf7a805-ff27-4ecd-862e-4c0c7b709002` with relationship `MOTHER` and `primary = false`.
+- **Database read-back:** Created new guardianship row `9cd31c72-8750-4729-b750-9675b456ebd9` in `stu.guardianships` with `student_id = bdf7a805-ff27-4ecd-862e-4c0c7b709002`, `guardian_person_id = 8fe28557-9869-491b-b434-1aeda4edcbd0`, `relationship = MOTHER`, `status = ACTIVE`, `is_primary = false`. No duplicate row was written to `core.persons`.
+- **Multi-student query read-back:** `GET /api/v1/guardians/persons/8fe28557-9869-491b-b434-1aeda4edcbd0/students` returned both student 1 (`c3d00000-0000-0000-0000-000000000013`) and student 2 (`bdf7a805-ff27-4ecd-862e-4c0c7b709002`) successfully.
+- **Audit event:** `guardian.linked_existing`, principal `70a8ffae-b5ad-4c61-a401-16f220893df4` (COLLEGE_ADMIN), resource `GUARDIAN:9cd31c72-8750-4729-b750-9675b456ebd9`. History recorded with kind `MULTI_STUDENT_LINK`.
+- **Intelligence Layer contract:** Emitted `student.guardian.linked.v1` event `314dc4e2-d454-4d0d-9380-cc37162a6014` with `multiStudentLink = true`, `schemaVersion = 1.0.0`, `tenantId = a0000000-0000-0000-0000-000000000001`, `liveEndpoint = false`.
+- **Negative tests:**
+  - Duplicate active link to student 2 returned 409 `DUPLICATE_GUARDIAN_LINK`.
+  - Non-existent guardian person returned 404 `GUARDIAN_PERSON_NOT_FOUND`.
+  - Student caller attempting to link existing guardian returned 403 `REGISTRAR_FORBIDDEN`.
+- **Automated test suite:** `GuardianDomainServiceTest` 42/42 tests PASS (0 failures, 0 errors, 0 skipped).
+- **Frontend & Gateway:** BFF proxy updated in `frontend/src/app/api/college/guardians/route.ts` and UI desk controls updated in `frontend/src/app/(dashboard)/college/guardians/page.tsx`. TypeScript typecheck `tsc --noEmit`: 0 errors. Gateway routes intact at `/api/v1/guardians`. Do not start Wave 11.
+
+STM-06-US-001 (Configure document types) is closed on the live path at 2026-11-11 06:16:10 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/documents`) → Next.js BFF (`/api/college/documents/types`) → API Gateway (port 8080, route `/api/v1/documents/types`) → Java Document Microservice (port 8098, `document-service`) → HikariCP Connection Pool (`DocumentHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database read-back:**
+  - Configured `DOC-FEE-RECEIPT` with ID `9337f376-bdc4-4c6f-813f-d60e5eac373a` in `doc.document_types` under tenant `a0000000-0000-0000-0000-000000000001`, category `FINANCIAL`, default_classification `RESTRICTED`, retention `RET_7_YEARS`, requires_signature `true`.
+  - Configured `DOC-NATIONAL-ID` with ID `fdf88717-6db1-45f8-8e27-8e085304a14b` in `doc.document_types` under tenant `a0000000-0000-0000-0000-000000000001`, category `IDENTIFICATION`, default_classification `RESTRICTED`, retention `RET_10_YEARS`, requires_signature `true`.
+  - Configured `DOC-TRANSCRIPT` with ID `ef74df32-e775-4aa3-a108-52114969e4f9` in `doc.document_types` under tenant `a0000000-0000-0000-0000-000000000001`, category `ACADEMIC`, default_classification `CONFIDENTIAL`, retention `RET_PERMANENT`, requires_signature `true`.
+- **Duplicate rejection:** Retrying existing code `DOC-TRANSCRIPT` rejected with HTTP 409 `DUPLICATE_DOCUMENT_TYPE_CODE` and RFC 7807 problem details.
+- **Security & RBAC:** Enforces College Administrator / Registrar role check (`requireAdmin`); student caller rejected with HTTP 403 `DOCUMENT_ADMIN_FORBIDDEN`. Tenant isolation enforced at both Gateway header boundary and PostgreSQL RLS session (`SET LOCAL ROLE authenticated`, `request.jwt.claims`).
+- **Intelligence Layer Integration:** Emitted `student.document_type.configured.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Instrument with `CampXLogger`, `LogContext`, `FlowTracker` tracking `POST /api/v1/documents/types` and `configure-document-type`, and audit event `document_type.configured`.
+- **Live Visual Desktop Browser Verification:** Full visual demonstration executed on desktop via visible Chromium browser (Playwright with `headless: false`, `slowMo: 1000ms`), capturing screenshots `demo_step1_initial.png`, `demo_step2_filled.png`, and `demo_step3_success.png`. Success alert confirmed, catalog table updated, and live JSON viewer rendered.
+- **Automated Tests:** 23/23 tests PASS (`DocumentDomainServiceTest` 16/16, `DocumentControllerTest` 7/7). TypeScript compilation `tsc --noEmit` exits with 0 errors.
+
+STM-06-US-002 (Define mandatory documents for programmes and stages) is closed on the live path at 2026-11-12 04:56:30 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/documents`) → Next.js BFF (`/api/college/documents/requirements`) → API Gateway (port 8080, route `/api/v1/documents/requirements`) → Java Document Microservice (port 8098, `document-service`) → HikariCP Connection Pool (`DocumentHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`doc.stage_document_requirements`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Migration Applied:** `database/migrations/20261112000100_create_doc_stage_requirements.sql` applied to dev ref `azulbaxszsqxymqmlwfe` with `FORCE ROW LEVEL SECURITY`, tenant RLS policies (`stage_document_requirements_select`, `stage_document_requirements_insert`, `stage_document_requirements_update`, `stage_document_requirements_delete`), unique index `uq_stage_document_requirements_rule`, and table grants to `authenticated` and `campx_app_server`.
+- **Database read-back:**
+  - Defined Rule 1: Mandatory Official Transcript for Admission (ID: `bb374f43-984d-4513-ac65-4180bbe53d84`), stage `ADMISSION`, document type `DOC-TRANSCRIPT` (`ef74df32-e775-4aa3-a108-52114969e4f9`), `is_mandatory = true`, `min_count = 1`, `max_count = 1`, `submission_deadline_days = 15`.
+  - Defined Rule 2: Mandatory National ID for Enrollment under B.Tech CSE (ID: `c16e1f95-8ce9-41d2-9cb4-8a239df12a56`), stage `ENROLLMENT`, program `DEV-BTECH-CSE` (`a0000000-0000-0000-0000-000000000040`), document type `DOC-NATIONAL-ID` (`fdf88717-6db1-45f8-8e27-8e085304a14b`), `is_mandatory = true`, `min_count = 1`, `max_count = 2`, `submission_deadline_days = 30`.
+  - Defined Rule 3: Optional Fee Receipt for Annual Progression (ID: `26b6cf0d-9b1e-4b4f-a84f-6be8d6285717`), stage `ANNUAL_PROGRESSION`, document type `DOC-FEE-RECEIPT` (`9337f376-bdc4-4c6f-813f-d60e5eac373a`), `is_mandatory = false`, `min_count = 0`, `max_count = 1`.
+- **Duplicate & Stage Validation:** Re-attempting duplicate rule rejected with HTTP 409 `DUPLICATE_STAGE_REQUIREMENT`. Non-standard stage rejected with HTTP 422 `INVALID_ACADEMIC_STAGE`.
+- **Security & Multi-Tenant RLS:** Enforces College Administrator / Registrar role check (`requireAdmin`); student caller rejected with HTTP 403 `FORBIDDEN`. Cross-tenant query under Tenant B returns 0 records; fetching Tenant A rule by ID under Tenant B rejected with HTTP 404.
+- **Intelligence Layer Integration:** Emitted `student.document_requirement.defined.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Instrument with `CampXLogger`, `LogContext`, `FlowTracker` tracking `define-stage-requirement`, and audit event `document_requirement.defined`.
+- **Automated Tests:**
+  - `document-service` unit & HTTP suite: **40/40 tests PASS** (`DocumentDomainServiceTest` 28/28, `DocumentControllerTest` 12/12).
+  - `document-service` live JDBC integration test: `LivePostgresDocumentStageRequirementTest` **1/1 PASS** (10/10 live database checkpoints verified on `azulbaxszsqxymqmlwfe`).
+  - `api-gateway`: `DocumentGatewayRouteTest` **1/1 PASS**.
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 450ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 7/7 checkpoints (college admin login, warm desk load 1227ms, duplicate 409 conflict, stage requirement creation, reload persistence, PostgreSQL direct read-back, student 403 RBAC denial). Recorded in [`docs/demos/STM-06-US-002/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-002/demo.webm) and [`docs/demos/STM-06-US-002/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-002/DEMO.md).
+
+STM-06-US-003 (Student uploads documents against stage requirements) is closed on the live path at 2026-11-12 06:45:50 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/documents`) → Next.js BFF (`/api/student/documents`, `/api/student/documents/checklist`) → API Gateway (port 8080, routes `/api/v1/documents/submissions`, `/api/v1/documents/checklist`) → Java Document Microservice (port 8098, `document-service`) → HikariCP Connection Pool (`DocumentHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`doc.documents`, `doc.document_versions`, `doc.document_links`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Versioning:**
+  - Student document upload writes atomically to three tables: `doc.documents` (master row with status `SUBMITTED`, `owner_id = studentId`, `current_version_no = 1`), `doc.document_versions` (immutable version row with version 1, SHA-256 checksum, storage path, mime type, size bytes), and `doc.document_links` (entity linkage with `entity_type = STUDENT`, `entity_id = studentId`, `link_relation = STAGE_REQUIREMENT`).
+  - Read-back verification confirmed row `195a2807-b3de-49ae-8468-4e42fdf3ef7b` created for student `81dd67d3-1d5f-4d8e-8061-a6764861f924` under document type `DOC-TRANSCRIPT` (`ef74df32-e775-4aa3-a108-52114969e4f9`).
+- **Checklist Engine:** Real-time computation of stage requirements checklist across required and submitted documents; updates status dynamically (`SUBMITTED`, `PENDING`, `VERIFIED`).
+- **Input Validation & RFC 7807 Error Handling:** Blank title validation (HTTP 400), file size exceeding limits (HTTP 400), non-existent document type (HTTP 404). All error payloads adhere strictly to RFC 7807 `application/problem+json` contract with propagated `traceId` / `correlationId`.
+- **Security & Multi-Tenant RLS:** Enforces Student role check; students cannot mutate administrative requirements (POST `/api/college/documents/requirements` rejected with HTTP 403 Forbidden). Cross-student data isolation enforced (Student A cannot view or upload documents for Student B).
+- **Intelligence Layer Integration:** Emitted `student.document.uploaded.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Document Service.
+- **Automated Tests:**
+  - `document-service` unit & HTTP suite: **53/53 tests PASS** (`DocumentDomainServiceTest` 39/39, `DocumentControllerTest` 14/14).
+  - `document-service` live JDBC integration test: `LivePostgresStudentDocumentUploadTest` **1/1 PASS** (10/10 live database checkpoints verified on `azulbaxszsqxymqmlwfe`).
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+  - Frontend Next.js production build: `npm run build` completed cleanly (37/37 routes compiled).
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 450ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 9/9 checkpoints (student authentication, warm desk load 2020ms, blank title validation error, file size validation error, happy path upload, reload persistence, PostgreSQL direct read-back, student 403 RBAC denial, RFC 7807 error trace correlation). Recorded in [`docs/demos/STM-06-US-003/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-003/demo.webm) and [`docs/demos/STM-06-US-003/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-003/DEMO.md).
+
+STM-06-US-004 (Institutional officer verifies and approves/rejects submitted student documents) is closed on the live path at 2026-11-12 07:31:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/college/documents`) → Next.js BFF (`/api/college/documents/verifications`) → API Gateway (port 8080, routes `/api/v1/documents/verifications`, `/api/v1/documents/verifications/{id}/decision`) → Java Document Microservice (port 8098, `document-service`) → HikariCP Connection Pool (`DocumentHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`doc.documents`, `doc.verifications`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Verification Ledger:**
+  - Officer approval updates `doc.documents.status = 'APPROVED'` and inserts verification row into `doc.verifications` with `result = 'VALID'`, verification code (`VER-2026-BOARD-OK`), audit notes, timestamp, and verifier identity (`created_by`).
+  - Officer rejection updates `doc.documents.status = 'REJECTED'` and inserts verification row into `doc.verifications` with `result = 'INVALID'`, verification code, mandatory rejection reason, and audit notes.
+  - Read-back verification confirmed row `8a7fe622-47b1-4f97-86de-34656d45e1aa` approved and row `f62be91f-e00f-4b11-8920-b7e6045511d6` rejected with live audit records in PostgreSQL.
+- **Validation Guardrails & Form Validation:** Form validation strictly blocks rejection without a substantive reason (minimum 3 characters). Native form validation safely bypassed to expose RFC 7807 compliant client banner with Reference ID.
+- **Security & Multi-Tenant RLS:** Enforces College Administrator / Institutional Officer role check (`requireAdmin`); student caller rejected with HTTP 403 `FORBIDDEN` and RFC 7807 problem details. Multi-tenant isolation verified with tenant admin elevation strictly preserving tenant ID boundary.
+- **Intelligence Layer Integration:** Emitted `student.document.verified.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Document Service.
+- **Automated Tests:**
+  - `document-service` unit & HTTP suite: **63/63 tests PASS** (`DocumentDomainServiceTest` 46/46, `DocumentControllerTest` 19/19).
+  - `document-service` live JDBC integration test: `LivePostgresDocumentVerificationTest` **1/1 PASS** (9/9 live database checkpoints verified on `azulbaxszsqxymqmlwfe`).
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+  - Frontend Next.js production build: `npm run build` completed cleanly (38/38 routes compiled).
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 450ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 11/11 checkpoints (officer login, warm desk load 1220ms, review modal with SHA-256 checksum and secure storage path, negative validation for empty rejection reason, approval submission, rejection with reason submission, reload persistence, PostgreSQL direct read-back, student desk reflection with green Verified and red Rejected badges, student RBAC 403 denial, RFC 7807 problem details contract with traceId). Recorded in [`docs/demos/STM-06-US-004/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-004/demo.webm) and [`docs/demos/STM-06-US-004/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-004/DEMO.md).
+
+STM-06-US-005 (Student views verification status and resubmits rejected documents) is closed on the live path at 2026-11-12 09:00:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/documents`) → Next.js BFF (`/api/student/documents/resubmit`) → API Gateway (port 8080, route `/api/v1/documents/submissions/{id}/resubmit`) → Java Document Microservice (port 8098, `document-service`) → HikariCP Connection Pool (`DocumentHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`doc.documents`, `doc.document_versions`, `doc.verifications`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Versioning:**
+  - Resubmission executes atomic transaction in `PostgresDocumentPersistence`: appends version record into `doc.document_versions` with incremented `version_no` (v2), new `storage_path`, `size_bytes`, `checksum_sha256`, and mandatory `change_note`.
+  - Updates `doc.documents` resetting `status` to `SUBMITTED`, updating `current_version_no = 2`, `storage_path`, `size_bytes`, `checksum_sha256`, and `updated_at`.
+  - Direct read-back confirmed document `4a27e24c-0e30-4682-8342-a8a966d02f70` updated to `status = SUBMITTED`, `current_version_no = 2`, and immutable version history retained in `doc.document_versions`.
+- **Validation Guardrails & Form Validation:** Client and server enforce mandatory correction note (minimum 3 characters) before accepting resubmission. Empty or whitespace-only correction rationale is rejected with RFC 7807 Problem Details and on-screen alert banner with Reference ID.
+- **Security & Multi-Tenant RLS:** Enforces student ownership check (`requireOwner`); non-owner student caller rejected with HTTP 403 `FORBIDDEN`. Attempt to resubmit an `APPROVED` document is blocked with HTTP 409 `DOCUMENT_ALREADY_APPROVED` lifecycle conflict.
+- **Cross-Persona Real-Time Reflection:** Resubmitted document re-appears in College Administrator Verification Queue (`/college/documents`) as `v2` in `SUBMITTED` state, ready for re-review.
+- **Hydration Error Resolution:** Resolved client/server hydration warning on `/login` by mounting interactive input fields client-side, eliminating browser extension/autofill `fdprocessedid` mismatches.
+- **Intelligence Layer Integration:** Emitted `student.document.uploaded.v1` events with schema `1.0.0` and incremented version metadata via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Document Service.
+- **Automated Tests:**
+  - Java Document Service Unit Tests: 69/69 PASS (including 6 new tests for US-005).
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+  - Frontend Next.js production build: `npm run build` completed cleanly (39/39 routes compiled).
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 450ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 11/11 checkpoints (student authentication, rejection banner with code/reason, resubmit modal with v1 -> v2 version progression, empty change note validation error, valid resubmission submission, immediate desk update to v2 SUBMITTED, reload persistence, PostgreSQL direct read-back, cross-persona reflection in College Admin queue, cross-student RBAC 403 denial, approved doc resubmission 409 conflict). Recorded in [`docs/demos/STM-06-US-005/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-005/demo.webm) and [`docs/demos/STM-06-US-005/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-005/DEMO.md).
+
+STM-06-US-006 (Document Expiry, Retention & Regulatory Audit Trail) is closed on the live path at 2026-11-12 09:50:00 UTC.
+- **Architectural Flow:** Next.js 15 UI (`/student/documents`) → Next.js BFF (`/api/student/documents/[id]/access-log`, `/api/student/documents/[id]/audit-trail`, `/api/student/documents/[id]/retention`) → API Gateway (port 8080, route `/api/v1/documents/*`) → Java Document Microservice (port 8098, `document-service`) → HikariCP Connection Pool (`DocumentHikariPool`) → Supabase PostgreSQL on `azulbaxszsqxymqmlwfe` (`doc.documents`, `doc.document_deliveries`) → JSON output to CampXSync Intelligence Layer (`ControlledIntelligenceAdapter`).
+- **Database Multi-Table Atomic Persistence & Regulatory Audit Trail:**
+  - Implemented regulatory access logging in `doc.document_deliveries`: `channel='DOWNLOAD'`, `status='DOWNLOADED'`, `client_ip::inet`, and `delivered_at`.
+  - Added immutable regulatory access history audit trail retrieval endpoint (`GET /api/v1/documents/{id}/audit-trail`).
+  - Added document retention policy resolution (`RET_PERMANENT`, `RET_10_YEARS`, `RET_7_YEARS`, `RET_1_YEAR`) and expiry date projection.
+  - Read-back verification confirmed row `11111111-0006-0000-0000-000000000001` recorded in `doc.document_deliveries` with `channel='DOWNLOAD'`, `status='DOWNLOADED'`, and client IP.
+- **Expiry State Machine & Warning Badges:**
+  - UI renders `EXPIRING SOON` warning badge with clock icon if expiry is within 30 days.
+  - UI renders `EXPIRED` badge with alert icon if `expires_at` is in the past.
+  - Displays document type retention policy codes on each submission card.
+- **Security & RBAC Enforcement:**
+  - Negative RBAC verified: Non-owner student calling `GET /api/v1/documents/{id}/audit-trail` is rejected with HTTP 403 `FORBIDDEN` and RFC 7807 problem details.
+- **Intelligence Layer Integration:** Emitted `student.document.accessed.v1` events with schema `1.0.0` via `ControlledIntelligenceAdapter` (`liveEndpoint=false`).
+- **Logging & Flow Tracking:** Structured logging via `CampXLogger`, `LogContext`, `FlowTracker` with distributed `X-Trace-Id` / `X-Correlation-Id` header flow across Next.js BFF, API Gateway, and Java Document Service.
+- **Automated Tests:**
+  - Java Document Service Unit Tests: 72/72 PASS (including 3 new tests for US-006: access logging, audit trail, and non-owner 403).
+  - Frontend TypeScript compilation: `tsc --noEmit` exits with 0 errors.
+- **Speed-up Tooling Utilized:**
+  - Executed via generic demo runner (`scripts/demo/run_story_demo.mjs STM-06-US-006`) with declarative spec `docs/stories/STM-06-US-006.demo.json`.
+  - Fast single-service recompile/restart via `scripts/dev/restart_service.ps1 document-service`.
+- **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 11/11 checkpoints (student authentication, desk load, submissions tab switch, expiry badge & retention code verification, regulatory audit trail modal inspection, empty initial log check, download & access log trigger, live committed regulatory access log entry verification in audit table, modal close, direct PostgreSQL read-only check on `doc.document_deliveries`, negative RBAC HTTP 403 check). Recorded in [`docs/demos/STM-06-US-006/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-006/demo.webm) and [`docs/demos/STM-06-US-006/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-06-US-006/DEMO.md).
+
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–10 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

@@ -29,25 +29,34 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Reverse proxy handler that dynamically dispatches client requests to the
- * appropriate downstream microservice (Institute Admin, College Admin, or Course
- * Management) while injecting correlation tokens and recording execution flow metrics.
+ * appropriate downstream microservice (Institute Admin, College Admin, or
+ * Course
+ * Management) while injecting correlation tokens and recording execution flow
+ * metrics.
  * <p>
  * Key capabilities:
  * <ul>
- *   <li><b>Context Extraction</b>: Populates {@link LogContext} from {@code X-Trace-Id},
- *       {@code X-Tenant-Id}, and security role headers.</li>
- *   <li><b>Dynamic Prefix Routing</b>: Resolves destination URLs using longest matching
- *       registered route prefix.</li>
- *   <li><b>Direct Endpoints</b>: Intercepts {@code /actuator/health} and {@code /api/v1/auth/me} directly at the edge.</li>
- *   <li><b>Authoritative Identity Resolution</b>: Resolves business roles, tenant membership,
- *       and account status from trusted database persistence records.</li>
- *   <li><b>Header & Stream Propagation</b>: Copies HTTP headers and request bodies,
- *       handles HTTP keep-alive, and returns downstream headers and payloads.</li>
- *   <li><b>Error Normalization</b>: Converts upstream timeouts, network partition errors,
- *       and unmapped routes into RFC 7807 {@link ErrorResponse} JSON payloads.</li>
+ * <li><b>Context Extraction</b>: Populates {@link LogContext} from
+ * {@code X-Trace-Id},
+ * {@code X-Tenant-Id}, and security role headers.</li>
+ * <li><b>Dynamic Prefix Routing</b>: Resolves destination URLs using longest
+ * matching
+ * registered route prefix.</li>
+ * <li><b>Direct Endpoints</b>: Intercepts {@code /actuator/health} and
+ * {@code /api/v1/auth/me} directly at the edge.</li>
+ * <li><b>Authoritative Identity Resolution</b>: Resolves business roles, tenant
+ * membership,
+ * and account status from trusted database persistence records.</li>
+ * <li><b>Header & Stream Propagation</b>: Copies HTTP headers and request
+ * bodies,
+ * handles HTTP keep-alive, and returns downstream headers and payloads.</li>
+ * <li><b>Error Normalization</b>: Converts upstream timeouts, network partition
+ * errors,
+ * and unmapped routes into RFC 7807 {@link ErrorResponse} JSON payloads.</li>
  * </ul>
  * </p>
  *
@@ -63,6 +72,49 @@ public class ReverseProxyHandler implements HttpHandler {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(ReverseProxyHandler.class);
 
     /**
+     * Circuit breaker state tracking: target host:port -> open-until epoch millis
+     * (REC-01).
+     */
+    private static final ConcurrentHashMap<String, Long> CIRCUIT_BREAKER = new ConcurrentHashMap<>();
+
+    /**
+     * Cooldown period for tripped circuit breaker (10 seconds).
+     */
+    private static final long CIRCUIT_BREAKER_COOLDOWN_MS = 10000L;
+
+    public static final String PROP_CONNECT_TIMEOUT_LOCAL_MS = "campx.gateway.connect.timeout.local.ms";
+    public static final String ENV_CONNECT_TIMEOUT_LOCAL_MS = "CAMPX_GATEWAY_CONNECT_TIMEOUT_LOCAL_MS";
+    public static final int DEFAULT_CONNECT_TIMEOUT_LOCAL_MS = 2000;
+
+    public static final String PROP_CONNECT_TIMEOUT_REMOTE_MS = "campx.gateway.connect.timeout.remote.ms";
+    public static final String ENV_CONNECT_TIMEOUT_REMOTE_MS = "CAMPX_GATEWAY_CONNECT_TIMEOUT_REMOTE_MS";
+    public static final int DEFAULT_CONNECT_TIMEOUT_REMOTE_MS = 3000;
+
+    public static int getLocalConnectTimeoutMs() {
+        String prop = System.getProperty(PROP_CONNECT_TIMEOUT_LOCAL_MS);
+        if (prop != null && !prop.trim().isEmpty()) {
+            try { return Integer.parseInt(prop.trim()); } catch (NumberFormatException ignored) {}
+        }
+        String env = System.getenv(ENV_CONNECT_TIMEOUT_LOCAL_MS);
+        if (env != null && !env.trim().isEmpty()) {
+            try { return Integer.parseInt(env.trim()); } catch (NumberFormatException ignored) {}
+        }
+        return DEFAULT_CONNECT_TIMEOUT_LOCAL_MS;
+    }
+
+    public static int getRemoteConnectTimeoutMs() {
+        String prop = System.getProperty(PROP_CONNECT_TIMEOUT_REMOTE_MS);
+        if (prop != null && !prop.trim().isEmpty()) {
+            try { return Integer.parseInt(prop.trim()); } catch (NumberFormatException ignored) {}
+        }
+        String env = System.getenv(ENV_CONNECT_TIMEOUT_REMOTE_MS);
+        if (env != null && !env.trim().isEmpty()) {
+            try { return Integer.parseInt(env.trim()); } catch (NumberFormatException ignored) {}
+        }
+        return DEFAULT_CONNECT_TIMEOUT_REMOTE_MS;
+    }
+
+    /**
      * Active gateway configuration holding route table definitions.
      */
     private final GatewayConfig config;
@@ -73,7 +125,8 @@ public class ReverseProxyHandler implements HttpHandler {
     private final CorrelationFilter correlationFilter = new CorrelationFilter();
 
     /**
-     * Constructs a ReverseProxyHandler instance with the specified gateway configuration.
+     * Constructs a ReverseProxyHandler instance with the specified gateway
+     * configuration.
      *
      * @param config The active {@link GatewayConfig} providing the route mappings.
      */
@@ -82,9 +135,11 @@ public class ReverseProxyHandler implements HttpHandler {
     }
 
     /**
-     * Dispatches an incoming HTTP client exchange to the matching downstream service.
+     * Dispatches an incoming HTTP client exchange to the matching downstream
+     * service.
      *
-     * @param exchange The {@link HttpExchange} containing client request and response channels.
+     * @param exchange The {@link HttpExchange} containing client request and
+     *                 response channels.
      * @throws IOException If an I/O error occurs during proxying.
      */
     @Override
@@ -107,7 +162,8 @@ public class ReverseProxyHandler implements HttpHandler {
                     if (allowed.contains(origin) || allowed.contains("*")) {
                         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
                         exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
-                        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+                        exchange.getResponseHeaders().set("Access-Control-Allow-Methods",
+                                "GET, POST, PUT, DELETE, OPTIONS, PATCH");
                         exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
                                 "Authorization, Content-Type, X-Trace-Id, X-Tenant-Id, X-User-Id, X-User-Role, X-Correlation-Id");
                         exchange.getResponseHeaders().set("Access-Control-Max-Age", "86400");
@@ -116,7 +172,8 @@ public class ReverseProxyHandler implements HttpHandler {
                         return;
                     } else {
                         logger.warn("Gateway rejected preflight CORS from unauthorized origin: {}", origin);
-                        sendError(exchange, 403, "Forbidden", "GATEWAY_CORS_ORIGIN_DENIED", "Origin not permitted: " + origin, path);
+                        sendError(exchange, 403, "Forbidden", "GATEWAY_CORS_ORIGIN_DENIED",
+                                "Origin not permitted: " + origin, path);
                         return;
                     }
                 } else {
@@ -149,7 +206,8 @@ public class ReverseProxyHandler implements HttpHandler {
                 return;
             }
 
-            // 6. Validate incoming Supabase JWT at Gateway boundary when security is enabled
+            // 6. Validate incoming Supabase JWT at Gateway boundary when security is
+            // enabled
             SupabaseJwtValidator.VerifiedClaims verifiedClaims = null;
             String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
             if (config.isInternalAuthEnabled()) {
@@ -157,20 +215,24 @@ public class ReverseProxyHandler implements HttpHandler {
                     verifiedClaims = SupabaseJwtValidator.validate(
                             authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
                 } catch (JwtValidationException e) {
-                    logger.warn("Gateway rejected unauthenticated request to [{} {}]: {}", method, path, e.getMessage());
+                    logger.warn("Gateway rejected unauthenticated request to [{} {}]: {}", method, path,
+                            e.getMessage());
                     sendError(exchange, e.getStatusCode(), e.getError(), e.getErrorCode(), e.getMessage(), path);
                     return;
                 }
             } else if (authHeader != null && authHeader.trim().regionMatches(true, 0, "Bearer ", 0, 7)) {
-                // If internal auth is not strictly required, but a Bearer JWT is provided by caller,
-                // validate and derive trusted claims so caller headers cannot spoof or override identity
+                // If internal auth is not strictly required, but a Bearer JWT is provided by
+                // caller,
+                // validate and derive trusted claims so caller headers cannot spoof or override
+                // identity
                 try {
                     if (config.getSupabaseJwtIssuer() != null && !config.getSupabaseJwtIssuer().trim().isEmpty()) {
                         verifiedClaims = SupabaseJwtValidator.validate(
                                 authHeader, config.getJwksClient(), config.getSupabaseJwtIssuer());
                     }
                 } catch (Exception e) {
-                    logger.debug("Non-enforcing mode: provided Bearer token was not verified as Supabase JWT: {}", e.getMessage());
+                    logger.debug("Non-enforcing mode: provided Bearer token was not verified as Supabase JWT: {}",
+                            e.getMessage());
                 }
             }
 
@@ -192,7 +254,8 @@ public class ReverseProxyHandler implements HttpHandler {
                     String failureReason = resolution.getFailureReason();
                     String errorCode = "GATEWAY_" + failureReason.toUpperCase(Locale.ROOT);
                     int statusCode = "database_error".equalsIgnoreCase(failureReason) ? 500 : 403;
-                    String errorTitle = "database_error".equalsIgnoreCase(failureReason) ? "Internal Server Error" : "Forbidden";
+                    String errorTitle = "database_error".equalsIgnoreCase(failureReason) ? "Internal Server Error"
+                            : "Forbidden";
                     sendError(exchange, statusCode, errorTitle, errorCode, resolution.getMessage(), path);
                     return;
                 }
@@ -201,8 +264,7 @@ public class ReverseProxyHandler implements HttpHandler {
                 verifiedClaims = new SupabaseJwtValidator.VerifiedClaims(
                         identity.getUserId(),
                         identity.getTenantId() != null ? identity.getTenantId() : "",
-                        identity.getBusinessRole()
-                );
+                        identity.getBusinessRole());
             }
 
             logger.debug("Proxying [{}] {} -> {}", method, path, destinationUrlStr);
@@ -212,9 +274,17 @@ public class ReverseProxyHandler implements HttpHandler {
             sendError(exchange, 503, "Service Unavailable", "GATEWAY_SERVICE_UNAVAILABLE",
                     "Downstream microservice unreachable: " + e.getMessage(), path);
         } catch (SocketTimeoutException e) {
-            logger.error("Downstream service timeout for path [{}]: {}", path, e.getMessage());
-            sendError(exchange, 504, "Gateway Timeout", "GATEWAY_DOWNSTREAM_TIMEOUT",
-                    "Downstream microservice timed out: " + e.getMessage(), path);
+            String msg = e.getMessage();
+            boolean isConnectTimeout = msg != null && msg.toLowerCase(Locale.ROOT).contains("connect");
+            if (isConnectTimeout) {
+                logger.warn("Downstream service connect timeout for path [{}]: {}", path, e.getMessage());
+                sendError(exchange, 503, "Service Unavailable", "GATEWAY_SERVICE_UNAVAILABLE",
+                        "Downstream microservice unreachable: " + e.getMessage(), path);
+            } else {
+                logger.error("Downstream service timeout for path [{}]: {}", path, e.getMessage());
+                sendError(exchange, 504, "Gateway Timeout", "GATEWAY_DOWNSTREAM_TIMEOUT",
+                        "Downstream microservice timed out: " + e.getMessage(), path);
+            }
         } catch (MalformedURLException e) {
             logger.error("Malformed downstream URL for path [{}]: {}", path, e.getMessage());
             sendError(exchange, 500, "Internal Server Error", "GATEWAY_CONFIG_ERROR",
@@ -237,7 +307,8 @@ public class ReverseProxyHandler implements HttpHandler {
      *
      * @param path  The incoming request URI path (e.g. "/api/v1/admin/institutes").
      * @param query The optional query string, or {@code null}.
-     * @return The complete downstream URL string, or {@code null} if no prefix matched.
+     * @return The complete downstream URL string, or {@code null} if no prefix
+     *         matched.
      */
     private String resolveDestinationUrl(String path, String query) {
         Map.Entry<String, String> bestMatch = null;
@@ -260,14 +331,16 @@ public class ReverseProxyHandler implements HttpHandler {
             URL targetUrl = new URL(target);
             String targetPath = targetUrl.getPath();
             if (targetPath == null || targetPath.isEmpty() || "/".equals(targetPath)) {
-                // Target is base host (e.g., http://localhost:8081) - preserve full request path
+                // Target is base host (e.g., http://localhost:8081) - preserve full request
+                // path
                 String cleanTarget = target.replaceAll("/+$", "");
                 destination = cleanTarget + (path.startsWith("/") ? path : "/" + path);
             } else {
                 // Target has explicit destination path - append remaining relative path
                 String remaining = path.substring(prefix.length());
                 String cleanTarget = target.replaceAll("/+$", "");
-                destination = cleanTarget + (remaining.startsWith("/") ? remaining : (remaining.isEmpty() ? "" : "/" + remaining));
+                destination = cleanTarget
+                        + (remaining.startsWith("/") ? remaining : (remaining.isEmpty() ? "" : "/" + remaining));
             }
         } catch (Exception e) {
             String remaining = path.substring(prefix.length());
@@ -277,19 +350,40 @@ public class ReverseProxyHandler implements HttpHandler {
     }
 
     /**
-     * Proxies the client HTTP request to the designated downstream microservice destination.
+     * Proxies the client HTTP request to the designated downstream microservice
+     * destination.
      *
-     * @param clientExchange     The client's HTTP exchange.
+     * @param clientExchange    The client's HTTP exchange.
      * @param destinationUrlStr The target downstream service URL.
-     * @param method             The HTTP method (e.g. GET, POST, PUT, DELETE).
+     * @param method            The HTTP method (e.g. GET, POST, PUT, DELETE).
      * @throws IOException If a communication or stream transfer error occurs.
      */
     private void proxyRequest(HttpExchange clientExchange, String destinationUrlStr, String method,
-                              SupabaseJwtValidator.VerifiedClaims verifiedClaims) throws IOException {
+            SupabaseJwtValidator.VerifiedClaims verifiedClaims) throws IOException {
         URL targetUrl = new URL(destinationUrlStr);
+        String hostPortKey = targetUrl.getHost() + ":"
+                + (targetUrl.getPort() != -1 ? targetUrl.getPort() : targetUrl.getDefaultPort());
+
+        // Fast circuit breaker check (REC-01)
+        Long openUntil = CIRCUIT_BREAKER.get(hostPortKey);
+        if (openUntil != null) {
+            if (System.currentTimeMillis() < openUntil) {
+                logger.warn("Circuit breaker OPEN for target [{}], rejecting immediately (<1ms)", hostPortKey);
+                throw new ConnectException(
+                        "Circuit breaker OPEN for " + hostPortKey + " (tripped due to recent connection failure)");
+            } else {
+                CIRCUIT_BREAKER.remove(hostPortKey); // cooldown elapsed, attempt probe
+            }
+        }
+
         HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
         conn.setRequestMethod(method);
-        conn.setConnectTimeout(5000);
+
+        // REC-01: Configurable connect timeout (default 150ms for local targets, 3000ms for remote)
+        boolean isLocalTarget = "localhost".equalsIgnoreCase(targetUrl.getHost())
+                || "127.0.0.1".equals(targetUrl.getHost());
+        int connectTimeout = isLocalTarget ? getLocalConnectTimeoutMs() : getRemoteConnectTimeoutMs();
+        conn.setConnectTimeout(connectTimeout);
         conn.setReadTimeout(10000);
         conn.setInstanceFollowRedirects(false);
 
@@ -301,7 +395,8 @@ public class ReverseProxyHandler implements HttpHandler {
         Headers incomingHeaders = clientExchange.getRequestHeaders();
         for (Map.Entry<String, List<String>> header : incomingHeaders.entrySet()) {
             String name = header.getKey();
-            if (name == null) continue;
+            if (name == null)
+                continue;
             String lowerName = name.trim().toLowerCase(java.util.Locale.ROOT);
             boolean isStripped = (config.isInternalAuthEnabled() || verifiedClaims != null)
                     && com.campx.logger.security.GatewayHmacProtocol.STRIPPED_INBOUND_HEADERS.contains(lowerName);
@@ -319,9 +414,12 @@ public class ReverseProxyHandler implements HttpHandler {
             String bodySha256 = com.campx.logger.security.GatewayHmacProtocol.sha256Hex(body);
             String internalSecret = config.getInternalSecret();
 
-            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ID, verifiedClaims.getUserId());
-            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID, verifiedClaims.getTenantId());
-            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ROLE, verifiedClaims.getRole());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ID,
+                    verifiedClaims.getUserId());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_TENANT_ID,
+                    verifiedClaims.getTenantId());
+            conn.setRequestProperty(com.campx.logger.security.GatewayHmacProtocol.HEADER_USER_ROLE,
+                    verifiedClaims.getRole());
 
             if (internalSecret != null && !internalSecret.trim().isEmpty()) {
                 String canonicalPayload = com.campx.logger.security.GatewayHmacProtocol.buildCanonicalPayload(
@@ -333,7 +431,8 @@ public class ReverseProxyHandler implements HttpHandler {
             }
         }
 
-        // Propagate trace identifier if not already explicitly present in incoming headers
+        // Propagate trace identifier if not already explicitly present in incoming
+        // headers
         String traceId = LogContext.getTraceId();
         if (traceId != null && !traceId.isEmpty()) {
             if (conn.getRequestProperty(CorrelationFilter.HEADER_TRACE_ID) == null) {
@@ -353,7 +452,8 @@ public class ReverseProxyHandler implements HttpHandler {
         }
 
         // Forward body if present
-        if (("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) && body.length > 0) {
+        if (("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method))
+                && body.length > 0) {
             conn.setDoOutput(true);
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body);
@@ -370,7 +470,17 @@ public class ReverseProxyHandler implements HttpHandler {
             } else {
                 respStream = conn.getInputStream();
             }
-        } catch (ConnectException | SocketTimeoutException e) {
+            CIRCUIT_BREAKER.remove(hostPortKey); // reset circuit breaker on successful connection
+        } catch (ConnectException e) {
+            // Strictly connection refused / unreachable host - trip circuit breaker (REC-01)
+            CIRCUIT_BREAKER.put(hostPortKey, System.currentTimeMillis() + CIRCUIT_BREAKER_COOLDOWN_MS);
+            throw e;
+        } catch (SocketTimeoutException e) {
+            // Trip circuit breaker ONLY on connect timeout ("connect timed out"), NEVER on read timeouts or 5xx
+            String msg = e.getMessage();
+            if (msg != null && msg.toLowerCase(Locale.ROOT).contains("connect")) {
+                CIRCUIT_BREAKER.put(hostPortKey, System.currentTimeMillis() + CIRCUIT_BREAKER_COOLDOWN_MS);
+            }
             throw e;
         } catch (IOException e) {
             try {
@@ -385,9 +495,12 @@ public class ReverseProxyHandler implements HttpHandler {
         Headers outgoingHeaders = clientExchange.getResponseHeaders();
         for (Map.Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
             String name = header.getKey();
-            if (name != null && !"Transfer-Encoding".equalsIgnoreCase(name) && !"Content-Length".equalsIgnoreCase(name)) {
-                if (CorrelationFilter.HEADER_TRACE_ID.equalsIgnoreCase(name) || "X-Correlation-Id".equalsIgnoreCase(name)) {
-                    outgoingHeaders.set(CorrelationFilter.HEADER_TRACE_ID, traceId != null ? traceId : header.getValue().get(0));
+            if (name != null && !"Transfer-Encoding".equalsIgnoreCase(name)
+                    && !"Content-Length".equalsIgnoreCase(name)) {
+                if (CorrelationFilter.HEADER_TRACE_ID.equalsIgnoreCase(name)
+                        || "X-Correlation-Id".equalsIgnoreCase(name)) {
+                    outgoingHeaders.set(CorrelationFilter.HEADER_TRACE_ID,
+                            traceId != null ? traceId : header.getValue().get(0));
                     outgoingHeaders.set("X-Correlation-Id", traceId != null ? traceId : header.getValue().get(0));
                 } else {
                     for (String val : header.getValue()) {
@@ -448,8 +561,10 @@ public class ReverseProxyHandler implements HttpHandler {
     /**
      * Handles GET /api/v1/auth/me directly at the API Gateway edge.
      * <p>
-     * Cryptographically validates caller JWT, extracts authenticated subject UUID key,
-     * resolves authoritative user profile, tenant membership, business roles, and account
+     * Cryptographically validates caller JWT, extracts authenticated subject UUID
+     * key,
+     * resolves authoritative user profile, tenant membership, business roles, and
+     * account
      * status from trusted database records, and returns a stable JSON contract.
      * </p>
      */
@@ -506,7 +621,8 @@ public class ReverseProxyHandler implements HttpHandler {
             String failureReason = resolution.getFailureReason();
             String errorCode = "GATEWAY_" + failureReason.toUpperCase(Locale.ROOT);
             int statusCode = "database_error".equalsIgnoreCase(failureReason) ? 500 : 403;
-            String errorTitle = "database_error".equalsIgnoreCase(failureReason) ? "Internal Server Error" : "Forbidden";
+            String errorTitle = "database_error".equalsIgnoreCase(failureReason) ? "Internal Server Error"
+                    : "Forbidden";
             sendError(exchange, statusCode, errorTitle, errorCode, resolution.getMessage(), path);
             return;
         }
@@ -527,7 +643,8 @@ public class ReverseProxyHandler implements HttpHandler {
      * @param message   Human-readable diagnostic message.
      * @param path      Request URI path.
      */
-    private void sendError(HttpExchange exchange, int status, String error, String errorCode, String message, String path) {
+    private void sendError(HttpExchange exchange, int status, String error, String errorCode, String message,
+            String path) {
         try {
             String traceId = LogContext.getTraceId();
             if (traceId == null || traceId.isEmpty()) {
