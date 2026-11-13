@@ -1,0 +1,123 @@
+{
+  "storyId": "STM-04-US-003",
+  "title": "Head of Department (HOD) Endorsement & Departmental Review of Student Leave Petitions",
+  "slowMo": 350,
+  "steps": [
+    {
+      "title": "Faculty Advisor Portal Authentication",
+      "description": "Faculty Advisor / HOD (Dr. Rajesh Sharma) authenticates to CampXSync with authorized R32/R10 staff session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=faculty&returnTo=/faculty/advisees",
+      "highlight": null
+    },
+    {
+      "title": "Navigate to Faculty Advisory & Advisees Desk",
+      "description": "Verify Faculty Advisory workspace loads with assigned departmental advisee monitoring authority",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisees-heading\"]",
+      "highlight": "[data-testid=\"faculty-advisees-heading\"]"
+    },
+    {
+      "title": "Inspect Assigned Student Advisee Roster",
+      "description": "System displays active advisees assigned to this faculty member by institutional registry",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisees-count\"]",
+      "highlight": "[data-testid=\"faculty-advisees-count\"]"
+    },
+    {
+      "title": "Inspect Pending Advisee Petitions Queue",
+      "description": "System renders pending leave and transfer petitions submitted by advisees awaiting departmental clearance",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisee-requests-section\"]",
+      "highlight": "[data-testid=\"faculty-advisee-requests-section\"]"
+    },
+    {
+      "title": "Locate Advisee Medical Leave Petition",
+      "description": "Faculty advisor identifies pending orthopedic recovery leave petition submitted by advisee",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisee-req-row-33333333-3333-3333-3333-333333330003\"]",
+      "highlight": "[data-testid=\"faculty-advisee-req-row-33333333-3333-3333-3333-333333330003\"]"
+    },
+    {
+      "title": "Trigger Departmental Endorsement Action",
+      "description": "Faculty advisor opens departmental review and recommendation modal for the petition",
+      "action": "click",
+      "selector": "[data-testid=\"faculty-endorse-btn-33333333-3333-3333-3333-333333330003\"]",
+      "highlight": "[data-testid=\"faculty-endorse-btn-33333333-3333-3333-3333-333333330003\"]"
+    },
+    {
+      "title": "Verify Endorsement Modal Displayed",
+      "description": "Departmental Endorsement modal opens with recommendation options and mandatory remarks input",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-endorse-modal\"]",
+      "highlight": "[data-testid=\"faculty-endorse-modal\"]"
+    },
+    {
+      "title": "Select Recommendation Level",
+      "description": "Faculty selects RECOMMENDED endorsement based on fulfilled departmental criteria",
+      "action": "select",
+      "selector": "[data-testid=\"faculty-endorse-select\"]",
+      "value": "RECOMMENDED",
+      "highlight": "[data-testid=\"faculty-endorse-select\"]"
+    },
+    {
+      "title": "Enter Departmental Review Remarks",
+      "description": "Faculty advisor inputs detailed justification (> 5 chars) confirming academic progress clearance",
+      "action": "fill",
+      "selector": "[data-testid=\"faculty-endorse-remarks-input\"]",
+      "value": "HOD and Faculty Advisor review completed. Student satisfies departmental attendance and academic progress thresholds for orthopedic medical leave.",
+      "highlight": "[data-testid=\"faculty-endorse-remarks-input\"]"
+    },
+    {
+      "title": "Submit Departmental Endorsement",
+      "description": "Faculty submits formal endorsement to Java Lifecycle Service via API Gateway, appending immutable history entry",
+      "action": "click",
+      "selector": "[data-testid=\"faculty-endorse-confirm-btn\"]",
+      "highlight": "[data-testid=\"faculty-endorse-confirm-btn\"]"
+    },
+    {
+      "title": "Verify Endorsement Confirmation",
+      "description": "System displays success banner confirming petition was endorsed and forwarded to Registrar Lifecycle Review Desk",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisees-success\"]",
+      "highlight": "[data-testid=\"faculty-advisees-success\"]"
+    },
+    {
+      "title": "Verify Departmental Endorsement Badge on Faculty Desk",
+      "description": "Pending advisee petitions table renders updated endorsement status badge",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-request-endorsement-33333333-3333-3333-3333-333333330003\"]",
+      "highlight": "[data-testid=\"faculty-request-endorsement-33333333-3333-3333-3333-333333330003\"]"
+    },
+    {
+      "title": "Registrar Desk Verification — College Admin Sign-In",
+      "description": "College Administrator / Registrar authenticates to review endorsed petition on institutional desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Verify HOD Endorsement Surfaced to Registrar",
+      "description": "Registrar Pending Requests queue renders HOD Endorsement badge and remarks on the petition row",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-endorsement-33333333-3333-3333-3333-333333330003\"]",
+      "highlight": "[data-testid=\"college-lifecycle-endorsement-33333333-3333-3333-3333-333333330003\"]"
+    },
+    {
+      "title": "PostgreSQL Immutable Endorsement History Check",
+      "description": "Read-only query verifies stu.lifecycle_history contains committed hod.endorsement row in Supabase PostgreSQL",
+      "action": "db_check",
+      "query": "SELECT count(*) AS endorsement_count FROM stu.lifecycle_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND student_id = '81dd67d3-1d5f-4d8e-8061-a6764861f924' AND action LIKE 'hod.endorsement:RECOMMENDED%'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC Check — Gateway Direct Unauthenticated Access Blocked",
+      "description": "Gateway strictly blocks unauthenticated requests to /api/v1/lifecycle/advisor/requests with HTTP 401 Unauthorized",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/advisor/requests",
+      "expectedStatus": 401
+    }
+  ]
+}
+
