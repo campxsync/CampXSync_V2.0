@@ -1,13 +1,25 @@
 # CampXSync — Multi-Tenant College ERP & Student Lifecycle Management Platform
 
+## 0. Session Standing Rule (mandatory)
+- **Start of every session:** Read `docs/handover/CURSOR_START_HERE.md`, the latest section of `docs/project-control/PROGRESS.md`, then run `git log --oneline -10` and `git status`.
+- **End of every task:** Update the "current state" section of `docs/handover/CURSOR_START_HERE.md` and the latest ledger notes in `docs/project-control/PROGRESS.md` (when the user authorizes doc edits for that task).
+- **Verified "done" counts:** Use `docs/reports/TRACEABILITY_VERIFICATION.md` (from `node scripts/dev/check_traceability.mjs`). Rows marked PASS without `docs/demos/<Story-ID>/DEMO.md` are **NOT VERIFIED**.
+
 ## 1. Non-Negotiable Architecture Rules
-- **Transactional Path:** UI (Next.js 15) → API Gateway (:8080) → Java Microservices → Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`) → Intelligence Layer.
-- **UI Never Direct to DB:** UI and BFF routes (`frontend/src/app/api/**`) must NEVER query PostgreSQL directly; all domain mutations and reads go through API Gateway.
+- **Transactional Path (target):** UI (Next.js 15) → API Gateway (:8080) → Java Microservices → Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`) → Intelligence Layer.
+- **Architecture deviations exist:** Several Next.js pages/API routes still import `@/lib/db` or in-process caches. See `docs/reports/ANTIGRAVITY_ACTIVITY_REPORT_2026-11-09_to_2026-11-13.md` architecture-deviation list. Do not claim the path is universal until those are retired.
+- **UI Never Direct to DB (rule):** UI and BFF routes (`frontend/src/app/api/**`) must NEVER query PostgreSQL directly for new work; all domain mutations and reads go through API Gateway.
 - **Java Owns Business Logic:** State machines, validation, role authorization, and invariants reside strictly in Java domain services.
 - **One Shared Gateway:** Single ingress on port 8080 enforces HMAC signatures (`X-Gateway-Timestamp`, `X-Gateway-Signature`), routing, and JWT claim forwarding.
-- **Tenancy & RLS:** Every database access sets PostgreSQL session context (`SET LOCAL ROLE authenticated`, `request.jwt.claims`); RLS is FORCED on all domain tables.
+- **Tenancy & RLS:** Every database access sets PostgreSQL session context (`SET LOCAL ROLE authenticated`, `request.jwt.claims`); RLS is enabled/FORCED on domain tables. Phrase as: **RLS enabled; cross-tenant penetration suite not yet run** (do not claim "rigorous tenant isolation" without that suite).
 - **Zero Trust Client Identity:** Never trust client-supplied identity headers; claims must derive from verified Supabase auth tokens.
-- **Storage & Intelligence:** PostgreSQL is the sole transactional source of truth; Java services publish versioned JSON context events to Intelligence Layer.
+- **Storage & Intelligence:** PostgreSQL is the sole transactional source of truth; Java services publish versioned JSON context events to Intelligence Layer (`ControlledIntelligenceAdapter`, often `liveEndpoint=false`).
+
+## 1.1 Local Toolchain Paths (Windows)
+- **JDK 8:** `C:\Java\jdk` (`java` → `C:\Java\jdk\bin\java.exe`, version `1.8.0_202`).
+- **Maven 3.9.9:** `C:\Users\niran\Downloads\apache-maven-3.9.9-bin\apache-maven-3.9.9` (`mvn` / `mvn.cmd` on PATH).
+- **Node.js:** `C:\Program Files\nodejs\node.exe` (verified `v22.14.0`); npm `10.9.2`.
+- If `java`/`mvn` are missing from PATH in a new shell, prepend those directories before running Maven tests.
 
 ## 2. Stack Operations (Scripts, Ports & URLs)
 - **Start Stack (Supervisor):** `powershell -ExecutionPolicy Bypass -File scripts/dev/start_stack.ps1`

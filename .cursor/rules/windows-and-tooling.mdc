@@ -6,6 +6,15 @@ alwaysApply: false
 
 # Windows, PowerShell & Tooling Quirks
 
+## Toolchain Paths (verified 2026-11-13)
+- **JDK 8 home:** `C:\Java\jdk` — `java -version` → `1.8.0_202` (`C:\Java\jdk\bin\java.exe`).
+- **Maven home:** `C:\Users\niran\Downloads\apache-maven-3.9.9-bin\apache-maven-3.9.9` — `mvn -version` → Apache Maven 3.9.9.
+- **Node:** `C:\Program Files\nodejs\node.exe` — verified `v22.14.0`; npm `10.9.2`.
+- If a new shell lacks `java`/`mvn` on PATH, prepend:
+  ```powershell
+  $env:Path = "C:\Java\jdk\bin;C:\Users\niran\Downloads\apache-maven-3.9.9-bin\apache-maven-3.9.9\bin;" + $env:Path
+  ```
+
 ## PowerShell Syntax & Quoting
 - **Escape Parentheses in Paths:** Paths like `frontend/src/app/(dashboard)/...` must be quoted or escaped in PowerShell commands:
   ```powershell
@@ -15,9 +24,11 @@ alwaysApply: false
   ```powershell
   mvn test -pl services/student-services/lifecycle-service "-Dtest=LifecycleDomainServiceTest"
   ```
+- **Do not use `&&` between commands** in older Windows PowerShell; use `;` or separate invocations.
 - **Use Native PowerShell Cmdlets:** Prefer `Select-Object -First N` over Unix `head`, and `Select-String` over Unix `grep`.
 
 ## Build Lock & Memory Management
 - **Next.js Windows File Lock:** Transient `EPERM` / `EBUSY` on `.next` directory can occur during dev rebuilds. Retry up to twice before assuming failure.
 - **RAM Thresholds (< 3 GB Warning):** The development machine has limited RAM. Run microservices with `-Xms32m -Xmx96m` heap caps. Use `scripts/dev/check_stack.ps1` to monitor memory.
 - **Fast Process Restart:** Avoid restarting the entire stack if only one microservice changed; use `scripts/dev/restart_service.ps1 <service-name>` which terminates the port listener cleanly.
+- **Traceability check (no stack needed):** `node scripts/dev/check_traceability.mjs` → `docs/reports/TRACEABILITY_VERIFICATION.md`.

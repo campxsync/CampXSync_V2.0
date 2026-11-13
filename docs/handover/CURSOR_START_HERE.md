@@ -2,26 +2,22 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
+**Last current-state refresh:** 2026-11-13 (docs-only verification pass; HEAD `31f66c9`)
 
 ---
 
-## 1. Current State in 15 Bullets
+## 1. Current State in 10 Bullets (verified / labeled)
 
-1. **Transactional Path Active:** The canonical flow $\text{Next.js 15 UI} \rightarrow \text{API Gateway (:8080)} \rightarrow \text{Java Services} \rightarrow \text{Supabase PostgreSQL} \rightarrow \text{Intelligence Layer}$ is operational and enforced.
-2. **Microservices Operational:** Five core domain services are active on loopback: Admissions (:8094), Enrollment (:8095), Lifecycle (:8096), Guardian (:8097), Document (:8098).
-3. **API Gateway Active:** Port 8080 serves as single ingress, enforcing HMAC-SHA256 request signing and forwarding JWT claims.
-4. **Next.js 15 Frontend Active:** Port 3000 serves all college, student, and faculty portals using React Server Components and client desks.
-5. **STM-04 Student Lifecycle:** Stories US-007 through US-014 and US-003 work end-to-end with real database commits, status state machine enforcement, and HOD endorsement workflows.
-6. **STM-06 Student Documents:** Stories US-001 through US-006 work end-to-end with stage requirement checklists, multi-version uploads, verification decisions, and retention audit logging.
-7. **STM-02 Admissions:** All 55 backlog items implemented and verified against PostgreSQL persistence.
-8. **In-Memory / Mock Remnants:** Early academic services (ACD-01/02/03) still have in-memory repository fallbacks that need Postgres hardening before pilot.
-9. **Internal Auth Posture:** Microservice-to-microservice mutual token verification is relaxed (`-Dcampx.internal.auth.enabled=false`) for local loopback development, relying on Gateway HMAC headers.
-10. **Active Supabase Project:** Development ref is strictly `azulbaxszsqxymqmlwfe`. Production (`ekspahbsbwdpraaqfqui`) is strictly off-limits.
-11. **Uncommitted Work Status:** Working tree contains uncommitted changes for `STM-04-US-003` (HOD Endorsement) including `LifecycleDomainService.java`, `LifecycleController.java`, `page.tsx`, and demo assets. **Do NOT commit or reset without user instruction.**
-12. **Running Processes:** Stack supervisor (`scripts/dev/start_stack.ps1`) runs in the background monitoring ports 3000, 8080, 8096, and 8098.
-13. **Traceability Accounting:** 185 total items verified with live evidence in `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`.
-14. **Test Accounts:** Configured in `.env.audit` for College Admin, Faculty Advisor, Student, and Platform Admin.
-15. **Halt Condition:** The current task is stopped at user request; do not start new feature work without authorization.
+1. **Branch / HEAD:** `feature/java-backend-integration` at `31f66c9` (`docs(reports): Update STM traceability matrix and PROGRESS ledger for STM-04-US-003`). Working tree may contain only allowed docs from the verification pass.
+2. **Demo-verified stories (source of truth):** `docs/reports/TRACEABILITY_VERIFICATION.md` — **14** CSV rows marked done **and** having `docs/demos/<Story-ID>/DEMO.md` (STM-04-US-003, 007–014; STM-06-US-002–006). All other PASS rows are **NOT VERIFIED** under the demo gate.
+3. **CSV accounting (do not treat as fully verified):** 187 rows total; 183 marked done; 169 done-without-demo (**NOT VERIFIED**). STM-01/02/03 have many PASS rows with **0** demo packs.
+4. **ID / title conflicts (CSV not edited):** `STM04-US-012` vs `STM-04-US-012`, `STM04-US-014` vs `STM-04-US-014`; STM-04 US-007/008/010/011 titles conflict with Final User Stories source titles.
+5. **Mock / dual persistence:** Academic services still ship `InMemory*` repositories alongside some `Postgres*` implementations (course, batch, timetable, attendance, analytics). Curriculum / subject / calendar / assessment: no Postgres repository files found → treat as in-memory / UNVERIFIED Postgres.
+6. **Internal auth disabled locally:** `scripts/dev/start_stack.ps1` starts services with `-Dcampx.internal.auth.enabled=false` (multiple lines).
+7. **Stack now:** `check_stack.ps1` on 2026-11-13 reported Frontend :3000, Gateway :8080, Document :8098 **NOT LISTENING**; free RAM warning 0.37 GB. Do not assume the stack is up.
+8. **Unit test smoke:** `mvn -pl services/student-services/lifecycle-service "-Dtest=LifecycleDomainServiceTest"` exited **0** on 2026-11-13.
+9. **Architecture deviations:** Direct Postgres from Next.js via `@/lib/db` remains in several pages/routes (student dashboard/address/corrections/history, college faculty/timetable/attendance report, `resolve-role.ts`) plus in-process caches under `frontend/src/lib/cache/`.
+10. **Next planned work:** Launch Track Step 1 — Containerization & Deployment Orchestration (`docs/handover/NEXT_TASKS_FOR_CURSOR.md`). Do **not** start new STM feature stories unless the user re-authorizes.
 
 ---
 
@@ -30,23 +26,40 @@
 - **Database Migrations & Schemas:** `database/migrations/` and `docs/audit/`
 - **Story Demo Specifications:** `docs/stories/<STORY-ID>.demo.json`
 - **Recorded Headed Demos & Reports:** `docs/demos/<STORY-ID>/demo.webm` and `.../DEMO.md`
-- **Development & Health Scripts:** `scripts/dev/` (`start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`)
+- **Development & Health Scripts:** `scripts/dev/` (`start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`, `check_traceability.mjs`)
 - **Playwright Demo Harness:** `scripts/demo/run_story_demo.mjs`
 - **Master Progress Tracker:** `docs/project-control/PROGRESS.md`
 - **Traceability Matrix:** `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`
+- **Traceability Verification:** `docs/reports/TRACEABILITY_VERIFICATION.md`
+- **Activity Report (corrected):** `docs/reports/ANTIGRAVITY_ACTIVITY_REPORT_2026-11-09_to_2026-11-13.md`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 
 ---
 
 ## 3. Ten Most Important Lessons Learned
 
-1. **Never Bypass the Gateway:** Writing direct SQL queries in Next.js bypasses Java state machines, audit outbox events, and institutional security checks.
-2. **Column Size Invariants:** PostgreSQL `stu.lifecycle_history.action` is `VARCHAR(64)`. Prefixing action strings with long descriptions causes `422/500` database errors. Keep action codes concise (e.g. `hod.endorsement:<TYPE>`).
-3. **Status State Machine Invariants:** Students cannot transition from `ON_LEAVE` directly to `ON_LEAVE` or `TRANSFERRED`. Always verify current standing in UI before enabling decision buttons.
-4. **Append-Only Triggers:** Tables like `doc.document_versions` and `stu.lifecycle_history` have immutable triggers. Never execute `DELETE` or `UPDATE` on these tables.
-5. **Browser Extension Hydration Hazards:** Edge autofill and password managers inject `fdprocessedid="..."` into buttons. Use `mounted` gating and `suppressHydrationWarning`.
-6. **Windows RAM Constraints:** Running 6+ JVMs concurrently on Windows will exhaust memory if unconstrained. Bound JVM heaps to `-Xms32m -Xmx96m`.
-7. **Surgical Service Restarts:** Use `scripts/dev/restart_service.ps1 <service>` to recompile and restart an individual service in 4 seconds instead of restarting the entire stack.
-8. **PowerShell Quoting Rules:** Paths containing parentheses (like `(dashboard)`) and Maven flags with `-D` must always be quoted in PowerShell.
-9. **Deterministic Seeding:** When verifying complex workflows, seed fresh test records with distinct tags to avoid collisions with prior test runs.
-10. **Live Database Read-Backs are Mandatory:** A passing unit test with mocks does not prove that PostgreSQL committed the row. Always perform a real JDBC/pg read-back.
+1. **Never Bypass the Gateway (for new work):** Writing direct SQL in Next.js bypasses Java state machines, audit outbox events, and institutional security checks. Legacy `@/lib/db` usage is a documented deviation, not a pattern to extend.
+2. **Column Size Invariants:** PostgreSQL `stu.lifecycle_history.action` is `VARCHAR(64)`. Keep action codes concise.
+3. **Status State Machine Invariants:** Students cannot transition from `ON_LEAVE` directly to `ON_LEAVE` or `TRANSFERRED`. Verify current standing before enabling decision buttons.
+4. **Append-Only Triggers:** Tables like `doc.document_versions` and `stu.lifecycle_history` / `audit.events` have immutable triggers. Never `DELETE`/`UPDATE` those ledgers.
+5. **Browser Extension Hydration Hazards:** Edge autofill injects `fdprocessedid`. Use `mounted` gating and `suppressHydrationWarning`.
+6. **Windows RAM Constraints:** Bound JVM heaps to `-Xms32m -Xmx96m`. `check_stack.ps1` warns below 3 GB free RAM.
+7. **Surgical Service Restarts:** Use `scripts/dev/restart_service.ps1 <service>`.
+8. **PowerShell Quoting Rules:** Quote paths with parentheses and always quote Maven `-D` flags.
+9. **Deterministic Seeding:** Seed with distinct tags to avoid collisions.
+10. **Live Database Read-Backs are Mandatory:** A passing unit test with mocks does not prove PostgreSQL committed the row.
+
+---
+
+## 4. Handover instructions that worked / failed (2026-11-13 verification)
+
+| Instruction | Result |
+| :--- | :--- |
+| Read `AGENTS.md`, `.cursor/rules/*`, `CURSOR_START_HERE`, `KNOWN_PITFALLS`, `NEXT_TASKS_FOR_CURSOR` | **Worked** — files present and readable. |
+| `git log --oneline -15` / `git status` | **Worked**. |
+| `java` / `mvn` / `node` / `npm` on PATH | **Worked** (JDK `C:\Java\jdk`, Maven under Downloads, Node 22). |
+| `scripts/dev/check_stack.ps1` | **Worked as a script**; reported stack **down** (ports not listening) + low RAM. |
+| `LifecycleDomainServiceTest` via Maven | **Worked** — exit 0. |
+| Claim “185 total items verified with live evidence” in prior handover bullets | **Failed / unsupported** — replace with TRACEABILITY_VERIFICATION counts (14 demo-verified). |
+| Claim stack supervisor “runs in the background” | **Failed against current host** — `check_stack.ps1` showed services not listening. |
+| Claim “no commits or pushes” in activity/latency docs for 9–13 Nov | **Failed** — commits `395276c`, `f161cfe`, `9df3e80`, `be033af`, `91dab15`, `41f8bde`, `31f66c9` exist on the branch. |
