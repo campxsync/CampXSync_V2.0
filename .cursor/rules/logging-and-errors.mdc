@@ -1,0 +1,42 @@
+---
+description: Logging and RFC 7807 exception handling standards across Java and Next.js
+globs: ["**/*.java", "frontend/src/**/*.ts", "frontend/src/**/*.tsx"]
+alwaysApply: false
+---
+
+# Logging & Exception Standards
+
+## Java Service Standards
+- **Logger Initialization:**
+  ```java
+  private static final CampXLogger logger = CampXLoggerFactory.getLogger(MyService.class);
+  ```
+- **Flow Tracking & Tracing:**
+  ```java
+  FlowTracker tracker = logger.flow("OPERATION_NAME", correlationId);
+  try { ... } finally { tracker.close(); }
+  ```
+- **RFC 7807 Problem Details:** Throw domain exceptions with HTTP status and machine code:
+  ```java
+  throw new LifecycleException(422, "REMARKS_TOO_SHORT", "Remarks must contain at least 5 characters");
+  ```
+- **No Swallowed Exceptions or Console Output:**
+  - Never use `System.out.println` or bare `e.printStackTrace()` in production code.
+  - Never catch `Exception` and silently swallow without logging or rethrowing.
+
+## Next.js Frontend Standards
+- **BFF Error Propagation:** Return RFC 7807 JSON with status from upstream gateway:
+  ```ts
+  const res = await fetch(`${GATEWAY_URL}/api/v1/...`, { ... });
+  const text = await res.text();
+  return new NextResponse(text, { status: res.status, headers: { 'Content-Type': 'application/json' } });
+  ```
+- **Client Parsing:** Parse problem details using standard helper:
+  ```ts
+  function parseProblemDetails(text: string) {
+    try {
+      const p = JSON.parse(text);
+      return p.detail || p.title || p.message || text;
+    } catch { return text; }
+  }
+  ```

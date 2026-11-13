@@ -1,0 +1,27 @@
+---
+description: Demo harness usage, Playwright testing conventions, test tagging, and append-only database rules
+globs: ["docs/stories/*.json", "scripts/demo/**/*.mjs", "frontend/src/**/*.tsx"]
+alwaysApply: false
+---
+
+# Testing & Demo Conventions
+
+## Visible Playwright Demo Harness
+- Run story demos with:
+  ```powershell
+  node scripts/demo/run_story_demo.mjs <STORY-ID>
+  ```
+- Spec lives at `docs/stories/<STORY-ID>.demo.json`. Actions: `goto`, `wait_for`, `click`, `fill`, `select`, `api_call`, `db_check`.
+- Generates headed video at `docs/demos/<STORY-ID>/demo.webm` and markdown report at `docs/demos/<STORY-ID>/DEMO.md`.
+
+## UI `data-testid` Standards
+- Pages and key interactive elements MUST have deterministic `data-testid` attributes:
+  - Page Heading: `data-testid="<module>-<desk>-heading"`
+  - Table Rows: `data-testid="<module>-<desk>-row-<id>"`
+  - Form Actions: `data-testid="<module>-<action>-btn"`
+  - Alert / Banners: `data-testid="<module>-<desk>-success"` or `...-error"`
+
+## Database Test Rules
+- **Tagged Test Records:** Use unique prefix tags (e.g. `DEMO-<STORY-ID>-<timestamp>`) for easy auditing and identification.
+- **Append-Only Table Rules:** Never execute `DELETE` on append-only audit and version tables (`stu.lifecycle_history`, `doc.document_versions`, `audit.events`).
+- **Dev Database Only:** Never run tests or demos against production or staging refs. Use dev ref `azulbaxszsqxymqmlwfe`.

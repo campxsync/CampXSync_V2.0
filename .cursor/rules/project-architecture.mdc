@@ -1,0 +1,24 @@
+---
+description: Architecture rules, transactional request path, and microservice domain ownership
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Project Architecture & Transactional Path
+
+## Core Transactional Path
+`Browser / Client` → `Next.js 15 App Router (BFF / API Routes)` → `API Gateway (port 8080)` → `Java Domain Microservices` → `Supabase PostgreSQL (dev ref azulbaxszsqxymqmlwfe)` → `Intelligence Layer (Outbox / Events)`
+
+## Architectural Invariants
+1. **No Direct DB Access from Frontend:** Next.js pages, components, and BFF routes (`src/app/api/**`) must never import database drivers or execute raw SQL. All reads/writes route through API Gateway (:8080).
+2. **Business Logic in Java:** Validations, status transitions, role checks, and domain invariants live strictly in Java domain services, not in Next.js or PostgreSQL stored procedures.
+3. **Single Gateway Ingress:** API Gateway (:8080) validates incoming sessions, enforces rate-limiting, and adds HMAC authentication headers (`X-Gateway-Timestamp`, `X-Gateway-Signature`) before forwarding to downstream microservices on loopback.
+4. **Service Boundary Ownership:**
+   - `admissions-service` (:8094): Owns `stu.admissions_*`, `stu.applications`
+   - `enrollment-service` (:8095): Owns `stu.course_enrollments`, `stu.enrollment_catalogue`
+   - `lifecycle-service` (:8096): Owns `stu.lifecycle_status`, `stu.lifecycle_requests`, `stu.lifecycle_history`
+   - `guardian-service` (:8097): Owns `stu.guardianships`, `core.person_emergency_contacts`
+   - `document-service` (:8098): Owns `doc.documents`, `doc.document_versions`, `doc.stage_requirements`, `doc.document_deliveries`
+5. **Intelligence Layer Contract:** Java services emit versioned JSON events (e.g. `student.lifecycle.changed.v1`) through `ControlledIntelligenceAdapter`. The intelligence layer never bypasses Java business rules or writes directly to PostgreSQL.
+
+See [AGENTS.md](file:///d:/CampXSync/CampXSync_V2.0/AGENTS.md) and [CURSOR_START_HERE.md](file:///d:/CampXSync/CampXSync_V2.0/docs/handover/CURSOR_START_HERE.md).

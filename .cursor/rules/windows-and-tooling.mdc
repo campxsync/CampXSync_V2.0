@@ -1,0 +1,23 @@
+---
+description: Windows, PowerShell, Maven, JDK 8 quirks, and RAM memory management limits
+globs: ["scripts/**/*.ps1", "scripts/**/*.mjs", "pom.xml"]
+alwaysApply: false
+---
+
+# Windows, PowerShell & Tooling Quirks
+
+## PowerShell Syntax & Quoting
+- **Escape Parentheses in Paths:** Paths like `frontend/src/app/(dashboard)/...` must be quoted or escaped in PowerShell commands:
+  ```powershell
+  git diff -- 'frontend/src/app/(dashboard)/college/lifecycle/page.tsx'
+  ```
+- **Quote Maven System Properties:** Always double-quote `-D` properties in PowerShell:
+  ```powershell
+  mvn test -pl services/student-services/lifecycle-service "-Dtest=LifecycleDomainServiceTest"
+  ```
+- **Use Native PowerShell Cmdlets:** Prefer `Select-Object -First N` over Unix `head`, and `Select-String` over Unix `grep`.
+
+## Build Lock & Memory Management
+- **Next.js Windows File Lock:** Transient `EPERM` / `EBUSY` on `.next` directory can occur during dev rebuilds. Retry up to twice before assuming failure.
+- **RAM Thresholds (< 3 GB Warning):** The development machine has limited RAM. Run microservices with `-Xms32m -Xmx96m` heap caps. Use `scripts/dev/check_stack.ps1` to monitor memory.
+- **Fast Process Restart:** Avoid restarting the entire stack if only one microservice changed; use `scripts/dev/restart_service.ps1 <service-name>` which terminates the port listener cleanly.

@@ -1,0 +1,32 @@
+---
+description: One-story implementation cycle, user approval gates, and documentation tracking
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Story Workflow & Approval Lifecycle
+
+## The One-Story Cycle
+1. **Single Story Bounded Scope:** Implement exactly ONE user story per turn. Do not batch or pre-emptively start the next story.
+2. **Implementation Sequence:**
+   - Java domain logic, exceptions, and audit logging.
+   - Real PostgreSQL persistence repository with transaction management.
+   - API Gateway routing and HMAC registration.
+   - Next.js 15 UI page and BFF route (`/api/...`) with `data-testid` contracts.
+3. **Verification Steps:**
+   - Java unit tests (100% pass on story scope).
+   - Frontend TypeScript check (`cd frontend; npx tsc --noEmit` -> 0 errors).
+   - Visible headed Playwright demo run (`node scripts/demo/run_story_demo.mjs <STORY-ID>`).
+4. **Documentation & Stop Gate:**
+   - Append row to `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`.
+   - Update `docs/project-control/PROGRESS.md`.
+   - Report exact evidence (screenshots, demo video path, DB read-back) and STOP for user approval.
+
+## User Approval Phrases
+- **`APPROVED <ID>`:** Story verified; proceed to prepare next authorized task. Do NOT commit or push.
+- **`APPROVED <ID> COMMIT`:** Story verified; commit changes with conventional message (`feat(domain): ...`) and push if instructed.
+- **`CHANGES <ID>: <feedback>`:** Rework requested; address feedback and re-run verification before requesting approval again.
+
+## Time-Box & Circuit Breaker
+- Bound each story execution to 45–60 minutes.
+- If a compilation or runtime error fails 3 consecutive attempts, STOP and report the exact blocker. Never loop indefinitely.

@@ -1,42 +1,48 @@
-# CampXSync Repository Agent Instructions
+# CampXSync — Multi-Tenant College ERP & Student Lifecycle Management Platform
 
-## Mandatory preflight
-Before any task, read:
-1. `.agent/rules/campxsync-wave-control.md`
-2. `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md`
-3. `docs/project-control/PROGRESS.md`
-4. `prompts/NEXT_ANTIGRAVITY_TASK.md`
-5. The latest relevant report under `docs/reports/`
+## 1. Non-Negotiable Architecture Rules
+- **Transactional Path:** UI (Next.js 15) → API Gateway (:8080) → Java Microservices → Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`) → Intelligence Layer.
+- **UI Never Direct to DB:** UI and BFF routes (`frontend/src/app/api/**`) must NEVER query PostgreSQL directly; all domain mutations and reads go through API Gateway.
+- **Java Owns Business Logic:** State machines, validation, role authorization, and invariants reside strictly in Java domain services.
+- **One Shared Gateway:** Single ingress on port 8080 enforces HMAC signatures (`X-Gateway-Timestamp`, `X-Gateway-Signature`), routing, and JWT claim forwarding.
+- **Tenancy & RLS:** Every database access sets PostgreSQL session context (`SET LOCAL ROLE authenticated`, `request.jwt.claims`); RLS is FORCED on all domain tables.
+- **Zero Trust Client Identity:** Never trust client-supplied identity headers; claims must derive from verified Supabase auth tokens.
+- **Storage & Intelligence:** PostgreSQL is the sole transactional source of truth; Java services publish versioned JSON context events to Intelligence Layer.
 
-Follow the wave sequence and safety rules. Execute one bounded task at a time. Do not repeat completed work without a concrete reason, skip waves, or start the next task unless the current prompt explicitly authorizes it.
+## 2. Stack Operations (Scripts, Ports & URLs)
+- **Start Stack (Supervisor):** `powershell -ExecutionPolicy Bypass -File scripts/dev/start_stack.ps1`
+- **Check Stack Health:** `powershell -ExecutionPolicy Bypass -File scripts/dev/check_stack.ps1`
+- **Stop Stack:** `powershell -ExecutionPolicy Bypass -File scripts/dev/stop_stack.ps1`
+- **Fast Service Restart:** `powershell -ExecutionPolicy Bypass -File scripts/dev/restart_service.ps1 <service-name>` (e.g. `lifecycle-service`, `document-service`)
+- **Port Map:** Next.js UI (:3000), Gateway (:8080), STM-02 Admissions (:8094), STM-03 Enrollment (:8095), STM-04 Lifecycle (:8096), STM-05 Guardian (:8097), STM-06 Documents (:8098).
+- **Core Desks:** `/college/lifecycle`, `/college/documents`, `/faculty/advisees`, `/student/lifecycle`, `/student/documents`. Accounts configured in `.env.audit`.
 
-## Mandatory architecture
-- The required transactional path is **UI → shared/versioned API Gateway → Java domain services → Supabase/PostgreSQL**.
-- Verify authorization, committed persistence/read-back, and tenant isolation; unit tests alone are not end-to-end proof.
-- Relevant Java service outputs must be shared with the CampXSync Intelligence Layer through documented, versioned contracts.
-- Every wave report must cover both the transactional path and Intelligence Layer integration, including test evidence and gaps.
-- Preserve tenant context, least privilege, data minimization, correlation, idempotency, and appropriate retry/failure handling.
-- Reuse existing Shared Services/audit-outbox contracts when suitable. The Intelligence Layer must not bypass gateway authorization, Java business rules, tenant isolation, or PostgreSQL as the transactional source of truth.
+## 3. Testing & Demo Harness
+- **Unit & Security Tests:** `mvn test -pl services/student-services/<service-dir> -Dtest=<TestClass>` (quote `-D` flags in PowerShell).
+- **Frontend Typecheck:** `cd frontend; npx tsc --noEmit`
+- **Visible Playwright Demo Runner:** `node scripts/demo/run_story_demo.mjs <STORY-ID>` (uses `docs/stories/<STORY-ID>.demo.json`). Outputs video to `docs/demos/<STORY-ID>/demo.webm` and report to `docs/demos/<STORY-ID>/DEMO.md`.
 
-## Safety and repository discipline
-- Preserve current branch, working tree, edits, and untracked files.
-- No reset, branch switch, stash, commit, push, cleanup, or overwriting existing work without explicit authorization.
-- Never read root `.env.local` or `frontend/.env.local`.
-- Never connect to or modify production Supabase ref `ekspahbsbwdpraaqfqui` or previous staging ref `kpwdvvcschankgggitnj`.
-- The agreed development ref is `azulbaxszsqxymqmlwfe`; use only when necessary and authorized.
-- No database writes, migrations, schema changes, role/grant changes, or RLS changes without explicit approval for that specific step.
-- Never silently fall back to in-memory identity or mock authorization in production-like execution.
-- Do not introduce unapproved framework upgrades or unrelated scope.
-- If a task requires an approval-gated operation, stop and explain the exact blocker. Never bypass safety controls.
+## 4. Documentation Locations
+- **Progress & Plan:** `docs/project-control/PROGRESS.md`, `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md`
+- **Traceability Matrix:** `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`
+- **Handover & Demos:** `docs/handover/`, `docs/demos/`, `docs/reports/`
 
-## Required task and wave closeout
-For each task, report exact changed files, commands/results, skipped/not-run tests, evidence type (mock/in-memory, unit, DB integration, browser/E2E), tenant-isolation evidence, Intelligence Layer contract evidence, blockers, and safety compliance.
+## 5. Story Workflow (6 Lines)
+1. Pick ONE authorized story from `docs/handover/NEXT_TASKS_FOR_CURSOR.md` (or user prompt); never batch stories.
+2. Implement backend domain service, PostgreSQL persistence, and API gateway routing with real HikariCP JDBC (no mock data).
+3. Connect Next.js 15 UI and BFF route to API Gateway, adhering to design system tokens and data-testid contracts.
+4. Execute unit test suite and verify clean compilation (`tsc --noEmit`, Maven test 0 failures).
+5. Run visible headed Playwright demo (`run_story_demo.mjs <ID>`) generating `.webm` video, screenshots, and live DB read-back.
+6. Update `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv` and `PROGRESS.md`, report exact evidence, and STOP for user approval.
 
-At each wave end:
-1. Create `docs/reports/wave-N/COMPLETION_REPORT.md` using `docs/reports/WAVE_COMPLETION_REPORT_TEMPLATE.md`.
-2. Update `docs/project-control/PROGRESS.md`.
-3. Analyze the report and actual diffs/test logs.
-4. Prepare `prompts/NEXT_ANTIGRAVITY_TASK.md` for the next task.
-5. Stop; do not begin the next wave automatically.
+## 6. Definition of Done (DoD) Pointer
+Consult `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md` and `docs/handover/CURSOR_START_HERE.md` for complete gate criteria.
 
-Never claim a test or change is verified without actual evidence.
+## 7. DO-NOTs
+- **NO Commits/Push/Branches:** Never commit, push, create branches, stash, or reset without explicit, exact user authorization.
+- **Dev Database ONLY:** Target `azulbaxszsqxymqmlwfe` ONLY. Never connect to production (`ekspahbsbwdpraaqfqui`) or legacy staging (`kpwdvvcschankgggitnj`).
+- **NO Unapproved DDL:** No schema migrations, DDL, role grants, or RLS changes without explicit per-step user approval.
+- **NO Secret Exposure:** Never log, print, or commit passwords, JWTs, service keys, or tokens. Refer to `.env.audit` by variable name.
+- **NO Mock/In-Memory Fallback:** Never silently fall back to in-memory identity, mock persistence, or stubbed authorization in active paths.
+- **NO Whole-File Rewrites:** Use targeted surgical diffs; preserve existing working code and comments.
+- **Circuit Breaker:** Stop immediately after 3 failed attempts at the same error; report the blocker and await instruction.

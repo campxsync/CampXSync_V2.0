@@ -1,0 +1,29 @@
+---
+description: Security boundaries, Supabase RLS context, authentication flow, and test personas
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Security & Data Governance
+
+## Authentication & Authorization Flow
+1. **User Auth:** User logs in via Supabase Auth (`/login`) or development test session (`/api/auth/test-session?role=...`).
+2. **Gateway Forwarding:** BFF passes `Authorization: Bearer <token>` or forwards authenticated gateway identity headers (`X-Tenant-Id`, `X-User-Id`, `X-User-Role`).
+3. **Internal Auth & HMAC:** Gateway signs requests using HMAC-SHA256. Microservices verify timestamp within 60s window via `GatewayHmacVerifier`.
+4. **PostgreSQL RLS & Tenant Context:** Every database transaction executes inside `executeInTransaction` which runs:
+   ```sql
+   SET LOCAL ROLE authenticated;
+   SELECT set_config('request.jwt.claims', '{"sub":"<userId>","tenant_id":"<tenantId>","user_role":"<role>"}', true);
+   ```
+   All tables have `FORCE ROW LEVEL SECURITY` active.
+
+## Real Data & Zero Mock Rule
+- **Development Database:** Use Supabase development ref `azulbaxszsqxymqmlwfe` ONLY. Production (`ekspahbsbwdpraaqfqui`) is strictly forbidden.
+- **No In-Memory Mocks in Active Paths:** Features must persist to PostgreSQL with live read-back verification. In-memory mode is reserved for unit tests.
+
+## Test Accounts & Personas (Configured in `.env.audit`)
+- **College Admin (R31):** `campxsync@gmail.com` — Institutional setup, leave decisions, degree clearance.
+- **Faculty Advisor (R32 / R10):** `faculty.campx@gmail.com` (`Dr. Rajesh Sharma`) — Advisee tracking, departmental leave endorsement.
+- **Student 1 (R25):** `student1.campx@gmail.com` — Self-service lifecycle petitions, document uploads.
+- **Platform Admin (R01):** `platformadmin.campx@gmail.com` — Tenant provisioning and global monitoring.
+*(Passwords stored in `.env.audit`; never print or commit credentials).*
