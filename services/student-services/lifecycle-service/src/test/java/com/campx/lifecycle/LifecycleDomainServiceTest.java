@@ -49,7 +49,8 @@ public class LifecycleDomainServiceTest {
 
     @Test
     public void studentCannotApproveRequest() {
-        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "Medical");
         try {
             service.decideRequest(studentActor, pending.id, "APPROVED");
             fail("expected forbidden");
@@ -61,7 +62,8 @@ public class LifecycleDomainServiceTest {
 
     @Test
     public void registrarApprovesLeave() {
-        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "Medical");
         LifecycleDomainService.LifecycleRequest decided = service.decideRequest(registrar, pending.id, "APPROVED");
         assertEquals("APPROVED", decided.status);
         LifecycleDomainService.LifecycleStatus status = service.getStatus(studentActor, student);
@@ -80,17 +82,20 @@ public class LifecycleDomainServiceTest {
 
     @Test
     public void transferWithdrawalAndReinstatementFollowApproval() {
-        LifecycleDomainService.LifecycleRequest transfer = service.submitRequest(studentActor, student, "TRANSFER", "Move to another programme");
+        LifecycleDomainService.LifecycleRequest transfer = service.submitRequest(studentActor, student, "TRANSFER",
+                "Move to another programme");
         service.decideRequest(registrar, transfer.id, "APPROVED");
         assertEquals("TRANSFERRED", service.getStatus(studentActor, student).status);
 
         service.seedStudent(tenant, otherStudent, "ON_LEAVE");
         Actor other = new Actor(tenant, otherStudent, "STUDENT", "corr-other");
-        LifecycleDomainService.LifecycleRequest reinstate = service.submitRequest(other, otherStudent, "REINSTATE", "Returning");
+        LifecycleDomainService.LifecycleRequest reinstate = service.submitRequest(other, otherStudent, "REINSTATE",
+                "Returning");
         service.decideRequest(registrar, reinstate.id, "APPROVED");
         assertEquals("ACTIVE", service.getStatus(other, otherStudent).status);
 
-        LifecycleDomainService.LifecycleRequest withdrawal = service.submitRequest(other, otherStudent, "WITHDRAWAL", "Personal",
+        LifecycleDomainService.LifecycleRequest withdrawal = service.submitRequest(other, otherStudent, "WITHDRAWAL",
+                "Personal",
                 LocalDate.parse("2026-12-01"));
         service.decideRequest(registrar, withdrawal.id, "APPROVED");
         assertEquals("WITHDRAWN", service.getStatus(other, otherStudent).status);
@@ -131,7 +136,8 @@ public class LifecycleDomainServiceTest {
 
     @Test
     public void registrarRecordsGraduationOnlyWhenTheStudentIsActive() {
-        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "Medical");
         java.util.Map<String, Object> blocked = service.validateGraduation(registrar, student, program);
         assertEquals(Boolean.FALSE, blocked.get("eligible"));
         try {
@@ -167,6 +173,40 @@ public class LifecycleDomainServiceTest {
         } catch (LifecycleException ex) {
             assertEquals(403, ex.getStatus());
             assertEquals("FACULTY_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void advisorCanListAdviseeRequestsAndEndorsePendingPetition() {
+        service.assignAdvisor(registrar, facultyActor.getUserId(), student);
+        LifecycleDomainService.LifecycleRequest req = service.submitRequest(studentActor, student, "LEAVE",
+                "Medical leave for testing", LocalDate.parse("2026-12-10"));
+
+        java.util.List<LifecycleDomainService.LifecycleRequest> adviseeReqs = service.listAdviseeRequests(facultyActor);
+        assertEquals(1, adviseeReqs.size());
+        assertEquals(req.id, adviseeReqs.get(0).id);
+
+        java.util.Map<String, Object> endorsement = service.endorseRequest(facultyActor, req.id, "RECOMMENDED",
+                "Student discussed medical recovery plan with HOD");
+        assertEquals(Boolean.TRUE, endorsement.get("endorsed"));
+        assertEquals("RECOMMENDED", endorsement.get("endorsement"));
+
+        // Remarks guardrail (< 5 chars rejected)
+        try {
+            service.endorseRequest(facultyActor, req.id, "RECOMMENDED", "bad");
+            fail("Remarks with < 5 characters must be rejected");
+        } catch (LifecycleException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("REMARKS_TOO_SHORT", ex.getCode());
+        }
+
+        // Student cannot endorse
+        try {
+            service.endorseRequest(studentActor, req.id, "RECOMMENDED", "Self recommendation");
+            fail("Students must not endorse petitions");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("ADVISOR_FORBIDDEN", ex.getCode());
         }
     }
 }

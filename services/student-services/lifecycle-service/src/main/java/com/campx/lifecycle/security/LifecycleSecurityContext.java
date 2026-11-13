@@ -71,10 +71,11 @@ public class LifecycleSecurityContext {
                     throw (RuntimeException) e;
                 }
                 logger.error("Lifecycle database transaction failed", e);
+                e.printStackTrace();
                 if (e instanceof RuntimeException) {
                     throw (RuntimeException) e;
                 }
-                throw new RuntimeException("Lifecycle database transaction failed", e);
+                throw new RuntimeException("Lifecycle database transaction failed: " + e.getMessage(), e);
             } finally {
                 clearPostgresRoleContext(conn);
                 try {

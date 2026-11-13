@@ -12,11 +12,40 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ title: 'Forbidden', status: 403 }, { status: 403 });
   }
   const headers = await getGatewayHeaders(req, supabase, resolution.session, 'FACULTY');
-  const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/lifecycle/advisees`, {
+  const view = req.nextUrl.searchParams.get('view') || 'advisees';
+  let path = '/api/v1/lifecycle/advisees';
+  if (view === 'requests') {
+    path = '/api/v1/lifecycle/advisor/requests';
+  }
+  const res = await fetch(`${GATEWAY_BASE_URL}${path}`, {
     method: 'GET',
     headers,
     cache: 'no-store',
   });
   const body = await res.text();
   return new NextResponse(body, { status: res.status, headers: { 'Content-Type': 'application/json' } });
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const resolution = await resolveUserRole(supabase);
+  if (!resolution.success || resolution.session.role !== 'faculty') {
+    return NextResponse.json({ title: 'Forbidden', status: 403 }, { status: 403 });
+  }
+  const payload = await req.json();
+  const headers = await getGatewayHeaders(req, supabase, resolution.session, 'FACULTY');
+  const action = String(payload?.action || 'endorse');
+  let path = `/api/v1/lifecycle/requests/${payload.requestId}/endorse`;
+  let body: Record<string, unknown> = {
+    endorsement: payload.endorsement || 'RECOMMENDED',
+    remarks: payload.remarks,
+  };
+  const res = await fetch(`${GATEWAY_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  const text = await res.text();
+  return new NextResponse(text, { status: res.status, headers: { 'Content-Type': 'application/json' } });
 }

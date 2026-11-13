@@ -318,6 +318,118 @@ public class LifecycleDomainService {
     }
 
     /**
+     * Lists pending lifecycle requests submitted by advisees of the calling advisor / HOD.
+     *
+     * @throws LifecycleException 403 when the caller is not an advisor/faculty
+     */
+    public List<LifecycleRequest> listAdviseeRequests(Actor actor) {
+        requireTenant(actor);
+        if (!isAdvisor(actor)) {
+            throw reject(403, "ADVISOR_FORBIDDEN", "Advisee requests are limited to the assigned faculty advisor or department head");
+        }
+        Set<UUID> adviseeIds = new LinkedHashSet<UUID>();
+        if (persistence != null && actor.getUserId() != null) {
+            try {
+                adviseeIds.addAll(persistence.findAdviseesByAdvisor(actor, actor.getUserId()));
+            } catch (Exception ignored) {
+            }
+        }
+        Set<UUID> inMem = adviseesByAdvisor.get(advisorKey(actor.getTenantId(), actor.getUserId()));
+        if (inMem != null) {
+            adviseeIds.addAll(inMem);
+        }
+        List<LifecycleRequest> pending = new ArrayList<LifecycleRequest>();
+        for (UUID studentId : adviseeIds) {
+            List<LifecycleRequest> studentReqs = null;
+            if (persistence != null) {
+                try {
+                    studentReqs = persistence.findRequestsByStudent(actor, studentId);
+                } catch (Exception ignored) {
+                }
+            }
+            if (studentReqs == null) {
+                studentReqs = new ArrayList<LifecycleRequest>();
+                for (LifecycleRequest r : requests.values()) {
+                    if (r.tenantId.equals(actor.getTenantId()) && r.studentId.equals(studentId)) {
+                        studentReqs.add(r);
+                    }
+                }
+            }
+            for (LifecycleRequest req : studentReqs) {
+                if ("PENDING".equals(req.status)) {
+                    pending.add(req);
+                }
+            }
+        }
+        return pending;
+    }
+
+    /**
+     * Head of Department (HOD) or Faculty Advisor formal endorsement of a student leave petition.
+     *
+     * @throws LifecycleException 403 when the caller is not an advisor/faculty
+     * @throws LifecycleException 409 when the request was already decided
+     * @throws LifecycleException 422 when remarks are missing or too short
+     */
+    public Map<String, Object> endorseRequest(Actor actor, UUID requestId, String endorsement, String remarks) {
+        requireTenant(actor);
+        if (!isAdvisor(actor)) {
+            throw reject(403, "ADVISOR_FORBIDDEN", "Departmental endorsement requires faculty advisor or department head authority");
+        }
+        requireText(endorsement, "endorsement");
+        requireText(remarks, "remarks");
+        String normRemarks = remarks.trim();
+        if (normRemarks.length() < 5) {
+            throw reject(422, "REMARKS_TOO_SHORT", "Departmental endorsement remarks must contain at least 5 characters");
+        }
+        String normEndorsement = endorsement.trim().toUpperCase();
+        LifecycleRequest request = requireRequest(actor.getTenantId(), requestId);
+        if (!"PENDING".equals(request.status)) {
+            throw reject(409, "REQUEST_ALREADY_DECIDED", "Request has already been decided");
+        }
+
+        Instant now = clock.instant();
+        String actionName = "hod.endorsement:" + normEndorsement;
+        HistoryEntry entry = new HistoryEntry(actor.getTenantId(), UUID.randomUUID(), request.studentId,
+                "PENDING", actionName, actor.getRole(), now);
+
+        String historyKey = statusKey(actor.getTenantId(), request.studentId);
+        List<HistoryEntry> rows = history.get(historyKey);
+        if (rows == null) {
+            rows = new CopyOnWriteArrayList<HistoryEntry>();
+            history.put(historyKey, rows);
+        }
+        rows.add(entry);
+
+        String endorsementSuffix = " [HOD Endorsement (" + normEndorsement + "): " + normRemarks + "]";
+        if (request.reason == null) {
+            request.reason = endorsementSuffix.trim();
+        } else if (!request.reason.contains("HOD Endorsement")) {
+            request.reason = request.reason + endorsementSuffix;
+        }
+
+        if (persistence != null) {
+            persistence.appendHistory(actor, entry);
+            persistence.saveRequest(actor, request);
+        }
+
+        emitLifecycleChanged(actor, request.studentId, "PENDING", "PENDING", actionName, request.id, now);
+        log(actor, "lifecycle.request.endorsed:" + normEndorsement.toLowerCase(), request.studentId);
+
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("id", request.id.toString());
+        result.put("studentId", request.studentId.toString());
+        result.put("requestType", request.requestType);
+        result.put("status", request.status);
+        result.put("endorsed", Boolean.TRUE);
+        result.put("endorsement", normEndorsement);
+        result.put("endorsedBy", actor.getUserId() == null ? "" : actor.getUserId().toString());
+        result.put("remarks", normRemarks);
+        result.put("endorsedAt", now.toString());
+        return result;
+    }
+
+    /**
      * Counts students by lifecycle status for the registrar's tenant.
      *
      * @throws LifecycleException 403 when the caller is not a registrar
@@ -838,7 +950,7 @@ public class LifecycleDomainService {
         public final UUID studentId;
         public final String requestType;
         public String status;
-        public final String reason;
+        public String reason;
         public final LocalDate effectiveDate;
         public UUID decidedBy;
         public Instant decidedAt;

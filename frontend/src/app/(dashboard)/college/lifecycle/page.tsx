@@ -34,6 +34,7 @@ type RequestRow = {
   reason?: string;
   effectiveDate?: string;
   created_at?: string;
+  endorsement?: string;
 };
 
 function parseProblemDetails(text: string): { message: string; isDecided: boolean } {
@@ -454,6 +455,18 @@ export default function CollegeLifecycleDeskPage() {
                       <p className="line-clamp-2 text-xs" title={req.reason}>
                         {req.reason || '—'}
                       </p>
+                      {req.endorsement && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span
+                            data-testid={`college-lifecycle-endorsement-${req.id}`}
+                            className="inline-flex items-center gap-1 rounded bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-[10px] font-semibold text-teal-800"
+                            title={req.endorsement}
+                          >
+                            <CheckCircle2 className="h-3 w-3 text-teal-600" />
+                            HOD: {req.endorsement.split(':')[0]}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
                       {req.effectiveDate ? (
@@ -475,31 +488,48 @@ export default function CollegeLifecycleDeskPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          data-testid={`college-lifecycle-approve-btn-${req.id}`}
-                          disabled={loading}
-                          onClick={() => void decide(req.id, 'APPROVED')}
-                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          data-testid={`college-lifecycle-reject-btn-${req.id}`}
-                          disabled={loading}
-                          onClick={() => {
-                            setRejectingRequestId(req.id);
-                            setRejectReason('');
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                          Reject
-                        </button>
-                      </div>
+                      {(() => {
+                        const cannotApproveReason =
+                          req.requestType === 'LEAVE' && req.currentStatus && req.currentStatus !== 'ACTIVE'
+                            ? `Cannot approve Leave: student is currently ${req.currentStatus} (must be ACTIVE)`
+                            : req.requestType === 'TRANSFER' && req.currentStatus && req.currentStatus !== 'ACTIVE'
+                            ? `Cannot approve Transfer: student is currently ${req.currentStatus} (must be ACTIVE)`
+                            : req.requestType === 'REINSTATE' && req.currentStatus && req.currentStatus !== 'ON_LEAVE'
+                            ? `Cannot approve Reinstate: student is currently ${req.currentStatus} (must be ON_LEAVE)`
+                            : null;
+                        return (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              data-testid={`college-lifecycle-approve-btn-${req.id}`}
+                              disabled={loading || Boolean(cannotApproveReason)}
+                              title={cannotApproveReason || 'Approve lifecycle request'}
+                              onClick={() => void decide(req.id, 'APPROVED')}
+                              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold shadow-sm transition-colors ${
+                                cannotApproveReason
+                                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                                  : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50'
+                              }`}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              data-testid={`college-lifecycle-reject-btn-${req.id}`}
+                              disabled={loading}
+                              onClick={() => {
+                                setRejectingRequestId(req.id);
+                                setRejectReason('');
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              Reject
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}

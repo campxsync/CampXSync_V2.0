@@ -143,6 +143,14 @@ public class LifecycleController {
                 }
                 return json(200, node, correlationId);
             }
+            if ("GET".equals(method) && ("/api/v1/lifecycle/advisees/requests".equals(normalized) || "/api/v1/lifecycle/advisor/requests".equals(normalized))) {
+                ObjectNode node = mapper.createObjectNode();
+                ArrayNode array = node.putArray("requests");
+                for (LifecycleDomainService.LifecycleRequest req : domain.listAdviseeRequests(actor)) {
+                    array.add(requestNode(req, actor));
+                }
+                return json(200, node, correlationId);
+            }
             if ("POST".equals(method) && "/api/v1/lifecycle/advisors".equals(normalized)) {
                 domain.assignAdvisor(actor, uuid(json, "advisorUserId"), uuid(json, "studentId"));
                 ObjectNode node = mapper.createObjectNode();
@@ -183,6 +191,24 @@ public class LifecycleController {
                 LifecycleDomainService.LifecycleRequest request = domain.decideRequest(actor, UUID.fromString(idPart), decision);
                 return json(200, requestNode(request), correlationId);
             }
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/lifecycle/requests/") && normalized.endsWith("/endorse")) {
+                String idPart = extractSegment(normalized, "/api/v1/lifecycle/requests/", "/endorse");
+                String endorsement = text(json, "endorsement");
+                if (endorsement == null || endorsement.trim().isEmpty()) {
+                    endorsement = "RECOMMENDED";
+                }
+                String remarks = text(json, "remarks");
+                Map<String, Object> result = domain.endorseRequest(actor, UUID.fromString(idPart), endorsement, remarks);
+                ObjectNode node = mapper.createObjectNode();
+                node.put("id", String.valueOf(result.get("id")));
+                node.put("studentId", String.valueOf(result.get("studentId")));
+                node.put("status", String.valueOf(result.get("status")));
+                node.put("endorsed", true);
+                node.put("endorsement", String.valueOf(result.get("endorsement")));
+                node.put("remarks", String.valueOf(result.get("remarks")));
+                node.put("endorsedAt", String.valueOf(result.get("endorsedAt")));
+                return json(200, node, correlationId);
+            }
             if ("POST".equals(method) && "/api/v1/lifecycle/rules".equals(normalized)) {
                 LifecycleDomainService.TransitionRule rule = domain.configureRule(actor, text(json, "fromStatus"), text(json, "toStatus"),
                         json.path("requiresApproval").asBoolean(true), json.path("active").asBoolean(true));
@@ -215,11 +241,13 @@ public class LifecycleController {
         } catch (RuntimeException ex) {
             tracker.markFailed(ex);
             logger.error("Lifecycle request could not be processed correlationId=" + correlationId, ex);
-            return problem(400, "REQUEST_INVALID", "Request could not be processed", correlationId);
+            ex.printStackTrace();
+            return problem(400, "REQUEST_INVALID", "Request could not be processed: " + ex.getClass().getName() + " - " + ex.getMessage(), correlationId);
         } catch (Exception ex) {
             tracker.markFailed(ex);
             logger.error("Lifecycle request failed correlationId=" + correlationId, ex);
-            return problem(500, "UNEXPECTED", "The lifecycle service could not complete the request", correlationId);
+            ex.printStackTrace();
+            return problem(500, "UNEXPECTED", "The lifecycle service could not complete the request: " + ex.getClass().getName() + " - " + ex.getMessage(), correlationId);
         } finally {
             tracker.close();
         }
@@ -273,6 +301,13 @@ public class LifecycleController {
                 LifecycleDomainService.LifecycleStatus current = domain.getStatus(actor, request.studentId);
                 if (current != null) {
                     node.put("currentStatus", current.status);
+                }
+                List<LifecycleDomainService.HistoryEntry> entries = domain.listHistory(actor, request.studentId);
+                for (LifecycleDomainService.HistoryEntry entry : entries) {
+                    if (entry.action != null && entry.action.startsWith("hod.endorsement:")) {
+                        node.put("endorsement", entry.action.substring("hod.endorsement:".length()));
+                        break;
+                    }
                 }
             } catch (Exception ignored) {
             }
