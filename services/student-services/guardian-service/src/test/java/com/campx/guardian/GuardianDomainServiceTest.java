@@ -708,4 +708,44 @@ public class GuardianDomainServiceTest {
         service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
         assertTrue(service.listRelationshipHistory(registrar, student).size() >= 1);
     }
+
+    // --- STM-05-EN-003 Consent lifecycle, verification and revocation enforcement ---
+
+    @Test
+    public void stm05En003_grantPeriodThenRevokeDeniesAuthorizedView() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-12-31");
+        GuardianDomainService.AccessDecision period = service.setAccessPeriod(studentActor, link.id,
+                "2026-11-01", "2027-12-31");
+        assertEquals("PERIOD_SET", period.accessState);
+        assertTrue(service.viewAuthorizedInformation(studentActor, link.id).categories.contains("ACADEMICS"));
+
+        GuardianDomainService.AccessDecision revoked = service.revokeAccess(studentActor, link.id);
+        assertEquals("REVOKED", revoked.accessState);
+        assertTrue(!revoked.accessAllowed);
+        try {
+            service.viewAuthorizedInformation(studentActor, link.id);
+            fail("Revoked consent must deny authorized view");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm05En003_elapsedAccessPeriodExpiresAndStaysDenied() {
+        elapsedAccessPeriodExpiresOnReadAndStaysDenied();
+    }
+
+    @Test
+    public void stm05En003_secondRevokeRejected() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        service.revokeAccess(studentActor, link.id);
+        try {
+            service.revokeAccess(studentActor, link.id);
+            fail("Second revoke must be rejected");
+        } catch (GuardianException ex) {
+            assertEquals(409, ex.getStatus());
+        }
+    }
 }

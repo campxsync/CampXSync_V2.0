@@ -4,16 +4,15 @@
 
 ## Cleared recently
 
-- STM-03 EN-001…006
-- STM-04-EN-001/002/003/005/006 (EN-004 deferred — yet to pickup)
-- **STM-05-EN-001** — Live JDBC 2/2 + demo 8/8
+- STM-04 EN partials (except EN-004 yet-to-pickup)
+- STM-05-EN-001 (Live 2/2 + demo 8/8)
+- STM-05-EN-003 (Unit 3/3 + demo 7/7)
 
 ## Next
 
-**STM-05-EN-003** — Consent lifecycle, verification and revocation enforcement (partial).
+**STM-05-EN-005** — Student/guardian frontend and accessible consent management (partial).
 
 ## Notes
 
-- Headed `run_story_demo.mjs` required every story.
-- Continuous commit/push authorized this session.
-- STM-05-EN-002/004 are yet to pickup (prefer remaining partials first).
+- Prefer remaining partials before yet-to-pickup (EN-002/004).
+- Headed demos required; continuous commit/push authorized.

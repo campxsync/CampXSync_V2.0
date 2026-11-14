@@ -1,0 +1,58 @@
+{
+  "storyId": "STM-05-EN-003",
+  "title": "Consent lifecycle, verification and revocation enforcement",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Guardians desk for consent grant/revoke controls",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Guardians Desk Loaded",
+      "description": "Guardians heading proves UI → gateway → guardian-service path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-heading\"]",
+      "highlight": "[data-testid=\"college-guardians-heading\"]"
+    },
+    {
+      "title": "Consent Grant Control Visible",
+      "description": "Grant access control exposes consent category grant path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-grant-access-btn\"]",
+      "highlight": "[data-testid=\"college-guardians-grant-access-btn\"]"
+    },
+    {
+      "title": "Consent Period Control Visible",
+      "description": "Save period control exposes consent validity window management",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-set-period-btn\"]",
+      "highlight": "[data-testid=\"college-guardians-set-period-btn\"]"
+    },
+    {
+      "title": "Revocation Control Visible",
+      "description": "Revoke access control exposes consent revocation enforcement path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-revoke-access-btn\"]",
+      "highlight": "[data-testid=\"college-guardians-revoke-access-btn\"]"
+    },
+    {
+      "title": "PostgreSQL Guardianship Consent Scope Read-Back",
+      "description": "Confirm guardianship rows with access flags exist for pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, can_view_academics, can_view_fees, can_pay_fees, status FROM stu.guardianships WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND deleted_at IS NULL LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Revoke Blocked",
+      "description": "Unauthenticated POST revoke-style guardians contract returns HTTP 401",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/guardians/9cd31c72-8750-4729-b750-9675b456ebd9/revoke",
+      "body": {},
+      "expectedStatus": 401
+    }
+  ]
+}
