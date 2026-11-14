@@ -1,0 +1,64 @@
+{
+  "storyId": "STM-06-EN-004",
+  "title": "RLS, tenant isolation and document-level authorization",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Document Governance desk for RLS/isolation proof",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Desk Loaded",
+      "description": "College documents heading proves authenticated staff path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-heading\"]",
+      "highlight": "[data-testid=\"college-documents-heading\"]"
+    },
+    {
+      "title": "Catalog Tab Visible",
+      "description": "Document types catalog remains the metadata governance surface under tenant scope",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-tab-catalog\"]",
+      "highlight": "[data-testid=\"college-documents-tab-catalog\"]"
+    },
+    {
+      "title": "Student Documents Desk",
+      "description": "Student document self-service desk remains reachable for document-level ownership path",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Student Documents Heading",
+      "description": "Student documents heading proves owner-scoped UI path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Documents RLS Enabled",
+      "description": "Verify doc.documents has RLS enabled (FORCE deferred pending DDL approval)",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'doc' AND c.relname = 'documents' AND c.relrowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "PostgreSQL Stage Requirements RLS Forced",
+      "description": "Verify stage_document_requirements has RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'doc' AND c.relname = 'stage_document_requirements' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Documents Blocked",
+      "description": "Unauthenticated GET on document types contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/types",
+      "expectedStatus": 401
+    }
+  ]
+}

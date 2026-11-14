@@ -1473,4 +1473,78 @@ public class DocumentDomainServiceTest {
             assertEquals(403, e.getStatusCode());
         }
     }
+
+    // --- STM-06-EN-004 RLS / tenant isolation / document-level authorization ---
+
+    @Test
+    public void stm06En004_crossTenantDocumentTypeHidden() {
+        ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
+        req.code = "DOC-EN004-ISO-" + UUID.randomUUID().toString().substring(0, 8);
+        req.name = "Tenant A Isolation Type";
+        DocumentType created = service.configureDocumentType(adminTenantA, req);
+
+        try {
+            service.getDocumentType(adminTenantB, created.id);
+            fail("Cross-tenant document type must not be readable");
+        } catch (DocumentException e) {
+            assertEquals(404, e.getStatusCode());
+        }
+
+        List<DocumentType> tenantBTypes = service.listDocumentTypes(adminTenantB, null, null);
+        assertFalse(tenantBTypes.stream().anyMatch(t -> created.id.equals(t.id)));
+    }
+
+    @Test
+    public void stm06En004_documentLevelAuthBlocksPeerStudent() {
+        ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
+        req.code = "DOC-EN004-AUTH-" + UUID.randomUUID().toString().substring(0, 8);
+        req.name = "Owner-Only Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, req);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Private submission";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        Actor peer = new Actor(tenantA, UUID.randomUUID(), "STUDENT", "peer.student@campx.edu");
+        try {
+            service.listStudentDocuments(peer, studentTenantA.getUserId(), null);
+            fail("Peer student must not list another student's documents");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
+
+        try {
+            service.getDocumentAuditTrail(peer, uploaded.id);
+            fail("Peer student must not read document audit trail");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En004_crossTenantUploadDenied() {
+        ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
+        req.code = "DOC-EN004-XT-" + UUID.randomUUID().toString().substring(0, 8);
+        req.name = "Tenant A Type";
+        DocumentType type = service.configureDocumentType(adminTenantA, req);
+
+        Actor studentB = new Actor(tenantB, UUID.randomUUID(), "STUDENT", "student.b@campx.edu");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Cross-tenant attempt";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        try {
+            service.uploadStudentDocument(studentB, up);
+            fail("Tenant B student must not upload against Tenant A document type");
+        } catch (DocumentException e) {
+            assertEquals(404, e.getStatusCode());
+            assertEquals("DOCUMENT_TYPE_NOT_FOUND", e.getCode());
+        }
+    }
 }

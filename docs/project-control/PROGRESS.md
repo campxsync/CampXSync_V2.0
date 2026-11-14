@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (STM-06-EN-001 completed; EN-004 next)
+**Updated:** 2026-11-14 (STM-06-EN-004 completed; EN-005 next)
 
 ## Scoreboard (session)
 
@@ -12,12 +12,13 @@
 | STM-05-EN-001/003/005/006 | **completed** + headed demos |
 | STM-05-EN-002/004 | deferred (yet to pickup) |
 | STM-06-EN-001 | **completed** + headed demo |
-| Next | STM-06-EN-004 (partial) → EN-005 → EN-006 |
+| STM-06-EN-004 | **completed** + headed demo |
+| Next | STM-06-EN-005 → EN-006 |
 
 ## Evidence highlights
 
-- Latest: `docs/demos/STM-06-EN-001/` (8/8) + `DocumentDomainServiceTest#stm06En001*` 2/2
-- College documents desk testids: heading, catalog, requirements tabs
+- `docs/demos/STM-06-EN-004/` (8/8) + `stm06En004*` 3/3
+- Note: `doc.documents` / `doc.document_types` RLS enabled; FORCE requires approved DDL
 
 ## Caveats
 
