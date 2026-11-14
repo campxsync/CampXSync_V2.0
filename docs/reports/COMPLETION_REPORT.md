@@ -75,3 +75,41 @@ Working-tree state at demo: uncommitted enrollment/HMAC/UI/demo files on top of 
 
 ### Owner decision
 **APPROVED STM-03-US-001 COMMIT** (2026-11-14). CSV status set to `completed`. Next proposed: `STM-03-US-002`.
+
+---
+
+## Entry 3 — STM-03-US-002 View enrolment details (2026-11-14)
+
+**Task ID:** STM-03-US-002  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Base HEAD:** `1f41a7d` (US-001); story changes **uncommitted** pending approval.
+
+### Scope completed
+- Gap-closed student view-own enrolment details vs AC + required negatives (no invented DEPARTMENT_STAFF grants).
+- `getEnrolment` / list enrich with term labels (`yearCode`, `termCode`, `termName`); audit `enrolment.viewed`.
+- Student enrollment UI: client-side load (no SSR gateway identity spoof); details panel `data-testid` contracts.
+- BFF continues to set `X-Student-Record-Id` from Gateway `/api/v1/students/me` (requires STM-01 on :8093).
+
+### Database
+- Dev ref `azulbaxszsqxymqmlwfe` only.
+- Demo DB check: enrolment `a1000000-0000-0000-0000-000000000031` owned by student `81dd67d3-1d5f-4d8e-8061-a67648610002` (auth user `…f924` linked via person_id).
+
+### Tests (§7A)
+
+| Command | Environment | Exit | Result |
+|---|---|---:|---|
+| `mvn test -pl services/student-services/enrollment-service -Dtest=EnrollmentDomainServiceTest` | JDK 8 / Maven; offline unit | 0 | 39 run, 0 fail (7 `stm03Us002_*`) |
+| `cd frontend; npx tsc --noEmit` | Node 22 | 0 | 0 errors |
+| `node scripts/demo/run_story_demo.mjs STM-03-US-002` | UI:3000, GW:8080, student:8093, enrollment:8095, headed Playwright | 0 | 10/10 PASS; `docs/demos/STM-03-US-002/demo.webm` + `DEMO.md` |
+
+Working-tree state at demo: uncommitted enrollment domain/controller/tests + student enrollment UI/demo on top of `1f41a7d`.
+
+### Evidence paths
+- `docs/demos/STM-03-US-002/DEMO.md`
+- `docs/demos/STM-03-US-002/demo.webm`
+- `docs/demos/STM-03-US-002/screenshots/`
+- `docs/stories/STM-03-US-002.demo.json`
+
+### Owner decision
+**APPROVED STM-03-US-002 COMMIT** (2026-11-14). CSV status set to `completed`. Next proposed: `STM-03-US-003`.

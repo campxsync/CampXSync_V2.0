@@ -424,6 +424,97 @@ public class EnrollmentDomainServiceTest {
         assertEquals(401, response.status);
     }
 
+    // --- STM-03-US-002 View enrolment details ---
+
+    @Test
+    public void stm03Us002_studentCanViewOwnEnrolmentDetailsWithTerm() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd semester");
+        EnrollmentDomainService.Enrolment opened = service.openFromHandover(registrar, UUID.randomUUID(), student, program, term.id);
+        EnrollmentDomainService.Enrolment viewed = service.getEnrolment(studentActor, opened.id);
+        assertEquals(opened.id, viewed.id);
+        assertEquals(program, viewed.programId);
+        assertEquals(term.id, viewed.termId);
+        assertEquals("PENDING", viewed.status);
+        EnrollmentDomainService.Term resolved = service.resolveTermForEnrolment(studentActor, viewed);
+        assertEquals("2026", resolved.yearCode);
+        assertEquals("ODD", resolved.termCode);
+        assertEquals("Odd semester", resolved.name);
+    }
+
+    @Test
+    public void stm03Us002_registrarCanViewEnrolmentDetails() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentDomainService.Enrolment viewed = service.getEnrolment(registrar, enrolment.id);
+        assertEquals(enrolment.id, viewed.id);
+        assertEquals(enrolment.programId, viewed.programId);
+    }
+
+    @Test
+    public void stm03Us002_facultyCannotViewEnrolmentById() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.getEnrolment(facultyActor, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("ENROLMENT_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us002_departmentStaffCannotViewEnrolmentById() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.getEnrolment(departmentStaff, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("ENROLMENT_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us002_missingTenantUnauthorized() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        Actor bare = new Actor(null, student, "STUDENT", "corr-bare");
+        try {
+            service.getEnrolment(bare, enrolment.id);
+            fail("expected unauthorized");
+        } catch (EnrollmentException ex) {
+            assertEquals(401, ex.getStatus());
+            assertEquals("TENANT_REQUIRED", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us002_unauthenticatedGetHttpRejected() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier("test-secret"));
+        EnrollmentController.Response response = controller.handle("GET",
+                "/api/v1/enrollment/enrolments/" + enrolment.id,
+                Collections.<String, String>emptyMap(), "");
+        assertEquals(401, response.status);
+    }
+
+    @Test
+    public void stm03Us002_httpReturnsTermLabelsForOwner() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd semester");
+        EnrollmentDomainService.Enrolment opened = service.openFromHandover(registrar, UUID.randomUUID(), student, program, term.id);
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier(null));
+        java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
+        headers.put("x-tenant-id", tenant.toString());
+        headers.put("x-user-id", student.toString());
+        headers.put("x-user-role", "STUDENT");
+        headers.put("x-correlation-id", "corr-view");
+        EnrollmentController.Response response = controller.handle("GET",
+                "/api/v1/enrollment/enrolments/" + opened.id, headers, "");
+        assertEquals(200, response.status);
+        assertTrue(response.body.contains("\"yearCode\":\"2026\""));
+        assertTrue(response.body.contains("\"termCode\":\"ODD\""));
+        assertTrue(response.body.contains("\"termName\":\"Odd semester\""));
+        assertTrue(response.body.contains("\"programId\":\"" + program + "\""));
+    }
+
     private EnrollmentDomainService.Term term() {
         EnrollmentDomainService.Term created = service.seedTerm(tenant, "2026", "ODD", "Odd");
         service.seedWindow(tenant, created.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 1, 30);

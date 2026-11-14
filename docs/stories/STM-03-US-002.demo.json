@@ -1,0 +1,78 @@
+{
+  "storyId": "STM-03-US-002",
+  "title": "View enrolment details",
+  "slowMo": 350,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student authenticates via development test session and opens Course registration",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Verify Student Enrolment Desk",
+      "description": "Student enrolment desk loads with heading and enrolment list",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-heading\"]",
+      "highlight": "[data-testid=\"student-enrollment-heading\"]"
+    },
+    {
+      "title": "Enrolment List Visible",
+      "description": "Student sees at least one owned enrolment in the list",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-list\"]",
+      "highlight": "[data-testid=\"student-enrollment-list\"]"
+    },
+    {
+      "title": "Select Owned Enrolment",
+      "description": "Student selects their ENROLLED enrolment to view programme and term details",
+      "action": "click",
+      "selector": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]",
+      "highlight": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]"
+    },
+    {
+      "title": "Verify Enrolment Details Panel",
+      "description": "Details panel shows status, programme, academic year and term for the selected enrolment",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-details\"]",
+      "highlight": "[data-testid=\"student-enrollment-details\"]"
+    },
+    {
+      "title": "Verify Programme Field",
+      "description": "Programme id is visible so the student can verify their programme",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-detail-program\"]",
+      "highlight": "[data-testid=\"student-enrollment-detail-program\"]"
+    },
+    {
+      "title": "Verify Academic Year Field",
+      "description": "Academic year code is visible on the enrolment detail view",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-detail-year\"]",
+      "highlight": "[data-testid=\"student-enrollment-detail-year\"]"
+    },
+    {
+      "title": "Verify Term Field",
+      "description": "Term name/code is visible on the enrolment detail view",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-detail-term\"]",
+      "highlight": "[data-testid=\"student-enrollment-detail-term\"]"
+    },
+    {
+      "title": "PostgreSQL Enrolment Ownership Read-Back",
+      "description": "Read-only query verifies the viewed enrolment belongs to student1 under the pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, status, program_id, term_id, student_id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND id = 'a1000000-0000-0000-0000-000000000031' AND student_id = '81dd67d3-1d5f-4d8e-8061-a67648610002'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "API Gateway blocks unauthenticated GET to enrolment detail with HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments/a1000000-0000-0000-0000-000000000031",
+      "expectedStatus": 401
+    }
+  ]
+}

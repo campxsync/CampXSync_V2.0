@@ -1,13 +1,13 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**HEAD:** see `git rev-parse HEAD` after the STM-03-US-001 commit.  
-**Updated:** 2026-11-14 (`STM-03-US-001` APPROVED)
+**HEAD:** see `git rev-parse HEAD` after the STM-03-US-002 commit.  
+**Updated:** 2026-11-14 (`STM-03-US-002` APPROVED + COMMIT)
 
 ## 1. Branch and HEAD
 
 - Working branch: `feature/java-backend-integration`
-- `STM-03-US-001` owner-approved and committed locally (push only if separately instructed).
+- `STM-03-US-001` and `STM-03-US-002` owner-approved and committed locally (push only if separately instructed).
 
 ## 2. Approved application and data flow
 
@@ -15,15 +15,15 @@
 
 ## 3. Scoreboard by Service ID
 
-From CSV `Implementation status`. Totals after owner-approved `STM-03-US-001` → **completed**:
+From CSV `Implementation status`. Totals after owner-approved `STM-03-US-002` → **completed**:
 
-**Totals: 1 completed / 105 partially completed / 114 yet to pickup = 220.**
+**Totals: 2 completed / 104 partially completed / 114 yet to pickup = 220.**
 
 Remaining audit-derived rows (except approved stories) are **NOT owner-verified**.
 
 | Service ID | completed | partially completed | yet to pickup |
 |---|---:|---:|---:|
-| STM-03 | 1 | 24 | 2 |
+| STM-03 | 2 | 23 | 2 |
 | STM-04 | 0 | 24 | 1 |
 | STM-05 | 0 | 17 | 3 |
 | STM-06 | 0 | 15 | 9 |
@@ -36,13 +36,14 @@ Remaining audit-derived rows (except approved stories) are **NOT owner-verified*
 | STM-04, 06, 07, 09 | 0 | 0 | 1 |
 | STM-05 / STM-06 | 0 | 0 | 1 |
 | STM-04, 07, 08, 09 | 0 | 0 | 1 |
-| **TOTAL** | **1** | **105** | **114** |
+| **TOTAL** | **2** | **104** | **114** |
 
 ### Approved this cycle
 
 | Issue ID | Evidence |
 |---|---|
 | STM-03-US-001 | Unit 32/32; tsc 0; headed demo 11/11; live DB PENDING enrolment read-back — `docs/demos/STM-03-US-001/` |
+| STM-03-US-002 | Unit 39/39 (7 US-002); tsc 0; headed demo 10/10; DB ownership read-back `a100…031` — `docs/demos/STM-03-US-002/` |
 
 ## 4. Caveats
 

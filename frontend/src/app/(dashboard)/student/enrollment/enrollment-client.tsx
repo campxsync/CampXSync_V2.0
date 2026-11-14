@@ -9,6 +9,11 @@ export type Enrolment = {
   totalCredits?: number;
   programId?: string;
   termId?: string;
+  yearCode?: string;
+  termCode?: string;
+  termName?: string;
+  applicationId?: string;
+  studentId?: string;
   selections?: { courseId: string; sectionId: string }[];
 };
 
@@ -188,7 +193,7 @@ export function EnrollmentClient({
     }
     return defaults;
   });
-  const [loading, setLoading] = useState(!initialEnrolments);
+  const [loading, setLoading] = useState(initialEnrolments === undefined);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -271,7 +276,7 @@ export function EnrollmentClient({
   }, []);
 
   useEffect(() => {
-    if (!initialEnrolments) {
+    if (initialEnrolments === undefined) {
       void loadMine();
     }
   }, [initialEnrolments, loadMine]);
@@ -346,9 +351,11 @@ export function EnrollmentClient({
   const canRegister = !!active && active.status !== 'ENROLLED' && active.status !== 'REJECTED' && active.status !== 'SUSPENDED';
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <main className="mx-auto max-w-3xl space-y-6 p-6" data-testid="student-enrollment-desk">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-[#0B1F3A]">Course registration</h1>
+        <h1 className="text-xl font-semibold text-[#0B1F3A]" data-testid="student-enrollment-heading">
+          Course registration
+        </h1>
         <p className="text-sm text-[#475569]">
           Choose an open enrolment, pick a section for each course, then submit your registration.
         </p>
@@ -375,13 +382,14 @@ export function EnrollmentClient({
       ) : null}
 
       {enrolments.length > 0 ? (
-        <section className="space-y-2">
+        <section className="space-y-2" data-testid="student-enrollment-list">
           <h2 className="text-sm font-semibold text-[#0B1F3A]">Your enrolments</h2>
           <ul className="space-y-2">
             {enrolments.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
+                  data-testid={`student-enrollment-select-${item.id}`}
                   onClick={() => setActiveId(item.id)}
                   className={`w-full rounded border px-3 py-2 text-left text-sm ${
                     active?.id === item.id
@@ -391,6 +399,11 @@ export function EnrollmentClient({
                 >
                   <span className="font-medium">{item.status}</span>
                   <span className="ml-2 text-[#64748B]">{item.id.slice(0, 8)}…</span>
+                  {item.yearCode || item.termCode ? (
+                    <span className="ml-2 text-[#64748B]">
+                      {item.yearCode} {item.termCode}
+                    </span>
+                  ) : null}
                   {typeof item.totalCredits === 'number' ? (
                     <span className="ml-2 text-[#64748B]">{item.totalCredits} credits</span>
                   ) : null}
@@ -398,6 +411,41 @@ export function EnrollmentClient({
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {active ? (
+        <section
+          className="space-y-2 rounded border border-[#E3E8EF] bg-white p-4"
+          data-testid="student-enrollment-details"
+        >
+          <h2 className="text-sm font-semibold text-[#0B1F3A]">Enrolment details</h2>
+          <dl className="grid gap-2 text-sm text-[#0B1F3A] sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-[#64748B]">Status</dt>
+              <dd data-testid="student-enrollment-detail-status">{active.status}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[#64748B]">Programme</dt>
+              <dd data-testid="student-enrollment-detail-program">{active.programId || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[#64748B]">Academic year</dt>
+              <dd data-testid="student-enrollment-detail-year">{active.yearCode || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[#64748B]">Term</dt>
+              <dd data-testid="student-enrollment-detail-term">
+                {active.termName || [active.termCode, active.termId?.slice(0, 8)].filter(Boolean).join(' · ') || '—'}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-xs text-[#64748B]">Enrolment id</dt>
+              <dd data-testid="student-enrollment-detail-id" className="font-mono text-xs">
+                {active.id}
+              </dd>
+            </div>
+          </dl>
         </section>
       ) : null}
 

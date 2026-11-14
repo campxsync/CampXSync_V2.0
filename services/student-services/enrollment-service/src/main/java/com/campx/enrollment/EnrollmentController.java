@@ -90,7 +90,7 @@ public class EnrollmentController {
                 ObjectNode node = mapper.createObjectNode();
                 ArrayNode array = node.putArray("enrolments");
                 for (EnrollmentDomainService.Enrolment enrolment : domain.listMyEnrolments(actor)) {
-                    array.add(enrolmentNode(enrolment));
+                    array.add(enrolmentNode(enrolment, actor));
                 }
                 return json(200, node, correlationId);
             }
@@ -121,7 +121,8 @@ public class EnrollmentController {
             if ("GET".equals(method) && normalized.startsWith("/api/v1/enrollment/enrolments/")
                     && normalized.indexOf('/', "/api/v1/enrollment/enrolments/".length()) < 0) {
                 UUID id = UUID.fromString(normalized.substring("/api/v1/enrollment/enrolments/".length()));
-                return json(200, enrolmentNode(domain.getEnrolment(actor, id)), correlationId);
+                EnrollmentDomainService.Enrolment enrolment = domain.getEnrolment(actor, id);
+                return json(200, enrolmentNode(enrolment, actor), correlationId);
             }
             if ("POST".equals(method) && normalized.endsWith("/swap")) {
                 String idPart = normalized.substring("/api/v1/enrollment/enrolments/".length(), normalized.length() - "/swap".length());
@@ -299,6 +300,10 @@ public class EnrollmentController {
     }
 
     private ObjectNode enrolmentNode(EnrollmentDomainService.Enrolment enrolment) {
+        return enrolmentNode(enrolment, null);
+    }
+
+    private ObjectNode enrolmentNode(EnrollmentDomainService.Enrolment enrolment, Actor actor) {
         ObjectNode node = mapper.createObjectNode();
         node.put("id", enrolment.id.toString());
         node.put("studentId", enrolment.studentId.toString());
@@ -307,6 +312,14 @@ public class EnrollmentController {
         node.put("termId", enrolment.termId.toString());
         node.put("status", enrolment.status);
         node.put("totalCredits", enrolment.totalCredits);
+        if (actor != null) {
+            EnrollmentDomainService.Term term = domain.resolveTermForEnrolment(actor, enrolment);
+            if (term != null) {
+                node.put("yearCode", term.yearCode);
+                node.put("termCode", term.termCode);
+                node.put("termName", term.name);
+            }
+        }
         ArrayNode history = node.putArray("history");
         for (java.util.Map<String, String> row : enrolment.history) {
             ObjectNode item = history.addObject();

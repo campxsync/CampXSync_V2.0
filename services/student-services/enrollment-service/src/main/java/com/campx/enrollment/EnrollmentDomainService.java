@@ -316,20 +316,38 @@ public class EnrollmentDomainService {
     }
 
     /**
-     * Returns one enrolment when the caller owns it or is a registrar in the same tenant.
+     * Returns one enrolment when the caller owns it or is a registrar in the same tenant (STM-03-US-002).
+     * Faculty roster visibility is a separate API; faculty cannot open arbitrary enrolment detail by id.
      *
+     * @throws EnrollmentException 401 when tenant context is missing
      * @throws EnrollmentException 403 when the caller is outside that scope
-     * @throws EnrollmentException 404 when the enrolment does not exist
+     * @throws EnrollmentException 404 when the enrolment does not exist in the tenant
      */
     public Enrolment getEnrolment(Actor actor, UUID enrolmentId) {
+        if (actor == null || actor.getTenantId() == null) {
+            throw reject(401, "TENANT_REQUIRED", "Tenant context is required");
+        }
         Enrolment enrolment = requireEnrolment(actor.getTenantId(), enrolmentId);
         if (isRegistrar(actor)) {
+            log(actor, "enrolment.viewed", enrolment.id);
             return enrolment;
         }
         if (isStudent(actor) && ownsEnrolment(actor, enrolment)) {
+            log(actor, "enrolment.viewed", enrolment.id);
             return enrolment;
         }
         throw reject(403, "ENROLMENT_FORBIDDEN", "Caller is not authorized to view this enrolment");
+    }
+
+    /**
+     * Resolves academic term labels for enrolment detail views (year / term / name).
+     */
+    public Term resolveTermForEnrolment(Actor actor, Enrolment enrolment) {
+        if (actor == null || enrolment == null || actor.getTenantId() == null) {
+            return null;
+        }
+        hydrateTerms(actor);
+        return terms.get(key(enrolment.tenantId, enrolment.termId));
     }
 
     /**
@@ -1133,8 +1151,10 @@ public class EnrollmentDomainService {
         if (persistence != null) {
             Actor lookup = new Actor(tenantId, tenantId, "REGISTRAR", "persistence-load");
             Enrolment loaded = persistence.findEnrolment(lookup, enrolmentId);
-            enrolments.put(key(tenantId, loaded.id), loaded);
-            return loaded;
+            if (loaded != null) {
+                enrolments.put(key(tenantId, loaded.id), loaded);
+                return loaded;
+            }
         }
         throw reject(404, "ENROLMENT_NOT_FOUND", "Enrolment was not found");
     }
