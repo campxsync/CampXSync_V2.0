@@ -1,0 +1,78 @@
+{
+  "storyId": "STM-05-EN-005",
+  "title": "Student/guardian frontend and accessible consent management",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student opens Guardians & Consent self-service desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Student Guardians Desk Loaded",
+      "description": "Student guardians heading proves self-service consent UI path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-guardians-heading\"]",
+      "highlight": "[data-testid=\"student-guardians-heading\"]"
+    },
+    {
+      "title": "Guardian List Section Visible",
+      "description": "Linked guardians list/empty state section is present for accessible consent management",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-guardians-list-section\"]",
+      "highlight": "[data-testid=\"student-guardians-list-section\"]"
+    },
+    {
+      "title": "Consent Controls Visible",
+      "description": "Consent period and revoke controls are available to the authenticated student",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-guardians-consent-section\"]",
+      "highlight": "[data-testid=\"student-guardians-consent-section\"]"
+    },
+    {
+      "title": "Revoke Control Visible",
+      "description": "Revoke access button exposes student-owned consent revocation path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-guardians-revoke-btn\"]",
+      "highlight": "[data-testid=\"student-guardians-revoke-btn\"]"
+    },
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens institutional Guardians desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/guardians",
+      "highlight": null
+    },
+    {
+      "title": "College Guardians Desk Visible",
+      "description": "College guardians heading completes dual-persona frontend coverage",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-heading\"]",
+      "highlight": "[data-testid=\"college-guardians-heading\"]"
+    },
+    {
+      "title": "College Consent Grant Control Visible",
+      "description": "Staff grant-access control remains available alongside student self-service",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-grant-access-btn\"]",
+      "highlight": "[data-testid=\"college-guardians-grant-access-btn\"]"
+    },
+    {
+      "title": "PostgreSQL Guardianship Read-Back",
+      "description": "Confirm guardianship rows exist for pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, relationship, status FROM stu.guardianships WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND deleted_at IS NULL LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Student Guardians Blocked",
+      "description": "Unauthenticated GET on guardians student contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/guardians/students/81dd67d3-1d5f-4d8e-8061-a6764861f924",
+      "expectedStatus": 401
+    }
+  ]
+}

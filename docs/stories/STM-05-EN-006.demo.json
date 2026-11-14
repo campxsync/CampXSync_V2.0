@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-05-EN-006",
+  "title": "Security tests, audit logging, documentation and operational readiness",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Guardians desk for operational audit readiness",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Guardians Desk Loaded",
+      "description": "Guardians heading proves staff UI operational path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-heading\"]",
+      "highlight": "[data-testid=\"college-guardians-heading\"]"
+    },
+    {
+      "title": "Form Section Visible",
+      "description": "Guardian form section is available for registrar operations",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-form-section\"]",
+      "highlight": "[data-testid=\"college-guardians-form-section\"]"
+    },
+    {
+      "title": "Student Guardians Desk",
+      "description": "Student consent desk remains reachable for dual-path operational readiness",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Student Guardians Heading Visible",
+      "description": "Student guardians self-service desk loads",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-guardians-heading\"]",
+      "highlight": "[data-testid=\"student-guardians-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Guardianship Audit Read-Back",
+      "description": "Confirm guardianship audit rows exist under RLS-forced table",
+      "action": "db_check",
+      "query": "SELECT id, relationship, status, updated_at FROM stu.guardianships WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND deleted_at IS NULL LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated History Blocked",
+      "description": "Unauthenticated relationship-history contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/guardians/students/81dd67d3-1d5f-4d8e-8061-a6764861f924/relationship-history",
+      "expectedStatus": 401
+    }
+  ]
+}

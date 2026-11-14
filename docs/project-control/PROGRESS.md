@@ -1,23 +1,22 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (STM-04 EN partials cleared except EN-004 yet-to-pickup)
+**Updated:** 2026-11-14 (STM-05 EN partials cleared except EN-002/004 yet-to-pickup)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-03 EN-001…006 | **completed** |
-| STM-04-EN-001/002/003/005/006 | **completed** + headed demos |
-| STM-04-EN-004 | deferred (yet to pickup / cross-STM) |
-| Next | **STM-05-EN-001** |
+| STM-03 EN | **completed** |
+| STM-04 EN-001/002/003/005/006 | **completed** (EN-004 deferred) |
+| STM-05-EN-001/003/005/006 | **completed** + headed demos |
+| STM-05-EN-002/004 | deferred (yet to pickup) |
+| Next | remaining partials (likely STM-06 EN) |
 
 ## Evidence highlights
 
-- EN-002: transition validation + live transactional RLS rollback; rule upsert fix
-- EN-003: endorse→approve→intelligence (`liveEndpoint=false`)
-- EN-005: student/college/faculty frontend demo **12/12**
-- EN-006: history audit + `/health` readiness demo **8/8**
+- Pushed commits: `fe2589f`, `91299a6`, `b41ebad`, `a037a25` (+ pending STM-05-EN-005/006)
+- Student Guardians & Consent desk: `/student/guardians` via gateway BFF
 
 ## Caveats
 

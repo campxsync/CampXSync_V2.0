@@ -56,6 +56,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Admissions & Applications', href: '/student/admissions', icon: FileText },
     { title: 'Course Registration', href: '/student/enrollment', icon: BookOpen },
     { title: 'Lifecycle Status', href: '/student/lifecycle', icon: GraduationCap },
+    { title: 'Guardians & Consent', href: '/student/guardians', icon: Users },
     { title: 'Documents', href: '/student/documents', icon: FileText },
     { title: 'Contact & Address', href: '/student/address', icon: Building2 },
     { title: 'Profile Corrections', href: '/student/corrections', icon: History },

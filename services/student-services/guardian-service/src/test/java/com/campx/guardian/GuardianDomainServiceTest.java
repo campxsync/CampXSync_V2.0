@@ -748,4 +748,25 @@ public class GuardianDomainServiceTest {
             assertEquals(409, ex.getStatus());
         }
     }
+
+    // --- STM-05-EN-006 Security tests, audit logging, docs, operational readiness ---
+
+    @Test
+    public void stm05En006_relationshipHistoryRecordsGrantAndRevoke() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        service.revokeAccess(studentActor, link.id);
+        assertTrue(service.listRelationshipHistory(registrar, student).size() >= 2);
+    }
+
+    @Test
+    public void stm05En006_crossStudentGuardianListForbidden() {
+        UUID other = UUID.randomUUID();
+        try {
+            service.listGuardians(studentActor, other);
+            fail("Students must not list another student's guardians");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
 }
