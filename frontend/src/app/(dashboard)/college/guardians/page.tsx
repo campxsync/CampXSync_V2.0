@@ -306,17 +306,27 @@ export default function CollegeGuardiansPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold text-[#0B1F3A]">Guardians</h1>
+        <h1 data-testid="college-guardians-heading" className="text-xl font-semibold text-[#0B1F3A]">Guardians</h1>
         <p className="text-sm text-[#475569]">Add a parent or guardian for a student. Students cannot create this link themselves.</p>
       </div>
-      <section className="space-y-2 rounded border p-4">
+      {message && (
+        <div data-testid="college-guardians-success" className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div data-testid="college-guardians-error" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+      <section data-testid="college-guardians-form-section" className="space-y-2 rounded border p-4">
         <label className="block text-sm">
           Student record id
-          <input className="mt-1 w-full rounded border px-2 py-1" value={studentId} onChange={(e) => setStudentId(e.target.value)} />
+          <input data-testid="college-guardians-student-input" className="mt-1 w-full rounded border px-2 py-1" value={studentId} onChange={(e) => setStudentId(e.target.value)} />
         </label>
         <label className="block text-sm">
           Guardian id
-          <input className="mt-1 w-full rounded border px-2 py-1" value={guardianId} onChange={(e) => setGuardianId(e.target.value)} />
+          <input data-testid="college-guardians-id-input" className="mt-1 w-full rounded border px-2 py-1" value={guardianId} onChange={(e) => setGuardianId(e.target.value)} />
         </label>
         <label className="block text-sm">
           Guardian Person id (STM-05-US-015)
@@ -373,7 +383,7 @@ export default function CollegeGuardiansPage() {
           Primary guardian
         </label>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="rounded bg-[#0B1F3A] px-3 py-2 text-sm text-white" onClick={() => void addGuardian()}>
+          <button type="button" data-testid="college-guardians-add-btn" className="rounded bg-[#0B1F3A] px-3 py-2 text-sm text-white" onClick={() => void addGuardian()}>
             Add guardian
           </button>
           <button type="button" className="rounded bg-[#1D4ED8] px-3 py-2 text-sm text-white" onClick={() => void linkExistingGuardian()}>

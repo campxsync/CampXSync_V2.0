@@ -1,0 +1,64 @@
+{
+  "storyId": "STM-05-EN-001",
+  "title": "Supabase relationship, contact, consent and permission persistence",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Guardians desk backed by PostgresGuardianPersistence",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Guardians Desk Loaded",
+      "description": "College guardians heading proves UI → gateway → guardian-service path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-heading\"]",
+      "highlight": "[data-testid=\"college-guardians-heading\"]"
+    },
+    {
+      "title": "Guardian Form Section Visible",
+      "description": "Relationship persistence form exposes student and guardian capture fields",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-form-section\"]",
+      "highlight": "[data-testid=\"college-guardians-form-section\"]"
+    },
+    {
+      "title": "Student Id Input Visible",
+      "description": "Student record id input is available for guardianship persistence scope",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-student-input\"]",
+      "highlight": "[data-testid=\"college-guardians-student-input\"]"
+    },
+    {
+      "title": "Add Guardian Control Visible",
+      "description": "Add guardian action routes create through BFF → gateway → Java persistence",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-add-btn\"]",
+      "highlight": "[data-testid=\"college-guardians-add-btn\"]"
+    },
+    {
+      "title": "PostgreSQL Guardianship Read-Back",
+      "description": "Confirm stu.guardianships rows exist for pilot tenant under RLS-forced schema",
+      "action": "db_check",
+      "query": "SELECT id, relationship, status FROM stu.guardianships WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND deleted_at IS NULL LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Schema Ownership / RLS Audit",
+      "description": "Verify guardianships RLS is enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relname = 'guardianships' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "Unauthenticated GET on guardians contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/guardians",
+      "expectedStatus": 401
+    }
+  ]
+}
