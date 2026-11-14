@@ -1,0 +1,70 @@
+{
+  "storyId": "STM-10-EN-005",
+  "title": "Responsive frontend, accessibility validation and browser E2E tests",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Portal Authentication",
+      "description": "Student opens academic portal for responsive/a11y E2E validation",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student",
+      "highlight": null
+    },
+    {
+      "title": "Dashboard Root Visible",
+      "description": "Student dashboard root container is present for responsive layout",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-dashboard\"]",
+      "highlight": "[data-testid=\"student-dashboard\"]"
+    },
+    {
+      "title": "Skip Navigation Link",
+      "description": "Accessibility skip-to-content control is available",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-skip-nav\"]",
+      "highlight": "[data-testid=\"student-skip-nav\"]"
+    },
+    {
+      "title": "Dashboard Heading",
+      "description": "Primary portal heading is exposed for screen-reader and E2E contracts",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-dashboard-heading\"]",
+      "highlight": "[data-testid=\"student-dashboard-heading\"]"
+    },
+    {
+      "title": "Student Main Nav",
+      "description": "Role-scoped sidebar navigation remains available",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-main-nav\"]",
+      "highlight": "[data-testid=\"student-main-nav\"]"
+    },
+    {
+      "title": "Documents Desk Nav",
+      "description": "Navigate to documents desk via responsive self-service path",
+      "action": "goto",
+      "url": "http://localhost:3000/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Heading Visible",
+      "description": "Documents desk heading confirms browser E2E path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "Lifecycle Desk",
+      "description": "Lifecycle desk remains reachable for multi-page E2E coverage",
+      "action": "goto",
+      "url": "http://localhost:3000/student/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Lifecycle Heading Visible",
+      "description": "Lifecycle heading confirms additional self-service route",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"student-lifecycle-heading\"]"
+    }
+  ]
+}

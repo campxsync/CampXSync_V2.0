@@ -1,24 +1,23 @@
 # Next Task
 
-**STATUS: STM-06 EN partials cleared; continue remaining EN/CROSS partials.**
+**STATUS: Continue remaining partially completed CROSS/RBAC EN.**
 
-## Cleared this session (STM-06)
+## Cleared this session (STM-06 + STM-10 EN)
 
 | ID | Evidence |
 |---|---|
-| STM-06-EN-001 | Unit 2/2 + demo 8/8 |
-| STM-06-EN-004 | Unit 3/3 + demo 8/8 |
-| STM-06-EN-005 | Unit 2/2 + demo 9/9 |
-| STM-06-EN-006 | Unit 2/2 + demo 8/8 |
-
-**Deferred yet-to-pickup:** STM-06-EN-002 (storage bytes), STM-06-EN-003 (malware/signed URL).
+| STM-06-EN-001/004/005/006 | demos + unit tests |
+| STM-10-EN-005 | demo 9/9 + tsc |
+| STM-10-EN-006 | demo 8/8 |
+| STM-10-EN-007 | demo 7/7 |
 
 ## Next
 
-Pick next **partially completed** outside STM-06 (check backlog — STM-10-EN / CROSS / remaining). Prefer EN after US.
+**STM-CROSS-EN-001** — Audit existing Supabase/PostgreSQL schemas, migrations, tables, FKs, grants and RLS (partially completed).
+
+Then STM-CROSS-EN-002… / STM-RBAC-EN-001.
 
 ## Notes
 
 - Headed demos required; continuous commit/push authorized.
-- No FORCE DDL on doc.documents/document_types without approval.
-- No Kafka invent for STM-09/10.
+- No unapproved DDL / Kafka invent.

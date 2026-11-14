@@ -1,25 +1,22 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (STM-06 EN-001/004/005/006 completed)
+**Updated:** 2026-11-14 (STM-06 EN + STM-10-EN-005/006/007 completed)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-03 EN | **completed** |
-| STM-04 EN-001/002/003/005/006 | **completed** (EN-004 deferred) |
-| STM-05-EN-001/003/005/006 | **completed** + headed demos |
-| STM-05-EN-002/004 | deferred (yet to pickup) |
+| STM-03/04/05 EN (scoped) | **completed** (deferred yet-to-pickup noted) |
 | STM-06-EN-001/004/005/006 | **completed** + headed demos |
-| STM-06-EN-002/003 | deferred (yet to pickup) |
-| Next | remaining partials (STM-10-EN / CROSS / etc.) |
+| STM-10-EN-005/006/007 | **completed** + headed demos |
+| Next | STM-CROSS-EN-* / STM-RBAC-EN-001 partials |
 
 ## Evidence highlights
 
-- Commits: `94eef27`, `fb86ab8` (+ pending EN-005/006)
-- Demos: `docs/demos/STM-06-EN-001/` … `STM-06-EN-006/`
-- Note: `doc.documents`/`document_types` RLS enabled; FORCE needs DDL approval
+- Latest commits include `2e480c1` + pending STM-10 EN
+- Demos: `docs/demos/STM-10-EN-005/` … `007/`
+- Student portal a11y: skip-nav, heading, main-nav; RLS FORCE on `stu.students`
 
 ## Caveats
 

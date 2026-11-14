@@ -1,0 +1,65 @@
+{
+  "storyId": "STM-10-EN-006",
+  "title": "RLS, security testing, centralized logging, observability and documentation",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Portal Authentication",
+      "description": "Authenticated student opens portal under tenant-scoped session",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student",
+      "highlight": null
+    },
+    {
+      "title": "Dashboard Loaded",
+      "description": "Student dashboard proves authenticated portal path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-dashboard-heading\"]",
+      "highlight": "[data-testid=\"student-dashboard-heading\"]"
+    },
+    {
+      "title": "Profile Panel Scoped",
+      "description": "Profile panel exposes enrollment identity under session scope",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-profile-panel\"]",
+      "highlight": "[data-testid=\"student-profile-panel\"]"
+    },
+    {
+      "title": "Documents Desk Security Path",
+      "description": "Documents desk remains available for owner-scoped reads",
+      "action": "goto",
+      "url": "http://localhost:3000/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Heading Visible",
+      "description": "Documents heading confirms owner-scoped UI",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Students RLS Forced",
+      "description": "Verify stu.students has RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relname = 'students' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Students Me Blocked",
+      "description": "Unauthenticated GET /api/v1/students/me returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/students/me",
+      "expectedStatus": 401
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Documents Blocked",
+      "description": "Unauthenticated document types contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/types",
+      "expectedStatus": 401
+    }
+  ]
+}

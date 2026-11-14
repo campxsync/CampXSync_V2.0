@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-10-EN-007",
+  "title": "Portal performance, operational readiness and authorized Intelligence Services dashboard analytics",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Portal Authentication",
+      "description": "Student opens portal for operational readiness and analytics surface",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student",
+      "highlight": null
+    },
+    {
+      "title": "Dashboard Operational",
+      "description": "Student dashboard root confirms portal operational readiness",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-dashboard\"]",
+      "highlight": "[data-testid=\"student-dashboard\"]"
+    },
+    {
+      "title": "KPI Strip Visible",
+      "description": "Dashboard KPI strip provides authorized portal analytics widgets",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-dashboard-kpis\"]",
+      "highlight": "[data-testid=\"student-dashboard-kpis\"]"
+    },
+    {
+      "title": "Portal Summaries Visible",
+      "description": "Document and notification summary widgets remain available",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-portal-summaries\"]",
+      "highlight": "[data-testid=\"student-portal-summaries\"]"
+    },
+    {
+      "title": "Notifications Empty State",
+      "description": "In-service notifications empty state is explicit (no invented feed)",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-notifications-empty\"]",
+      "highlight": "[data-testid=\"student-notifications-empty\"]"
+    },
+    {
+      "title": "PostgreSQL Outbox Schema Present",
+      "description": "Confirm sys.outbox_events table exists for intelligence adapter emissions (liveEndpoint may remain false)",
+      "action": "db_check",
+      "query": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'sys' AND table_name = 'outbox_events'",
+      "minCount": 1
+    },
+    {
+      "title": "Gateway Students Contract Auth Gate",
+      "description": "Unauthenticated students/me remains blocked proving gateway ops posture",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/students/me",
+      "expectedStatus": 401
+    }
+  ]
+}
