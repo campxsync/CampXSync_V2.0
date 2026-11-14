@@ -113,3 +113,31 @@ Working-tree state at demo: uncommitted enrollment domain/controller/tests + stu
 
 ### Owner decision
 **APPROVED STM-03-US-002 COMMIT** (2026-11-14). CSV status set to `completed`. Next proposed: `STM-03-US-003`.
+
+---
+
+## Entry 4 — STM-03-US-003 Validate enrolment eligibility (2026-11-14)
+
+**Task ID:** STM-03-US-003  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Base HEAD:** `0365218` (US-002).
+
+### Scope completed
+- Registrar-only `evaluateEligibility` (window + active status); PENDING → ELIGIBLE when clean; no DEPARTMENT_STAFF invent; blocks student self-validate.
+- College desk uses BFF `eligibility` action (not blind status mark); shows failures panel.
+- Headed demo + live DB ELIGIBLE read-back.
+
+### Tests (§7A)
+
+| Command | Exit | Result |
+|---|---:|---|
+| `mvn test -pl services/student-services/enrollment-service -Dtest=EnrollmentDomainServiceTest` | 0 | 48 run, 0 fail (9 `stm03Us003_*`) |
+| `cd frontend; npx tsc --noEmit` | 0 | 0 errors |
+| `node scripts/demo/run_story_demo.mjs STM-03-US-003` | 0 | 14/14 PASS |
+
+### Evidence paths
+- `docs/demos/STM-03-US-003/`
+
+### Owner decision
+Owner directive **start / test / commit** (2026-11-14). CSV → `completed`. Next proposed: `STM-03-US-004`.

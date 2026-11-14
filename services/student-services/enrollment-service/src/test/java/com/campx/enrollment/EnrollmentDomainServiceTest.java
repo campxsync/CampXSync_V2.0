@@ -515,6 +515,111 @@ public class EnrollmentDomainServiceTest {
         assertTrue(response.body.contains("\"programId\":\"" + program + "\""));
     }
 
+    // --- STM-03-US-003 Validate enrolment eligibility ---
+
+    @Test
+    public void stm03Us003_registrarMarksPendingEligibleWhenWindowOpen() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        assertEquals("PENDING", enrolment.status);
+        List<String> failures = service.evaluateEligibility(registrar, enrolment.id);
+        assertTrue(failures.isEmpty());
+        EnrollmentDomainService.Enrolment viewed = service.getEnrolment(registrar, enrolment.id);
+        assertEquals("ELIGIBLE", viewed.status);
+    }
+
+    @Test
+    public void stm03Us003_windowClosedReturnsFailureWithoutStatusChange() {
+        EnrollmentDomainService.Term term = service.seedTerm(tenant, "2026", "ODD", "Odd");
+        service.seedWindow(tenant, term.id, NOW.plusSeconds(3600), NOW.plusSeconds(7200), 2, 6);
+        EnrollmentDomainService.Enrolment enrolment = service.seedHandover(tenant, UUID.randomUUID(), student, program, term.id);
+        List<String> failures = service.evaluateEligibility(registrar, enrolment.id);
+        assertEquals(1, failures.size());
+        assertEquals("WINDOW_CLOSED", failures.get(0));
+        assertEquals("PENDING", service.getEnrolment(registrar, enrolment.id).status);
+    }
+
+    @Test
+    public void stm03Us003_rejectedEnrolmentIsNotEligible() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        service.updateStatus(registrar, enrolment.id, "REJECTED");
+        List<String> failures = service.evaluateEligibility(registrar, enrolment.id);
+        assertTrue(failures.contains("ENROLMENT_NOT_ACTIVE"));
+    }
+
+    @Test
+    public void stm03Us003_studentCannotSelfValidateEligibility() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.evaluateEligibility(studentActor, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us003_facultyCannotValidateEligibility() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.evaluateEligibility(facultyActor, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us003_departmentStaffCannotValidateEligibility() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.evaluateEligibility(departmentStaff, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us003_crossTenantEligibilityFailsClosed() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr");
+        try {
+            service.evaluateEligibility(outsider, enrolment.id);
+            fail("expected not found");
+        } catch (EnrollmentException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm03Us003_unauthenticatedEligibilityHttpRejected() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier("test-secret"));
+        EnrollmentController.Response response = controller.handle("POST",
+                "/api/v1/enrollment/enrolments/" + enrolment.id + "/eligibility",
+                Collections.<String, String>emptyMap(), "{}");
+        assertEquals(401, response.status);
+    }
+
+    @Test
+    public void stm03Us003_httpReturnsEligiblePayloadForRegistrar() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier(null));
+        java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
+        headers.put("x-tenant-id", tenant.toString());
+        headers.put("x-user-id", registrar.getUserId().toString());
+        headers.put("x-user-role", "REGISTRAR");
+        headers.put("x-correlation-id", "corr-elig");
+        EnrollmentController.Response response = controller.handle("POST",
+                "/api/v1/enrollment/enrolments/" + enrolment.id + "/eligibility", headers, "{}");
+        assertEquals(200, response.status);
+        assertTrue(response.body.contains("\"eligible\":true"));
+        assertTrue(response.body.contains("\"status\":\"ELIGIBLE\""));
+    }
+
     private EnrollmentDomainService.Term term() {
         EnrollmentDomainService.Term created = service.seedTerm(tenant, "2026", "ODD", "Odd");
         service.seedWindow(tenant, created.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 1, 30);

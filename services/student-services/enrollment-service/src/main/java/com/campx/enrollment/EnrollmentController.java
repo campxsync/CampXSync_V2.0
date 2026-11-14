@@ -145,10 +145,13 @@ public class EnrollmentController {
             }
             if ("POST".equals(method) && normalized.endsWith("/eligibility")) {
                 String idPart = normalized.substring("/api/v1/enrollment/enrolments/".length(), normalized.length() - "/eligibility".length());
-                List<String> failures = domain.evaluateEligibility(actor, UUID.fromString(idPart));
+                UUID enrolmentId = UUID.fromString(idPart);
+                List<String> failures = domain.evaluateEligibility(actor, enrolmentId);
+                EnrollmentDomainService.Enrolment enrolment = domain.getEnrolment(actor, enrolmentId);
                 ObjectNode node = mapper.createObjectNode();
                 node.put("enrolmentId", idPart);
                 node.put("eligible", failures.isEmpty());
+                node.put("status", enrolment.status);
                 ArrayNode array = node.putArray("failures");
                 for (String failure : failures) {
                     array.add(failure);

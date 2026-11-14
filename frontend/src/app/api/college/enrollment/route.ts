@@ -73,6 +73,12 @@ export async function POST(req: NextRequest) {
   } else if (action === 'status') {
     path = `/api/v1/enrollment/enrolments/${payload.enrolmentId}/status`;
     body = { status: payload.status };
+  } else if (action === 'eligibility') {
+    if (!payload?.enrolmentId) {
+      return NextResponse.json({ title: 'enrolmentId is required', status: 400 }, { status: 400 });
+    }
+    path = `/api/v1/enrollment/enrolments/${payload.enrolmentId}/eligibility`;
+    body = {};
   } else {
     return NextResponse.json({ title: 'Unknown enrolment action', status: 400 }, { status: 400 });
   }

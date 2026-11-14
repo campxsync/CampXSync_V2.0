@@ -439,12 +439,19 @@ public class EnrollmentDomainService {
     }
 
     /**
-     * Checks prerequisites, core courses, and the registration window for an enrolment.
+     * Academic administrator (registrar) validates enrolment eligibility before registration.
+     * Checks the open registration window and that the enrolment is not rejected/suspended.
+     * When checks pass and the enrolment is still PENDING, advances status to ELIGIBLE.
+     * Does not invent DEPARTMENT_STAFF grants (ROLE-CATALOGUE GAP).
      *
-     * @return stable failure codes, or an empty list when the enrolment can be registered
+     * @return stable failure codes, or an empty list when eligible
+     * @throws EnrollmentException 401 when tenant context is missing
+     * @throws EnrollmentException 403 when the caller is not registrar/college admin
+     * @throws EnrollmentException 404 when the enrolment is missing in the tenant
      */
     public List<String> evaluateEligibility(Actor actor, UUID enrolmentId) {
-        Enrolment enrolment = getEnrolment(actor, enrolmentId);
+        requireRegistrar(actor);
+        Enrolment enrolment = requireEnrolment(actor.getTenantId(), enrolmentId);
         hydrateCatalogue(actor, enrolment);
         List<String> failures = eligibilityFailures(enrolment);
         if (failures.isEmpty() && "PENDING".equals(enrolment.status)) {
@@ -454,6 +461,8 @@ public class EnrollmentDomainService {
             persistEnrolment(actor, enrolment);
             persistHistory(actor, enrolment, row);
             log(actor, "enrolment.eligible", enrolment.id);
+        } else if (!failures.isEmpty()) {
+            log(actor, "enrolment.eligibility_failed", enrolment.id);
         }
         return failures;
     }

@@ -11,6 +11,12 @@ export default function CollegeEnrollmentDeskPage() {
   const [enrolments, setEnrolments] = useState<Enrolment[]>([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [eligibility, setEligibility] = useState<{
+    enrolmentId: string;
+    eligible: boolean;
+    status?: string;
+    failures: string[];
+  } | null>(null);
   const [termId, setTermId] = useState('');
   const [programId, setProgramId] = useState('');
   const [courseId, setCourseId] = useState('');
@@ -78,8 +84,19 @@ export default function CollegeEnrollmentDeskPage() {
       setError(text);
       return null;
     }
-    setMessage(`${action} saved.`);
-    return JSON.parse(text);
+    const parsed = text ? JSON.parse(text) : null;
+    if (action === 'eligibility' && parsed) {
+      setEligibility({
+        enrolmentId: String(parsed.enrolmentId || extra.enrolmentId || ''),
+        eligible: Boolean(parsed.eligible),
+        status: parsed.status ? String(parsed.status) : undefined,
+        failures: Array.isArray(parsed.failures) ? parsed.failures.map(String) : [],
+      });
+      setMessage(parsed.eligible ? 'Enrolment is eligible.' : 'Enrolment failed eligibility checks.');
+    } else {
+      setMessage(`${action} saved.`);
+    }
+    return parsed;
   }
 
   return (
@@ -225,12 +242,45 @@ export default function CollegeEnrollmentDeskPage() {
               <span data-testid={`college-enrollment-status-${item.id}`}>
                 {item.status} · student {item.studentId.slice(0, 8)}…
               </span>
-              <button type="button" className="text-xs underline" onClick={() => void post('status', { enrolmentId: item.id, status: 'ELIGIBLE' })}>
-                Mark eligible
+              <button
+                type="button"
+                className="text-xs underline"
+                data-testid={`college-enrollment-validate-${item.id}`}
+                data-student-id={item.studentId}
+                onClick={async () => {
+                  const result = await post('eligibility', { enrolmentId: item.id });
+                  if (result) {
+                    await load();
+                  }
+                }}
+              >
+                Validate eligibility
               </button>
             </li>
           ))}
         </ul>
+        {eligibility ? (
+          <div
+            className="rounded border border-[#E3E8EF] bg-[#F8FAFC] p-3 text-sm text-[#0B1F3A]"
+            data-testid="college-enrollment-eligibility-result"
+          >
+            <p data-testid="college-enrollment-eligibility-eligible">
+              {eligibility.eligible ? 'Eligible' : 'Not eligible'}
+              {eligibility.status ? ` · status ${eligibility.status}` : ''}
+            </p>
+            {eligibility.failures.length > 0 ? (
+              <ul className="mt-2 list-disc pl-5 text-[#991B1B]" data-testid="college-enrollment-eligibility-failures">
+                {eligibility.failures.map((code) => (
+                  <li key={code}>{code}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-[#166534]" data-testid="college-enrollment-eligibility-failures">
+                No eligibility failures.
+              </p>
+            )}
+          </div>
+        ) : null}
       </section>
 
       {message ? (

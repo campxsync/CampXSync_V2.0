@@ -1,0 +1,122 @@
+{
+  "storyId": "STM-03-US-003",
+  "title": "Validate enrolment eligibility",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "DELETE FROM stu.enrolment_status_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND enrolment_id IN (SELECT id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3030000-0000-4000-8000-000000000003')"
+    },
+    {
+      "query": "DELETE FROM stu.enrolment_selections WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND enrolment_id IN (SELECT id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3030000-0000-4000-8000-000000000003')"
+    },
+    {
+      "query": "DELETE FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3030000-0000-4000-8000-000000000003'"
+    }
+  ],
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "Academic administrator authenticates and opens the Course registration desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Verify Enrolment Desk Loaded",
+      "description": "College enrolment desk renders with term and handover sections",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-heading\"]",
+      "highlight": "[data-testid=\"college-enrollment-heading\"]"
+    },
+    {
+      "title": "Select Academic Term",
+      "description": "Registrar selects the 2026 ODD term so the registration window context is bound",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Enter Programme Identifier",
+      "description": "Staff supplies the programme id for the eligibility validation enrolment",
+      "action": "fill",
+      "selector": "[data-testid=\"college-enrollment-program-id\"]",
+      "value": "a0000000-0000-0000-0000-000000000040",
+      "highlight": "[data-testid=\"college-enrollment-program-id\"]"
+    },
+    {
+      "title": "Enter Application Identifier",
+      "description": "Staff supplies a dedicated application id for this eligibility story",
+      "action": "fill",
+      "selector": "[data-testid=\"college-enrollment-application-id\"]",
+      "value": "c3030000-0000-4000-8000-000000000003",
+      "highlight": "[data-testid=\"college-enrollment-application-id\"]"
+    },
+    {
+      "title": "Enter Student Identifier",
+      "description": "Staff supplies a dedicated student id to avoid term duplicate collisions",
+      "action": "fill",
+      "selector": "[data-testid=\"college-enrollment-student-id\"]",
+      "value": "c3030000-0000-4000-8000-000000000093",
+      "highlight": "[data-testid=\"college-enrollment-student-id\"]"
+    },
+    {
+      "title": "Open Enrolment From Handover",
+      "description": "Open a PENDING enrolment that will be validated for eligibility",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-open-handover\"]",
+      "highlight": "[data-testid=\"college-enrollment-open-handover\"]"
+    },
+    {
+      "title": "Verify Handover Success Banner",
+      "description": "UI confirms the PENDING enrolment was persisted before eligibility validation",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-success\"]",
+      "highlight": "[data-testid=\"college-enrollment-success\"]",
+      "timeout": 20000
+    },
+    {
+      "title": "Enrolment Appears In List",
+      "description": "PENDING enrolment for the demo student is listed on the registrar desk",
+      "action": "wait_for",
+      "selector": "[data-student-id=\"c3030000-0000-4000-8000-000000000093\"]",
+      "highlight": "[data-student-id=\"c3030000-0000-4000-8000-000000000093\"]"
+    },
+    {
+      "title": "Validate Enrolment Eligibility",
+      "description": "Academic administrator runs eligibility validation on the new PENDING enrolment",
+      "action": "click",
+      "selector": "[data-student-id=\"c3030000-0000-4000-8000-000000000093\"]",
+      "highlight": "[data-student-id=\"c3030000-0000-4000-8000-000000000093\"]"
+    },
+    {
+      "title": "Eligibility Result Visible",
+      "description": "UI shows eligibility outcome panel after validation",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-eligibility-result\"]",
+      "highlight": "[data-testid=\"college-enrollment-eligibility-result\"]"
+    },
+    {
+      "title": "Confirm Eligible Outcome",
+      "description": "Result reports Eligible when the registration window is open",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-eligibility-eligible\"]",
+      "highlight": "[data-testid=\"college-enrollment-eligibility-eligible\"]"
+    },
+    {
+      "title": "PostgreSQL Eligibility Status Read-Back",
+      "description": "Read-only query verifies the enrolment advanced to ELIGIBLE under the pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, status, application_id, student_id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3030000-0000-4000-8000-000000000003' AND status = 'ELIGIBLE'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "API Gateway blocks unauthenticated POST to enrolment eligibility with HTTP 401",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments/a1000000-0000-0000-0000-000000000031/eligibility",
+      "body": {},
+      "expectedStatus": 401
+    }
+  ]
+}

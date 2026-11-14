@@ -6,11 +6,11 @@
 
 | Field | Value |
 |---|---|
-| Issue ID | `STM-03-US-003` |
-| Summary | Validate enrolment eligibility |
+| Issue ID | `STM-03-US-004` |
+| Summary | Update enrolment status |
 | Service | STM-03 — Student Enrolment & Registration Service |
 | Issue Type | Story |
-| Priority | P0 |
+| Priority | P1 |
 | Audit/CSV implementation status | partially completed |
 | RBAC Alignment Verdict | MATRIX-DEFINED; ROLE-CATALOGUE GAP |
 
@@ -23,12 +23,12 @@
 Confirm this story's **Acceptance Criteria (Draft Given/When/Then)** and **Required Negative Tests** against the actual repository code and close **only** the gaps found. Do not expand into adjacent stories.
 
 ### In scope
-- Gaps between the story's acceptance criteria / required negative tests and current enrollment-service (and related gateway/BFF/UI) behavior for `STM-03-US-003` (validate enrolment eligibility).
+- Gaps between the story's acceptance criteria / required negative tests and current enrollment-service (and related gateway/BFF/UI) behavior for `STM-03-US-004` (update enrolment status).
 - Exception handling, documentation and logging for the functionality changed (Agreement §3.2).
 - Evidence per Agreement §7A for tests actually run.
 
 ### Out of scope
-- Any other Issue ID; RBAC FLAGS; inventing role grants; architectural redesign; Docker/VM/cloud/deployment; new tools/dependencies; production DB; unapproved migrations; commit/push unless separately authorized.
+- Any other Issue ID; RBAC FLAGS; inventing role grants (including DEPARTMENT_STAFF); architectural redesign; Docker/VM/cloud/deployment; new tools/dependencies; production DB; unapproved migrations; commit/push unless separately authorized.
 
 ## Dependencies
 
@@ -47,15 +47,13 @@ For every test run: exact command; commit/working-tree state; environment; exit 
 | Column | Value |
 |---|---|
 | RBAC Matrix Role(s) | Student: V own; X request/select courses; Registrar / Department Staff: C/U/RV; A when delegated; Faculty / Advisor: V assigned roster and relevant status |
-| RBAC Permission | RV/A/R as workflow-authorized \| Service posture: Student=V own; X request/select courses ; Registrar / Department Staff=C/U/RV; A when delegated ; Faculty / Advisor=V assigned roster and relevant status |
-| Authorization Scope / Constraints | Tenant + institution/campus + service-defined scope; Student: Eligibility, prerequisites, capacity and duplicate checks required ; Registrar / Department Staff: Approval scope and term/programme constraints enforced ; Faculty / Advisor: Assigned course/section scope |
 | Canonical RBAC Role Code(s) | R10; R25 |
 | Required Negative Tests | unauthenticated; wrong role; wrong tenant; wrong institution/campus/department/programme/course/section/resource; missing delegation; self-approval; stale/revoked guardian consent where applicable; sensitive-field overread; IDOR/nested-resource/export |
 
 ## Do not start adjacent stories
 
-Implement only `STM-03-US-003` after explicit owner approval of this PROPOSED task.
+Implement only `STM-03-US-004` after explicit owner approval of this PROPOSED task.
 
 ## Prior story
 
-`STM-03-US-002` — **APPROVED** + COMMIT (owner 2026-11-14).
+`STM-03-US-003` — **APPROVED** + COMMIT (owner 2026-11-14; completed under owner “start / test / commit” directive).
