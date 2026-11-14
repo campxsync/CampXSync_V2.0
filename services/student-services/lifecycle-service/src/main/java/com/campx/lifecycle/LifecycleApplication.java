@@ -44,7 +44,10 @@ public class LifecycleApplication {
             logger.warn("STM-04 lifecycle service starting in local in-memory mode (no JDBC configured)");
         }
 
-        String secret = System.getenv("CAMPX_GATEWAY_HMAC_SECRET");
+        String secret = System.getenv("CAMPX_INTERNAL_SECRET");
+        if (secret == null || secret.trim().isEmpty()) {
+            secret = System.getenv("CAMPX_GATEWAY_HMAC_SECRET");
+        }
         final LifecycleController controller = new LifecycleController(domain, new GatewayHmacVerifier(secret));
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", DEFAULT_PORT), 0);
         server.createContext("/", new HttpHandler() {

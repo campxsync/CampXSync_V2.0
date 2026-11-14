@@ -723,5 +723,45 @@ STM-04-US-003 (Head of Department (HOD) Endorsement & Departmental Review of Stu
   - Generic demo runner (`scripts/demo/run_story_demo.mjs STM-04-US-003`) with declarative spec `docs/stories/STM-04-US-003.demo.json`.
 - **Visible Headed Playwright Demo Pack:** Executed on live headed desktop browser (slowMo 350ms, 1280x720 video) with on-screen caption overlays and element highlights. Verified 16/16 checkpoints (faculty advisor authentication, advisees desk load, advisee roster count assertion, pending advisee petitions queue inspection, advisee medical leave petition row location, endorsement action modal trigger, recommendation level selection `RECOMMENDED`, departmental review remarks input, formal endorsement submission, success banner verification, updated endorsement badge check on faculty desk, college admin registrar authentication, HOD endorsement reflection on registrar lifecycle desk, PostgreSQL immutable history check for `hod.endorsement:RECOMMENDED`, unauthenticated gateway direct access rejection with HTTP 401). Recorded in [`docs/demos/STM-04-US-003/demo.webm`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-003/demo.webm) and [`docs/demos/STM-04-US-003/DEMO.md`](file:///d:/CampXSync/CampXSync_V2.0/docs/demos/STM-04-US-003/DEMO.md).
 
+## Pilot Hardening — H-4 (Pilot Onboarding Scripts)
+**Status:** APPROVED + COMMITTED (2026-11-14).
+- **Scope:** Node pilot onboarding CLI (seed-script style): tenant+admin config, student/faculty CSV import validation, dry-run default; demo with sample CSV + gated UI saga.
+- **Scripts:** `scripts/dev/pilot_onboard.mjs`; fixtures under `scripts/dev/fixtures/pilot/`; runbook `docs/runbooks/PILOT_ONBOARDING_RUNBOOK.md`.
+- **Safety:** Dev-ref guard; dry-run default; live apply requires `--approve "GO PROVISION-TENANT"`; no hardcoded passwords; roster Auth mint not performed without separate approval.
+- **UI:** `/platform/institutes/new` wizard `data-testid`s; BFF onboard-tenant uses Bearer (`getGatewayHeaders`) for live path; gated response without approval header.
+- **Evidence:** dry-run PASS (5 students / 3 faculty); invalid CSV reject PASS; `tsc --noEmit` 0; headed demo **16/16 PASS** — `docs/demos/H-4/demo.webm`, `DEMO.md`; plan `docs/demos/H-4/onboarding-plan.json`.
+- **Note:** Stack JVMs were stopped during demo to free RAM (host was &lt;3 GB free). Restart with `start_stack.ps1` before next Java story work.
+- **Next:** Stop for `APPROVED H-4` (pilot hardening sequence complete).
+
+## Pilot Hardening — H-3 (Internal Auth ON)
+**Status:** APPROVED (2026-11-14).
+- **Scope:** Enable `campx.internal.auth.enabled=true`; JWT Channel A to gateway; HMAC to Java services; reject forged identity headers.
+- **Backend:** Logger `GatewayHmacProtocol` + issuer normalize (`/rest/v1` → `/auth/v1`); lifecycle/document/subject/attendance/analytics HMAC verifiers; stack scripts auth=true; health probes use `/actuator/health` where needed.
+- **Frontend:** `gateway-client.ts` Bearer-only; `gateway-auth.ts` no spoofable `X-User-*`; test-session mints real Supabase JWT via `.env.audit`; platform pages use `fetchFromGateway`.
+- **Evidence:** DocumentControllerTest **72/72 PASS**; `tsc --noEmit` 0; headed demo **11/11 PASS** — `docs/demos/H-3/demo.webm`, `DEMO.md`; forged direct lifecycle **401**; gateway without Bearer **401**.
+- **Affected pages still setting X-User-* (gateway strips when JWT present; migrate later, do not weaken auth):** faculty/college attendance & dashboards, student page/address/corrections/enrollment, college batches/departments/students/audit/programs, platform audit/onboard-tenant, user preferences, admissions/enrollment/timetable/attendance BFF routes that still compose identity headers alongside Bearer.
+- **Next:** H-4 (authorized after APPROVED H-3).
+
+## Pilot Hardening — H-2 (ACD-10 Platform Dashboard Real Data)
+**Status:** APPROVED (2026-11-14).
+- **Scope:** Remove hardcoded platform KPIs `3/3/30` and empty institutes list; serve real tenants/statuses/role-template counts from azul Postgres via ACD-10.
+- **Backend:** `AnalyticsApplication` requires persistence mode; `AnalyticsDomainService` resolves `PostgresAnalyticsDashboardRepository` in postgres mode; platform-admin RLS claims (`SET LOCAL ROLE authenticated` + `sub`); `roleTemplateCount` from `iam.role_templates`; stack scripts start/check/restart port **8092**.
+- **Frontend:** `/platform` role query `platform_admin`; KPI/institutes `data-testid`s; test-session GET supports `platform_admin` with live `plat.platform_admins` user `54e8308c-…`.
+- **Evidence:** Unit tests PASS; `tsc --noEmit` 0; headed demo **9/9 PASS** — `docs/demos/H-2/demo.webm`, `DEMO.md`; live API `tenantCount=4`, `institutes=4`, `roleTemplateCount=33`.
+- **Known gap (not weakened):** `userCount`/`collegeCount` stay **0** because RLS on `iam.user_profiles` / `core.colleges` has no `iam.is_platform_admin()` SELECT path. Needs approved DDL policy; do not bypass RLS.
+- **Next:** H-3 (authorized after APPROVED H-2).
+
+## Pilot Hardening — H-1 (ACD-03 / ACD-06 Real Postgres)
+**Status:** APPROVED (2026-11-14).
+- **Scope:** Replace in-memory active paths for ACD-03 Subject Management (`:8085`) and ACD-06 Attendance (`:8088`) with HikariCP Postgres repositories against azul `azulbaxszsqxymqmlwfe`.
+- **ACD-03:** Added `PostgresSubjectRepository` / `InMemorySubjectRepository`, `DatabaseConfig` + `DatabaseConnectionManager` + `UserSecurityContext`, persistence-mode bootstrap; `create` / `get` / `search` / catalog routed to `acd.subjects` when `campx.persistence.mode=postgres`.
+- **ACD-06:** Wired `PostgresAttendanceRepository` into HTTP create/list/get/mark/submit paths; fixed PgBouncer `prepareThreshold=0`; resolved faculty `employee_id` for `acd08.write.own` RLS; stack scripts start/check/restart ACD-03/ACD-06.
+- **Evidence:**
+  - Unit: `SubjectDomainServiceTest` PASS; `AttendanceServiceTest` + `AttendanceRelationalServiceTest` PASS.
+  - `frontend` `tsc --noEmit` → 0 errors.
+  - Headed demo **15/15 PASS**: `docs/demos/H-1/demo.webm`, `docs/demos/H-1/DEMO.md`, spec `docs/stories/H-1.demo.json`.
+  - Flow: Faculty mark → DB check → `restart_service.ps1 attendance-service` → College Admin desk + Student portal + subjects gateway list + DB check after restart.
+- **Next authorized:** H-2 (after `APPROVED H-1`); then docs-only STM-04 reconcile table (propose CSV rows, do not edit).
+
 ## Safeguards
 Production is off-limits. Every DB write/migration/grant/RLS/seed/provisioning step requires exact non-production target verification and explicit approval. Preserve uncommitted/untracked Waves 1–10 work. No commit/push without explicit authorization. Never claim unrun DB, browser E2E, RLS or Intelligence Layer tests passed.

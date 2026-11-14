@@ -32,8 +32,8 @@ try {
     Write-Host "System Check: Free RAM detection unavailable, proceeding..." -ForegroundColor DarkGray
 }
 
-# 2. Stop old listeners on 8080, 8098, 8096, 3000
-$targetPorts = @(8080, 8098, 8096, 3000)
+# 2. Stop old listeners on core + academic ports
+$targetPorts = @(8080, 8098, 8096, 8085, 8088, 8092, 3000)
 foreach ($p in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
     if ($conns) {
@@ -54,7 +54,7 @@ $docProc = Start-Process -FilePath "java" -ArgumentList @(
     "-Xms32m",
     "-Xmx96m",
     "-Dcampx.persistence.mode=postgres",
-    "-Dcampx.internal.auth.enabled=false",
+    "-Dcampx.internal.auth.enabled=true",
     "-cp",
     "target\classes;$docCp",
     "com.campx.document.DocumentApplication",
@@ -72,7 +72,7 @@ $lifeProc = Start-Process -FilePath "java" -ArgumentList @(
     "-Xms32m",
     "-Xmx96m",
     "-Dcampx.persistence.mode=postgres",
-    "-Dcampx.internal.auth.enabled=false",
+    "-Dcampx.internal.auth.enabled=true",
     "-cp",
     "target\classes;$lifeCp",
     "com.campx.lifecycle.LifecycleApplication",
@@ -80,6 +80,60 @@ $lifeProc = Start-Process -FilePath "java" -ArgumentList @(
 ) -WorkingDirectory $lifeDir -RedirectStandardOutput "$logDir\stm-04.log" -RedirectStandardError "$logDir\stm-04.err" -WindowStyle Minimized -PassThru
 
 Write-Host "STM-04 launched with PID $($lifeProc.Id)" -ForegroundColor DarkGray
+
+# 3c. Launch ACD-03 Subject Management Service on port 8085
+Write-Host "Starting ACD-03 Subject Management Service on port 8085 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$subjDir = "$baseDir\services\academic-services\subject-management-service"
+$subjCp = (Get-Content "$subjDir\classpath.txt" -Raw).Trim()
+
+$subjProc = Start-Process -FilePath "java" -ArgumentList @(
+    "-Xms32m",
+    "-Xmx96m",
+    "-Dcampx.persistence.mode=postgres",
+    "-Dcampx.internal.auth.enabled=true",
+    "-cp",
+    "target\classes;$subjCp",
+    "com.campx.academic.subject.SubjectManagementApplication",
+    "8085"
+) -WorkingDirectory $subjDir -RedirectStandardOutput "$logDir\acd-03.log" -RedirectStandardError "$logDir\acd-03.err" -WindowStyle Minimized -PassThru
+
+Write-Host "ACD-03 launched with PID $($subjProc.Id)" -ForegroundColor DarkGray
+
+# 3d. Launch ACD-06 Attendance Management Service on port 8088
+Write-Host "Starting ACD-06 Attendance Management Service on port 8088 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$attDir = "$baseDir\services\attendance-services\attendance-service"
+$attCp = (Get-Content "$attDir\classpath.txt" -Raw).Trim()
+
+$attProc = Start-Process -FilePath "java" -ArgumentList @(
+    "-Xms32m",
+    "-Xmx96m",
+    "-Dcampx.persistence.mode=postgres",
+    "-Dcampx.internal.auth.enabled=true",
+    "-cp",
+    "target\classes;$attCp",
+    "com.campx.academic.attendance.AttendanceManagementApplication",
+    "8088"
+) -WorkingDirectory $attDir -RedirectStandardOutput "$logDir\acd-06.log" -RedirectStandardError "$logDir\acd-06.err" -WindowStyle Minimized -PassThru
+
+Write-Host "ACD-06 launched with PID $($attProc.Id)" -ForegroundColor DarkGray
+
+# 3e. Launch ACD-10 Reporting & Analytics Service on port 8092
+Write-Host "Starting ACD-10 Reporting & Analytics Service on port 8092 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$anlDir = "$baseDir\services\analytics-services\analytics-service"
+$anlCp = (Get-Content "$anlDir\classpath.txt" -Raw).Trim()
+
+$anlProc = Start-Process -FilePath "java" -ArgumentList @(
+    "-Xms32m",
+    "-Xmx96m",
+    "-Dcampx.persistence.mode=postgres",
+    "-Dcampx.internal.auth.enabled=true",
+    "-cp",
+    "target\classes;$anlCp",
+    "com.campx.academic.analytics.AnalyticsApplication",
+    "8092"
+) -WorkingDirectory $anlDir -RedirectStandardOutput "$logDir\acd-10.log" -RedirectStandardError "$logDir\acd-10.err" -WindowStyle Minimized -PassThru
+
+Write-Host "ACD-10 launched with PID $($anlProc.Id)" -ForegroundColor DarkGray
 
 # 4. Launch API Gateway on port 8080
 Write-Host "Starting API Gateway on port 8080 (-Xms64m -Xmx192m)..." -ForegroundColor Cyan
@@ -90,7 +144,7 @@ $gwProc = Start-Process -FilePath "java" -ArgumentList @(
     "-Xms64m",
     "-Xmx192m",
     "-Dcampx.persistence.mode=postgres",
-    "-Dcampx.internal.auth.enabled=false",
+    "-Dcampx.internal.auth.enabled=true",
     "-Dcampx.gateway.connect.timeout.local.ms=3000",
     "-cp",
     "target\classes;$gwCp",
@@ -120,11 +174,14 @@ Write-Host "Next.js launched with PID $($feProc.Id)" -ForegroundColor DarkGray
 Write-Host "Waiting for services to become healthy..." -ForegroundColor Yellow
 $docReady = $false
 $lifeReady = $false
+$subjReady = $false
+$attReady = $false
+$anlReady = $false
 $gwReady = $false
 $feReady = $false
-$timeout = [DateTime]::Now.AddSeconds(45)
+$timeout = [DateTime]::Now.AddSeconds(60)
 
-while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $lifeReady -or -not $gwReady -or -not $feReady)) {
+while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $lifeReady -or -not $subjReady -or -not $attReady -or -not $anlReady -or -not $gwReady -or -not $feReady)) {
     Start-Sleep -Seconds 2
 
     if (-not $docReady) {
@@ -147,9 +204,39 @@ while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $lifeReady -or
         } catch {}
     }
 
+    if (-not $subjReady) {
+        try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8085/metrics" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+            if ($r -and $r.StatusCode -eq 200) {
+                $subjReady = $true
+                Write-Host "[+] Subject Service (8085) is HEALTHY" -ForegroundColor Green
+            }
+        } catch {}
+    }
+
+    if (-not $attReady) {
+        try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8088/metrics" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+            if ($r -and $r.StatusCode -eq 200) {
+                $attReady = $true
+                Write-Host "[+] Attendance Service (8088) is HEALTHY" -ForegroundColor Green
+            }
+        } catch {}
+    }
+
+    if (-not $anlReady) {
+        try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8092/metrics" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+            if ($r -and $r.StatusCode -eq 200) {
+                $anlReady = $true
+                Write-Host "[+] Analytics Service (8092) is HEALTHY" -ForegroundColor Green
+            }
+        } catch {}
+    }
+
     if (-not $gwReady) {
         try {
-            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8080/api/v1/documents/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8080/actuator/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
             if ($r -and $r.StatusCode -eq 200) {
                 $gwReady = $true
                 Write-Host "[+] API Gateway (8080) is HEALTHY" -ForegroundColor Green
@@ -168,8 +255,8 @@ while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $lifeReady -or
     }
 }
 
-if (-not $docReady -or -not $lifeReady -or -not $gwReady -or -not $feReady) {
-    Write-Host "WARNING: Stack may still be initializing (doc=$docReady, life=$lifeReady, gw=$gwReady, fe=$feReady)" -ForegroundColor Yellow
+if (-not $docReady -or -not $lifeReady -or -not $subjReady -or -not $attReady -or -not $anlReady -or -not $gwReady -or -not $feReady) {
+    Write-Host "WARNING: Stack may still be initializing (doc=$docReady, life=$lifeReady, subj=$subjReady, att=$attReady, anl=$anlReady, gw=$gwReady, fe=$feReady)" -ForegroundColor Yellow
 } else {
     Write-Host "ALL REQUIRED SERVICES READY!" -ForegroundColor Green
 }
@@ -196,7 +283,7 @@ while ($true) {
         Start-Process -FilePath "java" -ArgumentList @(
             "-Xms32m", "-Xmx96m",
             "-Dcampx.persistence.mode=postgres",
-            "-Dcampx.internal.auth.enabled=false",
+            "-Dcampx.internal.auth.enabled=true",
             "-cp", "target\classes;$lifeCp",
             "com.campx.lifecycle.LifecycleApplication", "8096"
         ) -WorkingDirectory $lifeDir -RedirectStandardOutput "$logDir\stm-04.log" -RedirectStandardError "$logDir\stm-04.err" -WindowStyle Minimized
@@ -207,18 +294,51 @@ while ($true) {
         Start-Process -FilePath "java" -ArgumentList @(
             "-Xms32m", "-Xmx96m",
             "-Dcampx.persistence.mode=postgres",
-            "-Dcampx.internal.auth.enabled=false",
+            "-Dcampx.internal.auth.enabled=true",
             "-cp", "target\classes;$docCp",
             "com.campx.document.DocumentApplication", "8098"
         ) -WorkingDirectory $docDir -RedirectStandardOutput "$logDir\stm-06.log" -RedirectStandardError "$logDir\stm-06.err" -WindowStyle Minimized
     } "Document Service"
+
+    # Watch Subject Service (8085)
+    Ensure-Service 8085 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$subjCp",
+            "com.campx.academic.subject.SubjectManagementApplication", "8085"
+        ) -WorkingDirectory $subjDir -RedirectStandardOutput "$logDir\acd-03.log" -RedirectStandardError "$logDir\acd-03.err" -WindowStyle Minimized
+    } "Subject Service"
+
+    # Watch Attendance Service (8088)
+    Ensure-Service 8088 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$attCp",
+            "com.campx.academic.attendance.AttendanceManagementApplication", "8088"
+        ) -WorkingDirectory $attDir -RedirectStandardOutput "$logDir\acd-06.log" -RedirectStandardError "$logDir\acd-06.err" -WindowStyle Minimized
+    } "Attendance Service"
+
+    # Watch Analytics Service (8092)
+    Ensure-Service 8092 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$anlCp",
+            "com.campx.academic.analytics.AnalyticsApplication", "8092"
+        ) -WorkingDirectory $anlDir -RedirectStandardOutput "$logDir\acd-10.log" -RedirectStandardError "$logDir\acd-10.err" -WindowStyle Minimized
+    } "Analytics Service"
 
     # Watch API Gateway (8080)
     Ensure-Service 8080 {
         Start-Process -FilePath "java" -ArgumentList @(
             "-Xms64m", "-Xmx192m",
             "-Dcampx.persistence.mode=postgres",
-            "-Dcampx.internal.auth.enabled=false",
+            "-Dcampx.internal.auth.enabled=true",
             "-Dcampx.gateway.connect.timeout.local.ms=3000",
             "-cp", "target\classes;$gwCp",
             "com.campx.gateway.ApiGatewayApplication", "8080"

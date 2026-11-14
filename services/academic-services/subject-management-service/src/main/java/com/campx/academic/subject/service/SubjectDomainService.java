@@ -2,6 +2,10 @@ package com.campx.academic.subject.service;
 
 import com.campx.academic.subject.exception.*;
 import com.campx.academic.subject.model.SubjectModels.*;
+import com.campx.academic.subject.repository.InMemorySubjectRepository;
+import com.campx.academic.subject.repository.PostgresSubjectRepository;
+import com.campx.academic.subject.repository.SubjectRepository;
+import com.campx.academic.subject.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.context.LogContext;
@@ -22,7 +26,7 @@ public class SubjectDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(SubjectDomainService.class);
 
-    // In-Memory simulated MongoDB Collections (§35-42)
+    // In-Memory simulated MongoDB Collections (§35-42) — used only when not in postgres mode
     private final Map<String, Subject> subjects = new ConcurrentHashMap<>();
     private final Map<String, List<SubjectVersion>> subjectVersions = new ConcurrentHashMap<>();
     private final Map<String, SubjectMetadata> subjectMetadata = new ConcurrentHashMap<>();
@@ -43,7 +47,14 @@ public class SubjectDomainService {
 
     private final AtomicLong eventSequence = new AtomicLong(1);
 
+    private final SubjectRepository subjectRepository;
+
     public SubjectDomainService() {
+        this(resolveDefaultSubjectRepository());
+    }
+
+    public SubjectDomainService(SubjectRepository subjectRepository) {
+        this.subjectRepository = subjectRepository != null ? subjectRepository : resolveDefaultSubjectRepository();
         // Pre-populate standard active departments
         activeDepartments.put("DEPT-CA", true);
         activeDepartments.put("DEP_CSE_01", true);
@@ -57,6 +68,51 @@ public class SubjectDomainService {
                 Arrays.asList("SUBJECT_VIEW", "SUBJECT_CATALOG_READ"), System.currentTimeMillis() + 86400000L));
     }
 
+    public static String getPersistenceMode() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        if (mode == null || mode.trim().isEmpty()) {
+            return "inmemory";
+        }
+        return mode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public static boolean isPostgresMode() {
+        String mode = getPersistenceMode();
+        return "postgres".equalsIgnoreCase(mode) || "relational".equalsIgnoreCase(mode);
+    }
+
+    private static SubjectRepository resolveDefaultSubjectRepository() {
+        if (isPostgresMode()) {
+            try {
+                com.campx.academic.subject.config.DatabaseConnectionManager.getInstance().initialize();
+                return new PostgresSubjectRepository();
+            } catch (Exception e) {
+                logger.error("Failed to initialize PostgresSubjectRepository in postgres mode: {}", e.getMessage(), e);
+                throw new IllegalStateException("PostgreSQL persistence mode requested but repository failed to initialize: " + e.getMessage(), e);
+            }
+        }
+        return new InMemorySubjectRepository();
+    }
+
+    public SubjectRepository getSubjectRepository() {
+        return subjectRepository;
+    }
+
+    private UserSecurityContext resolveSecurityContext(String actorId, String tenantIdHint) {
+        String tenantId = tenantIdHint;
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = LogContext.getTenantId();
+        }
+        String userId = actorId;
+        if (userId == null || userId.trim().isEmpty()) {
+            userId = LogContext.getUserId();
+        }
+        return UserSecurityContext.fromHeaders(userId, tenantId);
+    }
+
     // =========================================================================
     // 1. Subject Definition & Identity Management (Epic 1, 2)
     // =========================================================================
@@ -66,9 +122,6 @@ public class SubjectDomainService {
      */
     public Subject createSubject(Subject subject, String academicYear, String actorId, String actorRole) {
         validateSubjectAttributes(subject);
-
-        // BR-01: subjectCode uniqueness within tenant + institution
-        ensureSubjectCodeUnique(subject.getTenantId(), subject.getInstitutionId(), subject.getSubjectCode(), null);
 
         // BR-08: Department existence and active state
         validateDepartment(subject.getDepartmentId());
@@ -82,6 +135,28 @@ public class SubjectDomainService {
                 validateDepartment(xDept);
             }
         }
+
+        if (academicYear != null) {
+            subject.setAcademicYear(academicYear);
+        }
+
+        // PostgreSQL persistence path (H-1)
+        if (isPostgresMode() || subjectRepository instanceof PostgresSubjectRepository) {
+            UserSecurityContext ctx = resolveSecurityContext(actorId, subject.getTenantId());
+            if (ctx.getTenantId() == null) {
+                throw new SubjectUnauthorizedException("Tenant context required for subject creation in PostgreSQL mode");
+            }
+            subject.setTenantId(ctx.getTenantId().toString());
+            if (subject.getStatus() == null) {
+                subject.setStatus(SubjectStatus.ACTIVE);
+            }
+            Subject saved = subjectRepository.createSubject(ctx, subject);
+            logger.info("Successfully created subject '{}' ({}) via PostgreSQL", saved.getName(), saved.getId());
+            return saved;
+        }
+
+        // BR-01: subjectCode uniqueness within tenant + institution (in-memory)
+        ensureSubjectCodeUnique(subject.getTenantId(), subject.getInstitutionId(), subject.getSubjectCode(), null);
 
         String id = subject.getId() != null ? subject.getId() : "SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         subject.setId(id);
@@ -253,6 +328,14 @@ public class SubjectDomainService {
      * Retrieves subject details (Story 7, UC-02).
      */
     public Subject getSubject(String id) {
+        if (isPostgresMode() || subjectRepository instanceof PostgresSubjectRepository) {
+            UserSecurityContext ctx = resolveSecurityContext(LogContext.getUserId(), LogContext.getTenantId());
+            Optional<Subject> found = subjectRepository.findById(ctx, id);
+            if (found.isPresent()) {
+                return found.get();
+            }
+            throw new SubjectNotFoundException("Subject not found with id: " + id);
+        }
         Subject s = subjects.get(id);
         if (s == null) {
             throw new SubjectNotFoundException("Subject not found with id: " + id);
@@ -1027,6 +1110,11 @@ public class SubjectDomainService {
      * Published subject catalog (Story 16, 60): only returns published/ACTIVE subjects.
      */
     public List<Subject> getPublishedCatalog(String tenantId, String institutionId) {
+        if (isPostgresMode() || subjectRepository instanceof PostgresSubjectRepository) {
+            UserSecurityContext ctx = resolveSecurityContext(LogContext.getUserId(),
+                    tenantId != null ? tenantId : LogContext.getTenantId());
+            return subjectRepository.listSubjects(ctx, null, "ACTIVE", null, null, 0, 200);
+        }
         return subjects.values().stream()
                 .filter(s -> s.getStatus() == SubjectStatus.ACTIVE)
                 .filter(s -> s.getDepartmentId() == null || activeDepartments.getOrDefault(s.getDepartmentId(), true))
@@ -1041,6 +1129,16 @@ public class SubjectDomainService {
      */
     public List<Subject> searchSubjects(String code, String name, String type, String departmentId,
                                         String status, String tag, int offset, int limit) {
+        if (isPostgresMode() || subjectRepository instanceof PostgresSubjectRepository) {
+            UserSecurityContext ctx = resolveSecurityContext(LogContext.getUserId(), LogContext.getTenantId());
+            List<Subject> listed = subjectRepository.listSubjects(ctx, departmentId, status, code, name, offset, limit);
+            if (type != null && !type.trim().isEmpty()) {
+                listed = listed.stream()
+                        .filter(s -> s.getSubjectType() != null && s.getSubjectType().equalsIgnoreCase(type))
+                        .collect(Collectors.toList());
+            }
+            return listed;
+        }
         return subjects.values().stream()
                 .filter(s -> code == null || s.getSubjectCode().toLowerCase().contains(code.toLowerCase()))
                 .filter(s -> name == null || s.getName().toLowerCase().contains(name.toLowerCase()))

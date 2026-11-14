@@ -81,7 +81,7 @@ switch ($Service.ToLower()) {
             "-Xms32m",
             "-Xmx96m",
             "-Dcampx.persistence.mode=postgres",
-            "-Dcampx.internal.auth.enabled=false",
+            "-Dcampx.internal.auth.enabled=true",
             "-cp",
             "target\classes;$cp",
             "com.campx.document.DocumentApplication",
@@ -115,7 +115,7 @@ switch ($Service.ToLower()) {
             "-Xms64m",
             "-Xmx192m",
             "-Dcampx.persistence.mode=postgres",
-            "-Dcampx.internal.auth.enabled=false",
+            "-Dcampx.internal.auth.enabled=true",
             "-Dcampx.gateway.connect.timeout.local.ms=3000",
             "-cp",
             "target\classes;$cp",
@@ -124,7 +124,7 @@ switch ($Service.ToLower()) {
         ) -WorkingDirectory $gwDir -RedirectStandardOutput "$baseDir\logs\api-gateway.log" -RedirectStandardError "$baseDir\logs\api-gateway.err" -WindowStyle Minimized -PassThru
         Write-Host "Started api-gateway PID $($gwProc.Id)" -ForegroundColor DarkGray
 
-        Wait-HealthCheck "http://127.0.0.1:8080/api/v1/documents/health"
+        Wait-HealthCheck "http://127.0.0.1:8080/actuator/health"
     }
 
     "lifecycle-service" {
@@ -147,7 +147,7 @@ switch ($Service.ToLower()) {
             "-Xms32m",
             "-Xmx96m",
             "-Dcampx.persistence.mode=postgres",
-            "-Dcampx.internal.auth.enabled=false",
+            "-Dcampx.internal.auth.enabled=true",
             "-cp",
             "target\classes;$cp",
             "com.campx.lifecycle.LifecycleApplication",
@@ -180,8 +180,107 @@ switch ($Service.ToLower()) {
         Wait-HealthCheck "http://localhost:3000/login" 30
     }
 
+    { $_ -in @("attendance-service", "acd-06") } {
+        Write-Host "1. Building attendance-service..." -ForegroundColor Cyan
+        $attDir = "$baseDir\services\attendance-services\attendance-service"
+        $cp = (Get-Content "$attDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$attDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$attDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$attDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$attDir\target\classes;$cp" -d "$attDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "attendance-service compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8088 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8088
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching attendance-service..." -ForegroundColor Cyan
+        $attProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.academic.attendance.AttendanceManagementApplication",
+            "8088"
+        ) -WorkingDirectory $attDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\acd-06.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\acd-06.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started attendance-service PID $($attProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck "http://127.0.0.1:8088/metrics"
+    }
+
+    { $_ -in @("subject-management-service", "subject-service", "acd-03") } {
+        Write-Host "1. Building subject-management-service..." -ForegroundColor Cyan
+        $subjDir = "$baseDir\services\academic-services\subject-management-service"
+        $cp = (Get-Content "$subjDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$subjDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$subjDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$subjDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$subjDir\target\classes;$cp" -d "$subjDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "subject-management-service compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8085 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8085
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching subject-management-service..." -ForegroundColor Cyan
+        $subjProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.academic.subject.SubjectManagementApplication",
+            "8085"
+        ) -WorkingDirectory $subjDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\acd-03.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\acd-03.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started subject-management-service PID $($subjProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck "http://127.0.0.1:8085/metrics"
+    }
+
+    { $_ -in @("analytics-service", "acd-10", "reporting-analytics") } {
+        Write-Host "1. Building analytics-service..." -ForegroundColor Cyan
+        $anlDir = "$baseDir\services\analytics-services\analytics-service"
+        $cp = (Get-Content "$anlDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$anlDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$anlDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$anlDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$anlDir\target\classes;$cp" -d "$anlDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "analytics-service compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8092 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8092
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching analytics-service..." -ForegroundColor Cyan
+        $anlProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.academic.analytics.AnalyticsApplication",
+            "8092"
+        ) -WorkingDirectory $anlDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\acd-10.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\acd-10.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started analytics-service PID $($anlProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck "http://127.0.0.1:8092/metrics"
+    }
+
     default {
-        Write-Host "Unknown service: $Service. Supported services: document-service, api-gateway, frontend" -ForegroundColor Red
+        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service" -ForegroundColor Red
         exit 1
     }
 }

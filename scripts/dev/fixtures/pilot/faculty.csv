@@ -1,0 +1,4 @@
+employee_code,first_name,last_name,email,department_code,title
+PH-FAC-001,Rajesh,Sharma,rajesh.sharma.pilot@campxsync.edu,CSE,Professor
+PH-FAC-002,Priya,Menon,priya.menon.pilot@campxsync.edu,ECE,Associate Professor
+PH-FAC-003,Vikram,Patel,vikram.patel.pilot@campxsync.edu,ME,Assistant Professor

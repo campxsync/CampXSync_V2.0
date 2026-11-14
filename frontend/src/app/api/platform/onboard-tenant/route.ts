@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 
 const OnboardTenantSchema = z.object({
   tenantName: z.string().min(3, 'Institute name must be at least 3 characters').max(100),
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Forward to Java Institute Admin Domain Service via API Gateway
+    // 4. Forward to Java Institute Admin Domain Service via API Gateway (Bearer only — H-3)
     const gatewayBaseUrl = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
     const idempotencyKey = req.headers.get('idempotency-key') || req.headers.get('x-idempotency-key') || `onboard-${tenantCode}-${Date.now()}`;
     const traceId = req.headers.get('x-trace-id') || crypto.randomUUID();
@@ -117,12 +118,12 @@ export async function POST(req: NextRequest) {
       idempotencyKey
     };
 
+    const gatewayHeaders = await getGatewayHeaders(req, supabase, resolution.session, 'PLATFORM_ADMIN');
     const res = await fetch(`${gatewayBaseUrl}/api/v1/admin/onboard-tenant`, {
       method: 'POST',
       headers: {
+        ...gatewayHeaders,
         'Content-Type': 'application/json',
-        'X-User-Id': resolution.session.userId,
-        'X-User-Role': 'PLATFORM_ADMIN',
         'X-Trace-Id': traceId,
         'Idempotency-Key': idempotencyKey,
       },

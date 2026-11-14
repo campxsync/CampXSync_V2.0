@@ -53,9 +53,13 @@ public class DocumentApplication {
 
         DocumentIntelligenceService intelligenceService = new DocumentIntelligenceService();
         DocumentDomainService domain = new DocumentDomainService(persistence, intelligenceService);
+        String hmacSecret = System.getenv("CAMPX_INTERNAL_SECRET");
+        if (hmacSecret == null || hmacSecret.trim().isEmpty()) {
+            hmacSecret = System.getenv("CAMPX_GATEWAY_HMAC_SECRET");
+        }
         final DocumentController controller = new DocumentController(
                 domain,
-                new GatewayHmacVerifier(System.getenv("CAMPX_GATEWAY_HMAC_SECRET"))
+                new GatewayHmacVerifier(hmacSecret)
         );
 
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", DEFAULT_PORT), 0);

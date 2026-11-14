@@ -1,0 +1,121 @@
+{
+  "storyId": "H-4",
+  "title": "Pilot onboarding scripts — tenant+admin, CSV roster, dry-run",
+  "slowMo": 250,
+  "seedSql": [],
+  "steps": [
+    {
+      "title": "Dry-Run Valid CSV",
+      "description": "Pilot onboard CLI validates tenant.json + students/faculty CSV and writes plan report",
+      "action": "shell",
+      "command": "node scripts/dev/pilot_onboard.mjs --config scripts/dev/fixtures/pilot/tenant.json --students scripts/dev/fixtures/pilot/students.csv --faculty scripts/dev/fixtures/pilot/faculty.csv",
+      "timeoutMs": 60000
+    },
+    {
+      "title": "Reject Invalid Student CSV",
+      "description": "Invalid roster fails validation (expect-fail exits 0 for demo)",
+      "action": "shell",
+      "command": "node scripts/dev/pilot_onboard.mjs --config scripts/dev/fixtures/pilot/tenant.json --students scripts/dev/fixtures/pilot/students.invalid.csv --faculty scripts/dev/fixtures/pilot/faculty.csv --expect-fail",
+      "timeoutMs": 60000
+    },
+    {
+      "title": "Platform Admin Session",
+      "description": "Platform admin JWT session opens onboarding wizard",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=platform_admin&returnTo=/platform/institutes/new",
+      "highlight": "[data-testid=\"platform-onboarding-wizard\"]"
+    },
+    {
+      "title": "Wizard Visible",
+      "description": "Onboarding wizard root is visible",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-onboarding-wizard\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"platform-onboarding-wizard\"]"
+    },
+    {
+      "title": "Fill Tenant Name",
+      "description": "Enter pilot institute name",
+      "action": "fill",
+      "selector": "[data-testid=\"onboard-tenant-name\"]",
+      "value": "Pilot Harbor Institute of Technology"
+    },
+    {
+      "title": "Fill Tenant Code",
+      "description": "Enter unique tenant code",
+      "action": "fill",
+      "selector": "[data-testid=\"onboard-tenant-code\"]",
+      "value": "PILOT_HARBOR"
+    },
+    {
+      "title": "Next To College",
+      "description": "Advance to primary college step",
+      "action": "click",
+      "selector": "[data-testid=\"onboard-next-step\"]"
+    },
+    {
+      "title": "Fill College Name",
+      "description": "Enter primary college name",
+      "action": "fill",
+      "selector": "[data-testid=\"onboard-college-name\"]",
+      "value": "Faculty of Engineering",
+      "timeout": 10000
+    },
+    {
+      "title": "Fill College Code",
+      "description": "Enter college code",
+      "action": "fill",
+      "selector": "[data-testid=\"onboard-college-code\"]",
+      "value": "FET"
+    },
+    {
+      "title": "Next To Admin",
+      "description": "Advance to administrator step",
+      "action": "click",
+      "selector": "[data-testid=\"onboard-next-step\"]"
+    },
+    {
+      "title": "Fill Admin Name",
+      "description": "Enter first college administrator name",
+      "action": "fill",
+      "selector": "[data-testid=\"onboard-admin-name\"]",
+      "value": "Dr. Anita Harbor",
+      "timeout": 10000
+    },
+    {
+      "title": "Fill Admin Email",
+      "description": "Enter administrator email",
+      "action": "fill",
+      "selector": "[data-testid=\"onboard-admin-email\"]",
+      "value": "admin.pilot.harbor@campxsync.edu"
+    },
+    {
+      "title": "Next To Review",
+      "description": "Advance to review step",
+      "action": "click",
+      "selector": "[data-testid=\"onboard-next-step\"]"
+    },
+    {
+      "title": "Launch Gated Saga",
+      "description": "Submit onboarding saga without live write approval",
+      "action": "click",
+      "selector": "[data-testid=\"onboard-submit\"]",
+      "timeout": 10000
+    },
+    {
+      "title": "Gated Boundary Visible",
+      "description": "Saga completes in gated mode — no permanent staging write without GO PROVISION-TENANT",
+      "action": "wait_for",
+      "selector": "[data-testid=\"onboard-saga-gated\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"onboard-saga-gated\"]"
+    },
+    {
+      "title": "Plan Report Exists",
+      "description": "Dry-run plan JSON was written under docs/demos/H-4",
+      "action": "shell",
+      "command": "if (-not (Test-Path 'docs/demos/H-4/onboarding-plan.json')) { throw 'missing onboarding-plan.json' }; Write-Host 'plan-ok'",
+      "timeoutMs": 15000
+    }
+  ]
+}

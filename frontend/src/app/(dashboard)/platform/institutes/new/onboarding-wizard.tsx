@@ -206,7 +206,7 @@ export function OnboardingWizard() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6" data-testid="platform-onboarding-wizard">
       {/* Step Indicator */}
       <div className="grid grid-cols-4 gap-2">
         {[
@@ -275,6 +275,7 @@ export function OnboardingWizard() {
                 Institution / University Name <span className="text-[#D64545]">*</span>
               </label>
               <Input
+                data-testid="onboard-tenant-name"
                 placeholder="e.g. St. Xavier Institute of Engineering & Technology"
                 value={formData.tenantName}
                 onChange={(e) => updateField('tenantName', e.target.value)}
@@ -290,6 +291,7 @@ export function OnboardingWizard() {
                   Institutional Tenant Code <span className="text-[#D64545]">*</span>
                 </label>
                 <Input
+                  data-testid="onboard-tenant-code"
                   placeholder="e.g. XAVIER_TECH"
                   className="font-mono uppercase"
                   value={formData.tenantCode}
@@ -338,7 +340,7 @@ export function OnboardingWizard() {
             </div>
           </CardContent>
           <CardFooter className="flex justify-end border-t border-[#E3E8EF] pt-4">
-            <Button variant="primary" size="sm" onClick={handleNext}>
+            <Button variant="primary" size="sm" onClick={handleNext} data-testid="onboard-next-step">
               Next: Primary College <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </CardFooter>
@@ -360,6 +362,7 @@ export function OnboardingWizard() {
                 Primary College / Campus Name <span className="text-[#D64545]">*</span>
               </label>
               <Input
+                data-testid="onboard-college-name"
                 placeholder="e.g. Faculty of Engineering and Technology"
                 value={formData.collegeName}
                 onChange={(e) => updateField('collegeName', e.target.value)}
@@ -371,6 +374,7 @@ export function OnboardingWizard() {
                 College Code <span className="text-[#D64545]">*</span>
               </label>
               <Input
+                data-testid="onboard-college-code"
                 placeholder="e.g. FET"
                 className="font-mono uppercase"
                 value={formData.collegeCode}
@@ -385,7 +389,7 @@ export function OnboardingWizard() {
             <Button variant="outline" size="sm" onClick={handlePrev}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
-            <Button variant="primary" size="sm" onClick={handleNext}>
+            <Button variant="primary" size="sm" onClick={handleNext} data-testid="onboard-next-step">
               Next: Administrator <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </CardFooter>
@@ -407,6 +411,7 @@ export function OnboardingWizard() {
                 Administrator Full Name <span className="text-[#D64545]">*</span>
               </label>
               <Input
+                data-testid="onboard-admin-name"
                 placeholder="e.g. Dr. Rajesh Kumar"
                 value={formData.adminName}
                 onChange={(e) => updateField('adminName', e.target.value)}
@@ -418,6 +423,7 @@ export function OnboardingWizard() {
                 Administrator Email Address <span className="text-[#D64545]">*</span>
               </label>
               <Input
+                data-testid="onboard-admin-email"
                 type="email"
                 placeholder="e.g. admin.xavier@campxsync.edu"
                 value={formData.adminEmail}
@@ -443,7 +449,7 @@ export function OnboardingWizard() {
             <Button variant="outline" size="sm" onClick={handlePrev}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
-            <Button variant="primary" size="sm" onClick={handleNext}>
+            <Button variant="primary" size="sm" onClick={handleNext} data-testid="onboard-next-step">
               Review Configuration <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </CardFooter>
@@ -541,7 +547,7 @@ export function OnboardingWizard() {
             <Button variant="outline" size="sm" onClick={handlePrev} disabled={isSubmitting}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Edit Parameters
             </Button>
-            <Button variant="primary" size="sm" onClick={handleSubmit} disabled={isSubmitting}>
+            <Button variant="primary" size="sm" onClick={handleSubmit} disabled={isSubmitting} data-testid="onboard-submit">
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -659,7 +665,7 @@ export function OnboardingWizard() {
 
             {/* Staging Write Gate Notice */}
             {successData?.gated && (
-              <div className="p-4 rounded-[8px] border border-[#FCE2B3] bg-[#FEF7EA] text-xs text-[#0B1F3A] space-y-1">
+              <div className="p-4 rounded-[8px] border border-[#FCE2B3] bg-[#FEF7EA] text-xs text-[#0B1F3A] space-y-1" data-testid="onboard-saga-gated">
                 <p className="font-semibold text-[#E39B16] flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4" /> Staging Safety Write Boundary Active
                 </p>

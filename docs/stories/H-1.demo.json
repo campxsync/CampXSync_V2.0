@@ -1,0 +1,144 @@
+{
+  "storyId": "H-1",
+  "title": "ACD-03/ACD-06 Real Postgres Persistence (mark, restart, multi-persona read)",
+  "slowMo": 300,
+  "seedSql": [
+    {
+      "query": "INSERT INTO core.persons (id, tenant_id, first_name, last_name, display_name, primary_email, status) VALUES ('a0000000-0000-0000-0000-000000000094', 'a0000000-0000-0000-0000-000000000001', 'Rajesh', 'Sharma', 'Dr. Rajesh Sharma (Demo Faculty)', 'faculty.a1@demo.campxsync.test', 'ACTIVE') ON CONFLICT (id) DO UPDATE SET deleted_at = NULL"
+    },
+    {
+      "query": "INSERT INTO hrm.employees (id, tenant_id, person_id, college_id, department_id, employee_no, employment_type, staff_category, date_of_joining, status) VALUES ('a0000000-0000-0000-0000-000000000095', 'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000094', 'a0000000-0000-0000-0000-000000000002', '92816069-ec39-45d1-8288-483b3a5a43c0', 'FAC-H1-DEMO', 'PERMANENT', 'TEACHING', CURRENT_DATE, 'ACTIVE') ON CONFLICT (id) DO UPDATE SET person_id = EXCLUDED.person_id, status = 'ACTIVE', deleted_at = NULL"
+    },
+    {
+      "query": "INSERT INTO iam.user_profiles (id, tenant_id, person_id, college_id, department_id, username, email, full_name, status) VALUES ('11111111-9e05-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000094', 'a0000000-0000-0000-0000-000000000002', '92816069-ec39-45d1-8288-483b3a5a43c0', 'faculty.a1', 'faculty.a1@demo.campxsync.test', 'Dr. Rajesh Sharma', 'ACTIVE') ON CONFLICT (id) DO UPDATE SET person_id = EXCLUDED.person_id, status = 'ACTIVE', deleted_at = NULL"
+    },
+    {
+      "query": "INSERT INTO iam.role_assignments (id, tenant_id, user_id, role_id, college_id, department_id, valid_from) VALUES ('a0000000-0000-0000-0000-000000000093', 'a0000000-0000-0000-0000-000000000001', '11111111-9e05-0000-0000-000000000001', '8c9650bc-b267-4124-bcf1-cf9b1f08ab29', 'a0000000-0000-0000-0000-000000000002', '92816069-ec39-45d1-8288-483b3a5a43c0', CURRENT_DATE) ON CONFLICT (id) DO UPDATE SET deleted_at = NULL"
+    },
+    {
+      "query": "INSERT INTO acd.section_faculty (id, tenant_id, section_id, employee_id, role, valid_from) VALUES ('a0000000-0000-0000-0000-000000000096', 'a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000035', 'a0000000-0000-0000-0000-000000000095', 'CO_INSTRUCTOR', CURRENT_DATE) ON CONFLICT (id) DO UPDATE SET deleted_at = NULL"
+    },
+    {
+      "query": "UPDATE acd.attendance_records SET deleted_at = now() WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND session_id IN (SELECT id FROM acd.attendance_sessions WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND timetable_entry_id = 'a0000000-0000-0000-0000-000000000071' AND session_date = CURRENT_DATE AND deleted_at IS NULL)"
+    },
+    {
+      "query": "UPDATE acd.attendance_sessions SET deleted_at = now() WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND timetable_entry_id = 'a0000000-0000-0000-0000-000000000071' AND session_date = CURRENT_DATE AND deleted_at IS NULL"
+    }
+  ],
+  "steps": [
+    {
+      "title": "Faculty Auth + Attendance Desk",
+      "description": "Faculty opens attendance capture with seeded timetable slot and section (Postgres-backed ACD-06)",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=faculty&returnTo=/faculty/attendance?slotId=a0000000-0000-0000-0000-000000000071%26sectionId=a0000000-0000-0000-0000-000000000035%26subjectName=Data%20Structures%26subjectCode=CS101%26startTime=09:00:00%26endTime=10:00:00",
+      "highlight": "[data-testid=\"faculty-attendance-heading\"]"
+    },
+    {
+      "title": "Wait Faculty Desk",
+      "description": "Faculty attendance page heading is visible",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-attendance-heading\"]",
+      "highlight": "[data-testid=\"faculty-attendance-heading\"]"
+    },
+    {
+      "title": "Open Attendance Session",
+      "description": "Faculty opens a relational attendance session persisted to acd.attendance_sessions",
+      "action": "click",
+      "selector": "[data-testid=\"faculty-attendance-open-session-btn\"]",
+      "highlight": "[data-testid=\"faculty-attendance-open-session-btn\"]"
+    },
+    {
+      "title": "Roster Loaded",
+      "description": "Attendance roster grid appears after session open",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-attendance-roster\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"faculty-attendance-roster\"]"
+    },
+    {
+      "title": "Mark All Present",
+      "description": "Faculty marks the entire roster PRESENT",
+      "action": "click",
+      "selector": "[data-testid=\"faculty-attendance-mark-all-present-btn\"]",
+      "highlight": "[data-testid=\"faculty-attendance-mark-all-present-btn\"]"
+    },
+    {
+      "title": "Open Submit Modal",
+      "description": "Faculty initiates submit to institutional ledger",
+      "action": "click",
+      "selector": "[data-testid=\"faculty-attendance-submit-btn\"]",
+      "highlight": "[data-testid=\"faculty-attendance-submit-btn\"]"
+    },
+    {
+      "title": "Confirm Submit",
+      "description": "Confirm marks write into acd.attendance_records via API Gateway",
+      "action": "click",
+      "selector": "[data-testid=\"faculty-attendance-confirm-submit-btn\"]",
+      "highlight": "[data-testid=\"faculty-attendance-confirm-submit-btn\"]"
+    },
+    {
+      "title": "Verify Faculty Success",
+      "description": "Success banner confirms attendance locked into ledger",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-attendance-success\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"faculty-attendance-success\"]"
+    },
+    {
+      "title": "DB Check Before Restart",
+      "description": "Confirm attendance session and records exist in PostgreSQL before service restart",
+      "action": "db_check",
+      "query": "SELECT s.id FROM acd.attendance_sessions s JOIN acd.attendance_records r ON r.session_id = s.id AND r.deleted_at IS NULL WHERE s.tenant_id = 'a0000000-0000-0000-0000-000000000001' AND s.timetable_entry_id = 'a0000000-0000-0000-0000-000000000071' AND s.session_date = CURRENT_DATE AND s.deleted_at IS NULL",
+      "minCount": 1
+    },
+    {
+      "title": "Restart Attendance Service",
+      "description": "Restart ACD-06 to prove marks are not in-memory",
+      "action": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/dev/restart_service.ps1 attendance-service",
+      "waitMs": 3000
+    },
+    {
+      "title": "College Admin Auth",
+      "description": "College Admin opens institutional attendance oversight after service restart",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/attendance",
+      "highlight": "[data-testid=\"college-attendance-heading\"]"
+    },
+    {
+      "title": "College Sees Persisted Session",
+      "description": "College Admin desk loads the same Postgres-backed session after restart",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-attendance-heading\"]",
+      "highlight": "[data-testid=\"college-attendance-heading\"]"
+    },
+    {
+      "title": "Subjects List From Postgres",
+      "description": "ACD-03 subject catalog returns live acd.subjects rows via gateway",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/academics/subjects",
+      "headers": {
+        "Accept": "application/json",
+        "X-Tenant-Id": "a0000000-0000-0000-0000-000000000001",
+        "X-User-Id": "70a8ffae-b5ad-4c61-a401-16f220893df4",
+        "X-User-Role": "COLLEGE_ADMIN"
+      },
+      "expectedStatus": 200
+    },
+    {
+      "title": "Student Auth Dashboard",
+      "description": "Student opens portal to view attendance impact from the same persisted records",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student",
+      "highlight": null
+    },
+    {
+      "title": "DB Check After Restart",
+      "description": "Re-read attendance_records after ACD-06 restart — same rows still present",
+      "action": "db_check",
+      "query": "SELECT r.id, r.status FROM acd.attendance_records r JOIN acd.attendance_sessions s ON s.id = r.session_id WHERE s.tenant_id = 'a0000000-0000-0000-0000-000000000001' AND s.timetable_entry_id = 'a0000000-0000-0000-0000-000000000071' AND s.session_date = CURRENT_DATE AND r.deleted_at IS NULL AND s.deleted_at IS NULL",
+      "minCount": 1
+    }
+  ]
+}

@@ -443,6 +443,7 @@ export function FacultyAttendanceView({
                 isLoading={isLoading}
                 disabled={!selectedSlotId}
                 className="w-full"
+                data-testid="faculty-attendance-open-session-btn"
               >
                 <Clock className="mr-1.5 h-4 w-4" />
                 {activeSessionId ? 'Reload Attendance Sheet' : 'Open Attendance Session'}
@@ -475,6 +476,7 @@ export function FacultyAttendanceView({
       {/* Status Alert */}
       {statusMessage && (
         <div
+          data-testid={statusMessage.type === 'error' ? 'faculty-attendance-error' : 'faculty-attendance-success'}
           className={`p-3 rounded-[8px] border text-xs flex items-center gap-2 ${
             statusMessage.type === 'error'
               ? 'border-[#B91C1C] bg-[#FDF3F3] text-[#B91C1C]'
@@ -496,6 +498,7 @@ export function FacultyAttendanceView({
 
       {/* Attendance Roster Grid */}
       {activeSessionId && (
+        <div data-testid="faculty-attendance-roster">
         <Card className={isSessionLocked ? 'border-[#E3E8EF]' : 'border-[#1F6FEB]/40'}>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
             <div>
@@ -547,10 +550,10 @@ export function FacultyAttendanceView({
             {/* Quick Actions */}
             {!isSessionLocked ? (
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleMarkAll('PRESENT')}>
+                <Button variant="outline" size="sm" onClick={() => handleMarkAll('PRESENT')} data-testid="faculty-attendance-mark-all-present-btn">
                   Mark All Present
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => handleMarkAll('ABSENT')}>
+                <Button variant="outline" size="sm" onClick={() => handleMarkAll('ABSENT')} data-testid="faculty-attendance-mark-all-absent-btn">
                   Mark All Absent
                 </Button>
                 <Button
@@ -558,6 +561,7 @@ export function FacultyAttendanceView({
                   size="sm"
                   onClick={() => setShowSubmitModal(true)}
                   isLoading={isLoading}
+                  data-testid="faculty-attendance-submit-btn"
                 >
                   <CheckCircle2 className="mr-1.5 h-4 w-4" />
                   Submit Attendance
@@ -890,6 +894,7 @@ export function FacultyAttendanceView({
             </div>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* Submission Confirmation Modal */}
@@ -973,6 +978,7 @@ export function FacultyAttendanceView({
                 size="sm"
                 onClick={confirmAndSubmitAttendance}
                 isLoading={isLoading}
+                data-testid="faculty-attendance-confirm-submit-btn"
               >
                 Confirm & Submit to Ledger
               </Button>

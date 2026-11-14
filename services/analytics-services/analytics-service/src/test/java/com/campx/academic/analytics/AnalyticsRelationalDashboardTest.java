@@ -114,6 +114,7 @@ public class AnalyticsRelationalDashboardTest {
 
     @Test
     public void testPlatformAdminDashboardCrossTenantOverview() {
+        // In-memory fixture still returns seeded mock KPIs for unit isolation.
         Map<String, Object> db = domainService.getPlatformAdminDashboard();
 
         assertNotNull(db);
@@ -123,6 +124,43 @@ public class AnalyticsRelationalDashboardTest {
         Map<String, Integer> statusCounts = (Map<String, Integer>) db.get("statusCounts");
         assertNotNull(statusCounts);
         assertEquals(3, (int) statusCounts.get("ACTIVE"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> institutes = (List<Map<String, Object>>) db.get("institutes");
+        assertNotNull(institutes);
+        assertTrue("In-memory mock historically returned empty institutes; active path must use Postgres", institutes.isEmpty());
+    }
+
+    @Test
+    public void testPlatformAdminDashboardAcceptsInjectedRealInstitutes() {
+        InMemoryAnalyticsDashboardRepository custom = new InMemoryAnalyticsDashboardRepository() {
+            @Override
+            public Map<String, Object> getPlatformAdminDashboard(UserSecurityContext context) {
+                Map<String, Object> result = new LinkedHashMap<>();
+                Map<String, Object> inst = new LinkedHashMap<>();
+                inst.put("id", "a0000000-0000-0000-0000-000000000001");
+                inst.put("name", "CampX Architecture Dev Test Institute");
+                inst.put("code", "DEV_TEST_TENANT");
+                inst.put("status", "ACTIVE");
+                inst.put("collegeCount", 1);
+                inst.put("userCount", 4);
+                result.put("institutes", Collections.singletonList(inst));
+                result.put("tenantCount", 1);
+                Map<String, Integer> statusCounts = new LinkedHashMap<>();
+                statusCounts.put("ACTIVE", 1);
+                result.put("statusCounts", statusCounts);
+                result.put("roleTemplateCount", 33);
+                return result;
+            }
+        };
+        AnalyticsDomainService svc = new AnalyticsDomainService(custom);
+        Map<String, Object> db = svc.getPlatformAdminDashboard("99999999-9999-9999-9999-999999999999");
+        assertEquals(1, db.get("tenantCount"));
+        assertEquals(33, db.get("roleTemplateCount"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> institutes = (List<Map<String, Object>>) db.get("institutes");
+        assertEquals(1, institutes.size());
+        assertEquals("DEV_TEST_TENANT", institutes.get(0).get("code"));
+        assertEquals(4, institutes.get(0).get("userCount"));
     }
 
     @Test

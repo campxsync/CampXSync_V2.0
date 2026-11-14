@@ -50,13 +50,13 @@ public class DatabaseConfig {
         config.setJdbcUrl(normalizeJdbcUrl(url));
 
         String user = resolve(props,
-                new String[]{"campx.db.user", "campx.db.username", "db.user", "db.username", "database.username", "supabase.db.user"},
-                new String[]{"CAMPX_DB_USER", "CAMPX_DB_USERNAME", "DATABASE_USER", "DATABASE_USERNAME", "DB_USER", "SUPABASE_DB_USER"},
+                new String[]{"campx.db.user", "campx.db.username", "db.user", "db.username", "database.username", "supabase.user", "supabase.db.user"},
+                new String[]{"CAMPX_DB_USER", "CAMPX_DB_USERNAME", "DATABASE_USER", "DATABASE_USERNAME", "DB_USER", "SUPABASE_DB_USER", "SUPABASE_USER"},
                 "campx_app_server");
         config.setUsername(user);
 
         String pass = resolve(props,
-                new String[]{"campx.db.password", "db.password", "database.password", "supabase.db.password"},
+                new String[]{"campx.db.password", "db.password", "database.password", "supabase.password", "supabase.db.password"},
                 new String[]{"CAMPX_DB_PASSWORD", "DATABASE_PASSWORD", "DB_PASSWORD", "SUPABASE_DB_PASSWORD", "SUPABASE_PASSWORD"},
                 "");
         config.setPassword(pass);
@@ -116,10 +116,13 @@ public class DatabaseConfig {
         if (raw == null) return "jdbc:postgresql://localhost:5432/postgres";
         String trimmed = raw.trim();
         if (trimmed.startsWith("postgresql://")) {
-            return "jdbc:" + trimmed;
+            trimmed = "jdbc:" + trimmed;
+        } else if (trimmed.startsWith("postgres://")) {
+            trimmed = "jdbc:postgresql://" + trimmed.substring("postgres://".length());
         }
-        if (trimmed.startsWith("postgres://")) {
-            return "jdbc:postgresql://" + trimmed.substring("postgres://".length());
+        // Historical region typo in some env copies
+        if (trimmed.contains("ap-southeast-1")) {
+            trimmed = trimmed.replace("ap-southeast-1", "ap-south-1");
         }
         return trimmed;
     }

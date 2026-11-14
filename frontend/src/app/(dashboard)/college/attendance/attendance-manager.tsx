@@ -408,6 +408,7 @@ export function AttendanceManager({ sessions: initialSessions }: Props) {
                         return (
                           <tr
                             key={sess.id}
+                            data-testid={`college-attendance-row-${sess.id}`}
                             onClick={() => loadSessionRecords(sess.id)}
                             className="hover:bg-[#F6F8FB] cursor-pointer transition-colors"
                           >

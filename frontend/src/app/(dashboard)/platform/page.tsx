@@ -3,10 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { PlatformDashboardView } from './platform-dashboard-view';
 import { sanitizePreferences, PRODUCT_DEFAULTS } from '@/lib/preferences/preference-model';
+import { fetchFromGateway } from '@/lib/api/gateway-client';
 
 export const dynamic = 'force-dynamic';
-
-const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
 export default async function PlatformAdminDashboardPage() {
   const supabase = await createClient();
@@ -21,7 +20,7 @@ export default async function PlatformAdminDashboardPage() {
   // Load aggregate counts via authoritative API Gateway (ACD-10 / Java Reporting & Analytics)
   let tenantCount = 0;
   let totalUserCount = 0;
-  let roleTemplateCount = 30;
+  let roleTemplateCount = 0;
   let institutes: any[] = [];
   let recentAuditEvents: any[] = [];
   let userPreferences = PRODUCT_DEFAULTS;
@@ -34,44 +33,38 @@ export default async function PlatformAdminDashboardPage() {
   };
 
   try {
-    const gatewayUrl = new URL('/api/v1/academics/analytics/dashboard', GATEWAY_BASE_URL);
-    gatewayUrl.searchParams.set('role', 'PLATFORM_ADMIN');
-
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      'X-User-Id': userId || '00000000-0000-0000-0000-000000000001',
-      'X-User-Role': 'PLATFORM_ADMIN',
-    };
-
-    const res = await fetch(gatewayUrl.toString(), {
+    const res = await fetchFromGateway('/api/v1/academics/analytics/dashboard?role=platform_admin', {
       method: 'GET',
-      headers,
-      cache: 'no-store',
     });
 
     if (res.ok) {
       const data = await res.json();
       institutes = Array.isArray(data.institutes) ? data.institutes : [];
       tenantCount = Number(data.tenantCount) || institutes.length;
-      roleTemplateCount = Number(data.roleTemplateCount) || 30;
+      roleTemplateCount = Number(data.roleTemplateCount) || 0;
       if (data.statusCounts) {
         Object.assign(statusCounts, data.statusCounts);
       }
-      totalUserCount = institutes.reduce((acc: number, curr: any) => acc + (Number(curr.userCount || curr.user_count) || 0), 0);
+      totalUserCount = institutes.reduce(
+        (acc: number, curr: any) => acc + (Number(curr.userCount ?? curr.user_count) || 0),
+        0
+      );
     }
 
-    // Load preferences via Gateway
-    const prefUrl = new URL('/api/v1/user/preferences?role=platform_admin', GATEWAY_BASE_URL);
-    const prefRes = await fetch(prefUrl.toString(), {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-    });
-    if (prefRes.ok) {
-      const prefData = await prefRes.json();
-      if (prefData.preferences) {
-        userPreferences = sanitizePreferences(prefData.preferences, 'platform_admin', PRODUCT_DEFAULTS);
+    // Preferences live on ADM-01; soft-fail if that service is not in the local stack.
+    try {
+      const prefRes = await fetchFromGateway('/api/v1/user/preferences?role=platform_admin', {
+        method: 'GET',
+        requireAuth: true,
+      });
+      if (prefRes.ok) {
+        const prefData = await prefRes.json();
+        if (prefData.preferences) {
+          userPreferences = sanitizePreferences(prefData.preferences, 'platform_admin', PRODUCT_DEFAULTS);
+        }
       }
+    } catch {
+      // ADM-01 optional for H-3 local stack
     }
   } catch (e) {
     console.error('Platform aggregate query failed via gateway:', e);

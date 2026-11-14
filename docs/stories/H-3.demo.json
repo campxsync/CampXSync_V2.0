@@ -1,0 +1,101 @@
+{
+  "storyId": "H-3",
+  "title": "Internal auth ON — JWT to gateway, HMAC downstream, forged headers rejected",
+  "slowMo": 300,
+  "seedSql": [],
+  "steps": [
+    {
+      "title": "Platform Admin JWT Session",
+      "description": "Platform admin test-session establishes real Supabase JWT cookies",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=platform_admin&returnTo=/platform",
+      "highlight": "[data-testid=\"platform-dashboard-heading\"]"
+    },
+    {
+      "title": "Platform Dashboard With Auth",
+      "description": "Platform dashboard loads via Bearer JWT (no spoofable X-User headers)",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-dashboard-heading\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"platform-dashboard-heading\"]"
+    },
+    {
+      "title": "Institutes Visible Under Auth",
+      "description": "Real institutes table still renders with internal auth enabled",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-institutes-table\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"platform-institutes-table\"]"
+    },
+    {
+      "title": "Forged Direct Lifecycle Call Rejected",
+      "description": "Direct loopback call to lifecycle-service with forged X-User-Id and no gateway HMAC is rejected",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://127.0.0.1:8096/api/v1/lifecycle/reports/summary",
+      "headers": {
+        "X-User-Id": "00000000-forged-0000-0000-000000000099",
+        "X-User-Role": "COLLEGE_ADMIN",
+        "X-Tenant-Id": "a0000000-0000-0000-0000-000000000001",
+        "Accept": "application/json"
+      },
+      "expectedStatus": 401
+    },
+    {
+      "title": "Forged Gateway Call Without JWT Rejected",
+      "description": "Gateway rejects spoofed identity headers when Authorization Bearer is missing",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/reports/summary",
+      "headers": {
+        "X-User-Id": "00000000-forged-0000-0000-000000000099",
+        "X-User-Role": "COLLEGE_ADMIN",
+        "X-Tenant-Id": "a0000000-0000-0000-0000-000000000001",
+        "Accept": "application/json"
+      },
+      "expectedStatus": 401
+    },
+    {
+      "title": "College Admin Persona",
+      "description": "College admin JWT session reaches lifecycle desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": "body"
+    },
+    {
+      "title": "College Lifecycle Desk",
+      "description": "College lifecycle page loads under internal auth",
+      "action": "wait_for",
+      "selector": "body",
+      "timeout": 20000
+    },
+    {
+      "title": "Faculty Persona",
+      "description": "Faculty JWT session reaches advisees desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=faculty&returnTo=/faculty/advisees",
+      "highlight": "body"
+    },
+    {
+      "title": "Faculty Advisees Desk",
+      "description": "Faculty advisees page loads under internal auth",
+      "action": "wait_for",
+      "selector": "body",
+      "timeout": 20000
+    },
+    {
+      "title": "Student Persona",
+      "description": "Student JWT session reaches student lifecycle desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/lifecycle",
+      "highlight": "body"
+    },
+    {
+      "title": "Student Lifecycle Desk",
+      "description": "Student lifecycle page loads under internal auth",
+      "action": "wait_for",
+      "selector": "body",
+      "timeout": 20000
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+enrollment_number,first_name,last_name,email,program_code,batch_code
+PH-BAD-001,,Mehta,not-an-email,BTECH-CSE,2026-A
+PH-BAD-002,Dup,One,dup.one@campxsync.edu,BTECH-CSE,2026-A
+PH-BAD-002,Dup,Two,dup.two@campxsync.edu,BTECH-CSE,2026-A

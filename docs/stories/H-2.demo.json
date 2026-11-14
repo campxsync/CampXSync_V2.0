@@ -1,0 +1,78 @@
+{
+  "storyId": "H-2",
+  "title": "ACD-10 Platform Dashboard on Real Postgres Tenants/Users",
+  "slowMo": 300,
+  "seedSql": [],
+  "steps": [
+    {
+      "title": "Platform Admin Auth",
+      "description": "Platform admin opens operator dashboard via test session (real plat.platform_admins user)",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=platform_admin&returnTo=/platform",
+      "highlight": "[data-testid=\"platform-dashboard-heading\"]"
+    },
+    {
+      "title": "Wait Dashboard Heading",
+      "description": "Platform Operator Dashboard heading is visible",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-dashboard-heading\"]",
+      "highlight": "[data-testid=\"platform-dashboard-heading\"]"
+    },
+    {
+      "title": "KPI Cards Visible",
+      "description": "Real KPI strip rendered from ACD-10 Postgres aggregates (not hardcoded 3/3/30)",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-dashboard-kpis\"]",
+      "highlight": "[data-testid=\"platform-dashboard-kpis\"]"
+    },
+    {
+      "title": "Tenant Count KPI",
+      "description": "Onboarded institutes KPI shows live tenantCount from core.tenants",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-kpi-tenant-count\"]",
+      "highlight": "[data-testid=\"platform-kpi-tenant-count\"]"
+    },
+    {
+      "title": "Institutes Table Loaded",
+      "description": "Institutes table lists real tenants (not empty mock list)",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-institutes-table\"]",
+      "timeout": 20000,
+      "highlight": "[data-testid=\"platform-institutes-table\"]"
+    },
+    {
+      "title": "Dev Test Tenant Row",
+      "description": "DEV_TEST_TENANT row present from core.tenants",
+      "action": "wait_for",
+      "selector": "[data-testid=\"platform-institute-row-DEV_TEST_TENANT\"]",
+      "highlight": "[data-testid=\"platform-institute-row-DEV_TEST_TENANT\"]"
+    },
+    {
+      "title": "Gateway Platform Dashboard API",
+      "description": "Gateway returns live platform dashboard payload for PLATFORM_ADMIN",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/academics/analytics/dashboard?role=platform_admin",
+      "headers": {
+        "X-User-Id": "54e8308c-ada3-4065-a9fe-51814af6b971",
+        "X-User-Role": "PLATFORM_ADMIN",
+        "Accept": "application/json"
+      },
+      "expectedStatus": 200
+    },
+    {
+      "title": "DB Read-Back Tenants",
+      "description": "Live DB confirms core.tenants rows exist as dashboard source of truth",
+      "action": "db_check",
+      "query": "SELECT id, code, status FROM core.tenants WHERE deleted_at IS NULL ORDER BY created_at DESC",
+      "minCount": 1
+    },
+    {
+      "title": "DB Read-Back Role Templates",
+      "description": "Live DB confirms iam.role_templates exist (not hardcoded 30)",
+      "action": "db_check",
+      "query": "SELECT id, code FROM iam.role_templates WHERE deleted_at IS NULL",
+      "minCount": 1
+    }
+  ]
+}

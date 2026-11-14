@@ -7,6 +7,7 @@ import com.campx.document.persistence.InMemoryDocumentPersistence;
 import com.campx.document.security.GatewayHmacVerifier;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -33,10 +34,16 @@ public class DocumentControllerTest {
 
     @Before
     public void setUp() {
+        System.setProperty("campx.internal.auth.enabled", "false");
         InMemoryDocumentPersistence persistence = new InMemoryDocumentPersistence();
         DocumentIntelligenceService intelligenceService = new DocumentIntelligenceService();
         DocumentDomainService domain = new DocumentDomainService(persistence, intelligenceService);
         controller = new DocumentController(domain, new GatewayHmacVerifier(null));
+    }
+
+    @After
+    public void tearDown() {
+        System.clearProperty("campx.internal.auth.enabled");
     }
 
     private Map<String, String> adminHeaders() {

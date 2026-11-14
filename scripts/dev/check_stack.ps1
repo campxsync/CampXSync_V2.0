@@ -28,8 +28,12 @@ try {
 # 2. Check Services
 $services = @(
     @{ Name = "Frontend (Next.js)"; Port = 3000; HealthUrl = "http://127.0.0.1:3000/login" },
-    @{ Name = "API Gateway"; Port = 8080; HealthUrl = "http://127.0.0.1:8080/api/v1/documents/health" },
-    @{ Name = "Document Service (STM-06)"; Port = 8098; HealthUrl = "http://127.0.0.1:8098/health" }
+    @{ Name = "API Gateway"; Port = 8080; HealthUrl = "http://127.0.0.1:8080/actuator/health" },
+    @{ Name = "Document Service (STM-06)"; Port = 8098; HealthUrl = "http://127.0.0.1:8098/health" },
+    @{ Name = "Lifecycle Service (STM-04)"; Port = 8096; HealthUrl = "http://127.0.0.1:8096/health" },
+    @{ Name = "Subject Service (ACD-03)"; Port = 8085; HealthUrl = "http://127.0.0.1:8085/metrics" },
+    @{ Name = "Attendance Service (ACD-06)"; Port = 8088; HealthUrl = "http://127.0.0.1:8088/metrics" },
+    @{ Name = "Analytics Service (ACD-10)"; Port = 8092; HealthUrl = "http://127.0.0.1:8092/metrics" }
 )
 
 $allHealthy = $true

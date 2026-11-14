@@ -1,0 +1,70 @@
+{
+  "mode": "DRY_RUN",
+  "plan": {
+    "tenant": {
+      "tenantName": "Pilot Harbor Institute of Technology",
+      "tenantCode": "PILOT_HARBOR",
+      "subdomain": "pilot-harbor",
+      "plan": "TRIAL",
+      "collegeName": "Faculty of Engineering",
+      "collegeCode": "FET",
+      "adminName": "Dr. Anita Harbor",
+      "adminEmail": "admin.pilot.harbor@campxsync.edu",
+      "adminPhone": "+91 90000 00001"
+    },
+    "studentCount": 5,
+    "facultyCount": 3,
+    "students": [
+      {
+        "enrollment_number": "PH-STU-001",
+        "email": "aarav.mehta.pilot@campxsync.edu",
+        "program_code": "BTECH-CSE",
+        "batch_code": "2026-A"
+      },
+      {
+        "enrollment_number": "PH-STU-002",
+        "email": "diya.nair.pilot@campxsync.edu",
+        "program_code": "BTECH-CSE",
+        "batch_code": "2026-A"
+      },
+      {
+        "enrollment_number": "PH-STU-003",
+        "email": "kabir.singh.pilot@campxsync.edu",
+        "program_code": "BTECH-ECE",
+        "batch_code": "2026-B"
+      },
+      {
+        "enrollment_number": "PH-STU-004",
+        "email": "meera.iyer.pilot@campxsync.edu",
+        "program_code": "BTECH-ECE",
+        "batch_code": "2026-B"
+      },
+      {
+        "enrollment_number": "PH-STU-005",
+        "email": "rohan.das.pilot@campxsync.edu",
+        "program_code": "BTECH-ME",
+        "batch_code": "2026-A"
+      }
+    ],
+    "faculty": [
+      {
+        "employee_code": "PH-FAC-001",
+        "email": "rajesh.sharma.pilot@campxsync.edu",
+        "department_code": "CSE",
+        "title": "Professor"
+      },
+      {
+        "employee_code": "PH-FAC-002",
+        "email": "priya.menon.pilot@campxsync.edu",
+        "department_code": "ECE",
+        "title": "Associate Professor"
+      },
+      {
+        "employee_code": "PH-FAC-003",
+        "email": "vikram.patel.pilot@campxsync.edu",
+        "department_code": "ME",
+        "title": "Assistant Professor"
+      }
+    ]
+  }
+}

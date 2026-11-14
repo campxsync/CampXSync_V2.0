@@ -14,6 +14,7 @@ import com.campx.academic.attendance.service.StructuredLogEntry;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.context.LogContext;
+import com.campx.logger.security.GatewayHmacVerifier;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -22,6 +23,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,6 +42,7 @@ public class AttendanceController implements HttpHandler {
     private final AttendanceDomainService domainService;
     private final RateLimiter rateLimiter;
     private final MetricsCollector metricsCollector = MetricsCollector.getInstance();
+    private final GatewayHmacVerifier gatewayHmacVerifier = new GatewayHmacVerifier();
 
     // Regex routing patterns
     private final Pattern pSessionSubmit = Pattern.compile("^/sessions/([^/]+)/submit/?$");
@@ -106,6 +112,32 @@ public class AttendanceController implements HttpHandler {
             }
 
             String idempotencyKey = exchange.getRequestHeaders().getFirst("Idempotency-Key");
+
+            // Health/metrics stay open; all domain routes require gateway HMAC when internal auth is on.
+            if (!isPublicHealthOrMetrics(fullPath)) {
+                byte[] peekBody = readRequestBodyBytes(exchange);
+                exchange.setAttribute("campx.cachedRequestBody", new String(peekBody, StandardCharsets.UTF_8));
+                GatewayHmacVerifier.VerificationResult auth =
+                        gatewayHmacVerifier.verify(exchange, method, exchange.getRequestURI().getPath(), peekBody);
+                if (!auth.isSuccess()) {
+                    sendError(exchange, auth.getStatus(), auth.getErrorCode(), auth.getMessage(), null, fullPath);
+                    return;
+                }
+                if (auth.getUserId() != null && !auth.getUserId().trim().isEmpty()) {
+                    userId = auth.getUserId();
+                    currentUserId = userId;
+                    LogContext.setUserId(userId);
+                }
+                if (auth.getTenantId() != null && !auth.getTenantId().trim().isEmpty()) {
+                    tenantId = auth.getTenantId();
+                    currentTenantId = tenantId;
+                    LogContext.setTenantId(tenantId);
+                }
+                if (auth.getUserRole() != null && !auth.getUserRole().trim().isEmpty()) {
+                    userRole = auth.getUserRole();
+                    LogContext.setUserRole(userRole);
+                }
+            }
 
             // External API Key check (Story 68, 70)
             String apiKey = exchange.getRequestHeaders().getFirst("X-API-Key");
@@ -365,10 +397,39 @@ public class AttendanceController implements HttpHandler {
         // /sessions (POST: create, GET: list)
         if ("/sessions".equals(path) || "/sessions/".equals(path) || "/".equals(path)) {
             if ("POST".equalsIgnoreCase(method)) {
+                if (domainService.isUsingPostgresRepository() && bodyLooksRelationalSession(body)) {
+                    return createRelationalSession(body, tenantId, userId, userRole, traceId);
+                }
                 CreateSessionRequest req = parseCreateSessionRequest(body);
                 AttendanceSession sess = domainService.createSession(req, tenantId, userId, userRole);
                 return buildSuccessEnvelope(sess, "Attendance session created", traceId);
             } else if ("GET".equalsIgnoreCase(method)) {
+                if (domainService.isUsingPostgresRepository()) {
+                    Map<String, String> q = parseQuery(exchange.getRequestURI().getQuery());
+                    UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                    UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                    UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+                    UUID sectionId = null;
+                    if (q.get("sectionId") != null) {
+                        try { sectionId = UUID.fromString(q.get("sectionId")); } catch (IllegalArgumentException ignored) {}
+                    }
+                    LocalDate from = null;
+                    LocalDate to = null;
+                    if (q.get("date") != null) {
+                        try {
+                            from = LocalDate.parse(q.get("date"));
+                            to = from;
+                        } catch (Exception ignored) {}
+                    }
+                    if (q.get("fromDate") != null) {
+                        try { from = LocalDate.parse(q.get("fromDate")); } catch (Exception ignored) {}
+                    }
+                    if (q.get("toDate") != null) {
+                        try { to = LocalDate.parse(q.get("toDate")); } catch (Exception ignored) {}
+                    }
+                    List<AttendanceSessionEntity> list = domainService.listRelationalSessions(ctx, sectionId, from, to, 100, 0);
+                    return buildSuccessEnvelope(list, "Attendance sessions retrieved", traceId);
+                }
                 Map<String, String> q = parseQuery(exchange.getRequestURI().getQuery());
                 SessionStatus st = q.containsKey("status") ? SessionStatus.valueOf(q.get("status").toUpperCase()) : null;
                 List<AttendanceSession> list = domainService.listSessions(tenantId, q.get("batchId"), q.get("subjectId"), q.get("date"), st);
@@ -379,6 +440,18 @@ public class AttendanceController implements HttpHandler {
         // /sessions/{id}/submit
         if ((m = pSessionSubmit.matcher(path)).matches()) {
             String sId = m.group(1);
+            if (domainService.isUsingPostgresRepository()) {
+                try {
+                    UUID sessUuid = UUID.fromString(sId);
+                    UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                    UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                    UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+                    AttendanceSessionEntity closed = domainService.updateRelationalSessionStatus(ctx, sessUuid, "CLOSED");
+                    return buildSuccessEnvelope(closed, "Session submitted successfully", traceId);
+                } catch (IllegalArgumentException notUuid) {
+                    // fall through to in-memory path
+                }
+            }
             AttendanceSession sess = domainService.submitSession(sId, tenantId, userId, userRole);
             return buildSuccessEnvelope(sess, "Session submitted successfully", traceId);
         }
@@ -386,6 +459,18 @@ public class AttendanceController implements HttpHandler {
         // /sessions/{id}/lock
         if ((m = pSessionLock.matcher(path)).matches()) {
             String sId = m.group(1);
+            if (domainService.isUsingPostgresRepository()) {
+                try {
+                    UUID sessUuid = UUID.fromString(sId);
+                    UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                    UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                    UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+                    AttendanceSessionEntity locked = domainService.updateRelationalSessionStatus(ctx, sessUuid, "CLOSED");
+                    return buildSuccessEnvelope(locked, "Session locked successfully", traceId);
+                } catch (IllegalArgumentException notUuid) {
+                    // fall through
+                }
+            }
             AttendanceSession sess = domainService.lockSession(sId, tenantId, userId, userRole);
             return buildSuccessEnvelope(sess, "Session locked successfully", traceId);
         }
@@ -401,9 +486,28 @@ public class AttendanceController implements HttpHandler {
         if ((m = pSessionRecords.matcher(path)).matches()) {
             String sId = m.group(1);
             if ("GET".equalsIgnoreCase(method)) {
+                if (domainService.isUsingPostgresRepository()) {
+                    try {
+                        UUID sessUuid = UUID.fromString(sId);
+                        UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                        UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                        UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+                        List<AttendanceRecordEntity> list = domainService.findRelationalRecordsBySessionId(ctx, sessUuid);
+                        return buildSuccessEnvelope(list, "Attendance records retrieved", traceId);
+                    } catch (IllegalArgumentException notUuid) {
+                        // fall through
+                    }
+                }
                 List<AttendanceRecord> list = domainService.getSessionRecords(sId, tenantId);
                 return buildSuccessEnvelope(list, "Attendance records retrieved", traceId);
             } else {
+                if (domainService.isUsingPostgresRepository()) {
+                    try {
+                        return markRelationalAttendance(sId, body, tenantId, userId, userRole, traceId);
+                    } catch (IllegalArgumentException notUuid) {
+                        // fall through
+                    }
+                }
                 MarkAttendanceRequest req = parseMarkAttendanceRequest(body);
                 MarkSummaryResponse res = domainService.markAttendance(sId, req, tenantId, userId, userRole);
                 return buildSuccessEnvelope(res, "Attendance marked successfully", traceId);
@@ -470,6 +574,21 @@ public class AttendanceController implements HttpHandler {
         if ((m = pSessionItem.matcher(path)).matches()) {
             String sId = m.group(1);
             if ("GET".equalsIgnoreCase(method)) {
+                if (domainService.isUsingPostgresRepository()) {
+                    try {
+                        UUID sessUuid = UUID.fromString(sId);
+                        UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+                        UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+                        UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+                        Optional<AttendanceSessionEntity> opt = domainService.findRelationalSessionById(ctx, sessUuid);
+                        if (opt.isPresent()) {
+                            return buildSuccessEnvelope(opt.get(), "Attendance session retrieved", traceId);
+                        }
+                        throw new AttendanceNotFoundException("Attendance session not found: " + sId);
+                    } catch (IllegalArgumentException notUuid) {
+                        // fall through
+                    }
+                }
                 AttendanceSession sess = domainService.getSession(sId, tenantId);
                 return buildSuccessEnvelope(sess, "Attendance session retrieved", traceId);
             } else if ("PUT".equalsIgnoreCase(method)) {
@@ -721,15 +840,40 @@ public class AttendanceController implements HttpHandler {
         return "\"" + escape(obj.toString()) + "\"";
     }
 
-    private String readBody(HttpExchange exchange) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
+    private boolean isPublicHealthOrMetrics(String fullPath) {
+        if (fullPath == null) return false;
+        return fullPath.endsWith("/health")
+                || fullPath.endsWith("/metrics")
+                || "/health".equals(fullPath)
+                || "/metrics".equals(fullPath)
+                || "/actuator/health".equals(fullPath);
+    }
+
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        Object cached = exchange.getAttribute("campx.cachedRequestBodyBytes");
+        if (cached instanceof byte[]) {
+            return (byte[]) cached;
         }
-        return sb.toString();
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = exchange.getRequestBody().read(buf)) >= 0) {
+            if (n > 0) bos.write(buf, 0, n);
+        }
+        byte[] body = bos.toByteArray();
+        exchange.setAttribute("campx.cachedRequestBodyBytes", body);
+        return body;
+    }
+
+    private String readBody(HttpExchange exchange) throws IOException {
+        Object cached = exchange.getAttribute("campx.cachedRequestBody");
+        if (cached instanceof String) {
+            return (String) cached;
+        }
+        byte[] bytes = readRequestBodyBytes(exchange);
+        String body = new String(bytes, StandardCharsets.UTF_8);
+        exchange.setAttribute("campx.cachedRequestBody", body);
+        return body;
     }
 
     private CreateSessionRequest parseCreateSessionRequest(String body) {
@@ -886,6 +1030,140 @@ public class AttendanceController implements HttpHandler {
             return UUID.fromString(val.trim());
         } catch (IllegalArgumentException e) {
             return defaultVal;
+        }
+    }
+
+    private boolean bodyLooksRelationalSession(String body) {
+        if (body == null) return false;
+        return body.contains("\"sectionId\"") || body.contains("\"sessionDate\"");
+    }
+
+    private String createRelationalSession(String body, String tenantId, String userId, String userRole, String traceId) {
+        Map<String, String> m = parseSimpleJson(body);
+        UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+        UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+        UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+
+        AttendanceSessionEntity session = new AttendanceSessionEntity();
+        if (m.get("sectionId") != null) {
+            session.setSectionId(UUID.fromString(m.get("sectionId")));
+        } else {
+            throw new AttendanceBadRequestException("sectionId is required for relational attendance sessions");
+        }
+        if (m.get("timetableEntryId") != null && !m.get("timetableEntryId").trim().isEmpty()) {
+            session.setTimetableEntryId(UUID.fromString(m.get("timetableEntryId")));
+        }
+        if (m.get("employeeId") != null && !m.get("employeeId").trim().isEmpty()) {
+            try {
+                session.setEmployeeId(UUID.fromString(m.get("employeeId")));
+            } catch (IllegalArgumentException ignored) {
+                // leave null when non-UUID; resolve below
+            }
+        }
+        // Faculty write.own RLS requires employee_id = core.current_employee_id()
+        UUID resolvedEmployee = resolveEmployeeIdForUser(ctx);
+        if (resolvedEmployee != null) {
+            session.setEmployeeId(resolvedEmployee);
+        } else if (session.getEmployeeId() == null) {
+            throw new AttendanceBadRequestException("employeeId could not be resolved for the authenticated faculty user");
+        }
+        String dateStr = m.get("sessionDate");
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            throw new AttendanceBadRequestException("sessionDate is required (YYYY-MM-DD)");
+        }
+        session.setSessionDate(LocalDate.parse(dateStr.trim()));
+        session.setStartTime(parseLocalTime(m.get("startTime"), LocalTime.of(10, 0)));
+        session.setEndTime(parseLocalTime(m.get("endTime"), LocalTime.of(11, 0)));
+        session.setStatus("OPEN");
+
+        // Idempotent resume: return existing session for same timetable entry + date
+        if (session.getTimetableEntryId() != null) {
+            Optional<AttendanceSessionEntity> existing = domainService.getRepository()
+                    .findSessionByTimetableEntryAndDate(ctx, session.getTimetableEntryId(), session.getSessionDate());
+            if (existing.isPresent()) {
+                return buildSuccessEnvelope(existing.get(), "Attendance session resumed", traceId);
+            }
+        }
+
+        AttendanceSessionEntity saved = domainService.createRelationalSession(ctx, session);
+        return buildSuccessEnvelope(saved, "Attendance session created", traceId);
+    }
+
+    private String markRelationalAttendance(String sessionId, String body, String tenantId, String userId, String userRole, String traceId) {
+        UUID sessUuid = UUID.fromString(sessionId);
+        UUID tUuid = parseUuidOrDefault(tenantId, UUID.fromString("a0000000-0000-0000-0000-000000000001"));
+        UUID uUuid = parseUuidOrDefault(userId, UUID.randomUUID());
+        UserSecurityContext ctx = new UserSecurityContext(uUuid, tUuid, userRole);
+
+        MarkAttendanceRequest req = parseMarkAttendanceRequest(body);
+        if (req.records == null || req.records.isEmpty()) {
+            throw new AttendanceBadRequestException("Attendance records list cannot be empty");
+        }
+
+        List<AttendanceRecordEntity> entities = new ArrayList<>();
+        for (RecordItem item : req.records) {
+            AttendanceRecordEntity entity = new AttendanceRecordEntity();
+            entity.setStudentId(UUID.fromString(item.studentId));
+            entity.setStatus(item.status != null ? item.status.toUpperCase(Locale.ROOT) : "PRESENT");
+            entity.setMethod("MANUAL");
+            entity.setMarkedBy(uUuid);
+            entity.setRemarks(item.statusReason);
+            entities.add(entity);
+        }
+
+        List<AttendanceRecordEntity> saved = domainService.markRelationalAttendance(ctx, sessUuid, entities);
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("sessionId", sessionId);
+        summary.put("markedCount", saved.size());
+        long present = saved.stream().filter(r -> "PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus()) || "ON_DUTY".equalsIgnoreCase(r.getStatus())).count();
+        long absent = saved.stream().filter(r -> "ABSENT".equalsIgnoreCase(r.getStatus())).count();
+        long leave = saved.stream().filter(r -> "LEAVE".equalsIgnoreCase(r.getStatus()) || "EXCUSED".equalsIgnoreCase(r.getStatus())).count();
+        summary.put("presentCount", present);
+        summary.put("absentCount", absent);
+        summary.put("leaveCount", leave);
+        summary.put("records", saved);
+        return buildSuccessEnvelope(summary, "Attendance marked successfully", traceId);
+    }
+
+    private LocalTime parseLocalTime(String raw, LocalTime fallback) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return fallback;
+        }
+        String cleaned = raw.trim();
+        if (cleaned.length() == 5) {
+            cleaned = cleaned + ":00";
+        }
+        try {
+            return LocalTime.parse(cleaned);
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private UUID resolveEmployeeIdForUser(UserSecurityContext ctx) {
+        try {
+            return ctx.executeInTransaction(
+                    com.campx.academic.attendance.config.DatabaseConnectionManager.getInstance(),
+                    conn -> {
+                        String sql = "SELECT e.id FROM hrm.employees e " +
+                                "JOIN iam.user_profiles up ON up.person_id = e.person_id AND up.tenant_id = e.tenant_id " +
+                                "WHERE up.id = ? AND e.tenant_id = ? AND e.deleted_at IS NULL AND up.deleted_at IS NULL " +
+                                "ORDER BY CASE WHEN e.status = 'ACTIVE' THEN 0 ELSE 1 END, e.created_at DESC LIMIT 1";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setObject(1, ctx.getUserId());
+                            ps.setObject(2, ctx.getTenantId());
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) {
+                                    return (UUID) rs.getObject(1);
+                                }
+                            }
+                        }
+                        return null;
+                    }
+            );
+        } catch (Exception e) {
+            logger.warn("Could not resolve employee_id for user {}: {}", ctx.getUserId(), e.getMessage());
+            return null;
         }
     }
 }

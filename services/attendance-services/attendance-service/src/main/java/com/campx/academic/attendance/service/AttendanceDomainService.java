@@ -7,6 +7,7 @@ import com.campx.academic.attendance.model.AttendanceRecordEntity;
 import com.campx.academic.attendance.model.AttendanceSessionEntity;
 import com.campx.academic.attendance.repository.AttendanceRepository;
 import com.campx.academic.attendance.repository.InMemoryAttendanceRepository;
+import com.campx.academic.attendance.repository.PostgresAttendanceRepository;
 import com.campx.academic.attendance.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -29,7 +30,36 @@ public class AttendanceDomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(AttendanceDomainService.class);
 
-    private AttendanceRepository repository = new InMemoryAttendanceRepository();
+    private AttendanceRepository repository;
+
+    public static String getPersistenceMode() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        if (mode == null || mode.trim().isEmpty()) {
+            return "inmemory";
+        }
+        return mode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public static boolean isPostgresMode() {
+        String mode = getPersistenceMode();
+        return "postgres".equalsIgnoreCase(mode) || "relational".equalsIgnoreCase(mode);
+    }
+
+    public static AttendanceRepository resolveDefaultRepository() {
+        if (isPostgresMode()) {
+            try {
+                com.campx.academic.attendance.config.DatabaseConnectionManager.getInstance().initialize();
+                return new PostgresAttendanceRepository();
+            } catch (Exception e) {
+                logger.error("Failed to initialize PostgresAttendanceRepository in postgres mode: {}", e.getMessage(), e);
+                throw new IllegalStateException("PostgreSQL persistence mode requested but repository failed to initialize: " + e.getMessage(), e);
+            }
+        }
+        return new InMemoryAttendanceRepository();
+    }
 
     public AttendanceRepository getRepository() {
         return repository;
@@ -37,6 +67,10 @@ public class AttendanceDomainService {
 
     public void setRepository(AttendanceRepository repository) {
         this.repository = repository;
+    }
+
+    public boolean isUsingPostgresRepository() {
+        return repository instanceof PostgresAttendanceRepository || isPostgresMode();
     }
 
     // =========================================================================
@@ -88,6 +122,11 @@ public class AttendanceDomainService {
     private final AtomicLong dlqIdSeq = new AtomicLong(1);
 
     public AttendanceDomainService() {
+        this(resolveDefaultRepository());
+    }
+
+    public AttendanceDomainService(AttendanceRepository repository) {
+        this.repository = repository != null ? repository : resolveDefaultRepository();
         seedStatusCatalog();
         seedDefaultReferenceData();
     }
@@ -1185,6 +1224,13 @@ public class AttendanceDomainService {
             throw new IllegalStateException("AttendanceRepository not configured");
         }
         return repository.applyCorrection(ctx, correctionId, decision, approverId);
+    }
+
+    public AttendanceSessionEntity updateRelationalSessionStatus(UserSecurityContext ctx, UUID sessionId, String status) {
+        if (repository == null) {
+            throw new IllegalStateException("AttendanceRepository not configured");
+        }
+        return repository.updateSessionStatus(ctx, sessionId, status);
     }
 
     public Optional<AttendanceCorrectionEntity> getRelationalCorrectionById(UserSecurityContext ctx, UUID correctionId) {

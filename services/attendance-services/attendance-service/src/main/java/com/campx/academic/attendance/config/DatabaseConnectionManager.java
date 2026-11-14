@@ -84,9 +84,9 @@ public class DatabaseConnectionManager implements AutoCloseable {
             hikariConfig.setMaxLifetime(config.getMaxLifetimeMs());
             hikariConfig.setPoolName(config.getPoolName());
 
-            hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
-            hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
-            hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            // PgBouncer transaction pooling (Supabase pooler) cannot reuse named prepared statements
+            hikariConfig.addDataSourceProperty("prepareThreshold", "0");
+            hikariConfig.addDataSourceProperty("cachePrepStmts", "false");
 
             this.dataSource = new HikariDataSource(hikariConfig);
             this.initialized = true;

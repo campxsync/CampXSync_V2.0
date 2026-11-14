@@ -2,8 +2,10 @@ package com.campx.academic.analytics.service;
 
 import com.campx.academic.analytics.exception.AnalyticsExceptions.*;
 import com.campx.academic.analytics.model.AnalyticsModels.*;
+import com.campx.academic.analytics.config.DatabaseConnectionManager;
 import com.campx.academic.analytics.repository.AnalyticsDashboardRepository;
 import com.campx.academic.analytics.repository.InMemoryAnalyticsDashboardRepository;
+import com.campx.academic.analytics.repository.PostgresAnalyticsDashboardRepository;
 import com.campx.academic.analytics.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -82,13 +84,37 @@ public class AnalyticsDomainService {
     private final AtomicLong projectionVersionSeq = new AtomicLong(10);
 
     public AnalyticsDomainService() {
-        this(new InMemoryAnalyticsDashboardRepository());
+        this(resolveDefaultDashboardRepository());
     }
 
     public AnalyticsDomainService(AnalyticsDashboardRepository dashboardRepository) {
-        this.dashboardRepository = dashboardRepository != null ? dashboardRepository : new InMemoryAnalyticsDashboardRepository();
+        this.dashboardRepository = dashboardRepository != null ? dashboardRepository : resolveDefaultDashboardRepository();
         seedReportDefinitions();
         seedDefaultReferenceData();
+    }
+
+    private static boolean isPostgresMode() {
+        String mode = System.getProperty("campx.persistence.mode");
+        if (mode == null || mode.trim().isEmpty()) {
+            mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+        }
+        return mode != null && "postgres".equalsIgnoreCase(mode.trim());
+    }
+
+    private static AnalyticsDashboardRepository resolveDefaultDashboardRepository() {
+        if (isPostgresMode()) {
+            try {
+                DatabaseConnectionManager mgr = DatabaseConnectionManager.getInstance();
+                mgr.initialize();
+                logger.info("ACD-10 dashboard repository: PostgresAnalyticsDashboardRepository (postgres mode)");
+                return new PostgresAnalyticsDashboardRepository(mgr);
+            } catch (Exception e) {
+                logger.error("Failed to initialize PostgresAnalyticsDashboardRepository in postgres mode: {}", e.getMessage(), e);
+                throw new IllegalStateException("PostgreSQL persistence mode requested but analytics dashboard repository failed to initialize: " + e.getMessage(), e);
+            }
+        }
+        logger.info("ACD-10 dashboard repository: InMemoryAnalyticsDashboardRepository");
+        return new InMemoryAnalyticsDashboardRepository();
     }
 
     public void setDashboardRepository(AnalyticsDashboardRepository dashboardRepository) {
@@ -661,7 +687,19 @@ public class AnalyticsDomainService {
     }
 
     public Map<String, Object> getPlatformAdminDashboard() {
-        UserSecurityContext ctx = new UserSecurityContext(null, null, "PLATFORM_ADMIN");
+        return getPlatformAdminDashboard(null);
+    }
+
+    public Map<String, Object> getPlatformAdminDashboard(String userId) {
+        UUID uid = null;
+        if (userId != null && !userId.trim().isEmpty()) {
+            try {
+                uid = UUID.fromString(userId.trim());
+            } catch (IllegalArgumentException e) {
+                logger.warn("Invalid platform admin userId '{}', proceeding without UUID parse", userId);
+            }
+        }
+        UserSecurityContext ctx = new UserSecurityContext(uid, null, "PLATFORM_ADMIN");
         return dashboardRepository.getPlatformAdminDashboard(ctx);
     }
 

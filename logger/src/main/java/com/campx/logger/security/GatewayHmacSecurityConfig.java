@@ -168,15 +168,15 @@ public final class GatewayHmacSecurityConfig {
     public static String getSupabaseJwtIssuer() {
         String issuer = System.getProperty(PROP_SUPABASE_JWT_ISSUER);
         if (issuer != null && !issuer.trim().isEmpty()) {
-            return issuer.trim();
+            return normalizeSupabaseAuthIssuer(issuer.trim());
         }
         issuer = System.getenv(ENV_SUPABASE_JWT_ISSUER);
         if (issuer != null && !issuer.trim().isEmpty()) {
-            return issuer.trim();
+            return normalizeSupabaseAuthIssuer(issuer.trim());
         }
         issuer = System.getenv(ENV_SUPABASE_JWT_ISSUER_LEGACY);
         if (issuer != null && !issuer.trim().isEmpty()) {
-            return issuer.trim();
+            return normalizeSupabaseAuthIssuer(issuer.trim());
         }
 
         if (isInternalAuthEnabled()) {
@@ -184,5 +184,23 @@ public final class GatewayHmacSecurityConfig {
                     + "Set environment variable CAMPX_SUPABASE_JWT_ISSUER or JVM system property campx.supabase.jwt.issuer.");
         }
         return null;
+    }
+
+    /**
+     * Supabase JWT issuer and JWKS live under {@code /auth/v1}. Some env copies incorrectly
+     * point at {@code /rest/v1}; normalize so JWKS fetch does not 401 against PostgREST.
+     */
+    static String normalizeSupabaseAuthIssuer(String issuer) {
+        if (issuer == null || issuer.trim().isEmpty()) {
+            return issuer;
+        }
+        String clean = issuer.trim().replaceAll("/+$", "");
+        if (clean.endsWith("/rest/v1")) {
+            return clean.substring(0, clean.length() - "/rest/v1".length()) + "/auth/v1";
+        }
+        if (clean.contains(".supabase.co") && !clean.contains("/auth/v1") && !clean.contains("/rest/v1")) {
+            return clean + "/auth/v1";
+        }
+        return clean;
     }
 }

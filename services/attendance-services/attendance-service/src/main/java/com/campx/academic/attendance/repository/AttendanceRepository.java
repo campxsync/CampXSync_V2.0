@@ -25,6 +25,8 @@ public interface AttendanceRepository {
 
     List<AttendanceSessionEntity> listSessions(UserSecurityContext ctx, UUID sectionId, LocalDate fromDate, LocalDate toDate, int limit, int offset);
 
+    AttendanceSessionEntity updateSessionStatus(UserSecurityContext ctx, UUID sessionId, String status);
+
     List<AttendanceRecordEntity> markAttendance(UserSecurityContext ctx, UUID sessionId, List<AttendanceRecordEntity> records);
 
     List<AttendanceRecordEntity> findRecordsBySessionId(UserSecurityContext ctx, UUID sessionId);

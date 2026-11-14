@@ -5,8 +5,6 @@ import com.campx.academic.analytics.service.AnalyticsDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 
-import java.io.IOException;
-
 /**
  * Bootstrap entry point for ACD-10: Reporting & Analytics Service.
  */
@@ -34,13 +32,26 @@ public class AnalyticsApplication {
             }
         }
 
-        AnalyticsDomainService domainService = new AnalyticsDomainService();
-        AnalyticsServer server = new AnalyticsServer(port, domainService);
-
         try {
+            String mode = System.getProperty("campx.persistence.mode");
+            if (mode == null || mode.trim().isEmpty()) {
+                mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+            }
+            if (mode == null || mode.trim().isEmpty()) {
+                logger.error("FATAL: Missing required persistence configuration. 'campx.persistence.mode' or CAMPX_PERSISTENCE_MODE must be set explicitly to 'postgres' (or 'in_memory' for local testing).");
+                throw new IllegalStateException("Missing required persistence configuration: 'campx.persistence.mode' or CAMPX_PERSISTENCE_MODE must be explicitly configured.");
+            }
+
+            AnalyticsDomainService domainService = new AnalyticsDomainService();
+            AnalyticsServer server = new AnalyticsServer(port, domainService);
             server.start();
-            Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
-        } catch (IOException e) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.info("Shutdown hook triggered. Stopping AnalyticsServer...");
+                server.stop();
+                CampXLoggerFactory.flush();
+            }));
+            logger.info("ACD-10 Reporting & Analytics Service successfully bootstrapped on port {} with persistence mode: {}", port, mode);
+        } catch (Exception e) {
             logger.error("Failed to start ACD-10 Reporting & Analytics Service on port {}: {}", port, e.getMessage(), e);
             System.exit(1);
         }

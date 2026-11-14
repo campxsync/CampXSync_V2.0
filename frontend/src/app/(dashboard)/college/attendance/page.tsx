@@ -62,9 +62,9 @@ export default async function CollegeAttendancePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="college-attendance-page">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
+        <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]" data-testid="college-attendance-heading">
           Institutional Attendance Oversight
         </h1>
         <p className="text-xs text-[#6B7688] mt-1">

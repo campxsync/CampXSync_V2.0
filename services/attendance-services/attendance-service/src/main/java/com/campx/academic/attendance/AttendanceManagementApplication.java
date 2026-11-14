@@ -34,14 +34,27 @@ public class AttendanceManagementApplication {
             }
         }
 
-        AttendanceDomainService domainService = new AttendanceDomainService();
-        AttendanceServer server = new AttendanceServer(port, domainService);
-
         try {
+            String mode = System.getProperty("campx.persistence.mode");
+            if (mode == null || mode.trim().isEmpty()) {
+                mode = System.getenv("CAMPX_PERSISTENCE_MODE");
+            }
+            if (mode == null || mode.trim().isEmpty()) {
+                logger.error("FATAL: Missing required persistence configuration. 'campx.persistence.mode' or CAMPX_PERSISTENCE_MODE must be set explicitly to 'postgres' (or 'in_memory' for local testing).");
+                throw new IllegalStateException("Missing required persistence configuration: 'campx.persistence.mode' or CAMPX_PERSISTENCE_MODE must be explicitly configured.");
+            }
+
+            AttendanceDomainService domainService = new AttendanceDomainService();
+            AttendanceServer server = new AttendanceServer(port, domainService);
+
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+            logger.info("ACD-06 Attendance Management Service is running on port {} with persistence mode: {}", port, mode);
         } catch (IOException e) {
             logger.error("Failed to start ACD-06 Attendance Management Service on port {}: {}", port, e.getMessage(), e);
+            System.exit(1);
+        } catch (Exception e) {
+            logger.error("Failed to start ACD-06 Attendance Management Service: {}", e.getMessage(), e);
             System.exit(1);
         }
     }

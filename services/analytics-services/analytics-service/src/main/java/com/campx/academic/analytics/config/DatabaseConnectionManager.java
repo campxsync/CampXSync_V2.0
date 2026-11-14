@@ -87,6 +87,8 @@ public class DatabaseConnectionManager implements AutoCloseable {
 
         hikariConfig.setAutoCommit(true);
         hikariConfig.addDataSourceProperty("ApplicationName", "CampXSync-ACD10-AnalyticsService");
+        // PgBouncer (transaction pooling) rejects prepared statements unless prepareThreshold=0
+        hikariConfig.addDataSourceProperty("prepareThreshold", "0");
 
         this.dataSource = new HikariDataSource(hikariConfig);
         this.initialized = true;

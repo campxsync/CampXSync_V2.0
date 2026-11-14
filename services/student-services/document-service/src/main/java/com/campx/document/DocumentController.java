@@ -72,7 +72,7 @@ public class DocumentController {
                 return json(200, health, correlationId);
             }
 
-            verifier.verify(method, path, header(headers, "x-gateway-timestamp"), header(headers, "x-gateway-signature"), body);
+            verifier.verify(method, path, headers, body);
             Actor actor = actor(headers);
             String normalized = path.endsWith("/") && path.length() > 1 ? path.substring(0, path.length() - 1) : path;
             JsonNode json = body == null || body.trim().isEmpty() ? mapper.createObjectNode() : mapper.readTree(body);

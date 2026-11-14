@@ -268,6 +268,35 @@ public class PostgresAttendanceRepository implements AttendanceRepository {
     }
 
     @Override
+    public AttendanceSessionEntity updateSessionStatus(UserSecurityContext context, UUID sessionId, String status) {
+        assertContext(context);
+        if (sessionId == null) throw new IllegalArgumentException("sessionId cannot be null");
+        if (status == null || status.trim().isEmpty()) throw new IllegalArgumentException("status cannot be blank");
+
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return context.executeInTransaction(connectionManager, conn -> {
+            String sql = "UPDATE acd.attendance_sessions SET status = ?, " +
+                    "locked_at = CASE WHEN ? IN ('CLOSED', 'CANCELLED') THEN now() ELSE locked_at END, " +
+                    "updated_at = now(), updated_by = ?, row_version = row_version + 1 " +
+                    "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL " +
+                    "RETURNING id, tenant_id, section_id, timetable_entry_id, employee_id, session_date, start_time, end_time, status, locked_at, created_at, updated_at, created_by, updated_by, row_version";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, normalized);
+                ps.setString(2, normalized);
+                ps.setObject(3, context.getUserId());
+                ps.setObject(4, sessionId);
+                ps.setObject(5, context.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return mapSession(rs);
+                    }
+                }
+            }
+            throw new AttendanceNotFoundException("Attendance session not found: " + sessionId);
+        });
+    }
+
+    @Override
     public List<AttendanceRecordEntity> markAttendance(UserSecurityContext context, UUID sessionId, List<AttendanceRecordEntity> items) {
         assertContext(context);
         if (sessionId == null) throw new IllegalArgumentException("sessionId cannot be null");

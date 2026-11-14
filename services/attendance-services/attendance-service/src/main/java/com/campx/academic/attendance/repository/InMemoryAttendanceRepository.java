@@ -94,6 +94,21 @@ public class InMemoryAttendanceRepository implements AttendanceRepository {
     }
 
     @Override
+    public AttendanceSessionEntity updateSessionStatus(UserSecurityContext ctx, UUID sessionId, String status) {
+        AttendanceSessionEntity session = sessions.get(sessionId);
+        if (session == null || !session.getTenantId().equals(ctx.getTenantId())) {
+            throw new AttendanceNotFoundException("Attendance session not found: " + sessionId);
+        }
+        session.setStatus(status);
+        session.setUpdatedAt(OffsetDateTime.now());
+        if ("CLOSED".equalsIgnoreCase(status)) {
+            session.setLockedAt(OffsetDateTime.now());
+        }
+        sessions.put(sessionId, session);
+        return session;
+    }
+
+    @Override
     public List<AttendanceRecordEntity> markAttendance(UserSecurityContext ctx, UUID sessionId, List<AttendanceRecordEntity> items) {
         AttendanceSessionEntity session = sessions.get(sessionId);
         if (session == null || !session.getTenantId().equals(ctx.getTenantId())) {

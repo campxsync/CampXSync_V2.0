@@ -10,6 +10,7 @@ import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
 import com.campx.logger.context.LogContext;
+import com.campx.logger.security.GatewayHmacVerifier;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -36,6 +37,7 @@ public class AnalyticsController implements HttpHandler {
     private final AnalyticsDomainService domainService;
     private final RateLimiter rateLimiter;
     private final MetricsCollector metricsCollector = MetricsCollector.getInstance();
+    private final GatewayHmacVerifier gatewayHmacVerifier = new GatewayHmacVerifier();
 
     // Regex routing patterns
     private final Pattern pExportStatus = Pattern.compile("^/export/([^/]+)(?:/status)?/?$");
@@ -98,6 +100,32 @@ public class AnalyticsController implements HttpHandler {
 
             LogContext.setService("ACD-10-ReportingAnalyticsService");
             exchange.getResponseHeaders().set("X-Trace-Id", traceId);
+
+            boolean publicProbe = fullPath != null && (fullPath.endsWith("/health") || fullPath.endsWith("/metrics")
+                    || "/health".equals(fullPath) || "/metrics".equals(fullPath) || "/actuator/health".equals(fullPath));
+            if (!publicProbe) {
+                byte[] bodyBytes = readRequestBodyBytes(exchange);
+                exchange.setAttribute("campx.cachedRequestBody", new String(bodyBytes, StandardCharsets.UTF_8));
+                GatewayHmacVerifier.VerificationResult auth =
+                        gatewayHmacVerifier.verify(exchange, method, exchange.getRequestURI().getPath(), bodyBytes);
+                if (!auth.isSuccess()) {
+                    sendError(exchange, auth.getStatus(), auth.getErrorCode(), auth.getMessage(),
+                            traceId, fullPath, null);
+                    return;
+                }
+                if (auth.getUserId() != null && !auth.getUserId().trim().isEmpty()) {
+                    userId = auth.getUserId();
+                    LogContext.setUserId(userId);
+                }
+                if (auth.getTenantId() != null && !auth.getTenantId().trim().isEmpty()) {
+                    tenantId = auth.getTenantId();
+                    LogContext.setTenantId(tenantId);
+                }
+                if (auth.getUserRole() != null && !auth.getUserRole().trim().isEmpty()) {
+                    userRole = auth.getUserRole();
+                    LogContext.setUserRole(userRole);
+                }
+            }
             exchange.getResponseHeaders().set("X-Correlation-Id", traceId);
 
             // 2. Health & Prometheus Metrics direct handling
@@ -167,11 +195,14 @@ public class AnalyticsController implements HttpHandler {
                     sendJson(exchange, 200, toJson(res));
                 }
                 else if ("/dashboard/platform-admin".equals(path) && "GET".equalsIgnoreCase(method)) {
-                    Map<String, Object> res = domainService.getPlatformAdminDashboard();
+                    Map<String, Object> res = domainService.getPlatformAdminDashboard(userId);
                     sendJson(exchange, 200, toJson(res));
                 }
                 else if ("/dashboard".equals(path) && "GET".equalsIgnoreCase(method)) {
                     String roleParam = queryParams.get("role");
+                    if (roleParam == null || roleParam.trim().isEmpty()) {
+                        roleParam = userRole;
+                    }
                     if ("college_admin".equalsIgnoreCase(roleParam)) {
                         String period = queryParams.get("period");
                         Map<String, Object> res = domainService.getCollegeAdminDashboard(tenantId, period);
@@ -183,8 +214,10 @@ public class AnalyticsController implements HttpHandler {
                         String departmentId = queryParams.get("departmentId");
                         Map<String, Object> res = domainService.getHodDashboard(tenantId, departmentId, userId);
                         sendJson(exchange, 200, toJson(res));
-                    } else if ("platform_admin".equalsIgnoreCase(roleParam)) {
-                        Map<String, Object> res = domainService.getPlatformAdminDashboard();
+                    } else if ("platform_admin".equalsIgnoreCase(roleParam)
+                            || "PLATFORM_ADMIN".equalsIgnoreCase(roleParam)
+                            || "SUPER_ADMIN".equalsIgnoreCase(roleParam)) {
+                        Map<String, Object> res = domainService.getPlatformAdminDashboard(userId);
                         sendJson(exchange, 200, toJson(res));
                     } else {
                         String period = queryParams.get("period");
@@ -363,15 +396,31 @@ public class AnalyticsController implements HttpHandler {
         return map;
     }
 
-    private String readBody(HttpExchange exchange) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
-            return sb.toString().trim();
+    private byte[] readRequestBodyBytes(HttpExchange exchange) throws IOException {
+        Object cached = exchange.getAttribute("campx.cachedRequestBodyBytes");
+        if (cached instanceof byte[]) {
+            return (byte[]) cached;
         }
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = exchange.getRequestBody().read(buf)) >= 0) {
+            if (n > 0) bos.write(buf, 0, n);
+        }
+        byte[] body = bos.toByteArray();
+        exchange.setAttribute("campx.cachedRequestBodyBytes", body);
+        return body;
+    }
+
+    private String readBody(HttpExchange exchange) throws IOException {
+        Object cached = exchange.getAttribute("campx.cachedRequestBody");
+        if (cached instanceof String) {
+            return ((String) cached).trim();
+        }
+        byte[] bytes = readRequestBodyBytes(exchange);
+        String body = new String(bytes, StandardCharsets.UTF_8).trim();
+        exchange.setAttribute("campx.cachedRequestBody", body);
+        return body;
     }
 
     private EventEnvelope parseEventEnvelope(String json, String traceId, String defaultTenant) {

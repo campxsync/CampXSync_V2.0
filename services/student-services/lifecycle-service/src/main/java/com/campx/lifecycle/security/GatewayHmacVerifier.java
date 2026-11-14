@@ -3,69 +3,104 @@ package com.campx.lifecycle.security;
 import com.campx.lifecycle.LifecycleException;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.security.GatewayHmacProtocol;
+import com.campx.logger.security.GatewayHmacSecurityConfig;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
+import java.util.Map;
 
 /**
- * Verifies the gateway HMAC on a lifecycle request when a shared secret is configured.
- * A missing secret skips verification so local development can run without the gateway secret.
- * Signature material is never written to the log.
+ * Lifecycle Gateway HMAC verifier aligned with {@link GatewayHmacProtocol}.
+ * Fail-closed when internal auth is enabled.
  */
 public class GatewayHmacVerifier {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(GatewayHmacVerifier.class);
-    private static final long MAX_SKEW_SECONDS = 300;
+
+    private final boolean authEnabled;
     private final String secret;
+    private final long replayWindowSeconds;
+
+    public GatewayHmacVerifier() {
+        this.authEnabled = GatewayHmacSecurityConfig.isInternalAuthEnabled();
+        this.secret = this.authEnabled ? GatewayHmacSecurityConfig.getInternalSecret() : null;
+        this.replayWindowSeconds = GatewayHmacSecurityConfig.getReplayWindowSeconds();
+    }
 
     public GatewayHmacVerifier(String secret) {
-        this.secret = secret;
+        this.authEnabled = GatewayHmacSecurityConfig.isInternalAuthEnabled();
+        if (this.authEnabled) {
+            String resolved = secret;
+            if (resolved == null || resolved.trim().isEmpty()) {
+                resolved = System.getenv("CAMPX_INTERNAL_SECRET");
+            }
+            if (resolved == null || resolved.trim().isEmpty()) {
+                resolved = GatewayHmacSecurityConfig.getInternalSecret();
+            }
+            this.secret = resolved;
+        } else {
+            this.secret = secret;
+        }
+        this.replayWindowSeconds = GatewayHmacSecurityConfig.getReplayWindowSeconds();
     }
 
     public void verify(String method, String path, String timestamp, String signature, String body) {
-        if (secret == null || secret.trim().isEmpty()) {
+        verify(method, path, timestamp, signature, null, null, body);
+    }
+
+    public void verify(String method, String path, Map<String, String> headers, String body) {
+        if (headers == null) {
+            verify(method, path, null, null, null, null, body);
             return;
         }
-        if (timestamp == null || signature == null) {
+        verify(
+                method,
+                path,
+                first(headers, "x-gateway-timestamp", "X-Gateway-Timestamp"),
+                first(headers, "x-gateway-signature", "X-Gateway-Signature"),
+                first(headers, "x-user-id", "X-User-Id"),
+                first(headers, "x-tenant-id", "X-Tenant-Id"),
+                body
+        );
+    }
+
+    public void verify(String method, String path, String timestamp, String signature,
+                       String userId, String tenantId, String body) {
+        if (!authEnabled) {
+            return;
+        }
+        if (timestamp == null || timestamp.trim().isEmpty() || signature == null || signature.trim().isEmpty()) {
             logger.warn("Lifecycle gateway signature headers are missing");
-            throw new LifecycleException(401, "GATEWAY_SIGNATURE_MISSING", "Missing required gateway signature headers");
+            throw new LifecycleException(401, "GATEWAY_MISSING_INTERNAL_AUTH", "Missing required gateway signature headers");
         }
         long epoch;
         try {
             epoch = Long.parseLong(timestamp.trim());
         } catch (NumberFormatException e) {
-            logger.warn("Lifecycle gateway timestamp is not a number", e);
             throw new LifecycleException(401, "GATEWAY_TIMESTAMP_INVALID", "Invalid gateway timestamp format");
         }
-        long now = Instant.now().getEpochSecond();
-        if (Math.abs(now - epoch) > MAX_SKEW_SECONDS) {
-            logger.warn("Lifecycle gateway signature is outside the allowed clock skew");
-            throw new LifecycleException(401, "GATEWAY_SIGNATURE_EXPIRED", "Gateway signature expired or clock skew exceeded");
+        if (!GatewayHmacProtocol.isWithinReplayWindow(epoch, replayWindowSeconds)) {
+            throw new LifecycleException(401, "GATEWAY_EXPIRED_INTERNAL_AUTH", "Gateway signature expired or clock skew exceeded");
         }
-        String canonical = method.toUpperCase() + "\n" + path + "\n" + timestamp + "\n" + (body != null ? body : "");
-        String calculated = calculateHmac(canonical, secret);
-        if (!MessageDigest.isEqual(calculated.getBytes(StandardCharsets.UTF_8), signature.trim().getBytes(StandardCharsets.UTF_8))) {
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new LifecycleException(500, "GATEWAY_INTERNAL_AUTH_MISCONFIGURED", "Internal HMAC secret is not configured");
+        }
+        byte[] bodyBytes = body != null ? body.getBytes(StandardCharsets.UTF_8) : new byte[0];
+        String bodySha = GatewayHmacProtocol.sha256Hex(bodyBytes);
+        String canonical = GatewayHmacProtocol.buildCanonicalPayload(
+                timestamp.trim(), method, path, userId, tenantId, bodySha);
+        String expected = GatewayHmacProtocol.calculateHmac(canonical, secret);
+        if (!GatewayHmacProtocol.constantTimeEquals(expected, signature)) {
             logger.warn("Lifecycle gateway HMAC signature did not match");
-            throw new LifecycleException(401, "GATEWAY_SIGNATURE_INVALID", "Gateway HMAC signature verification failed");
+            throw new LifecycleException(401, "GATEWAY_INVALID_INTERNAL_AUTH", "Gateway HMAC signature verification failed");
         }
     }
 
-    public static String calculateHmac(String data, String key) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] raw = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(raw.length * 2);
-            for (byte b : raw) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            logger.error("Lifecycle HMAC calculation failed", e);
-            throw new LifecycleException(500, "GATEWAY_SIGNATURE_ERROR", "Failed to calculate HMAC signature");
+    private static String first(Map<String, String> headers, String a, String b) {
+        String v = headers.get(a);
+        if (v == null || v.trim().isEmpty()) {
+            v = headers.get(b);
         }
+        return v;
     }
 }

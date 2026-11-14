@@ -222,6 +222,21 @@ async function run() {
             }
             break;
           }
+          case 'shell': {
+            const { execSync } = await import('child_process');
+            const cmd = step.command.replace(/{{DEMO_TAG}}/g, DEMO_TAG);
+            console.log(`Running shell: ${cmd}`);
+            execSync(cmd, {
+              cwd: step.cwd || path.resolve(__dirname, '../..'),
+              stdio: 'inherit',
+              shell: process.platform === 'win32' ? 'powershell.exe' : '/bin/bash',
+              timeout: step.timeoutMs || 120000
+            });
+            if (step.waitMs) {
+              await page.waitForTimeout(step.waitMs);
+            }
+            break;
+          }
           default:
             console.warn(`Unknown action: ${step.action}`);
         }

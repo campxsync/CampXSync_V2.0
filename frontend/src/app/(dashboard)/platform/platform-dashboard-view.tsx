@@ -79,31 +79,39 @@ export function PlatformDashboardView({
     switch (widgetId) {
       case 'kpis':
         return (
-          <div key="kpis" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Onboarded Institutes"
-              value={tenantCount}
-              icon={Building2}
-              description="Total multi-tenant nodes"
-            />
-            <StatCard
-              title="Total Platform Users"
-              value={totalUserCount}
-              icon={Users}
-              description="Cross-tenant registered identities"
-            />
-            <StatCard
-              title="Active Tenancies"
-              value={statusCounts.ACTIVE}
-              icon={Activity}
-              description="Institutes in active operation"
-            />
-            <StatCard
-              title="System Role Templates"
-              value={roleTemplateCount}
-              icon={ShieldCheck}
-              description="Platform RBAC definitions"
-            />
+          <div key="kpis" data-testid="platform-dashboard-kpis" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div data-testid="platform-kpi-tenant-count">
+              <StatCard
+                title="Onboarded Institutes"
+                value={tenantCount}
+                icon={Building2}
+                description="Total multi-tenant nodes"
+              />
+            </div>
+            <div data-testid="platform-kpi-user-count">
+              <StatCard
+                title="Total Platform Users"
+                value={totalUserCount}
+                icon={Users}
+                description="Cross-tenant registered identities"
+              />
+            </div>
+            <div data-testid="platform-kpi-active-tenancies">
+              <StatCard
+                title="Active Tenancies"
+                value={statusCounts.ACTIVE}
+                icon={Activity}
+                description="Institutes in active operation"
+              />
+            </div>
+            <div data-testid="platform-kpi-role-templates">
+              <StatCard
+                title="System Role Templates"
+                value={roleTemplateCount}
+                icon={ShieldCheck}
+                description="Platform RBAC definitions"
+              />
+            </div>
           </div>
         );
 
@@ -197,10 +205,10 @@ export function PlatformDashboardView({
                 </CardHeader>
                 <CardContent>
                     {institutes.length === 0 ? (
-                    <p className="text-xs text-[#475569]">No institutes onboarded yet.</p>
+                    <p data-testid="platform-institutes-empty" className="text-xs text-[#475569]">No institutes onboarded yet.</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
+                      <table data-testid="platform-institutes-table" className="w-full text-left text-xs">
                         <thead>
                           <tr className="border-b border-[#E3E8EF] text-[#475569]">
                             <th className="pb-3 font-semibold uppercase tracking-wider">Institute Name</th>
@@ -212,7 +220,11 @@ export function PlatformDashboardView({
                         </thead>
                         <tbody className="divide-y divide-[#E3E8EF]">
                           {institutes.map((inst) => (
-                            <tr key={inst.id} className="hover:bg-[#F6F8FB]">
+                            <tr
+                              key={inst.id}
+                              data-testid={`platform-institute-row-${inst.code || inst.id}`}
+                              className="hover:bg-[#F6F8FB]"
+                            >
                               <td className="py-3 font-medium text-[#0B1F3A]">
                                 <div className="flex items-center gap-2">
                                   <Building2 className="h-3.5 w-3.5 text-[#1F6FEB]" />
@@ -224,11 +236,11 @@ export function PlatformDashboardView({
                                 <Badge status={inst.status || 'ACTIVE'} />
                               </td>
                               <td className="py-3 text-right font-medium text-[#1B2433]">
-                                {inst.college_count || 1}
+                                {inst.collegeCount ?? inst.college_count ?? 0}
                               </td>
                               <td className="py-3 text-right font-semibold text-[#0B1F3A]">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#E8F0FE] text-[#1D4ED8]">
-                                  {inst.user_count} users
+                                  {inst.userCount ?? inst.user_count ?? 0} users
                                 </span>
                               </td>
                             </tr>
@@ -340,7 +352,7 @@ export function PlatformDashboardView({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
+          <h1 data-testid="platform-dashboard-heading" className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
             Platform Operator Dashboard
           </h1>
           <p className="text-xs text-[#475569] mt-1">

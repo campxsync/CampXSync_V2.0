@@ -474,52 +474,101 @@ public class PostgresAnalyticsDashboardRepository implements AnalyticsDashboardR
         return result;
     }
 
+    private void applyPlatformAdminRlsContext(Connection conn, UserSecurityContext context) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("SET LOCAL ROLE authenticated");
+        }
+        String userId = context != null && context.getUserId() != null
+                ? context.getUserId().toString()
+                : "00000000-0000-0000-0000-000000000000";
+        String claims = String.format(
+                "{\"sub\":\"%s\",\"role\":\"authenticated\",\"app_metadata\":{\"role\":\"PLATFORM_ADMIN\"}}",
+                userId);
+        try (PreparedStatement ps = conn.prepareStatement("SELECT set_config('request.jwt.claims', ?, true)")) {
+            ps.setString(1, claims);
+            ps.execute();
+        }
+        try (PreparedStatement ps = conn.prepareStatement("SELECT set_config('request.jwt.claim.sub', ?, true)")) {
+            ps.setString(1, userId);
+            ps.execute();
+        }
+        try (PreparedStatement ps = conn.prepareStatement("SELECT set_config('request.jwt.claim.role', ?, true)")) {
+            ps.setString(1, "authenticated");
+            ps.execute();
+        }
+    }
+
     @Override
     public Map<String, Object> getPlatformAdminDashboard(UserSecurityContext context) {
         Map<String, Object> result = new LinkedHashMap<>();
 
         try (Connection conn = connectionManager.getConnection()) {
-            List<Map<String, Object>> institutes = new ArrayList<>();
-            Map<String, Integer> statusCounts = new LinkedHashMap<>();
-            statusCounts.put("ACTIVE", 0);
-            statusCounts.put("ONBOARDING", 0);
-            statusCounts.put("SUSPENDED", 0);
-            statusCounts.put("OFFBOARDED", 0);
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                applyPlatformAdminRlsContext(conn, context);
 
-            String tenantSql = "SELECT " +
-                    "t.id, t.name, t.code, t.status, t.created_at, " +
-                    "count(DISTINCT c.id)::int as college_count, " +
-                    "count(up.id)::int as user_count " +
-                    "FROM core.tenants t " +
-                    "LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL " +
-                    "LEFT JOIN iam.user_profiles up ON up.tenant_id = t.id AND up.deleted_at IS NULL " +
-                    "WHERE t.deleted_at IS NULL " +
-                    "GROUP BY t.id, t.name, t.code, t.status, t.created_at " +
-                    "ORDER BY t.created_at DESC";
+                List<Map<String, Object>> institutes = new ArrayList<>();
+                Map<String, Integer> statusCounts = new LinkedHashMap<>();
+                statusCounts.put("ACTIVE", 0);
+                statusCounts.put("ONBOARDING", 0);
+                statusCounts.put("SUSPENDED", 0);
+                statusCounts.put("OFFBOARDED", 0);
 
-            try (PreparedStatement ps = conn.prepareStatement(tenantSql);
-                 ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> inst = new LinkedHashMap<>();
-                    inst.put("id", rs.getString("id"));
-                    inst.put("name", rs.getString("name"));
-                    inst.put("code", rs.getString("code"));
-                    String status = rs.getString("status") != null ? rs.getString("status").toUpperCase() : "ACTIVE";
-                    inst.put("status", status);
-                    inst.put("createdAt", rs.getString("created_at"));
-                    inst.put("collegeCount", rs.getInt("college_count"));
-                    inst.put("userCount", rs.getInt("user_count"));
-                    institutes.add(inst);
+                String tenantSql = "SELECT " +
+                        "t.id, t.name, t.code, t.status, t.created_at, " +
+                        "count(DISTINCT c.id)::int as college_count, " +
+                        "count(up.id)::int as user_count " +
+                        "FROM core.tenants t " +
+                        "LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL " +
+                        "LEFT JOIN iam.user_profiles up ON up.tenant_id = t.id AND up.deleted_at IS NULL " +
+                        "WHERE t.deleted_at IS NULL " +
+                        "GROUP BY t.id, t.name, t.code, t.status, t.created_at " +
+                        "ORDER BY t.created_at DESC";
 
-                    statusCounts.put(status, statusCounts.getOrDefault(status, 0) + 1);
+                try (PreparedStatement ps = conn.prepareStatement(tenantSql);
+                     ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> inst = new LinkedHashMap<>();
+                        inst.put("id", rs.getString("id"));
+                        inst.put("name", rs.getString("name"));
+                        inst.put("code", rs.getString("code"));
+                        String status = rs.getString("status") != null ? rs.getString("status").toUpperCase() : "ACTIVE";
+                        inst.put("status", status);
+                        inst.put("createdAt", rs.getString("created_at"));
+                        inst.put("collegeCount", rs.getInt("college_count"));
+                        inst.put("userCount", rs.getInt("user_count"));
+                        institutes.add(inst);
+
+                        statusCounts.put(status, statusCounts.getOrDefault(status, 0) + 1);
+                    }
                 }
-            }
 
-            result.put("institutes", institutes);
-            result.put("tenantCount", institutes.size());
-            result.put("statusCounts", statusCounts);
-            result.put("roleTemplateCount", 30);
-            result.put("asOf", java.time.Instant.now().toString());
+                int roleTemplateCount = 0;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT count(*)::int AS cnt FROM iam.role_templates WHERE deleted_at IS NULL");
+                     ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        roleTemplateCount = rs.getInt("cnt");
+                    }
+                }
+
+                result.put("institutes", institutes);
+                result.put("tenantCount", institutes.size());
+                result.put("statusCounts", statusCounts);
+                result.put("roleTemplateCount", roleTemplateCount);
+                result.put("asOf", java.time.Instant.now().toString());
+                conn.commit();
+            } catch (SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {}
+                throw e;
+            } finally {
+                try {
+                    conn.setAutoCommit(previousAutoCommit);
+                } catch (SQLException ignored) {}
+            }
 
         } catch (SQLException e) {
             logger.error("Failed to fetch platform admin dashboard: {}", e.getMessage(), e);
