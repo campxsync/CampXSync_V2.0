@@ -47,6 +47,10 @@ const WIDGET_LABELS: Record<string, string> = {
   lifecycle: 'Institutes by Lifecycle Status',
   institutes: 'Institutes & User Distribution Table',
   audit: 'Recent Platform Audit Events',
+  profile: 'Academic Profile Summary',
+  courses: 'Enrolled Courses & Resources',
+  documents: 'Document Status Summaries',
+  notifications: 'Notifications & Announcements',
 };
 
 export function PreferenceModal({

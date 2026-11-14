@@ -12,7 +12,17 @@ servers:
   - url: http://localhost:8080
     description: API Gateway
 paths:
+  /api/v1/enrollment/alerts:
+    get:
+      summary: In-service enrolment alerts (STM-03-US-018)
+      responses:
+        '200': { description: Alerts returned }
+        '401': { description: Unauthenticated }
   /api/v1/enrollment/terms:
+    get:
+      summary: List academic terms
+      responses:
+        '200': { description: Terms returned }
     post:
       summary: Configure academic term (STM-03-US-016)
       responses:
@@ -28,6 +38,12 @@ paths:
       summary: Convert approved admission into enrolment (STM-03-US-001)
       responses:
         '201': { description: Enrolment opened }
+  /api/v1/enrollment/enrolments:
+    get:
+      summary: List enrolments for caller scope
+      responses:
+        '200': { description: Enrolments returned }
+        '401': { description: Unauthenticated }
   /api/v1/enrollment/enrolments/{enrolmentId}:
     get:
       summary: View enrolment details (STM-03-US-002)
@@ -38,6 +54,26 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '200': { description: Enrolment returned }
+  /api/v1/enrollment/enrolments/{enrolmentId}/catalogue:
+    get:
+      summary: View registration catalogue for an enrolment
+      parameters:
+        - in: path
+          name: enrolmentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Catalogue returned }
+  /api/v1/enrollment/enrolments/{enrolmentId}/swap:
+    post:
+      summary: Swap registered section (STM-03-US-008)
+      parameters:
+        - in: path
+          name: enrolmentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Swap applied }
   /api/v1/enrollment/enrolments/{enrolmentId}/register:
     post:
       summary: Register course selections (STM-03-US-006/007/008/009)

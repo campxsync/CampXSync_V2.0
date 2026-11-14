@@ -1,30 +1,23 @@
 # Next Task
 
-**STATUS: IMPLEMENTING — `STM-03-US-005` (owner directed start after US-004 COMMIT).**
+**STATUS: Continue EN lane with headed demos.**
 
-## Selected story
+## Cleared this session
 
-| Field | Value |
+**STM-03-EN-001…006** (all STM-03 EN partials) + **STM-04-EN-001**
+
+| ID | Demo |
 |---|---|
-| Issue ID | `STM-03-US-005` |
-| Summary | View enrolment history |
-| Service | STM-03 — Student Enrolment & Registration Service |
-| Issue Type | Story |
-| Priority | P0/P1 (backlog row) |
-| Audit/CSV implementation status | partially completed |
-| RBAC Alignment Verdict | MATRIX-DEFINED; ROLE-CATALOGUE GAP |
+| STM-03-EN-001…004 | `docs/demos/...` 7/7 each |
+| STM-03-EN-005 | 12/12 dual-persona E2E |
+| STM-03-EN-006 | 7/7 (in-service alerts; no Kafka invent) |
+| STM-04-EN-001 | Live JDBC 2/2 + `docs/demos/STM-04-EN-001/` 7/7 |
 
-## Mode
+## Next
 
-**IMPLEMENT**
+**STM-04-EN-002** — Lifecycle transition validation, transactional integrity and RLS (P0).
 
-## Scope
+## Notes
 
-Confirm this story's **Acceptance Criteria** and **Required Negative Tests** against repository code and close **only** the gaps found for view enrolment history.
-
-### Out of scope
-- Adjacent stories; inventing DEPARTMENT_STAFF grants; production DB; unapproved DDL.
-
-## Prior story
-
-`STM-03-US-004` — **APPROVED** + COMMIT (owner 2026-11-14).
+- Headed `run_story_demo.mjs` required every story.
+- No commit/push unless authorized.

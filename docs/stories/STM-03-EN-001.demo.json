@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-03-EN-001",
+  "title": "Supabase persistence, CRUD, schema ownership audit and database integration",
+  "slowMo": 350,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator authenticates via development test session and opens the Course Registration Desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Verify Enrolment Desk Loaded",
+      "description": "College enrolment desk renders — UI path to Java enrolment service backed by PostgresEnrollmentPersistence",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-heading\"]",
+      "highlight": "[data-testid=\"college-enrollment-heading\"]"
+    },
+    {
+      "title": "Select Academic Term",
+      "description": "Registrar selects the existing 2026 ODD academic term so catalogue/CRUD reads use live JDBC",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Confirm Term Bound",
+      "description": "UI confirms the academic term is selected for persistence-scoped operations",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-success\"]",
+      "highlight": "[data-testid=\"college-enrollment-success\"]"
+    },
+    {
+      "title": "PostgreSQL Enrolment Row Read-Back",
+      "description": "Read-only query proves stu.enrolments CRUD data exists for the pilot tenant via Supabase PostgreSQL",
+      "action": "db_check",
+      "query": "SELECT id, status, student_id, term_id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND id = 'a1000000-0000-0000-0000-000000000031'",
+      "minCount": 1
+    },
+    {
+      "title": "Schema Ownership / RLS Audit",
+      "description": "Verify STM-03 enrolment tables have RLS enabled and FORCED under stu schema (service-owned model)",
+      "action": "db_check",
+      "query": "SELECT c.relname AS table_name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relkind = 'r' AND c.relname LIKE 'enrol%' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 5
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "API Gateway blocks unauthenticated GET to enrolment list with HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments",
+      "expectedStatus": 401
+    }
+  ]
+}

@@ -205,14 +205,26 @@ export default async function StudentDashboardPage() {
   const isShortage = overallPercentage < 75.0 && totalConducted > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="student-dashboard">
+      <a
+        href="#student-main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-sm"
+        data-testid="student-skip-nav"
+      >
+        Skip to main content
+      </a>
+
       {/* Student Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div
+        id="student-main-content"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        data-testid="student-profile-panel"
+      >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]" data-testid="student-dashboard-heading">
             My Academic Portal & Attendance
           </h1>
-          <p className="text-xs text-[#6B7688] mt-1">
+          <p className="text-xs text-[#6B7688] mt-1" data-testid="student-profile-summary">
             Welcome, {student ? `${student.first_name} ${student.last_name}` : displayName}. Student Enrollment: <span className="font-mono font-semibold text-[#1F6FEB]">{student?.enrollment_number || 'N/A'}</span> &bull; {student?.program_name || 'Academic Program'} ({student?.section_name || 'General Section'})
           </p>
         </div>
@@ -226,7 +238,11 @@ export default async function StudentDashboardPage() {
 
       {/* Visible Service Degradation Indicator (REC-01) */}
       {gatewayFallback && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 flex items-center gap-3">
+        <div
+          className="rounded-md border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 flex items-center gap-3"
+          data-testid="student-dashboard-error"
+          role="alert"
+        >
           <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
           <div>
             <span className="font-semibold text-amber-800">Backend Service Offline: </span>
@@ -235,8 +251,44 @@ export default async function StudentDashboardPage() {
         </div>
       )}
 
+      {!student && (
+        <div
+          className="rounded-md border border-dashed border-[#E3E8EF] bg-[#F8FAFC] p-6 text-center text-xs text-[#6B7688]"
+          data-testid="student-dashboard-empty"
+        >
+          No academic profile is available for this session yet.
+        </div>
+      )}
+
+      <section
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+        data-testid="student-portal-summaries"
+        aria-label="Portal summaries"
+      >
+        <div className="rounded-[8px] border border-[#E3E8EF] bg-white p-4" data-testid="student-document-summary">
+          <h2 className="text-sm font-semibold text-[#0B1F3A]">Document summaries</h2>
+          <p className="mt-1 text-xs text-[#6B7688]">
+            Review checklist status and uploads in the documents desk.
+          </p>
+          <Link
+            href="/student/documents"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#1F6FEB]"
+            data-testid="student-document-summary-link"
+          >
+            Open documents
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="rounded-[8px] border border-[#E3E8EF] bg-white p-4" data-testid="student-notifications">
+          <h2 className="text-sm font-semibold text-[#0B1F3A]">Notifications & announcements</h2>
+          <p className="mt-1 text-xs text-[#6B7688]" data-testid="student-notifications-empty">
+            No in-service announcements right now. Enrollment and lifecycle alerts appear on their desks.
+          </p>
+        </div>
+      </section>
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="student-dashboard-kpis">
         <StatCard
           title="Overall Attendance"
           value={`${overallPercentage}%`}
@@ -357,7 +409,7 @@ export default async function StudentDashboardPage() {
       </div>
 
       {/* Course-Wise Attendance Table */}
-      <Card>
+      <Card data-testid="student-courses-panel">
         <CardHeader>
           <CardTitle>Course-Wise Attendance Summary</CardTitle>
           <CardDescription>
@@ -366,7 +418,7 @@ export default async function StudentDashboardPage() {
         </CardHeader>
         <CardContent>
           {subjectAttendance.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8" data-testid="student-courses-empty">
               <BookOpen className="mx-auto h-8 w-8 text-[#6B7688]/40" />
               <p className="text-xs text-[#6B7688] mt-2">No active course registrations or conducted sessions recorded yet.</p>
             </div>

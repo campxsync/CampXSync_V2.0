@@ -1,0 +1,71 @@
+{
+  "storyId": "STM-03-US-005",
+  "title": "View enrolment history",
+  "slowMo": 350,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student authenticates and opens Course registration",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Verify Student Enrolment Desk",
+      "description": "Student enrolment desk loads",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-heading\"]",
+      "highlight": "[data-testid=\"student-enrollment-heading\"]"
+    },
+    {
+      "title": "Enrolment List Visible",
+      "description": "Student sees owned enrolments",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-list\"]",
+      "highlight": "[data-testid=\"student-enrollment-list\"]"
+    },
+    {
+      "title": "Select Owned Enrolment",
+      "description": "Student selects enrolment that has status history",
+      "action": "click",
+      "selector": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]",
+      "highlight": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]"
+    },
+    {
+      "title": "Enrolment History Panel Visible",
+      "description": "History section is shown for the selected enrolment",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-history\"]",
+      "highlight": "[data-testid=\"student-enrollment-history\"]"
+    },
+    {
+      "title": "History Row Visible",
+      "description": "At least one history row with status/action is visible",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-history-row-0\"]",
+      "highlight": "[data-testid=\"student-enrollment-history-row-0\"]"
+    },
+    {
+      "title": "History Status Field Visible",
+      "description": "History status value is rendered for the first row",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-history-status-0\"]",
+      "highlight": "[data-testid=\"student-enrollment-history-status-0\"]"
+    },
+    {
+      "title": "PostgreSQL History Read-Back",
+      "description": "Read-only query verifies append-only history exists for the viewed enrolment",
+      "action": "db_check",
+      "query": "SELECT status, action, actor_role FROM stu.enrolment_status_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND enrolment_id = 'a1000000-0000-0000-0000-000000000031'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "API Gateway blocks unauthenticated GET to enrolment history with HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments/a1000000-0000-0000-0000-000000000031/history",
+      "expectedStatus": 401
+    }
+  ]
+}

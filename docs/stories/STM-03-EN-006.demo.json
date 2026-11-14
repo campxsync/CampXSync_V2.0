@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-03-EN-006",
+  "title": "Kafka events, notifications, centralized logging and observability",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student opens Course Registration to exercise in-service alerts (not an external Kafka consumer)",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Student Enrolment Desk Visible",
+      "description": "Student desk loads with observability-facing UI contracts",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-heading\"]",
+      "highlight": "[data-testid=\"student-enrollment-heading\"]"
+    },
+    {
+      "title": "In-Service Alerts Panel Present",
+      "description": "Alerts region is present for STM-03 in-service notifications (ControlledIntelligenceAdapter liveEndpoint=false)",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-alerts\"]",
+      "highlight": "[data-testid=\"student-enrollment-alerts\"]"
+    },
+    {
+      "title": "Select Owned Enrolment",
+      "description": "Student selects enrolment to confirm logged UI→gateway→service path remains healthy",
+      "action": "click",
+      "selector": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]",
+      "highlight": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]"
+    },
+    {
+      "title": "Details Panel Visible",
+      "description": "Details panel confirms service response after centralized logging path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-details\"]",
+      "highlight": "[data-testid=\"student-enrollment-details\"]"
+    },
+    {
+      "title": "PostgreSQL Enrolment Read-Back",
+      "description": "Persistence remains source of truth alongside intelligence emit contract",
+      "action": "db_check",
+      "query": "SELECT id, status FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND id = 'a1000000-0000-0000-0000-000000000031'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Alerts Contract Blocked",
+      "description": "Unauthenticated GET on in-service alerts returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/enrollment/alerts",
+      "expectedStatus": 401
+    }
+  ]
+}

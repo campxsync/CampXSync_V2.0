@@ -114,7 +114,11 @@ export function Sidebar({
         </div>
 
         {/* Navigation List */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1" aria-label="Main Navigation">
+        <nav
+          className="flex-1 overflow-y-auto py-4 px-2 space-y-1"
+          aria-label="Main Navigation"
+          data-testid={`${role}-main-nav`}
+        >
           {items.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== `/${role}` && pathname.startsWith(item.href));
@@ -136,6 +140,7 @@ export function Sidebar({
                 )}
                 title={collapsed && !mobileOpen ? item.title : undefined}
                 aria-current={isActive ? 'page' : undefined}
+                data-testid={`${role}-nav-${item.href.replace(/\//g, '-').replace(/^-/, '') || 'home'}`}
               >
                 <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-[#E3E8EF]/70')} />
                 {(!collapsed || mobileOpen) && <span className="truncate">{item.title}</span>}

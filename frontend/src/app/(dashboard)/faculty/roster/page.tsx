@@ -28,19 +28,27 @@ export default function FacultyRosterPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
+    <main className="mx-auto max-w-3xl space-y-4 p-6" data-testid="faculty-roster-desk">
       <div>
-        <h1 className="text-xl font-semibold text-[#0B1F3A]">My section rosters</h1>
+        <h1 className="text-xl font-semibold text-[#0B1F3A]" data-testid="faculty-roster-heading">
+          My section rosters
+        </h1>
         <p className="text-sm text-[#475569]">
           Students enrolled in the sections assigned to you. Other faculty sections stay hidden.
         </p>
       </div>
       {sections.length === 0 && !error ? (
-        <p className="text-sm text-[#475569]">No sections are assigned to you yet.</p>
+        <p className="text-sm text-[#475569]" data-testid="faculty-roster-empty">
+          No sections are assigned to you yet.
+        </p>
       ) : null}
-      <ul className="space-y-3">
+      <ul className="space-y-3" data-testid="faculty-roster-list">
         {sections.map((section) => (
-          <li key={section.sectionId} className="rounded border border-[#E3E8EF] bg-white p-4">
+          <li
+            key={section.sectionId}
+            className="rounded border border-[#E3E8EF] bg-white p-4"
+            data-testid={`faculty-roster-section-${section.sectionId}`}
+          >
             <p className="text-sm font-medium text-[#0B1F3A]">
               {section.courseCode} · {section.enrolledCount} of {section.capacity} seats filled
             </p>
@@ -49,14 +57,20 @@ export default function FacultyRosterPage() {
             ) : (
               <ul className="mt-2 space-y-1 text-sm text-[#0B1F3A]">
                 {section.studentIds.map((studentId) => (
-                  <li key={studentId}>Student {studentId.slice(0, 8)}…</li>
+                  <li key={studentId} data-testid={`faculty-roster-student-${studentId}`}>
+                    Student {studentId.slice(0, 8)}…
+                  </li>
                 ))}
               </ul>
             )}
           </li>
         ))}
       </ul>
-      {error ? <pre className="overflow-auto rounded bg-[#FEF2F2] p-3 text-xs text-[#991B1B]">{error}</pre> : null}
+      {error ? (
+        <pre className="overflow-auto rounded bg-[#FEF2F2] p-3 text-xs text-[#991B1B]" data-testid="faculty-roster-error">
+          {error}
+        </pre>
+      ) : null}
     </main>
   );
 }

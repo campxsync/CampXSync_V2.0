@@ -1,0 +1,61 @@
+{
+  "storyId": "STM-03-EN-003",
+  "title": "Concurrent seat allocation, transaction integrity and idempotent registration",
+  "slowMo": 350,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Course Registration Desk to manage section capacity",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Verify Enrolment Desk Loaded",
+      "description": "College enrolment desk loads with catalogue/capacity controls",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-heading\"]",
+      "highlight": "[data-testid=\"college-enrollment-heading\"]"
+    },
+    {
+      "title": "Open Catalogue Section",
+      "description": "Catalogue section exposes capacity input used for seat allocation",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-catalogue-section\"]",
+      "highlight": "[data-testid=\"college-enrollment-catalogue-section\"]"
+    },
+    {
+      "title": "Select Academic Term",
+      "description": "Bind the live academic term so section capacity reads go through Java persistence",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Confirm Term Bound",
+      "description": "UI confirms term selection for capacity-scoped operations",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-success\"]",
+      "highlight": "[data-testid=\"college-enrollment-success\"]"
+    },
+    {
+      "title": "PostgreSQL Section Capacity Integrity Read-Back",
+      "description": "Confirm enrolment sections store capacity with enrolled_count never exceeding capacity",
+      "action": "db_check",
+      "query": "SELECT id, capacity, enrolled_count FROM stu.enrolment_sections WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND enrolled_count <= capacity LIMIT 5",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Register Blocked",
+      "description": "API Gateway blocks unauthenticated POST registration (seat allocation) with HTTP 401",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments/a1000000-0000-0000-0000-000000000031/register",
+      "body": {
+        "selections": [],
+        "idempotencyKey": "demo-en003"
+      },
+      "expectedStatus": 401
+    }
+  ]
+}

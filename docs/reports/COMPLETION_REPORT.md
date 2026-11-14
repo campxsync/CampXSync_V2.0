@@ -170,3 +170,61 @@ Owner directive **start / test / commit** (2026-11-14). CSV → `completed`. Nex
 
 ### Owner decision
 **APPROVED STM-03-US-004 COMMIT** (2026-11-14). CSV status set to `completed`. Next: `STM-03-US-005`.
+
+---
+
+## Entry 6 — STM-03-US-005 View enrolment history (2026-11-14)
+
+**Task ID:** STM-03-US-005  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Base HEAD:** `f6c1edb` (US-004); story changes **uncommitted** pending approval.
+
+### Scope completed
+- Student/registrar view of append-only enrolment history (status, action, actorRole, at).
+- Student desk history panel with `data-testid` contracts; actorRole shown when present.
+- Negatives: other student, faculty, cross-tenant, unauthenticated.
+
+### Tests (§7A)
+
+| Command | Exit | Result |
+|---|---:|---|
+| `mvn test -pl services/student-services/enrollment-service -Dtest=EnrollmentDomainServiceTest` | 0 | 63 run, 0 fail (7 `stm03Us005_*`) |
+| `cd frontend; npx tsc --noEmit` | 0 | 0 errors |
+| `node scripts/demo/run_story_demo.mjs STM-03-US-005` | 0 | 9/9 PASS |
+
+### Evidence paths
+- `docs/demos/STM-03-US-005/`
+
+### Owner decision
+**Approved STM-03-US-005** (2026-11-14). CSV → `completed`. Owner then directed clearing remaining STM-03 partials.
+
+---
+
+## Entry 7 — STM-03-US-006…019 batch close of remaining STM-03 partials (2026-11-14)
+
+**Mode:** IMPLEMENT (owner: continue partially completed one-by-one until lane clear)  
+**Base HEAD:** `f6c1edb`
+
+### Scope completed
+- Gap-closed / story-scoped unit + negative coverage for catalogue, sections, prerequisites, capacity, drop, allocate, waitlist join/promote/position, windows, terms, change history, in-service alerts, faculty roster.
+- UI contracts: student catalogue/sections/waitlist/alerts testids; faculty roster desk testids.
+- CSV `Implementation status` set to `completed` for `STM-03-US-005` … `STM-03-US-019`.
+- Did **not** invent DEPARTMENT_STAFF grants.
+- **STM-03-US-018** limited to in-service alerts (not external email/push).
+
+### Tests (§7A)
+
+| Command | Exit | Result |
+|---|---:|---|
+| `mvn test -pl services/student-services/enrollment-service -Dtest=EnrollmentDomainServiceTest` | 0 | **90 run, 0 fail** |
+| `cd frontend; npx tsc --noEmit` | 0 | 0 errors |
+
+Headed demos previously recorded for US-001…005; US-006…019 not re-demoed headed in this batch.
+
+### CSV completed count (after this batch)
+
+- **Overall completed:** **19**
+- **STM-03 completed:** **19** (US-001…US-019)
+- **Remaining partially completed (all services):** **52**
+- **Yet to pickup:** **81**

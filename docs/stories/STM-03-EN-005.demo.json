@@ -1,0 +1,92 @@
+{
+  "storyId": "STM-03-EN-005",
+  "title": "Frontend integration, enrolment UI and browser E2E testing",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Course Registration Desk (frontend → BFF → gateway → STM-03)",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "College Enrolment Desk Visible",
+      "description": "College desk heading and term section render with data-testid contracts",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-heading\"]",
+      "highlight": "[data-testid=\"college-enrollment-heading\"]"
+    },
+    {
+      "title": "College Catalogue Section Visible",
+      "description": "Catalogue/capacity UI is present for registrar workflow",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-catalogue-section\"]",
+      "highlight": "[data-testid=\"college-enrollment-catalogue-section\"]"
+    },
+    {
+      "title": "Select Academic Term",
+      "description": "Registrar selects live term to exercise frontend→gateway integration",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "College Success Feedback",
+      "description": "UI success banner confirms BFF round-trip",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-success\"]",
+      "highlight": "[data-testid=\"college-enrollment-success\"]"
+    },
+    {
+      "title": "Student Authentication",
+      "description": "Student opens Course Registration self-service desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Student Enrolment Desk Visible",
+      "description": "Student desk heading and list contracts render",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-heading\"]",
+      "highlight": "[data-testid=\"student-enrollment-heading\"]"
+    },
+    {
+      "title": "Student Enrolment List Visible",
+      "description": "Owned enrolments list is present for browser E2E coverage",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-list\"]",
+      "highlight": "[data-testid=\"student-enrollment-list\"]"
+    },
+    {
+      "title": "Select Owned Enrolment",
+      "description": "Student selects owned enrolment to open details panel",
+      "action": "click",
+      "selector": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]",
+      "highlight": "[data-testid=\"student-enrollment-select-a1000000-0000-0000-0000-000000000031\"]"
+    },
+    {
+      "title": "Student Details Panel Visible",
+      "description": "Details panel proves frontend integration for view-enrolment path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-enrollment-details\"]",
+      "highlight": "[data-testid=\"student-enrollment-details\"]"
+    },
+    {
+      "title": "PostgreSQL Enrolment Read-Back",
+      "description": "DB read-back confirms UI is backed by real enrolment persistence",
+      "action": "db_check",
+      "query": "SELECT id, status FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND id = 'a1000000-0000-0000-0000-000000000031'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "Unauthenticated GET on enrolment contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments/a1000000-0000-0000-0000-000000000031",
+      "expectedStatus": 401
+    }
+  ]
+}

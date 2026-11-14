@@ -617,4 +617,95 @@ public class GuardianDomainServiceTest {
             assertEquals("GUARDIAN_VIEW_FORBIDDEN", ex.getCode());
         }
     }
+
+    // --- STM-05 story-scoped coverage (US-001…014 partials) ---
+
+    @Test
+    public void stm05Us001_registrarAddsGuardian() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Neha", "Shah", "mother",
+                "neha@example.com", "9000000001", true);
+        assertEquals("ACTIVE", link.status);
+        assertEquals(1, service.listGuardians(studentActor, student).size());
+    }
+
+    @Test
+    public void stm05Us002_updateGuardianRelationship() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother",
+                null, null, false);
+        GuardianDomainService.GuardianLink updated = service.updateGuardian(registrar, link.id, "father", true);
+        assertEquals("FATHER", updated.relationship);
+        assertTrue(updated.primary);
+    }
+
+    @Test
+    public void stm05Us003_004_submitAndReviewEvidence() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother",
+                null, null, true);
+        service.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
+        GuardianDomainService.ReviewDecision review = service.reviewEvidence(registrar, link.id, "VERIFY",
+                "IDENTITY_CONFIRMED");
+        assertEquals("VERIFIED", review.decision);
+    }
+
+    @Test
+    public void stm05Us005_deactivateGuardianKeepsHistory() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        GuardianDomainService.Deactivation ended = service.deactivateGuardian(registrar, link.id, "DISPUTE");
+        assertEquals("ENDED", ended.link.status);
+        assertTrue(!ended.hardDeleted);
+    }
+
+    @Test
+    public void stm05Us006_008_maintainAndRetrieveEmergencyContacts() {
+        GuardianDomainService.EmergencyContact contact = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000011");
+        assertEquals("ACTIVE", contact.status);
+        assertEquals(1, service.listEmergencyContacts(studentActor, student).size());
+        service.updateEmergencyContact(studentActor, contact.id, student, "Priya Rao", "mother", "9000000012");
+        GuardianDomainService.EmergencyContact removed = service.removeEmergencyContact(studentActor, contact.id, student);
+        assertEquals("INACTIVE", removed.status);
+        assertEquals("INACTIVE", service.listEmergencyContacts(studentActor, student).get(0).status);
+    }
+
+    @Test
+    public void stm05Us009_010_grantAccessAndStudentSetsConsentPeriod() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        GuardianDomainService.AccessGrant grant = service.grantAccess(registrar, link.id,
+                java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-12-31");
+        assertTrue(grant.viewAcademics);
+        assertTrue(grant.viewFees);
+        GuardianDomainService.AccessDecision period = service.setAccessPeriod(studentActor, link.id,
+                "2026-01-01", "2027-12-31");
+        assertEquals("PERIOD_SET", period.accessState);
+    }
+
+    @Test
+    public void stm05Us011_012_revokeAccessAndAuthorizedView() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "ACADEMIC_PROGRESS", "2027-12-31");
+        service.setAccessPeriod(registrar, link.id, "2026-11-01", "2027-12-31");
+        GuardianDomainService.AuthorizedView view = service.viewAuthorizedInformation(studentActor, link.id);
+        assertTrue(view.categories.contains("ACADEMICS"));
+        service.revokeAccess(studentActor, link.id);
+        try {
+            service.viewAuthorizedInformation(studentActor, link.id);
+            fail("revoked grant must deny view");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm05Us013_014_historyAndRefuseBlanketGrant() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        try {
+            service.grantAccess(registrar, link.id, java.util.Arrays.asList("EVERYTHING"), "FAMILY_SUPPORT", "2027-12-31");
+            fail("blanket grant must be refused");
+        } catch (GuardianException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("CATEGORY_UNSUPPORTED", ex.getCode());
+        }
+        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        assertTrue(service.listRelationshipHistory(registrar, student).size() >= 1);
+    }
 }

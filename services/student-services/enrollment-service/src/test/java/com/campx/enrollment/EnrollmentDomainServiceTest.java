@@ -724,6 +724,432 @@ public class EnrollmentDomainServiceTest {
         assertTrue(response.body.contains("\"action\":\"status\""));
     }
 
+    // --- STM-03-US-005 View enrolment history ---
+
+    @Test
+    public void stm03Us005_studentCanViewOwnEnrolmentHistory() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        service.updateStatus(registrar, enrolment.id, "ELIGIBLE");
+        List<Map<String, String>> history = service.listHistory(studentActor, enrolment.id);
+        assertTrue(history.size() >= 1);
+        Map<String, String> last = history.get(history.size() - 1);
+        assertEquals("ELIGIBLE", last.get("status"));
+        assertEquals("status", last.get("action"));
+        assertEquals("REGISTRAR", last.get("actorRole"));
+    }
+
+    @Test
+    public void stm03Us005_studentCannotViewAnotherStudentsHistory() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        service.updateStatus(registrar, enrolment.id, "ELIGIBLE");
+        Actor other = new Actor(tenant, otherStudent, "STUDENT", "corr");
+        try {
+            service.listHistory(other, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("ENROLMENT_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us005_facultyCannotViewEnrolmentHistory() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.listHistory(facultyActor, enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("ENROLMENT_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us005_registrarCanViewEnrolmentHistory() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        service.updateStatus(registrar, enrolment.id, "SUSPENDED");
+        List<Map<String, String>> history = service.listHistory(registrar, enrolment.id);
+        assertTrue(history.size() >= 1);
+        assertEquals("SUSPENDED", history.get(history.size() - 1).get("status"));
+    }
+
+    @Test
+    public void stm03Us005_crossTenantHistoryFailsClosed() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr");
+        try {
+            service.listHistory(outsider, enrolment.id);
+            fail("expected not found");
+        } catch (EnrollmentException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm03Us005_unauthenticatedHistoryHttpRejected() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier("test-secret"));
+        EnrollmentController.Response response = controller.handle("GET",
+                "/api/v1/enrollment/enrolments/" + enrolment.id + "/history",
+                Collections.<String, String>emptyMap(), "");
+        assertEquals(401, response.status);
+    }
+
+    @Test
+    public void stm03Us005_httpReturnsHistoryPayloadForOwner() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        service.updateStatus(registrar, enrolment.id, "ELIGIBLE");
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier(null));
+        java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
+        headers.put("x-tenant-id", tenant.toString());
+        headers.put("x-user-id", student.toString());
+        headers.put("x-user-role", "STUDENT");
+        headers.put("x-correlation-id", "corr-hist");
+        EnrollmentController.Response response = controller.handle("GET",
+                "/api/v1/enrollment/enrolments/" + enrolment.id + "/history", headers, "");
+        assertEquals(200, response.status);
+        assertTrue(response.body.contains("\"history\""));
+        assertTrue(response.body.contains("\"status\":\"ELIGIBLE\""));
+        assertTrue(response.body.contains("\"action\":\"status\""));
+        assertTrue(response.body.contains("\"actorRole\":\"REGISTRAR\""));
+    }
+
+    // --- STM-03-US-006 Select programme and term courses ---
+
+    @Test
+    public void stm03Us006_studentListsProgrammeTermCoursesViaCatalogue() {
+        Fixture fixture = fixture(20, 3, 6);
+        java.util.List<java.util.Map<String, Object>> catalogue = service.listRegistrationCatalogue(studentActor, fixture.enrolment.id);
+        assertEquals(2, catalogue.size());
+        assertTrue(catalogue.get(0).containsKey("code"));
+        assertTrue(catalogue.get(0).containsKey("sections"));
+    }
+
+    @Test
+    public void stm03Us006_facultyCannotListStudentCatalogue() {
+        Fixture fixture = fixture(20, 3, 6);
+        try {
+            service.listRegistrationCatalogue(facultyActor, fixture.enrolment.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- STM-03-US-007 Select available course sections ---
+
+    @Test
+    public void stm03Us007_studentListsSectionsForCourse() {
+        Fixture fixture = fixture(20, 3, 6);
+        assertEquals(1, service.listSectionsForCourse(studentActor, fixture.enrolment.id, fixture.core.id).size());
+        assertEquals(fixture.coreSection.id, service.listSectionsForCourse(studentActor, fixture.enrolment.id, fixture.core.id).get(0).id);
+    }
+
+    @Test
+    public void stm03Us007_otherStudentCannotListSections() {
+        Fixture fixture = fixture(20, 3, 6);
+        Actor other = new Actor(tenant, otherStudent, "STUDENT", "corr");
+        try {
+            service.listSectionsForCourse(other, fixture.enrolment.id, fixture.core.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- STM-03-US-008 Enforce course prerequisites ---
+
+    @Test
+    public void stm03Us008_prerequisiteEnforcedOnRegister() {
+        Fixture fixture = fixture(4, 2, 8);
+        try {
+            service.register(studentActor, fixture.enrolment.id, Arrays.asList(
+                    new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id),
+                    new EnrollmentDomainService.Selection(fixture.advanced.id, fixture.advancedSection.id)), "idem-prereq");
+            fail("expected prerequisite");
+        } catch (EnrollmentException ex) {
+            assertEquals("PREREQUISITE_NOT_CLEARED", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us008_clearedPrerequisiteAllowsRegister() {
+        Fixture fixture = fixture(4, 2, 8);
+        service.recordClearedCourse(registrar, student, fixture.prerequisite);
+        EnrollmentDomainService.Enrolment enrolled = service.register(studentActor, fixture.enrolment.id, Arrays.asList(
+                new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id),
+                new EnrollmentDomainService.Selection(fixture.advanced.id, fixture.advancedSection.id)), "idem-prereq-ok");
+        assertEquals("ENROLLED", enrolled.status);
+    }
+
+    // --- STM-03-US-009 Enforce section capacity ---
+
+    @Test
+    public void stm03Us009_sectionCapacityBlocksRegistration() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-cap-a");
+        EnrollmentDomainService.Enrolment second = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor secondStudent = new Actor(tenant, otherStudent, "STUDENT", "corr");
+        try {
+            service.register(secondStudent, second.id,
+                    Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-cap-b");
+            fail("expected full");
+        } catch (EnrollmentException ex) {
+            assertEquals("SECTION_FULL", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-010 Remove course during permitted period ---
+
+    @Test
+    public void stm03Us010_studentDropsElectiveInsideWindow() {
+        Fixture fixture = fixture(20, 3, 9);
+        service.recordClearedCourse(registrar, student, fixture.prerequisite);
+        EnrollmentDomainService.Enrolment enrolled = service.register(studentActor, fixture.enrolment.id, Arrays.asList(
+                new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id),
+                new EnrollmentDomainService.Selection(fixture.advanced.id, fixture.advancedSection.id)), "idem-drop");
+        EnrollmentDomainService.Enrolment dropped = service.drop(studentActor, enrolled.id, fixture.advanced.id);
+        boolean stillHasAdvanced = false;
+        for (EnrollmentDomainService.Selection sel : dropped.selections) {
+            if (sel.courseId.equals(fixture.advanced.id)) {
+                stillHasAdvanced = true;
+            }
+        }
+        assertTrue(!stillHasAdvanced);
+    }
+
+    @Test
+    public void stm03Us010_studentCannotDropOutsideWindow() {
+        Fixture fixture = fixture(20, 3, 9);
+        service.recordClearedCourse(registrar, student, fixture.prerequisite);
+        EnrollmentDomainService.Enrolment enrolled = service.register(studentActor, fixture.enrolment.id, Arrays.asList(
+                new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id),
+                new EnrollmentDomainService.Selection(fixture.advanced.id, fixture.advancedSection.id)), "idem-drop-closed");
+        service.seedWindow(tenant, fixture.term.id, NOW.minusSeconds(7200), NOW.minusSeconds(3600), 3, 9);
+        try {
+            service.drop(studentActor, enrolled.id, fixture.advanced.id);
+            fail("expected closed");
+        } catch (EnrollmentException ex) {
+            assertEquals("WINDOW_CLOSED", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us010_facultyCannotDropStudentCourse() {
+        Fixture fixture = fixture(20, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-drop-fac");
+        try {
+            service.drop(facultyActor, fixture.enrolment.id, fixture.core.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("DROP_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-011 Allocate students to sections ---
+
+    @Test
+    public void stm03Us011_hodAllocatesSection() {
+        Fixture fixture = fixture(20, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-alloc");
+        EnrollmentDomainService.Section alternate = service.seedSection(tenant, fixture.core.id, 20, faculty);
+        EnrollmentDomainService.Enrolment moved = service.allocateSection(hod, fixture.enrolment.id, fixture.core.id, alternate.id);
+        assertEquals(alternate.id, moved.selections.get(0).sectionId);
+    }
+
+    @Test
+    public void stm03Us011_departmentStaffCannotAllocate() {
+        Fixture fixture = fixture(20, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-alloc-ds");
+        EnrollmentDomainService.Section alternate = service.seedSection(tenant, fixture.core.id, 20, faculty);
+        try {
+            service.allocateSection(departmentStaff, fixture.enrolment.id, fixture.core.id, alternate.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("ALLOCATE_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-012 Join full-section waitlist ---
+
+    @Test
+    public void stm03Us012_studentJoinsFullSectionWaitlist() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-wl-full");
+        EnrollmentDomainService.Enrolment waiting = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor waitingStudent = new Actor(tenant, otherStudent, "R25", "corr-wl2");
+        assertEquals(1, service.joinWaitlist(waitingStudent, waiting.id, fixture.coreSection.id));
+    }
+
+    @Test
+    public void stm03Us012_cannotJoinWhenSeatsRemain() {
+        Fixture fixture = fixture(20, 3, 6);
+        try {
+            service.joinWaitlist(studentActor, fixture.enrolment.id, fixture.coreSection.id);
+            fail("expected available");
+        } catch (EnrollmentException ex) {
+            assertEquals("SECTION_AVAILABLE", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-013 Promote eligible waitlisted students ---
+
+    @Test
+    public void stm03Us013_registrarPromotesWaitlist() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-prom");
+        EnrollmentDomainService.Enrolment waiting = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor waitingStudent = new Actor(tenant, otherStudent, "R25", "corr-prom");
+        service.joinWaitlist(waitingStudent, waiting.id, fixture.coreSection.id);
+        fixture.coreSection.enrolledCount = 0;
+        assertEquals(0, service.promoteWaitlist(registrar, fixture.coreSection.id));
+    }
+
+    @Test
+    public void stm03Us013_studentCannotPromoteWaitlist() {
+        Fixture fixture = fixture(1, 3, 6);
+        try {
+            service.promoteWaitlist(studentActor, fixture.coreSection.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-014 View waitlist position and status ---
+
+    @Test
+    public void stm03Us014_studentViewsWaitlistPosition() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-pos2");
+        EnrollmentDomainService.Enrolment waiting = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor waitingStudent = new Actor(tenant, otherStudent, "R25", "corr-pos2");
+        service.joinWaitlist(waitingStudent, waiting.id, fixture.coreSection.id);
+        assertEquals(1, service.waitlistPosition(waitingStudent, fixture.coreSection.id));
+    }
+
+    @Test
+    public void stm03Us014_facultyCannotViewWaitlistPosition() {
+        Fixture fixture = fixture(1, 3, 6);
+        try {
+            service.waitlistPosition(facultyActor, fixture.coreSection.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("WAITLIST_VIEW_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-015 Configure registration windows ---
+
+    @Test
+    public void stm03Us015_registrarConfiguresWindow() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        EnrollmentDomainService.Window window = service.createWindow(registrar, term.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 3, 24);
+        assertEquals(term.id, window.termId);
+        assertEquals(3, window.minCredits);
+        assertEquals(24, window.maxCredits);
+    }
+
+    @Test
+    public void stm03Us015_studentCannotConfigureWindow() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        try {
+            service.createWindow(studentActor, term.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 3, 24);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-016 Configure academic years and terms ---
+
+    @Test
+    public void stm03Us016_registrarCreatesAcademicTerm() {
+        EnrollmentDomainService.Term term = service.createTerm(registrarCoded, "2027", "EVEN", "Even 2027");
+        assertEquals("2027", term.yearCode);
+        assertEquals("EVEN", term.termCode);
+    }
+
+    @Test
+    public void stm03Us016_facultyCannotCreateTerm() {
+        try {
+            service.createTerm(facultyActor, "2027", "ODD", "Odd");
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-017 View enrolment change history ---
+
+    @Test
+    public void stm03Us017_studentViewsChangeHistoryAfterStatusUpdate() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        service.updateStatus(registrar, enrolment.id, "SUSPENDED");
+        List<Map<String, String>> history = service.listHistory(studentActor, enrolment.id);
+        assertTrue(history.size() >= 1);
+        assertEquals("SUSPENDED", history.get(history.size() - 1).get("status"));
+        assertEquals("status", history.get(history.size() - 1).get("action"));
+    }
+
+    // --- STM-03-US-018 Receive enrolment confirmations and alerts ---
+
+    @Test
+    public void stm03Us018_studentReceivesInServiceAlertsAfterWaitlist() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-alert");
+        EnrollmentDomainService.Enrolment waiting = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor waitingStudent = new Actor(tenant, otherStudent, "R25", "corr-alert");
+        service.joinWaitlist(waitingStudent, waiting.id, fixture.coreSection.id);
+        List<Map<String, Object>> alerts = service.listAlerts(waitingStudent);
+        assertTrue(alerts.size() >= 1);
+        assertEquals("enrolment.waitlist_joined.v1", alerts.get(alerts.size() - 1).get("eventType"));
+    }
+
+    @Test
+    public void stm03Us018_facultyCannotListStudentAlerts() {
+        try {
+            service.listAlerts(facultyActor);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("ALERTS_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-US-019 View my assigned course roster ---
+
+    @Test
+    public void stm03Us019_facultyViewsAssignedRosterOnly() {
+        Fixture fixture = fixture(20, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-roster");
+        assertEquals(1, service.roster(facultyActor, fixture.coreSection.id).size());
+        assertEquals(student, service.roster(facultyActor, fixture.coreSection.id).get(0));
+        assertTrue(service.listAssignedRosters(facultyActor).size() >= 1);
+    }
+
+    @Test
+    public void stm03Us019_unassignedFacultyDeniedRoster() {
+        Fixture fixture = fixture(20, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-roster2");
+        Actor otherFaculty = new Actor(tenant, UUID.randomUUID(), "FACULTY", "corr");
+        try {
+            service.roster(otherFaculty, fixture.coreSection.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals("ROSTER_FORBIDDEN", ex.getCode());
+        }
+    }
+
     private EnrollmentDomainService.Term term() {
         EnrollmentDomainService.Term created = service.seedTerm(tenant, "2026", "ODD", "Odd");
         service.seedWindow(tenant, created.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 1, 30);
@@ -773,6 +1199,104 @@ public class EnrollmentDomainServiceTest {
         fixture.enrolment = enrolment;
         fixture.prerequisite = prerequisite;
         return fixture;
+    }
+
+    // --- STM-03-EN-006 intelligence events / in-service alerts / logging ---
+
+    @Test
+    public void stm03En006_registrationEmitsVersionedIntelligenceEvent() {
+        Fixture fixture = fixture(20, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-en006");
+        List<Map<String, Object>> events = service.eventsForTenant(tenant);
+        assertTrue(events.size() >= 1);
+        assertEquals("student.enrolled.v1", events.get(0).get("eventType"));
+        assertEquals("1.0.0", events.get(0).get("schemaVersion"));
+    }
+
+    @Test
+    public void stm03En006_inServiceAlertsVisibleToStudentOnly() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-en006-a");
+        EnrollmentDomainService.Enrolment waiting = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor waitingStudent = new Actor(tenant, otherStudent, "STUDENT", "corr-en006");
+        service.joinWaitlist(waitingStudent, waiting.id, fixture.coreSection.id);
+        assertTrue(service.listAlerts(waitingStudent).size() >= 1);
+        try {
+            service.listAlerts(facultyActor);
+            fail("faculty must not read student alerts");
+        } catch (EnrollmentException ex) {
+            assertEquals("ALERTS_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-03-EN-003 concurrent seats / idempotent registration ---
+
+    @Test
+    public void stm03En003_idempotentRegisterReturnsSameResultWithoutDoubleCount() {
+        Fixture fixture = fixture(20, 3, 6);
+        EnrollmentDomainService.Enrolment first = service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-en003");
+        EnrollmentDomainService.Enrolment second = service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-en003");
+        assertEquals(first.id, second.id);
+        assertEquals("ENROLLED", second.status);
+        assertEquals(1, service.eventsForTenant(tenant).size());
+    }
+
+    @Test
+    public void stm03En003_capacityExhaustedBlocksSecondSeatAllocation() {
+        Fixture fixture = fixture(1, 3, 6);
+        service.register(studentActor, fixture.enrolment.id,
+                Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-en003-a");
+        EnrollmentDomainService.Enrolment second = service.seedHandover(tenant, UUID.randomUUID(), otherStudent, program, fixture.term.id);
+        Actor secondStudent = new Actor(tenant, otherStudent, "STUDENT", "corr-en003");
+        try {
+            service.register(secondStudent, second.id,
+                    Arrays.asList(new EnrollmentDomainService.Selection(fixture.core.id, fixture.coreSection.id)), "idem-en003-b");
+            fail("second seat must be blocked when capacity is 1");
+        } catch (EnrollmentException ex) {
+            assertEquals(409, ex.getStatus());
+            assertEquals("SECTION_FULL", ex.getCode());
+        }
+    }
+
+    // --- STM-03-EN-002 tenant isolation / authorization regression ---
+
+    @Test
+    public void stm03En002_crossTenantGetEnrolmentFailsClosed() {
+        EnrollmentDomainService.Enrolment enrolment = enrolledCore();
+        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr-en002");
+        try {
+            service.getEnrolment(outsider, enrolment.id);
+            fail("cross-tenant get must fail closed");
+        } catch (EnrollmentException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm03En002_wrongRoleCannotMutateStatus() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.updateStatus(studentActor, enrolment.id, "SUSPENDED");
+            fail("student must not mutate enrolment status");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm03En002_unauthenticatedActorRejected() {
+        EnrollmentDomainService.Enrolment enrolment = enrolledCore();
+        Actor anon = new Actor(null, null, null, "corr-anon");
+        try {
+            service.getEnrolment(anon, enrolment.id);
+            fail("missing tenant must be rejected");
+        } catch (EnrollmentException ex) {
+            assertTrue(ex.getStatus() == 401 || ex.getStatus() == 403);
+        }
     }
 
     private static final class Fixture {

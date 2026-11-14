@@ -1330,4 +1330,118 @@ public class DocumentDomainServiceTest {
         assertNotNull(info.retentionCutoff);
         assertFalse(info.isExpired);
     }
+
+    // --- STM-06 story-scoped coverage (US-001…016 partials) ---
+
+    private DocumentType stm06Type(String code) {
+        ConfigureDocumentTypeRequest dt = new ConfigureDocumentTypeRequest();
+        dt.code = code;
+        dt.name = "Story " + code;
+        dt.retentionPolicyCode = "RET_1_YEAR";
+        return service.configureDocumentType(adminTenantA, dt);
+    }
+
+    @Test
+    public void stm06Us001_002_configureTypeAndStageRequirement() {
+        DocumentType type = stm06Type("DOC-STORY-001");
+        assertEquals("DOC-STORY-001", type.code);
+        DefineStageRequirementRequest req = new DefineStageRequirementRequest();
+        req.academicStage = "ADMISSION";
+        req.documentTypeId = type.id;
+        req.isMandatory = true;
+        req.minCount = 1;
+        req.maxCount = 1;
+        StageDocumentRequirement stage = service.defineStageRequirement(adminTenantA, req);
+        assertTrue(stage.isMandatory);
+        assertEquals("ADMISSION", stage.academicStage);
+    }
+
+    @Test
+    public void stm06Us003_004_005_checklistUploadAndStatus() {
+        DocumentType type = stm06Type("DOC-STORY-003");
+        DefineStageRequirementRequest req = new DefineStageRequirementRequest();
+        req.academicStage = "ADMISSION";
+        req.documentTypeId = type.id;
+        req.isMandatory = true;
+        req.minCount = 1;
+        req.maxCount = 1;
+        StageDocumentRequirement stage = service.defineStageRequirement(adminTenantA, req);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.stageRequirementId = stage.id;
+        up.title = "Admission ID";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        assertNotNull(uploaded.id);
+        assertEquals("SUBMITTED", uploaded.status);
+
+        List<StudentChecklistItem> checklist = service.getStudentChecklist(
+                studentTenantA, studentTenantA.getUserId(), "ADMISSION", null);
+        assertTrue(checklist.size() >= 1);
+        List<StudentDocument> docs = service.listStudentDocuments(studentTenantA, studentTenantA.getUserId(), null);
+        assertEquals(1, docs.size());
+    }
+
+    @Test
+    public void stm06Us007_008_009_011_resubmitReviewAndVerificationHistory() {
+        DocumentType type = stm06Type("DOC-STORY-007");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Proof";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        VerificationDecisionRequest reject = new VerificationDecisionRequest();
+        reject.decision = "REJECT";
+        reject.rejectionReason = "Please rescan";
+        service.verifyDocument(adminTenantA, uploaded.id, reject);
+
+        ResubmitDocumentRequest resubmit = new ResubmitDocumentRequest();
+        resubmit.fileName = "proof-v2.pdf";
+        resubmit.mimeType = "application/pdf";
+        resubmit.sizeBytes = 2048L;
+        resubmit.checksumSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        resubmit.changeNote = "Clearer scan";
+        StudentDocument replaced = service.resubmitStudentDocument(studentTenantA, uploaded.id, resubmit);
+        assertEquals("SUBMITTED", replaced.status);
+
+        List<VerificationQueueItem> queue = service.getVerificationQueue(adminTenantA, null);
+        assertTrue(queue.size() >= 1);
+
+        VerificationDecisionRequest approve = new VerificationDecisionRequest();
+        approve.decision = "APPROVE";
+        approve.verificationCode = "VERIFIED-STORY-011";
+        approve.verificationNotes = "OK";
+        service.verifyDocument(adminTenantA, uploaded.id, approve);
+
+        DocumentVerificationRecord latest = service.getLatestVerification(studentTenantA, uploaded.id);
+        assertNotNull(latest);
+        assertEquals("VALID", latest.result);
+    }
+
+    @Test
+    public void stm06Us014_016_configureExpiryAndEnforceRetentionRead() {
+        ConfigureDocumentTypeRequest dt = new ConfigureDocumentTypeRequest();
+        dt.code = "DOC-STORY-EXP";
+        dt.name = "Expiring Proof";
+        dt.retentionPolicyCode = "RET_1_YEAR";
+        DocumentType type = service.configureDocumentType(adminTenantA, dt);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Expiring upload";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        up.expiresAt = Instant.parse("2026-12-31T00:00:00Z");
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        DocumentDomainService.RetentionInfo info = service.getRetentionInfo(studentTenantA, uploaded.id);
+        assertEquals("RET_1_YEAR", info.retentionPolicyCode);
+        assertNotNull(info.retentionCutoff);
+        assertFalse(info.isExpired);
+        assertNotNull(info.expiresAt);
+    }
 }

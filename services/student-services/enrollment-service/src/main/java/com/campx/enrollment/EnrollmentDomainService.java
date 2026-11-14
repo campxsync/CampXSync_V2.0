@@ -243,6 +243,12 @@ public class EnrollmentDomainService {
         return available;
     }
 
+    /**
+     * Returns enrolment status-change history for the owning student or registrar.
+     * Prefer persisted append-only rows when available; otherwise in-memory history.
+     *
+     * @throws EnrollmentException 401/403/404 via {@link #getEnrolment(Actor, UUID)}
+     */
     public List<Map<String, String>> listHistory(Actor actor, UUID enrolmentId) {
         Enrolment enrolment = getEnrolment(actor, enrolmentId);
         if (persistence != null && (isRegistrar(actor) || (isStudent(actor) && ownsEnrolment(actor, enrolment)))) {

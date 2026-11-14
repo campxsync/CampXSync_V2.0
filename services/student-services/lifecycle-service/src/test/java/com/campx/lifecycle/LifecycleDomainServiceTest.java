@@ -7,9 +7,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class LifecycleDomainServiceTest {
@@ -208,5 +211,196 @@ public class LifecycleDomainServiceTest {
             assertEquals(403, ex.getStatus());
             assertEquals("ADVISOR_FORBIDDEN", ex.getCode());
         }
+    }
+
+    // --- STM-04-US-001 View current lifecycle status ---
+
+    @Test
+    public void stm04Us001_studentViewsOwnStatus() {
+        assertEquals("ACTIVE", service.getStatus(studentActor, student).status);
+    }
+
+    @Test
+    public void stm04Us001_studentCannotViewAnotherStatus() {
+        try {
+            service.getStatus(studentActor, otherStudent);
+            fail("expected forbidden");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("VIEW_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    // --- STM-04-US-002 Update lifecycle status through authorized workflow ---
+
+    @Test
+    public void stm04Us002_registrarAdministrativeTransition() {
+        LifecycleDomainService.LifecycleStatus updated = service.transitionStatus(registrar, student, "ON_LEAVE", "Admin leave");
+        assertEquals("ON_LEAVE", updated.status);
+    }
+
+    @Test
+    public void stm04Us002_studentCannotAdministrativelyTransition() {
+        try {
+            service.transitionStatus(studentActor, student, "ON_LEAVE", "self");
+            fail("expected forbidden");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- STM-04-US-003 Review lifecycle status changes / US-004 history ---
+
+    @Test
+    public void stm04Us003_registrarReviewsPendingRequests() {
+        service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        List<LifecycleDomainService.LifecycleRequest> pending = service.listPendingRequests(registrar);
+        assertTrue(pending.size() >= 1);
+        assertEquals("PENDING", pending.get(0).status);
+    }
+
+    @Test
+    public void stm04Us004_studentViewsOwnHistoryAfterLeaveApproval() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        service.decideRequest(registrar, pending.id, "APPROVED");
+        List<LifecycleDomainService.HistoryEntry> history = service.listHistory(studentActor, student);
+        assertTrue(history.size() >= 1);
+    }
+
+    @Test
+    public void stm04Us004_crossStudentHistoryForbidden() {
+        try {
+            service.listHistory(studentActor, otherStudent);
+            fail("expected forbidden");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- STM-04-US-005 Submit leave-of-absence ---
+
+    @Test
+    public void stm04Us005_studentSubmitsLeaveRequest() {
+        LifecycleDomainService.LifecycleRequest req = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        assertEquals("LEAVE", req.requestType);
+        assertEquals("PENDING", req.status);
+    }
+
+    // --- STM-04-US-006 Approve or reject leave ---
+
+    @Test
+    public void stm04Us006_registrarRejectsLeave() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        LifecycleDomainService.LifecycleRequest decided = service.decideRequest(registrar, pending.id, "REJECTED");
+        assertEquals("REJECTED", decided.status);
+        assertEquals("ACTIVE", service.getStatus(studentActor, student).status);
+    }
+
+    // --- STM-04-US-007 / US-008 Reinstatement ---
+
+    @Test
+    public void stm04Us007_008_studentRequestsReinstatementAndRegistrarApproves() {
+        service.seedStudent(tenant, student, "ON_LEAVE");
+        LifecycleDomainService.LifecycleRequest reinstate = service.submitRequest(studentActor, student, "REINSTATE", "Ready");
+        service.decideRequest(registrar, reinstate.id, "APPROVED");
+        assertEquals("ACTIVE", service.getStatus(studentActor, student).status);
+    }
+
+    // --- STM-04-US-009 / US-010 Transfer ---
+
+    @Test
+    public void stm04Us009_010_transferRequestAndApproval() {
+        LifecycleDomainService.LifecycleRequest transfer = service.submitRequest(studentActor, student, "TRANSFER", "Programme move");
+        service.decideRequest(registrar, transfer.id, "APPROVED");
+        assertEquals("TRANSFERRED", service.getStatus(studentActor, student).status);
+    }
+
+    // --- STM-04-US-011 / US-019 Withdrawal ---
+
+    @Test
+    public void stm04Us011_019_withdrawalWithEffectiveDateApproved() {
+        LifecycleDomainService.LifecycleRequest withdrawal = service.submitRequest(studentActor, student, "WITHDRAWAL",
+                "Personal", LocalDate.parse("2026-12-15"));
+        service.decideRequest(registrar, withdrawal.id, "APPROVED");
+        assertEquals("WITHDRAWN", service.getStatus(studentActor, student).status);
+    }
+
+    // --- STM-04-US-012 / US-013 Graduation ---
+
+    @Test
+    public void stm04Us012_013_validateAndRecordGraduation() {
+        Map<String, Object> eligible = service.validateGraduation(registrar, student, program);
+        assertEquals(Boolean.TRUE, eligible.get("eligible"));
+        LifecycleDomainService.GraduationRecord record = service.recordGraduation(registrar, student, program,
+                LocalDate.parse("2026-11-07"), "Completed");
+        assertEquals("GRADUATED", service.getStatus(registrar, student).status);
+        assertEquals(LocalDate.parse("2026-11-07"), record.graduatedOn);
+    }
+
+    // --- STM-04-US-014 Configure transition rules ---
+
+    @Test
+    public void stm04Us014_registrarConfiguresTransitionRule() {
+        LifecycleDomainService.TransitionRule rule = service.configureRule(registrar, "ACTIVE", "ON_LEAVE", true, true);
+        assertEquals("ACTIVE", rule.fromStatus);
+        assertEquals("ON_LEAVE", rule.toStatus);
+        assertTrue(rule.active);
+    }
+
+    @Test
+    public void stm04Us014_studentCannotConfigureRules() {
+        try {
+            service.configureRule(studentActor, "ACTIVE", "ON_LEAVE", true, true);
+            fail("expected forbidden");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- STM-04-US-015 Downstream events ---
+
+    @Test
+    public void stm04Us015_approvalEmitsLifecycleChangedEvent() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        service.decideRequest(registrar, pending.id, "APPROVED");
+        assertTrue(service.eventsForTenant(tenant).size() >= 1);
+        assertEquals("ON_LEAVE", service.eventsForTenant(tenant).get(0).get("status"));
+    }
+
+    // --- STM-04-US-016 Lifecycle reports ---
+
+    @Test
+    public void stm04Us016_registrarViewsLifecycleReport() {
+        Map<String, Object> report = service.lifecycleReport(registrar);
+        assertTrue(((Number) report.get("studentCount")).intValue() >= 1);
+    }
+
+    @Test
+    public void stm04Us016_studentCannotViewReport() {
+        try {
+            service.lifecycleReport(studentActor);
+            fail("expected forbidden");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- STM-04-US-017 Guardian limited status ---
+
+    @Test
+    public void stm04Us017_parentViewsLimitedLinkedStatus() {
+        Map<String, String> view = service.parentViewLinkedStatus(parentActor, student, student.toString());
+        assertEquals("ACTIVE", view.get("status"));
+        assertEquals(student.toString(), view.get("studentId"));
+    }
+
+    // --- STM-04-US-018 Advisee limited status ---
+
+    @Test
+    public void stm04Us018_advisorViewsAdviseeLimitedStatus() {
+        service.assignAdvisor(registrar, facultyActor.getUserId(), student);
+        List<Map<String, String>> advisees = service.listAdvisees(facultyActor);
+        assertEquals(1, advisees.size());
+        assertEquals("ACTIVE", advisees.get(0).get("status"));
     }
 }

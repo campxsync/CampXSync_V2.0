@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (`STM-03-US-004` APPROVED + COMMIT; implementing `STM-03-US-005`)
+**Last current-state refresh:** 2026-11-14 (all STM US partials cleared; 35 EN/CROSS partials remain)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — sole live assignment (`STM-03-US-005` in progress).
+1. `docs/prompts/NEXT_TASK.md` — next assignment after US partials (PROPOSED: EN/CROSS).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and open policy decisions.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -19,10 +19,10 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — `STM-03-US-001`…`US-003` committed locally (ahead of origin).
-2. **Canonical backlog:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` (220 rows; 3 completed). Prefer partially completed before yet-to-pickup.
+1. **Branch:** `feature/java-backend-integration` — large uncommitted tree (STM-03…10 US partials batch).
+2. **Canonical backlog:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` — **71 completed / 35 partially completed / 114 yet to pickup**.
 3. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-4. **STM-03-US-003** registrar eligibility validation APPROVED/COMMIT; evidence under `docs/demos/STM-03-US-003/`.
+4. **US partials closed:** STM-03/04/05/06/10 user-story partials → CSV `completed` with unit/`tsc` evidence (see PROGRESS).
 5. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
 6. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
 7. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`; both needed for student enrolment BFF (`X-Student-Record-Id` via `/students/me`).

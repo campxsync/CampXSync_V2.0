@@ -76,6 +76,38 @@ public class LivePostgresEnrollmentPersistenceTest {
     }
 
     @Test
+    public void stm03En001_schemaOwnershipAndRlsForcedOnEnrolmentTables() throws Exception {
+        boolean approved = Boolean.getBoolean("campx.approve.stm03.write")
+                || APPROVAL_TOKEN.equals(System.getProperty("campx.approval.token"));
+        if (!approved) {
+            System.out.println("=== STM-03-EN-001 SCHEMA AUDIT GATED ===");
+            System.out.println("Authorize with -Dcampx.approve.stm03.write=true");
+            return;
+        }
+
+        HikariDataSource ds = createDevDataSource();
+        assertNotNull("JDBC datasource must be configured for live STM-03 schema audit", ds);
+        try (Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled, c.relforcerowsecurity AS rls_forced "
+                             + "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                             + "WHERE n.nspname = 'stu' AND c.relkind = 'r' AND c.relname LIKE 'enrol%' "
+                             + "ORDER BY c.relname")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                int counted = 0;
+                while (rs.next()) {
+                    counted++;
+                    assertTrue("RLS must be enabled on " + rs.getString("table_name"), rs.getBoolean("rls_enabled"));
+                    assertTrue("RLS must be FORCED on " + rs.getString("table_name"), rs.getBoolean("rls_forced"));
+                }
+                assertTrue("Expected enrolment tables under stu schema", counted >= 5);
+            }
+        } finally {
+            ds.close();
+        }
+    }
+
+    @Test
     public void liveEnrolmentPersistReadBackAndCrossTenantDenial() throws Exception {
         boolean approved = Boolean.getBoolean("campx.approve.stm03.write")
                 || APPROVAL_TOKEN.equals(System.getProperty("campx.approval.token"));

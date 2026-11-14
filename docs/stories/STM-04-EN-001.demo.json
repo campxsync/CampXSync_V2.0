@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-04-EN-001",
+  "title": "Supabase lifecycle persistence and CRUD integration",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Lifecycle Desk backed by PostgresLifecyclePersistence",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Lifecycle Desk Loaded",
+      "description": "College lifecycle heading proves UI → gateway → lifecycle-service path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Summary Section Visible",
+      "description": "Standing summary section reads aggregated lifecycle state",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-summary-section\"]",
+      "highlight": "[data-testid=\"college-lifecycle-summary-section\"]"
+    },
+    {
+      "title": "Total Standing Stat Visible",
+      "description": "Total student standing count is rendered from live service data",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-total\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-total\"]"
+    },
+    {
+      "title": "PostgreSQL Lifecycle Status Read-Back",
+      "description": "Confirm stu.lifecycle_status rows exist for pilot tenant under RLS-forced schema",
+      "action": "db_check",
+      "query": "SELECT student_id, status FROM stu.lifecycle_status WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Schema Ownership / RLS Audit",
+      "description": "Verify lifecycle tables have RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relkind = 'r' AND c.relname LIKE 'lifecycle%' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 4
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "Unauthenticated GET on lifecycle status contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/status",
+      "expectedStatus": 401
+    }
+  ]
+}

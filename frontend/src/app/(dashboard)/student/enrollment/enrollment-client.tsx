@@ -361,13 +361,22 @@ export function EnrollmentClient({
         </p>
       </div>
 
-      {alerts.length > 0 ? (
-        <ul className="space-y-1 rounded border border-[#BFDBFE] bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A]">
-          {alerts.map((alert, index) => (
-            <li key={`${alert.eventType}-${index}`}>{alert.eventType.replaceAll('.', ' ')}</li>
-          ))}
-        </ul>
-      ) : null}
+      <div
+        className="space-y-1 rounded border border-[#BFDBFE] bg-[#EFF6FF] p-3 text-sm text-[#1E3A8A]"
+        data-testid="student-enrollment-alerts"
+      >
+        {alerts.length > 0 ? (
+          <ul className="space-y-1">
+            {alerts.map((alert, index) => (
+              <li key={`${alert.eventType}-${index}`} data-testid={`student-enrollment-alert-${index}`}>
+                {alert.eventType.replaceAll('.', ' ')}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p data-testid="student-enrollment-alerts-empty">No in-service enrolment alerts right now.</p>
+        )}
+      </div>
 
       {loading ? <p className="text-sm text-[#475569]">Loading your enrolments…</p> : null}
 
@@ -449,18 +458,32 @@ export function EnrollmentClient({
         </section>
       ) : null}
 
-      {history.length > 0 ? (
-        <section className="space-y-2">
+      {active ? (
+        <section className="space-y-2" data-testid="student-enrollment-history">
           <h2 className="text-sm font-semibold text-[#0B1F3A]">Enrolment history</h2>
-          <ul className="space-y-1 rounded border border-[#E3E8EF] bg-white p-3 text-sm text-[#0B1F3A]">
-            {history.map((row, index) => (
-              <li key={`${row.at || 'at'}-${row.action}-${index}`}>
-                <span className="font-medium">{row.status}</span>
-                <span className="text-[#64748B]"> · {row.action}</span>
-                {row.at ? <span className="text-[#64748B]"> · {row.at.replace('T', ' ').replace('Z', ' UTC')}</span> : null}
-              </li>
-            ))}
-          </ul>
+          {history.length === 0 ? (
+            <p className="text-sm text-[#64748B]" data-testid="student-enrollment-history-empty">
+              No history entries yet for this enrolment.
+            </p>
+          ) : (
+            <ul className="space-y-1 rounded border border-[#E3E8EF] bg-white p-3 text-sm text-[#0B1F3A]">
+              {history.map((row, index) => (
+                <li
+                  key={`${row.at || 'at'}-${row.action}-${index}`}
+                  data-testid={`student-enrollment-history-row-${index}`}
+                >
+                  <span className="font-medium" data-testid={`student-enrollment-history-status-${index}`}>
+                    {row.status}
+                  </span>
+                  <span className="text-[#64748B]"> · {row.action}</span>
+                  {row.actorRole ? <span className="text-[#64748B]"> · {row.actorRole}</span> : null}
+                  {row.at ? (
+                    <span className="text-[#64748B]"> · {row.at.replace('T', ' ').replace('Z', ' UTC')}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
 
@@ -475,19 +498,27 @@ export function EnrollmentClient({
       ) : null}
 
       {canRegister && courses.length > 0 ? (
-        <section className="space-y-4">
+        <section className="space-y-4" data-testid="student-enrollment-catalogue">
           <h2 className="text-sm font-semibold text-[#0B1F3A]">Select sections</h2>
           {courses.map((course) => (
-            <div key={course.id} className="rounded border border-[#E3E8EF] p-3">
+            <div
+              key={course.id}
+              className="rounded border border-[#E3E8EF] p-3"
+              data-testid={`student-enrollment-course-${course.id}`}
+            >
               <p className="text-sm font-medium text-[#0B1F3A]">
                 {course.code} · {course.credits} credits{course.core ? ' · required' : ''}
               </p>
-              <div className="mt-2 space-y-1">
+              <div className="mt-2 space-y-1" data-testid={`student-enrollment-sections-${course.id}`}>
                 {course.sections.length === 0 ? (
                   <p className="text-xs text-[#991B1B]">No sections opened for this course yet.</p>
                 ) : (
                   course.sections.map((section) => (
-                    <label key={section.id} className="flex items-center gap-2 text-sm text-[#0B1F3A]">
+                    <label
+                      key={section.id}
+                      className="flex items-center gap-2 text-sm text-[#0B1F3A]"
+                      data-testid={`student-enrollment-section-${section.id}`}
+                    >
                       <input
                         type="radio"
                         name={`course-${course.id}`}
@@ -508,6 +539,7 @@ export function EnrollmentClient({
                         <button
                           type="button"
                           className="text-xs text-[#1F6FEB]"
+                          data-testid={`student-enrollment-waitlist-${section.id}`}
                           onClick={() => void joinWaitlist(active.id, section.id)}
                         >
                           Join waitlist
@@ -522,6 +554,7 @@ export function EnrollmentClient({
           <button
             type="button"
             disabled={submitting}
+            data-testid="student-enrollment-submit"
             className="rounded bg-[#15803D] px-4 py-2 text-sm text-white disabled:opacity-60"
             onClick={() => void submitRegistration()}
           >

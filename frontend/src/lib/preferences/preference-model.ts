@@ -33,6 +33,7 @@ export interface UserPreferences {
     college_admin?: RoleDashboardConfig;
     faculty?: RoleDashboardConfig;
     platform_admin?: RoleDashboardConfig;
+    student?: RoleDashboardConfig;
   };
 }
 
@@ -47,6 +48,10 @@ export const ROLE_DEFAULT_WIDGETS: Record<string, RoleDashboardConfig> = {
   },
   platform_admin: {
     order: ['kpis', 'lifecycle', 'institutes', 'audit'],
+    hidden: [],
+  },
+  student: {
+    order: ['profile', 'courses', 'documents', 'notifications', 'kpis'],
     hidden: [],
   },
 };
@@ -70,6 +75,7 @@ export const PRODUCT_DEFAULTS: UserPreferences = {
     college_admin: ROLE_DEFAULT_WIDGETS.college_admin,
     faculty: ROLE_DEFAULT_WIDGETS.faculty,
     platform_admin: ROLE_DEFAULT_WIDGETS.platform_admin,
+    student: ROLE_DEFAULT_WIDGETS.student,
   },
 };
 
@@ -85,6 +91,10 @@ const ALLOWED_WIDGETS = [
   'lifecycle',
   'institutes',
   'audit',
+  'profile',
+  'courses',
+  'documents',
+  'notifications',
 ];
 
 function sanitizeWidgetConfig(
