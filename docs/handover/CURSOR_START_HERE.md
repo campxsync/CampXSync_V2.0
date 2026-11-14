@@ -2,19 +2,30 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (H-1…H-4 APPROVED + COMMITTED; not pushed)
+**Last current-state refresh:** 2026-11-14 (repository consolidation)
 
 ---
 
-## 1. Current State in 10 Bullets (verified / labeled)
+## What to do next
 
-1. **Branch:** `feature/java-backend-integration` — local commits include docs `44e502e` plus H-1…H-4 commit. **Not pushed** until instructed.
-2. **Pilot hardening:** **H-1, H-2, H-3, H-4 APPROVED** (sequence complete).
-3. **H-4 evidence:** Demo **16/16 PASS** — `docs/demos/H-4/demo.webm`, `DEMO.md`; CLI `scripts/dev/pilot_onboard.mjs`; runbook `docs/runbooks/PILOT_ONBOARDING_RUNBOOK.md`.
-4. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
-5. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
-6. **Stack note:** Restart with `scripts/dev/start_stack.ps1` when free RAM ≥3 GB before next Java work.
-7. **Largest RAM consumer observed:** Red Hat Java LS (`-Xmx8G`) ~1.3 GB — close/restart Java extension if free RAM stays &lt;3 GB.
+Read and follow only:
+
+1. `docs/prompts/NEXT_TASK.md` — the sole live assignment (STATUS may be PROPOSED; do not implement until owner approval).
+2. `docs/project-control/PROGRESS.md` — source of truth for status and open policy decisions.
+
+Do **not** use `docs/archive/` for status, approvals or instructions.
+
+---
+
+## 1. Current State in 10 Bullets (context)
+
+1. **Branch:** `feature/java-backend-integration` — local consolidation commits may be ahead of origin. **No push** without explicit authorization.
+2. **Canonical backlog:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` (220 rows).
+3. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
+4. **Pilot hardening H-1…H-4** remains in git history/demos; not rows in the RBAC backlog CSV.
+5. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
+6. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
+7. **Stack note:** Restart with `scripts/dev/start_stack.ps1` when free RAM ≥3 GB before next Java work.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
 9. **Live tenant provision:** requires exact phrase `GO PROVISION-TENANT` (script `--approve` or BFF header).
 10. **No push** without explicit user authorization.
@@ -23,11 +34,14 @@
 
 ## 2. File Map & Project Artifacts
 
+- **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`, `docs/reports/COMPLETION_REPORT.md`
+- **Backlog CSV:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv`
+- **Audit (historical snapshot):** `docs/audit/STM_STATUS_AUDIT_2026-11-14.md`
+- **Archive (never a source):** `docs/archive/`
 - **Pilot onboard CLI:** `scripts/dev/pilot_onboard.mjs` + `scripts/dev/fixtures/pilot/`
 - **Runbook:** `docs/runbooks/PILOT_ONBOARDING_RUNBOOK.md`
 - **Story demos:** `docs/stories/<ID>.demo.json`, `docs/demos/<ID>/`
 - **Stack scripts:** `scripts/dev/start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`
-- **Progress / CSV:** `docs/project-control/PROGRESS.md`, `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 
 ---
@@ -40,7 +54,7 @@
 4. **Append-Only Triggers:** Never `DELETE`/`UPDATE` ledger tables.
 5. **Hydration:** Gate autofill / `fdprocessedid` with `mounted`.
 6. **RAM Gate:** Bound JVM heaps; require ≥3 GB free before stack; Java LS can starve demos.
-7. **Surgical Restarts:** `restart_service.ps1` from repo root; refresh `classpath.txt` after logger changes.
+7. **Surgical Restarts:** `restart_service.ps1` from repo root; refresh service `classpath.txt` after logger changes.
 8. **PowerShell:** Quote Maven `-D` flags; avoid `&&` chaining issues.
 9. **Unit tests under auth ON:** Force `campx.internal.auth.enabled=false` in `@Before`.
 10. **Live DB read-backs mandatory** for story DoD when claiming persistence.

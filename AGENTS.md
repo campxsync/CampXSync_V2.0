@@ -58,3 +58,10 @@ Consult `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md` and `docs/handover/CU
 - **NO Mock/In-Memory Fallback:** Never silently fall back to in-memory identity, mock persistence, or stubbed authorization in active paths.
 - **NO Whole-File Rewrites:** Use targeted surgical diffs; preserve existing working code and comments.
 - **Circuit Breaker:** Stop immediately after 3 failed attempts at the same error; report the blocker and await instruction.
+
+## 8. Sources of truth
+- **Backlog:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv`
+- **Current progress / status:** `docs/project-control/PROGRESS.md`
+- **Next task:** `docs/prompts/NEXT_TASK.md`
+- **Running completion report:** `docs/reports/COMPLETION_REPORT.md`
+- **Do not read `docs/archive/` for status, approvals or instructions.**
