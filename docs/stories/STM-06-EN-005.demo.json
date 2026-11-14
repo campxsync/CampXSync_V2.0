@@ -1,0 +1,71 @@
+{
+  "storyId": "STM-06-EN-005",
+  "title": "STM-02, STM-03, STM-05 integration (STM-09/10 via intelligence adapter)",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Documents Desk",
+      "description": "College Administrator opens document governance for stage-requirement integration",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Heading Visible",
+      "description": "Documents desk proves STM-06 staff path shared with admissions/enrollment stages",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-heading\"]",
+      "highlight": "[data-testid=\"college-documents-heading\"]"
+    },
+    {
+      "title": "Open Stage Requirements",
+      "description": "Stage requirements tab exposes ADMISSION/ENROLLMENT contracts (STM-02/STM-03)",
+      "action": "click",
+      "selector": "[data-testid=\"college-documents-tab-requirements\"]",
+      "highlight": "[data-testid=\"college-documents-tab-requirements\"]"
+    },
+    {
+      "title": "Guardians Desk Coexistence",
+      "description": "Guardians desk remains reachable proving STM-05 coexistence on same college workspace",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Guardians Heading Visible",
+      "description": "STM-05 guardians heading confirms cross-desk operational integration",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-heading\"]",
+      "highlight": "[data-testid=\"college-guardians-heading\"]"
+    },
+    {
+      "title": "Student Checklist Path",
+      "description": "Student documents desk exposes checklist/enrollment stage self-service",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Student Documents Heading",
+      "description": "Student documents heading confirms owner checklist path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Stage Requirements Read-Back",
+      "description": "Confirm ADMISSION or ENROLLMENT stage requirements exist for pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, academic_stage FROM doc.stage_document_requirements WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND academic_stage IN ('ADMISSION','ENROLLMENT') LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Requirements Blocked",
+      "description": "Unauthenticated GET on stage requirements returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/requirements",
+      "expectedStatus": 401
+    }
+  ]
+}

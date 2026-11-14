@@ -1,0 +1,64 @@
+{
+  "storyId": "STM-06-EN-006",
+  "title": "Automated document workflow tests, frontend, observability and operational readiness",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Document Governance for operational readiness",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents",
+      "highlight": null
+    },
+    {
+      "title": "College Documents Desk Loaded",
+      "description": "College documents heading proves staff UI operational path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-heading\"]",
+      "highlight": "[data-testid=\"college-documents-heading\"]"
+    },
+    {
+      "title": "Catalog Tab Operational",
+      "description": "Document types catalog tab remains available for registrar operations",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-tab-catalog\"]",
+      "highlight": "[data-testid=\"college-documents-tab-catalog\"]"
+    },
+    {
+      "title": "Requirements Tab Operational",
+      "description": "Stage requirements tab remains available for workflow configuration",
+      "action": "click",
+      "selector": "[data-testid=\"college-documents-tab-requirements\"]",
+      "highlight": "[data-testid=\"college-documents-tab-requirements\"]"
+    },
+    {
+      "title": "Student Documents Desk",
+      "description": "Student self-service documents desk remains reachable for dual-path readiness",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Student Documents Heading Visible",
+      "description": "Student documents self-service desk loads",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Documents Audit Read-Back",
+      "description": "Confirm document rows exist under RLS-enabled documents table",
+      "action": "db_check",
+      "query": "SELECT id, status, title FROM doc.documents WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Types Blocked",
+      "description": "Unauthenticated document types contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/types",
+      "expectedStatus": 401
+    }
+  ]
+}

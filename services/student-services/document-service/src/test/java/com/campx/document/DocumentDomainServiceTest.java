@@ -1547,4 +1547,94 @@ public class DocumentDomainServiceTest {
             assertEquals("DOCUMENT_TYPE_NOT_FOUND", e.getCode());
         }
     }
+
+    // --- STM-06-EN-005 cross-STM stage / checklist integration (STM-02/03; STM-09/10 via intel adapter) ---
+
+    @Test
+    public void stm06En005_admissionAndEnrollmentStageContracts() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN005-STAGE-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Cross-STM Stage Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        DefineStageRequirementRequest admission = new DefineStageRequirementRequest();
+        admission.academicStage = "ADMISSION";
+        admission.documentTypeId = type.id;
+        admission.isMandatory = true;
+        StageDocumentRequirement adm = service.defineStageRequirement(adminTenantA, admission);
+        assertEquals("ADMISSION", adm.academicStage);
+
+        DefineStageRequirementRequest enrollment = new DefineStageRequirementRequest();
+        enrollment.academicStage = "ENROLLMENT";
+        enrollment.documentTypeId = type.id;
+        enrollment.isMandatory = false;
+        StageDocumentRequirement enl = service.defineStageRequirement(adminTenantA, enrollment);
+        assertEquals("ENROLLMENT", enl.academicStage);
+
+        List<StageDocumentRequirement> admissionList =
+                service.listStageRequirements(adminTenantA, null, "ADMISSION", null);
+        assertTrue(admissionList.stream().anyMatch(r -> adm.id.equals(r.id)));
+
+        List<StageDocumentRequirement> enrollmentList =
+                service.listStageRequirements(adminTenantA, null, "ENROLLMENT", null);
+        assertTrue(enrollmentList.stream().anyMatch(r -> enl.id.equals(r.id)));
+    }
+
+    @Test
+    public void stm06En005_checklistBridgesEnrollmentStage() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN005-CHK-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Enrollment Checklist Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        DefineStageRequirementRequest req = new DefineStageRequirementRequest();
+        req.academicStage = "ENROLLMENT";
+        req.documentTypeId = type.id;
+        req.isMandatory = true;
+        service.defineStageRequirement(adminTenantA, req);
+
+        List<StudentChecklistItem> checklist =
+                service.getStudentChecklist(studentTenantA, studentTenantA.getUserId(), "ENROLLMENT", null);
+        assertNotNull(checklist);
+        assertTrue(checklist.stream().anyMatch(i -> type.id.equals(i.requirement.documentTypeId)));
+    }
+
+    // --- STM-06-EN-006 ops readiness / audit / frontend dual path ---
+
+    @Test
+    public void stm06En006_auditTrailSupportsOperationalReadiness() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN006-AUD-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Ops Audit Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Ops readiness upload";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 2048L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        DocumentDomainService.DocumentAccessLog log =
+                service.recordAccessLog(studentTenantA, uploaded.id, "VIEW", "127.0.0.1");
+        assertNotNull(log.id);
+
+        List<DocumentDomainService.DocumentAccessLog> trail =
+                service.getDocumentAuditTrail(studentTenantA, uploaded.id);
+        assertTrue(trail.stream().anyMatch(a -> log.id.equals(a.id)));
+    }
+
+    @Test
+    public void stm06En006_unauthenticatedRoleCannotConfigureTypes() {
+        Actor anon = new Actor(tenantA, UUID.randomUUID(), "UNKNOWN", "anon@campx.edu");
+        ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
+        req.code = "DOC-EN006-FORBIDDEN";
+        req.name = "Should Fail";
+        try {
+            service.configureDocumentType(anon, req);
+            fail("Unknown role must not configure document types");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+    }
 }
