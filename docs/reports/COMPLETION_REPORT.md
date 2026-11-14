@@ -36,3 +36,42 @@ None required for consolidation (documentation/git only).
 
 ### Unverified
 Audit scoreboard remains NOT owner-verified.
+
+---
+
+## Entry 2 — STM-03-US-001 Convert approved admission into enrolment (2026-11-14)
+
+**Task ID:** STM-03-US-001  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Base HEAD:** `9fb4727` (pushed consolidation); story changes **uncommitted** pending approval.
+
+### Scope completed
+- Confirmed AC + required negative tests against enrollment-service; closed gaps only.
+- `openFromHandover`: hydrate persistence before duplicate/idempotent checks; publish `student.enrolment.opened.v1`.
+- Aligned enrollment `GatewayHmacVerifier` to `GatewayHmacProtocol` (epoch ms/seconds + body SHA-256).
+- Idempotent `createTerm` on unique `(tenant, year_code, term_code)`.
+- College enrolment desk `data-testid` contracts + `docs/stories/STM-03-US-001.demo.json`.
+- Did **not** invent `DEPARTMENT_STAFF` grants (ROLE-CATALOGUE GAP).
+
+### Database
+- Dev ref `azulbaxszsqxymqmlwfe` only.
+- Demo seed cleaned prior demo enrolment rows; live read-back found PENDING `stu.enrolments` for application `c3010000-0000-4000-8000-000000000001`.
+
+### Tests (§7A)
+
+| Command | Environment | Exit | Result |
+|---|---|---:|---|
+| `mvn test -pl services/student-services/enrollment-service -Dtest=EnrollmentDomainServiceTest` | JDK 8 / Maven; offline unit | 0 | 32 run, 0 fail (incl. 10 STM-03-US-001 cases) |
+| `cd frontend; npx tsc --noEmit` | Node 22 | 0 | 0 errors |
+| `node scripts/demo/run_story_demo.mjs STM-03-US-001` | Local UI:3000, GW:8080, enrollment:8095, headed Playwright | 0 | 11/11 PASS; `docs/demos/STM-03-US-001/demo.webm` + `DEMO.md` |
+
+Working-tree state at demo: uncommitted enrollment/HMAC/UI/demo files on top of `9fb4727`.
+
+### Evidence paths
+- `docs/demos/STM-03-US-001/DEMO.md`
+- `docs/demos/STM-03-US-001/demo.webm`
+- `docs/demos/STM-03-US-001/screenshots/`
+
+### Owner decision
+**APPROVED STM-03-US-001 COMMIT** (2026-11-14). CSV status set to `completed`. Next proposed: `STM-03-US-002`.

@@ -44,6 +44,9 @@ public class EnrollmentApplication {
         }
 
         String secret = System.getenv("CAMPX_GATEWAY_HMAC_SECRET");
+        if (secret == null || secret.trim().isEmpty()) {
+            secret = System.getenv("CAMPX_INTERNAL_SECRET");
+        }
         final EnrollmentController controller = new EnrollmentController(domain, new GatewayHmacVerifier(secret));
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", DEFAULT_PORT), 0);
         server.createContext("/", new HttpHandler() {

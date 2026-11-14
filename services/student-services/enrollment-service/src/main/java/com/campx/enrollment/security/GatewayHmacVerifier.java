@@ -3,33 +3,63 @@ package com.campx.enrollment.security;
 import com.campx.enrollment.EnrollmentException;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.security.GatewayHmacProtocol;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
+import java.util.Map;
 
 /**
  * Verifies the gateway HMAC on an enrolment request when a shared secret is configured.
- * A missing secret skips verification so local development can run without the gateway secret.
+ * Aligns with {@link GatewayHmacProtocol} (epoch ms or seconds, body SHA-256 canonical form).
+ * A missing secret skips verification so isolated unit tests can run without the gateway secret.
  * Signature material is never written to the log.
  */
 public class GatewayHmacVerifier {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(GatewayHmacVerifier.class);
-    private static final long MAX_SKEW_SECONDS = 300;
+    private static final long DEFAULT_REPLAY_WINDOW_SECONDS = 60L;
+
     private final String secret;
+    private final long replayWindowSeconds;
 
     public GatewayHmacVerifier(String secret) {
-        this.secret = secret;
+        this(secret, DEFAULT_REPLAY_WINDOW_SECONDS);
     }
 
+    public GatewayHmacVerifier(String secret, long replayWindowSeconds) {
+        this.secret = secret;
+        this.replayWindowSeconds = replayWindowSeconds > 0 ? replayWindowSeconds : DEFAULT_REPLAY_WINDOW_SECONDS;
+    }
+
+    public void verify(String method, String path, Map<String, String> headers, String body) {
+        if (headers == null) {
+            verify(method, path, null, null, null, null, body);
+            return;
+        }
+        verify(
+                method,
+                path,
+                first(headers, "x-gateway-timestamp", "X-Gateway-Timestamp"),
+                first(headers, "x-gateway-signature", "X-Gateway-Signature"),
+                first(headers, "x-user-id", "X-User-Id"),
+                first(headers, "x-tenant-id", "X-Tenant-Id"),
+                body
+        );
+    }
+
+    /**
+     * Legacy overload retained for unit tests that supply timestamp/signature directly.
+     */
     public void verify(String method, String path, String timestamp, String signature, String body) {
+        verify(method, path, timestamp, signature, null, null, body);
+    }
+
+    public void verify(String method, String path, String timestamp, String signature,
+                       String userId, String tenantId, String body) {
         if (secret == null || secret.trim().isEmpty()) {
             return;
         }
-        if (timestamp == null || signature == null) {
+        if (timestamp == null || timestamp.trim().isEmpty() || signature == null || signature.trim().isEmpty()) {
             logger.warn("Enrolment gateway signature headers are missing");
             throw new EnrollmentException(401, "GATEWAY_SIGNATURE_MISSING", "Missing required gateway signature headers");
         }
@@ -40,32 +70,29 @@ public class GatewayHmacVerifier {
             logger.warn("Enrolment gateway timestamp is not a number", e);
             throw new EnrollmentException(401, "GATEWAY_TIMESTAMP_INVALID", "Invalid gateway timestamp format");
         }
-        long now = Instant.now().getEpochSecond();
-        if (Math.abs(now - epoch) > MAX_SKEW_SECONDS) {
+        if (!GatewayHmacProtocol.isWithinReplayWindow(epoch, replayWindowSeconds)) {
             logger.warn("Enrolment gateway signature is outside the allowed clock skew");
             throw new EnrollmentException(401, "GATEWAY_SIGNATURE_EXPIRED", "Gateway signature expired or clock skew exceeded");
         }
-        String canonical = method.toUpperCase() + "\n" + path + "\n" + timestamp + "\n" + (body != null ? body : "");
-        String calculated = calculateHmac(canonical, secret);
-        if (!MessageDigest.isEqual(calculated.getBytes(StandardCharsets.UTF_8), signature.trim().getBytes(StandardCharsets.UTF_8))) {
+        byte[] bodyBytes = body != null ? body.getBytes(StandardCharsets.UTF_8) : new byte[0];
+        String bodySha = GatewayHmacProtocol.sha256Hex(bodyBytes);
+        String canonical = GatewayHmacProtocol.buildCanonicalPayload(
+                timestamp.trim(), method, path, userId, tenantId, bodySha);
+        String expected = GatewayHmacProtocol.calculateHmac(canonical, secret);
+        if (!GatewayHmacProtocol.constantTimeEquals(expected, signature)) {
             logger.warn("Enrolment gateway HMAC signature did not match");
             throw new EnrollmentException(401, "GATEWAY_SIGNATURE_INVALID", "Gateway HMAC signature verification failed");
         }
     }
 
-    public static String calculateHmac(String data, String key) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] raw = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(raw.length * 2);
-            for (byte b : raw) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            logger.error("Enrolment HMAC calculation failed", e);
-            throw new EnrollmentException(500, "GATEWAY_SIGNATURE_ERROR", "Failed to calculate HMAC signature");
+    private static String first(Map<String, String> headers, String a, String b) {
+        String v = headers.get(a);
+        if (v == null || v.trim().isEmpty()) {
+            v = headers.get(b);
         }
+        if (v == null || v.trim().isEmpty()) {
+            v = headers.get(a.toLowerCase());
+        }
+        return v;
     }
 }

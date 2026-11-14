@@ -297,6 +297,133 @@ public class EnrollmentDomainServiceTest {
         assertEquals(401, response.status);
     }
 
+    // --- STM-03-US-001 Convert approved admission into enrolment ---
+
+    @Test
+    public void stm03Us001_registrarOpensEnrolmentFromHandoverAndEmitsEvent() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        UUID applicationId = UUID.randomUUID();
+        EnrollmentDomainService.Enrolment opened = service.openFromHandover(registrar, applicationId, student, program, term.id);
+        assertEquals("PENDING", opened.status);
+        assertEquals(applicationId, opened.applicationId);
+        assertEquals(student, opened.studentId);
+        assertEquals(program, opened.programId);
+        assertEquals(term.id, opened.termId);
+        assertEquals(1, opened.history.size());
+        assertEquals("handover", opened.history.get(0).get("action"));
+        assertEquals(1, service.eventsForTenant(tenant).size());
+        assertEquals(EnrollmentDomainService.ENROLMENT_OPENED, service.eventsForTenant(tenant).get(0).get("eventType"));
+        assertEquals(opened.id, service.eventsForTenant(tenant).get(0).get("enrolmentId"));
+    }
+
+    @Test
+    public void stm03Us001_sameApplicationIdIsIdempotent() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        UUID applicationId = UUID.randomUUID();
+        EnrollmentDomainService.Enrolment first = service.openFromHandover(registrar, applicationId, student, program, term.id);
+        EnrollmentDomainService.Enrolment second = service.openFromHandover(registrar, applicationId, student, program, term.id);
+        assertEquals(first.id, second.id);
+        assertEquals(1, service.eventsForTenant(tenant).size());
+    }
+
+    @Test
+    public void stm03Us001_duplicateStudentTermIsRejected() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        service.openFromHandover(registrar, UUID.randomUUID(), student, program, term.id);
+        try {
+            service.openFromHandover(registrar, UUID.randomUUID(), student, program, term.id);
+            fail("expected duplicate");
+        } catch (EnrollmentException ex) {
+            assertEquals(409, ex.getStatus());
+            assertEquals("DUPLICATE_ENROLMENT", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_missingIdentifiersRejected() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        try {
+            service.openFromHandover(registrar, null, student, program, term.id);
+            fail("expected invalid");
+        } catch (EnrollmentException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("HANDOVER_INVALID", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_studentCannotOpenHandover() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        try {
+            service.openFromHandover(studentActor, UUID.randomUUID(), student, program, term.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_facultyCannotOpenHandover() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        try {
+            service.openFromHandover(facultyActor, UUID.randomUUID(), student, program, term.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_departmentStaffCannotOpenWithoutCatalogueGrant() {
+        // ROLE-CATALOGUE GAP: matrix labels Department Staff; R01–R30 grant not invented here.
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        try {
+            service.openFromHandover(departmentStaff, UUID.randomUUID(), student, program, term.id);
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_missingTenantIsUnauthorized() {
+        Actor bare = new Actor(null, UUID.randomUUID(), "REGISTRAR", "corr-bare");
+        try {
+            service.openFromHandover(bare, UUID.randomUUID(), student, program, UUID.randomUUID());
+            fail("expected unauthorized");
+        } catch (EnrollmentException ex) {
+            assertEquals(401, ex.getStatus());
+            assertEquals("TENANT_REQUIRED", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_crossTenantTermNotVisible() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr-x");
+        try {
+            service.openFromHandover(outsider, UUID.randomUUID(), student, program, term.id);
+            fail("expected term not found");
+        } catch (EnrollmentException ex) {
+            assertEquals(404, ex.getStatus());
+            assertEquals("TERM_NOT_FOUND", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us001_unauthenticatedHandoverHttpRejected() {
+        EnrollmentDomainService.Term term = service.createTerm(registrar, "2026", "ODD", "Odd");
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier("test-secret"));
+        String body = "{\"applicationId\":\"" + UUID.randomUUID() + "\",\"studentId\":\"" + student
+                + "\",\"programId\":\"" + program + "\",\"termId\":\"" + term.id + "\"}";
+        EnrollmentController.Response response = controller.handle("POST", "/api/v1/enrollment/handovers",
+                Collections.<String, String>emptyMap(), body);
+        assertEquals(401, response.status);
+    }
+
     private EnrollmentDomainService.Term term() {
         EnrollmentDomainService.Term created = service.seedTerm(tenant, "2026", "ODD", "Odd");
         service.seedWindow(tenant, created.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 1, 30);

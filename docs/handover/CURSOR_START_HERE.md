@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (repository consolidation)
+**Last current-state refresh:** 2026-11-14 (`STM-03-US-001` APPROVED; next = PROPOSED `STM-03-US-002`)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — the sole live assignment (STATUS may be PROPOSED; do not implement until owner approval).
+1. `docs/prompts/NEXT_TASK.md` — sole live assignment (`STM-03-US-002` PROPOSED; do not implement until owner approval).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and open policy decisions.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -19,16 +19,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — local consolidation commits may be ahead of origin. **No push** without explicit authorization.
-2. **Canonical backlog:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` (220 rows).
+1. **Branch:** `feature/java-backend-integration` — consolidation on origin; `STM-03-US-001` APPROVED and committed locally.
+2. **Canonical backlog:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` (220 rows; 1 completed).
 3. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-4. **Pilot hardening H-1…H-4** remains in git history/demos; not rows in the RBAC backlog CSV.
+4. **STM-03-US-001** admission→enrolment handover APPROVED; enrollment HMAC aligned to gateway protocol.
 5. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
 6. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
-7. **Stack note:** Restart with `scripts/dev/start_stack.ps1` when free RAM ≥3 GB before next Java work.
+7. **Stack note:** Enrollment-service is not in `start_stack.ps1`; start manually on :8095 with JDBC + HMAC env when demoing STM-03.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
 9. **Live tenant provision:** requires exact phrase `GO PROVISION-TENANT` (script `--approve` or BFF header).
-10. **No push** without explicit user authorization.
+10. **No push/commit** without explicit user authorization.
 
 ---
 

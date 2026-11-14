@@ -1,13 +1,13 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**HEAD:** local tip of this branch — run `git rev-parse HEAD`.  
-**Updated:** 2026-11-14 (repository consolidation)
+**HEAD:** see `git rev-parse HEAD` after the STM-03-US-001 commit.  
+**Updated:** 2026-11-14 (`STM-03-US-001` APPROVED)
 
 ## 1. Branch and HEAD
 
 - Working branch: `feature/java-backend-integration`
-- Recorded at consolidation; **not pushed**. Confirm with `git rev-parse HEAD` / `git log --oneline -6`.
+- `STM-03-US-001` owner-approved and committed locally (push only if separately instructed).
 
 ## 2. Approved application and data flow
 
@@ -15,15 +15,15 @@
 
 ## 3. Scoreboard by Service ID
 
-Computed from the final CSV column `Implementation status` (to be added in the same consolidation series), with values taken from `docs/audit/STM_STATUS_AUDIT_2026-11-14.md` Part D **Proposed status**, plus owner override **STM-06-US-002 → partially completed**.
+From CSV `Implementation status`. Totals after owner-approved `STM-03-US-001` → **completed**:
 
-**Totals: 0 completed / 106 partially completed / 114 yet to pickup = 220.**
+**Totals: 1 completed / 105 partially completed / 114 yet to pickup = 220.**
 
-These totals come from the audit (with that override) and are **NOT owner-verified**.
+Remaining audit-derived rows (except approved stories) are **NOT owner-verified**.
 
 | Service ID | completed | partially completed | yet to pickup |
 |---|---:|---:|---:|
-| STM-03 | 0 | 25 | 2 |
+| STM-03 | 1 | 24 | 2 |
 | STM-04 | 0 | 24 | 1 |
 | STM-05 | 0 | 17 | 3 |
 | STM-06 | 0 | 15 | 9 |
@@ -36,19 +36,21 @@ These totals come from the audit (with that override) and are **NOT owner-verifi
 | STM-04, 06, 07, 09 | 0 | 0 | 1 |
 | STM-05 / STM-06 | 0 | 0 | 1 |
 | STM-04, 07, 08, 09 | 0 | 0 | 1 |
-| **TOTAL** | **0** | **106** | **114** |
+| **TOTAL** | **1** | **105** | **114** |
 
+### Approved this cycle
+
+| Issue ID | Evidence |
+|---|---|
+| STM-03-US-001 | Unit 32/32; tsc 0; headed demo 11/11; live DB PENDING enrolment read-back — `docs/demos/STM-03-US-001/` |
 
 ## 4. Caveats
 
-- **partially completed** means code exists but the audit could not name every acceptance gap; a story's real status is confirmed when it is picked up.
-- The 169-row Final User Stories CSV and the legacy `STM03-US-*` / demo numbering do **NOT** map to this backlog (the same Issue ID can be a different story).
-- Offline unit tests only in the audit evidence; no live-DB or Playwright runs for the audit redo.
-- **STM-06-US-002** has a one-line audit trace only (and is recorded as partially completed by owner override, not completed).
+- **partially completed** means code exists but gaps are confirmed only when a story is picked up.
+- Final User Stories CSV / legacy demo IDs do **NOT** map 1:1 to this backlog.
+- **STM-06-US-002** remains partially completed by owner override.
 
 ## 5. Owner policy decisions open (do not implement)
-
-Rows whose `RBAC Alignment Verdict` is `POLICY DECISION REQUIRED` (`STM-RBAC-FLAG-*`):
 
 | Issue ID | Summary |
 |---|---|
@@ -60,7 +62,6 @@ Rows whose `RBAC Alignment Verdict` is `POLICY DECISION REQUIRED` (`STM-RBAC-FLA
 | STM-RBAC-FLAG-006 | Auditor beyond STM-06 |
 | STM-RBAC-FLAG-007 | Open policy items from the matrix |
 
-
 ## 6. Canonical files
 
 | Role | Path |
@@ -69,6 +70,3 @@ Rows whose `RBAC Alignment Verdict` is `POLICY DECISION REQUIRED` (`STM-RBAC-FLA
 | Next task | `docs/prompts/NEXT_TASK.md` |
 | Completion reports | `docs/reports/COMPLETION_REPORT.md` |
 | Archive (never a source) | `docs/archive/` |
-
-Do not use `docs/archive/` for status, approvals or next-task instructions.
-

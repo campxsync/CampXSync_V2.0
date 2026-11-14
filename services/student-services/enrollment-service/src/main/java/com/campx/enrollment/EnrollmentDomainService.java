@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EnrollmentDomainService {
 
     public static final String STUDENT_ENROLLED = "student.enrolled.v1";
+    /** Emitted when an approved admission is converted into a PENDING enrolment (STM-03-US-001). */
+    public static final String ENROLMENT_OPENED = "student.enrolment.opened.v1";
     public static final String SCHEMA_VERSION = "1.0.0";
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(EnrollmentDomainService.class);
@@ -119,7 +121,17 @@ public class EnrollmentDomainService {
         requireStaffWrite(actor);
         requireText(yearCode, "yearCode");
         requireText(termCode, "termCode");
-        Term term = new Term(UUID.randomUUID(), actor.getTenantId(), yearCode.trim(), termCode.trim(), name == null ? termCode : name.trim());
+        String year = yearCode.trim();
+        String code = termCode.trim();
+        hydrateTerms(actor);
+        for (Term existing : terms.values()) {
+            if (existing.tenantId.equals(actor.getTenantId())
+                    && year.equals(existing.yearCode)
+                    && code.equals(existing.termCode)) {
+                return existing;
+            }
+        }
+        Term term = new Term(UUID.randomUUID(), actor.getTenantId(), year, code, name == null ? code : name.trim());
         terms.put(key(actor.getTenantId(), term.id), term);
         persistTerm(actor, term);
         log(actor, "term.created", term.id);
@@ -265,8 +277,13 @@ public class EnrollmentDomainService {
     }
 
     /**
-     * Converts an approved admission handover into one enrolment for the term.
+     * Converts an approved admission handover into one enrolment for the term (STM-03-US-001).
+     * Registrar / college staff (catalogue R31 and mapped admin roles) may open; students and
+     * faculty are denied. Same applicationId is idempotent; same student+term rejects as duplicate.
      *
+     * @throws EnrollmentException 401 when tenant context is missing
+     * @throws EnrollmentException 403 when the caller is not registrar-scoped staff
+     * @throws EnrollmentException 404 when the academic term is not found in the tenant
      * @throws EnrollmentException 409 when that student already has an enrolment for the term
      * @throws EnrollmentException 422 when a required identifier is missing
      */
@@ -275,7 +292,9 @@ public class EnrollmentDomainService {
         if (applicationId == null || studentId == null || programId == null || termId == null) {
             throw reject(422, "HANDOVER_INVALID", "applicationId, studentId, programId, and termId are required");
         }
+        hydrateTerms(actor);
         requireTerm(actor.getTenantId(), termId);
+        hydrateTenantEnrolments(actor);
         for (Enrolment existing : enrolments.values()) {
             if (existing.tenantId.equals(actor.getTenantId()) && existing.applicationId.equals(applicationId)) {
                 return existing;
@@ -292,6 +311,7 @@ public class EnrollmentDomainService {
         persistEnrolment(actor, enrolment);
         persistHistory(actor, enrolment, historyRow);
         log(actor, "enrolment.opened", enrolment.id);
+        publishEnrolmentOpened(actor, enrolment);
         return enrolment;
     }
 
@@ -956,6 +976,22 @@ public class EnrollmentDomainService {
         event.put("correlationId", actor.getCorrelationId());
         events.add(event);
         intelligenceService.publishStudentEnrolled(event);
+    }
+
+    private void publishEnrolmentOpened(Actor actor, Enrolment enrolment) {
+        Map<String, Object> event = new LinkedHashMap<String, Object>();
+        event.put("schemaVersion", SCHEMA_VERSION);
+        event.put("eventType", ENROLMENT_OPENED);
+        event.put("tenantId", enrolment.tenantId);
+        event.put("enrolmentId", enrolment.id);
+        event.put("studentId", enrolment.studentId);
+        event.put("applicationId", enrolment.applicationId);
+        event.put("programId", enrolment.programId);
+        event.put("termId", enrolment.termId);
+        event.put("status", enrolment.status);
+        event.put("correlationId", actor.getCorrelationId());
+        events.add(event);
+        intelligenceService.publishEnrolmentOpened(event);
     }
 
     private void requireStaffWrite(Actor actor) {

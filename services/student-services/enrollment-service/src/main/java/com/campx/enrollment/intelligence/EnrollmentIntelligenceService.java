@@ -66,6 +66,45 @@ public class EnrollmentIntelligenceService {
         }
     }
 
+    /**
+     * Publishes STM-03-US-001 admission→enrolment conversion contract.
+     * Live endpoint delivery remains pending when the adapter remote is unavailable.
+     */
+    public void publishEnrolmentOpened(Map<String, Object> domainEvent) {
+        if (domainEvent == null || domainEvent.get("tenantId") == null) {
+            return;
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<String, Object>();
+            payload.put("enrolmentId", String.valueOf(domainEvent.get("enrolmentId")));
+            payload.put("studentId", String.valueOf(domainEvent.get("studentId")));
+            payload.put("applicationId", String.valueOf(domainEvent.get("applicationId")));
+            payload.put("programId", String.valueOf(domainEvent.get("programId")));
+            payload.put("termId", String.valueOf(domainEvent.get("termId")));
+            payload.put("status", domainEvent.get("status"));
+            payload.put("correlationId", domainEvent.get("correlationId"));
+
+            UUID tenantId = (UUID) domainEvent.get("tenantId");
+            String enrolmentId = String.valueOf(domainEvent.get("enrolmentId"));
+            IntelligenceContextEvent event = IntelligenceContextEvent.builder()
+                    .eventType(EnrollmentDomainService.ENROLMENT_OPENED)
+                    .schemaVersion(EnrollmentDomainService.SCHEMA_VERSION)
+                    .aggregateType("ENROLMENT")
+                    .aggregateId(enrolmentId)
+                    .tenantId(tenantId)
+                    .sourceService(SERVICE_NAME)
+                    .correlationId(String.valueOf(domainEvent.get("correlationId")))
+                    .idempotencyKey("intel-student.enrolment.opened.v1-" + tenantId + "-" + enrolmentId)
+                    .payloadJson(objectMapper.writeValueAsString(payload))
+                    .build();
+            adapter.publish(event);
+            logger.info("stm03 intelligence contract emitted eventType={} tenantId={}",
+                    EnrollmentDomainService.ENROLMENT_OPENED, tenantId);
+        } catch (Exception ex) {
+            logger.error("Failed to emit STM-03 enrolment-opened intelligence event: {}", ex.getMessage(), ex);
+        }
+    }
+
     public ControlledIntelligenceAdapter getAdapter() {
         return adapter;
     }

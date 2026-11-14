@@ -6,8 +6,8 @@
 
 | Field | Value |
 |---|---|
-| Issue ID | `STM-03-US-001` |
-| Summary | Convert approved admission into enrolment |
+| Issue ID | `STM-03-US-002` |
+| Summary | View enrolment details |
 | Service | STM-03 — Student Enrolment & Registration Service |
 | Issue Type | Story |
 | Priority | P0 |
@@ -23,7 +23,7 @@
 Confirm this story's **Acceptance Criteria (Draft Given/When/Then)** and **Required Negative Tests** against the actual repository code and close **only** the gaps found. Do not expand into adjacent stories.
 
 ### In scope
-- Gaps between the story's acceptance criteria / required negative tests and current enrollment-service (and related gateway/BFF/UI) behavior for `STM-03-US-001`.
+- Gaps between the story's acceptance criteria / required negative tests and current enrollment-service (and related gateway/BFF/UI) behavior for `STM-03-US-002` (view enrolment details).
 - Exception handling, documentation and logging for the functionality changed (Agreement §3.2).
 - Evidence per Agreement §7A for tests actually run.
 
@@ -47,15 +47,15 @@ For every test run: exact command; commit/working-tree state; environment; exit 
 | Column | Value |
 |---|---|
 | RBAC Matrix Role(s) | Student: V own; X request/select courses; Registrar / Department Staff: C/U/RV; A when delegated; Faculty / Advisor: V assigned roster and relevant status |
-| RBAC Permission | RV/A/R as workflow-authorized | Service posture: Student=V own; X request/select courses ; Registrar / Department Staff=C/U/RV; A when delegated ; Faculty / Advisor=V assigned roster and relevant status |
+| RBAC Permission | V (scoped); mutation requires separately authorized action \| Service posture: Student=V own; X request/select courses ; Registrar / Department Staff=C/U/RV; A when delegated ; Faculty / Advisor=V assigned roster and relevant status |
 | Authorization Scope / Constraints | Tenant + institution/campus + service-defined scope; Student: Eligibility, prerequisites, capacity and duplicate checks required ; Registrar / Department Staff: Approval scope and term/programme constraints enforced ; Faculty / Advisor: Assigned course/section scope |
 | Canonical RBAC Role Code(s) | R10; R25 |
-| Canonical RBAC Source | CampXSync_Enterprise_RBAC_Combined_Matrix_Student_Module(2).docx; STM action-level matrix; enterprise R01-R30 catalogue |
-| Authorization Enforcement Layers | Existing API Gateway/IAM + Java service authorization + Supabase PostgreSQL RLS/grants; UI is not enforcement |
 | Required Negative Tests | unauthenticated; wrong role; wrong tenant; wrong institution/campus/department/programme/course/section/resource; missing delegation; self-approval; stale/revoked guardian consent where applicable; sensitive-field overread; IDOR/nested-resource/export |
-| Definition of Done (RBAC) | Matrix role/action/scope traced; approved policy IDs mapped; Gateway/service/RLS parity verified; positive and negative tests pass; audit evidence retained; documentation and centralized observability complete |
-| Cursor Execution Directive | Inspect repository and current Supabase schema first; implement delivery-first vertical slice; do not redesign architecture, invent role grants, execute production writes, or treat draft matrix proposals as already deployed. Escalate policy flags as decision blockers. |
 
 ## Do not start adjacent stories
 
-Implement only `STM-03-US-001` after explicit owner approval of this PROPOSED task.
+Implement only `STM-03-US-002` after explicit owner approval of this PROPOSED task.
+
+## Prior story
+
+`STM-03-US-001` — **APPROVED** (owner 2026-11-14).
