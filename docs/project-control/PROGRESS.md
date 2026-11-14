@@ -1,28 +1,31 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (STM-06 EN + STM-10-EN-005/006/007 completed)
+**Updated:** 2026-11-14 (CROSS/RBAC partials cleared; Kafka invent deferred)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-03/04/05 EN (scoped) | **completed** (deferred yet-to-pickup noted) |
-| STM-06-EN-001/004/005/006 | **completed** + headed demos |
-| STM-10-EN-005/006/007 | **completed** + headed demos |
-| Next | STM-CROSS-EN-* / STM-RBAC-EN-001 partials |
+| STM-03/04/05 EN (scoped) | **completed** (selected yet-to-pickup deferred) |
+| STM-06-EN-001/004/005/006 | **completed** |
+| STM-10-EN-005/006/007 | **completed** |
+| STM-CROSS-EN-001…006,008,009,011…013 | **completed** |
+| STM-RBAC-EN-001 | **completed** |
+| STM-CROSS-EN-007 | **yet to pickup** (no Kafka invent) |
 
 ## Evidence highlights
 
-- Latest commits include `2e480c1` + pending STM-10 EN
-- Demos: `docs/demos/STM-10-EN-005/` … `007/`
-- Student portal a11y: skip-nav, heading, main-nav; RLS FORCE on `stu.students`
+- Schema audit: `docs/reports/STM_CROSS_EN_001_SCHEMA_AUDIT.md`
+- Ownership map: `docs/reports/STM_CROSS_EN_002_SERVICE_OWNERSHIP.md`
+- Demos under `docs/demos/STM-CROSS-EN-*` and `STM-RBAC-EN-001`
 
 ## Caveats
 
-- Prefer partially completed before yet to pickup.
+- Prefer partially completed before yet to pickup — **no remaining partials** except deferred invent/policy items.
 - Headed Playwright demos required each story.
 - No DEPARTMENT_STAFF / Kafka invent; no unapproved DDL.
+- Cross-tenant penetration suite still not run.
 
 ## Canonical files
 

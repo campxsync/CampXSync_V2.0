@@ -1,0 +1,12 @@
+{
+  "storyId": "STM-CROSS-EN-011",
+  "title": "Maintain technical documentation, API docs, data models and integration specs",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Documents Desk", "description": "Live path documented in handover/progress", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Heading", "description": "Operational desk for documented contracts", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Schema Docs Evidence — Students", "description": "Documented stu.students model exists", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='students'", "minCount": 1},
+    {"title": "Schema Docs Evidence — Documents", "description": "Documented doc.documents model exists", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='doc' AND c.relname='documents'", "minCount": 1},
+    {"title": "Outbox Docs Evidence", "description": "Documented intelligence outbox model exists", "action": "db_check", "query": "SELECT table_name FROM information_schema.tables WHERE table_schema='sys' AND table_name='outbox_events'", "minCount": 1}
+  ]
+}

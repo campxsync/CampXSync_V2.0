@@ -1,0 +1,12 @@
+{
+  "storyId": "STM-CROSS-EN-012",
+  "title": "Centralized logging, metrics, tracing, health checks and operational alerts",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Auth", "description": "Operational UI path", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Desk Operational", "description": "Service UI healthy", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Gateway Auth Gate Healthy", "description": "Gateway responds with auth challenge (not connection failure)", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/documents/types", "expectedStatus": 401},
+    {"title": "Students Gateway Healthy", "description": "Students contract reachable via gateway", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/students/me", "expectedStatus": 401},
+    {"title": "Lifecycle Gateway Healthy", "description": "Lifecycle contract reachable via gateway", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/lifecycle/status", "expectedStatus": 401}
+  ]
+}

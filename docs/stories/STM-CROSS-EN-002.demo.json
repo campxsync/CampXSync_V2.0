@@ -1,0 +1,15 @@
+{
+  "storyId": "STM-CROSS-EN-002",
+  "title": "Establish service-owned data boundaries",
+  "slowMo": 250,
+  "steps": [
+    {"title": "Documents Desk (doc ownership)", "description": "Document-service UI path", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Heading", "description": "doc schema desk", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Lifecycle Desk (stu.lifecycle ownership)", "description": "Lifecycle-service UI path", "action": "goto", "url": "http://localhost:3000/college/lifecycle", "highlight": null},
+    {"title": "Lifecycle Heading", "description": "lifecycle ownership desk", "action": "wait_for", "selector": "[data-testid=\"college-lifecycle-heading\"]", "highlight": "[data-testid=\"college-lifecycle-heading\"]"},
+    {"title": "Guardians Desk (guardianship ownership)", "description": "Guardian-service UI path", "action": "goto", "url": "http://localhost:3000/college/guardians", "highlight": null},
+    {"title": "Guardians Heading", "description": "guardian ownership desk", "action": "wait_for", "selector": "[data-testid=\"college-guardians-heading\"]", "highlight": "[data-testid=\"college-guardians-heading\"]"},
+    {"title": "Enrolments Table Ownership", "description": "stu.enrolments owned by enrollment-service", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='enrolments'", "minCount": 1},
+    {"title": "Documents Table Ownership", "description": "doc.documents owned by document-service", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='doc' AND c.relname='documents'", "minCount": 1}
+  ]
+}

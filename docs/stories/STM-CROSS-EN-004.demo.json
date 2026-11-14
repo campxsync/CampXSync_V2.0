@@ -1,0 +1,14 @@
+{
+  "storyId": "STM-CROSS-EN-004",
+  "title": "Tenant isolation, RLS policies and authorization regression",
+  "slowMo": 250,
+  "steps": [
+    {"title": "Student Auth", "description": "Owner-scoped student session", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents", "highlight": null},
+    {"title": "Student Documents Heading", "description": "Owner document path", "action": "wait_for", "selector": "[data-testid=\"student-documents-heading\"]", "highlight": "[data-testid=\"student-documents-heading\"]"},
+    {"title": "Students RLS Forced", "description": "stu.students FORCE RLS", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='students' AND c.relrowsecurity AND c.relforcerowsecurity", "minCount": 1},
+    {"title": "Enrolments RLS Forced", "description": "stu.enrolments FORCE RLS", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='enrolments' AND c.relrowsecurity AND c.relforcerowsecurity", "minCount": 1},
+    {"title": "Applications RLS Forced", "description": "stu.applications FORCE RLS", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='applications' AND c.relrowsecurity AND c.relforcerowsecurity", "minCount": 1},
+    {"title": "Unauth Students Me 401", "description": "Gateway auth regression", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/students/me", "expectedStatus": 401},
+    {"title": "Unauth Lifecycle 401", "description": "Gateway auth regression lifecycle", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/lifecycle/status", "expectedStatus": 401}
+  ]
+}

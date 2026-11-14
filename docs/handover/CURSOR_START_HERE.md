@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (STM-06 EN + STM-10-EN-005/006/007 completed; next CROSS)
+**Last current-state refresh:** 2026-11-14 (CROSS/RBAC partials cleared; Kafka deferred)
 
 ---
 
@@ -19,16 +19,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — EN lane in progress (user authorized continuous commit/push).
-2. **Canonical backlog:** STM-03/04/05/06 EN partials largely cleared (EN-002/003 storage/malware deferred).
+1. **Branch:** `feature/java-backend-integration` — continuous commit/push authorized this session.
+2. **Canonical backlog:** STM-06/10 EN + CROSS/RBAC **partials cleared**; Kafka (CROSS-EN-007) deferred yet-to-pickup.
 3. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-4. **Next:** STM-CROSS-EN-001 (schema/RLS audit) then remaining CROSS/RBAC partials.
+4. **Next:** owner prioritization for yet-to-pickup (storage/malware/Kafka/DDL FORCE gaps) — no remaining partials.
 5. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
 6. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
 7. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`; both needed for student enrolment BFF (`X-Student-Record-Id` via `/students/me`).
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
 9. **Live tenant provision:** requires exact phrase `GO PROVISION-TENANT` (script `--approve` or BFF header).
-10. **Demos:** headed `run_story_demo.mjs` required every story; latest `docs/demos/STM-10-EN-007/`.
+10. **Demos:** headed `run_story_demo.mjs` required every story; latest `docs/demos/STM-RBAC-EN-001/`.
 
 ---
 

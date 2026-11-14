@@ -1,0 +1,15 @@
+{
+  "storyId": "STM-RBAC-EN-001",
+  "title": "Central RBAC and ABAC enforcement for all STM services",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Admin Path Allowed", "description": "College admin reaches documents governance", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "College Documents Heading", "description": "Authorized role path", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Student Owner Path", "description": "Student reaches own documents desk", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents", "highlight": null},
+    {"title": "Student Documents Heading", "description": "Student role scoped path", "action": "wait_for", "selector": "[data-testid=\"student-documents-heading\"]", "highlight": "[data-testid=\"student-documents-heading\"]"},
+    {"title": "Unauth Gateway Blocked", "description": "No role → 401 across STM ingress", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/documents/types", "expectedStatus": 401},
+    {"title": "Unauth Guardians Blocked", "description": "No role → 401 guardians", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/guardians", "expectedStatus": 401},
+    {"title": "Unauth Students Blocked", "description": "No role → 401 students", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/students/me", "expectedStatus": 401},
+    {"title": "Students RLS Forced", "description": "ABAC/tenant via RLS FORCE on students", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='students' AND c.relrowsecurity AND c.relforcerowsecurity", "minCount": 1}
+  ]
+}

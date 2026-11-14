@@ -1,0 +1,15 @@
+{
+  "storyId": "STM-CROSS-EN-009",
+  "title": "Frontend integration and browser workflow validation",
+  "slowMo": 250,
+  "steps": [
+    {"title": "Student Portal", "description": "Student portal entry", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student", "highlight": null},
+    {"title": "Dashboard", "description": "Portal dashboard", "action": "wait_for", "selector": "[data-testid=\"student-dashboard-heading\"]", "highlight": "[data-testid=\"student-dashboard-heading\"]"},
+    {"title": "Documents Desk", "description": "Documents workflow", "action": "goto", "url": "http://localhost:3000/student/documents", "highlight": null},
+    {"title": "Documents Heading", "description": "Documents workflow heading", "action": "wait_for", "selector": "[data-testid=\"student-documents-heading\"]", "highlight": "[data-testid=\"student-documents-heading\"]"},
+    {"title": "Lifecycle Desk", "description": "Lifecycle workflow", "action": "goto", "url": "http://localhost:3000/student/lifecycle", "highlight": null},
+    {"title": "Lifecycle Heading", "description": "Lifecycle workflow heading", "action": "wait_for", "selector": "[data-testid=\"student-lifecycle-heading\"]", "highlight": "[data-testid=\"student-lifecycle-heading\"]"},
+    {"title": "Guardians Desk", "description": "Guardians consent workflow", "action": "goto", "url": "http://localhost:3000/student/guardians", "highlight": null},
+    {"title": "Guardians Heading", "description": "Guardians workflow heading", "action": "wait_for", "selector": "[data-testid=\"student-guardians-heading\"]", "highlight": "[data-testid=\"student-guardians-heading\"]"}
+  ]
+}

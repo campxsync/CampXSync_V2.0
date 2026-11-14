@@ -1,0 +1,63 @@
+{
+  "storyId": "STM-CROSS-EN-001",
+  "title": "Audit existing Supabase/PostgreSQL schemas, migrations, tables, FKs, grants and RLS",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens documents desk as operational entry for schema-backed services",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Desk Loaded",
+      "description": "Documents desk proves live UI path against audited doc schema",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-heading\"]",
+      "highlight": "[data-testid=\"college-documents-heading\"]"
+    },
+    {
+      "title": "Students RLS Forced",
+      "description": "Verify stu.students RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relname = 'students' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Guardianships RLS Forced",
+      "description": "Verify stu.guardianships RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relname = 'guardianships' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Lifecycle Status RLS Forced",
+      "description": "Verify stu.lifecycle_status RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relname = 'lifecycle_status' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Stage Requirements RLS Forced",
+      "description": "Verify doc.stage_document_requirements RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'doc' AND c.relname = 'stage_document_requirements' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Documents RLS Enabled",
+      "description": "Verify doc.documents has RLS enabled (FORCE gap documented in audit report)",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'doc' AND c.relname = 'documents' AND c.relrowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Outbox Schema Present",
+      "description": "Verify sys.outbox_events table exists for intelligence outbox",
+      "action": "db_check",
+      "query": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'sys' AND table_name = 'outbox_events'",
+      "minCount": 1
+    }
+  ]
+}

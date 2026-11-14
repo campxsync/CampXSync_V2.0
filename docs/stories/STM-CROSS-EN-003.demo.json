@@ -1,0 +1,14 @@
+{
+  "storyId": "STM-CROSS-EN-003",
+  "title": "Approved Supabase persistence and CRUD for service-owned domains",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Documents CRUD Surface", "description": "Document metadata CRUD desk", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Heading", "description": "Persistence-backed documents desk", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Catalog Tab", "description": "Document types catalog CRUD surface", "action": "click", "selector": "[data-testid=\"college-documents-tab-catalog\"]", "highlight": "[data-testid=\"college-documents-tab-catalog\"]"},
+    {"title": "Requirements Tab", "description": "Stage requirements CRUD surface", "action": "click", "selector": "[data-testid=\"college-documents-tab-requirements\"]", "highlight": "[data-testid=\"college-documents-tab-requirements\"]"},
+    {"title": "Document Types Read-Back", "description": "Live Postgres document_types rows", "action": "db_check", "query": "SELECT id FROM doc.document_types WHERE tenant_id='a0000000-0000-0000-0000-000000000001' LIMIT 1", "minCount": 1},
+    {"title": "Guardianships Read-Back", "description": "Live Postgres guardianships rows", "action": "db_check", "query": "SELECT id FROM stu.guardianships WHERE tenant_id='a0000000-0000-0000-0000-000000000001' AND deleted_at IS NULL LIMIT 1", "minCount": 1},
+    {"title": "Lifecycle Status Read-Back", "description": "Live Postgres lifecycle_status rows", "action": "db_check", "query": "SELECT student_id FROM stu.lifecycle_status WHERE tenant_id='a0000000-0000-0000-0000-000000000001' LIMIT 1", "minCount": 1}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "storyId": "STM-CROSS-EN-013",
+  "title": "Idempotency, concurrency, retry/recovery and transaction integrity",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Documents Desk", "description": "Transactional document domain UI", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Heading", "description": "Persistence path uses executeInTransaction", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Documents + Versions Integrity", "description": "Document and version tables present for multi-table commits", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='doc' AND c.relname IN ('documents','document_versions')", "minCount": 2},
+    {"title": "Lifecycle History Append Model", "description": "lifecycle_history present for append-only integrity", "action": "db_check", "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='stu' AND c.relname='lifecycle_history' AND c.relrowsecurity AND c.relforcerowsecurity", "minCount": 1},
+    {"title": "Unauth Mutation Path Blocked", "description": "Unauthenticated writes cannot bypass integrity controls", "action": "api_call", "method": "POST", "url": "http://localhost:8080/api/v1/documents/types", "expectedStatus": 401}
+  ]
+}

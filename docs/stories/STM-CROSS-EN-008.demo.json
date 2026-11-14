@@ -1,0 +1,11 @@
+{
+  "storyId": "STM-CROSS-EN-008",
+  "title": "Intelligence Services integration with domain authorization safeguards",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Documents Desk", "description": "Domain mutations emit intelligence events via ControlledIntelligenceAdapter", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Heading", "description": "Authorized domain path", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Outbox Schema", "description": "sys.outbox_events available for intelligence emissions (liveEndpoint may be false)", "action": "db_check", "query": "SELECT table_name FROM information_schema.tables WHERE table_schema='sys' AND table_name='outbox_events'", "minCount": 1},
+    {"title": "Unauth Types Blocked", "description": "Unauthorized actors cannot trigger domain/intel path", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/documents/types", "expectedStatus": 401}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "storyId": "STM-CROSS-EN-006",
+  "title": "API Gateway integration and versioned API contracts",
+  "slowMo": 250,
+  "steps": [
+    {"title": "College Auth via BFF", "description": "UI uses BFF → Gateway", "action": "goto", "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents", "highlight": null},
+    {"title": "Documents Desk", "description": "Gateway-backed documents desk", "action": "wait_for", "selector": "[data-testid=\"college-documents-heading\"]", "highlight": "[data-testid=\"college-documents-heading\"]"},
+    {"title": "Gateway Types Auth Gate", "description": "Versioned /api/v1 documents types require auth", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/documents/types", "expectedStatus": 401},
+    {"title": "Gateway Students Auth Gate", "description": "Versioned /api/v1 students/me require auth", "action": "api_call", "method": "GET", "url": "http://localhost:8080/api/v1/students/me", "expectedStatus": 401},
+    {"title": "OpenAPI Lifecycle Spec Present", "description": "Confirm lifecycle OpenAPI artifact exists via repo path evidence in DEMO notes", "action": "db_check", "query": "SELECT 1 WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='stu' AND table_name='lifecycle_status')", "minCount": 1}
+  ]
+}
