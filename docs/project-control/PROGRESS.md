@@ -1,27 +1,29 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (STM-03 EN-001…006 cleared with headed demos)
+**Updated:** 2026-11-14 (STM-04 EN partials cleared except EN-004 yet-to-pickup)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-03 US | completed (prior) |
-| STM-03 EN-001…006 | **completed** + headed demos under `docs/demos/STM-03-EN-00x/` |
-| Remaining partials | ~29 EN/CROSS (next: **STM-04-EN-001**) |
+| STM-03 EN-001…006 | **completed** |
+| STM-04-EN-001/002/003/005/006 | **completed** + headed demos |
+| STM-04-EN-004 | deferred (yet to pickup / cross-STM) |
+| Next | **STM-05-EN-001** |
 
 ## Evidence highlights
 
-- EN-001 LivePostgres **2/2**; EN-004 GatewayRouteTest **3/3** + OpenAPI **1/1**; Domain suite **97/97**
-- Headed demos: EN-001…004 **7/7**, EN-005 **12/12**, EN-006 **7/7**
-- EN-006: in-service alerts + intelligence emit (`liveEndpoint=false`); external Kafka not invented
+- EN-002: transition validation + live transactional RLS rollback; rule upsert fix
+- EN-003: endorse→approve→intelligence (`liveEndpoint=false`)
+- EN-005: student/college/faculty frontend demo **12/12**
+- EN-006: history audit + `/health` readiness demo **8/8**
 
 ## Caveats
 
 - Prefer partially completed before yet to pickup.
 - Headed Playwright demos required each story.
-- No DEPARTMENT_STAFF invent; no unapproved DDL; no push without ask.
+- No DEPARTMENT_STAFF / Kafka invent; no unapproved DDL.
 
 ## Canonical files
 

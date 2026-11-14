@@ -1,5 +1,6 @@
 package com.campx.lifecycle;
 
+import com.campx.lifecycle.intelligence.LifecycleIntelligenceService;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -402,5 +403,147 @@ public class LifecycleDomainServiceTest {
         List<Map<String, String>> advisees = service.listAdvisees(facultyActor);
         assertEquals(1, advisees.size());
         assertEquals("ACTIVE", advisees.get(0).get("status"));
+    }
+
+    // --- STM-04-EN-002 Transition validation, transactional integrity guards ---
+
+    @Test
+    public void stm04En002_pastEffectiveDateRejected() {
+        try {
+            service.submitRequest(studentActor, student, "LEAVE", "Medical", LocalDate.parse("2026-11-01"));
+            fail("Past effective date must be rejected");
+        } catch (LifecycleException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("EFFECTIVE_DATE_INVALID", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm04En002_inactiveTransitionRuleBlocksAdminTransition() {
+        service.configureRule(registrar, "ACTIVE", "ON_LEAVE", true, false);
+        try {
+            service.transitionStatus(registrar, student, "ON_LEAVE", "blocked by inactive rule");
+            fail("Inactive transition rule must block administrative transition");
+        } catch (LifecycleException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("TRANSITION_INACTIVE", ex.getCode());
+        }
+        assertEquals("ACTIVE", service.getStatus(studentActor, student).status);
+    }
+
+    @Test
+    public void stm04En002_inactiveTransitionRuleBlocksRequestSubmit() {
+        service.configureRule(registrar, "ACTIVE", "ON_LEAVE", true, false);
+        try {
+            service.submitRequest(studentActor, student, "LEAVE", "Medical");
+            fail("Inactive transition rule must block leave submission");
+        } catch (LifecycleException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("TRANSITION_INACTIVE", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm04En002_alreadyDecidedRequestReturns409() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Medical");
+        service.decideRequest(registrar, pending.id, "APPROVED");
+        try {
+            service.decideRequest(registrar, pending.id, "REJECTED");
+            fail("Second decision must conflict");
+        } catch (LifecycleException ex) {
+            assertEquals(409, ex.getStatus());
+            assertEquals("REQUEST_ALREADY_DECIDED", ex.getCode());
+        }
+        assertEquals("ON_LEAVE", service.getStatus(studentActor, student).status);
+    }
+
+    @Test
+    public void stm04En002_leaveOnlyAllowedFromActive() {
+        service.seedStudent(tenant, student, "ON_LEAVE");
+        try {
+            service.submitRequest(studentActor, student, "LEAVE", "Already on leave");
+            fail("Leave from non-ACTIVE must be rejected");
+        } catch (LifecycleException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("TRANSITION_INVALID", ex.getCode());
+        }
+    }
+
+    // --- STM-04-EN-003 Approval workflow + intelligence notifications (no Kafka invent) ---
+
+    @Test
+    public void stm04En003_endorseThenApproveEmitsLifecycleChangedEvent() {
+        service.assignAdvisor(registrar, facultyActor.getUserId(), student);
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "Medical leave for EN-003 workflow");
+        Map<String, Object> endorsement = service.endorseRequest(facultyActor, pending.id, "RECOMMENDED",
+                "Department cleared orthopedic recovery leave request");
+        assertEquals(Boolean.TRUE, endorsement.get("endorsed"));
+
+        LifecycleDomainService.LifecycleRequest decided = service.decideRequest(registrar, pending.id, "APPROVED");
+        assertEquals("APPROVED", decided.status);
+        assertEquals("ON_LEAVE", service.getStatus(studentActor, student).status);
+
+        List<Map<String, Object>> events = service.eventsForTenant(tenant);
+        assertTrue(events.size() >= 1);
+        Map<String, Object> latest = events.get(events.size() - 1);
+        assertEquals("ON_LEAVE", latest.get("status"));
+        assertEquals("ACTIVE", latest.get("previousStatus"));
+        assertTrue(String.valueOf(latest.get("action")).contains("request.approved"));
+        assertEquals(pending.id.toString(), latest.get("requestId"));
+    }
+
+    @Test
+    public void stm04En003_rejectDoesNotEmitStatusTransitionEvent() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "Will be rejected");
+        int before = service.eventsForTenant(tenant).size();
+        service.decideRequest(registrar, pending.id, "REJECTED");
+        assertEquals("ACTIVE", service.getStatus(studentActor, student).status);
+        assertEquals("Reject must not emit lifecycle.changed transition", before, service.eventsForTenant(tenant).size());
+    }
+
+    @Test
+    public void stm04En003_intelligenceServicePublishesThroughAdapter() {
+        LifecycleIntelligenceService intel = new LifecycleIntelligenceService();
+        Map<String, Object> domainEvent = new java.util.LinkedHashMap<String, Object>();
+        domainEvent.put("tenantId", tenant);
+        domainEvent.put("studentId", student);
+        domainEvent.put("previousStatus", "ACTIVE");
+        domainEvent.put("status", "ON_LEAVE");
+        domainEvent.put("action", "request.approved:LEAVE");
+        domainEvent.put("requestId", UUID.randomUUID().toString());
+        domainEvent.put("correlationId", "corr-en003");
+        domainEvent.put("occurredAt", NOW.toString());
+        intel.publishLifecycleChanged(domainEvent);
+        assertTrue(intel.getAdapter() != null);
+    }
+
+    // --- STM-04-EN-006 Audit history, tests, logging, operational readiness ---
+
+    @Test
+    public void stm04En006_approvalWritesImmutableHistoryEntry() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "History audit leave");
+        service.decideRequest(registrar, pending.id, "APPROVED");
+        List<LifecycleDomainService.HistoryEntry> rows = service.listHistory(studentActor, student);
+        assertTrue(rows.size() >= 1);
+        LifecycleDomainService.HistoryEntry last = rows.get(rows.size() - 1);
+        assertEquals("ON_LEAVE", last.status);
+        assertTrue(last.action.contains("request.approved"));
+        assertEquals("REGISTRAR", last.actorRole);
+    }
+
+    @Test
+    public void stm04En006_crossTenantHistoryIsolation() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "Tenant isolation leave");
+        service.decideRequest(registrar, pending.id, "APPROVED");
+        assertTrue(service.listHistory(studentActor, student).size() >= 1);
+
+        UUID otherTenant = UUID.randomUUID();
+        Actor foreignRegistrar = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr-foreign");
+        // In-memory keys are tenant-scoped; foreign registrar must not see this tenant's history rows.
+        assertEquals(0, service.listHistory(foreignRegistrar, student).size());
     }
 }

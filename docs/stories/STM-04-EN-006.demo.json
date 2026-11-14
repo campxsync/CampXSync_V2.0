@@ -1,0 +1,65 @@
+{
+  "storyId": "STM-04-EN-006",
+  "title": "Audit history, automated tests, centralized logging, documentation and operational readiness",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student opens Lifecycle Desk to review immutable standing history",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Student Lifecycle Desk Loaded",
+      "description": "Self-service desk loads for audit/history review",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"student-lifecycle-heading\"]"
+    },
+    {
+      "title": "Open History Tab",
+      "description": "Student opens lifecycle history for operational auditability",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-tab-history\"]",
+      "highlight": "[data-testid=\"lifecycle-tab-history\"]"
+    },
+    {
+      "title": "History List Visible",
+      "description": "Immutable history rows render from gateway-backed persistence",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-lifecycle-history-list\"]",
+      "highlight": "[data-testid=\"student-lifecycle-history-list\"]"
+    },
+    {
+      "title": "History Status Field Visible",
+      "description": "First history row exposes status for audit evidence",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-lifecycle-history-status-0\"]",
+      "highlight": "[data-testid=\"student-lifecycle-history-status-0\"]"
+    },
+    {
+      "title": "Lifecycle Service Health Ready",
+      "description": "Operational readiness: lifecycle-service health endpoint responds HTTP 200",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8096/health",
+      "expectedStatus": 200
+    },
+    {
+      "title": "PostgreSQL History Read-Back",
+      "description": "Confirm stu.lifecycle_history contains audit rows for pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, status, action, actor_role FROM stu.lifecycle_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated History Blocked",
+      "description": "Unauthenticated history contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/students/81dd67d3-1d5f-4d8e-8061-a6764861f924/history",
+      "expectedStatus": 401
+    }
+  ]
+}

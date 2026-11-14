@@ -684,7 +684,7 @@ export default function CollegeLifecycleDeskPage() {
       </section>
 
       {/* Transition Rules Configuration */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+      <section data-testid="college-lifecycle-rules-section" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
             <ArrowRightLeft className="h-4 w-4 text-[#1F6FEB]" />
@@ -698,6 +698,7 @@ export default function CollegeLifecycleDeskPage() {
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">From Status</label>
             <select
+              data-testid="college-lifecycle-rule-from-status"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
               value={fromStatus}
               onChange={(e) => setFromStatus(e.target.value)}
@@ -710,6 +711,7 @@ export default function CollegeLifecycleDeskPage() {
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">To Status</label>
             <select
+              data-testid="college-lifecycle-rule-to-status"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
               value={toStatus}
               onChange={(e) => setToStatus(e.target.value)}
@@ -723,6 +725,7 @@ export default function CollegeLifecycleDeskPage() {
         </div>
         <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
           <input
+            data-testid="college-lifecycle-rule-requires-approval"
             type="checkbox"
             className="rounded border-slate-300 text-[#1F6FEB]"
             checked={requiresApproval}
@@ -732,6 +735,7 @@ export default function CollegeLifecycleDeskPage() {
         </label>
         <button
           type="button"
+          data-testid="college-lifecycle-rule-save-btn"
           className="rounded-lg bg-[#0B1F3A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#152E52]"
           onClick={async () => {
             setError('');

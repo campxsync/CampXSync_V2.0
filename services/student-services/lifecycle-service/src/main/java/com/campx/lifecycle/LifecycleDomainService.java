@@ -626,6 +626,7 @@ public class LifecycleDomainService {
 
     private void applyTransition(Actor actor, LifecycleStatus current, String targetStatus, String action, UUID requestId,
                                  LocalDate effectiveOn) {
+        assertTransitionAllowed(actor.getTenantId(), current.status, targetStatus);
         String previous = current.status;
         Instant now = clock.instant();
         current.status = targetStatus;

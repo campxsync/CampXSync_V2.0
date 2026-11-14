@@ -1,0 +1,67 @@
+{
+  "storyId": "STM-04-EN-003",
+  "title": "Approval workflow, notifications and Kafka integration",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "Registrar opens Lifecycle Desk to decide endorsed/pending petitions",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Lifecycle Desk Loaded",
+      "description": "College lifecycle heading proves UI → gateway → lifecycle-service path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Pending Queue Visible",
+      "description": "Pending request count surfaces approval-workflow queue from PostgreSQL",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-stat-pending\"]",
+      "highlight": "[data-testid=\"college-lifecycle-stat-pending\"]"
+    },
+    {
+      "title": "Target Leave Petition Row Visible",
+      "description": "Pending LEAVE petition selected for registrar approval decision",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-req-row-99999999-0004-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-lifecycle-req-row-99999999-0004-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Approve Leave Petition",
+      "description": "Registrar approves petition; Java service transitions status and emits intelligence event (liveEndpoint=false)",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-approve-btn-99999999-0004-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-lifecycle-approve-btn-99999999-0004-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Approval Success Feedback",
+      "description": "UI confirms approval decision persisted through gateway",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-success-msg\"]"
+    },
+    {
+      "title": "PostgreSQL Approved Request Read-Back",
+      "description": "Confirm request is APPROVED and student standing is ON_LEAVE under RLS-forced tables",
+      "action": "db_check",
+      "query": "SELECT r.id, r.status AS request_status, s.status AS standing FROM stu.lifecycle_requests r JOIN stu.lifecycle_status s ON s.tenant_id = r.tenant_id AND s.student_id = r.student_id WHERE r.tenant_id = 'a0000000-0000-0000-0000-000000000001' AND r.id = '99999999-0004-0000-0000-000000000001' AND r.status = 'APPROVED' AND s.status = 'ON_LEAVE'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Decide Blocked",
+      "description": "Unauthenticated POST decide contract returns HTTP 401 (approval workflow gated by gateway)",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/lifecycle/requests/99999999-0004-0000-0000-000000000001/decide",
+      "body": {
+        "decision": "APPROVED"
+      },
+      "expectedStatus": 401
+    }
+  ]
+}

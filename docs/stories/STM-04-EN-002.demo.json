@@ -1,0 +1,68 @@
+{
+  "storyId": "STM-04-EN-002",
+  "title": "Lifecycle transition validation, transactional integrity and RLS",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Lifecycle Desk for transition-rule and standing validation",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Lifecycle Desk Loaded",
+      "description": "College lifecycle heading proves UI → gateway → lifecycle-service path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "Standing Transition Controls Visible",
+      "description": "Administrative standing inspector exposes validated transition controls",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-standing-section\"]",
+      "highlight": "[data-testid=\"college-lifecycle-standing-section\"]"
+    },
+    {
+      "title": "Transition Rules Section Visible",
+      "description": "Transition rule configuration UI enforces active/inactive validation path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-rules-section\"]",
+      "highlight": "[data-testid=\"college-lifecycle-rules-section\"]"
+    },
+    {
+      "title": "Save Active Transition Rule",
+      "description": "Persist ACTIVE → ON_LEAVE rule requiring registrar approval",
+      "action": "click",
+      "selector": "[data-testid=\"college-lifecycle-rule-save-btn\"]",
+      "highlight": "[data-testid=\"college-lifecycle-rule-save-btn\"]"
+    },
+    {
+      "title": "Rule Save Feedback Visible",
+      "description": "Success feedback confirms rule write through gateway/Java persistence",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-success-msg\"]",
+      "highlight": "[data-testid=\"college-lifecycle-success-msg\"]"
+    },
+    {
+      "title": "PostgreSQL Transition Rules / History Integrity",
+      "description": "Confirm lifecycle transition rules and history rows exist under RLS-forced schema",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relkind = 'r' AND c.relname IN ('lifecycle_transition_rules','lifecycle_history','lifecycle_status','lifecycle_requests') AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 4
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Transition Blocked",
+      "description": "Unauthenticated POST on administrative transition contract returns HTTP 401",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/lifecycle/students/a1000000-0000-0000-0000-000000000031/transition",
+      "body": {
+        "targetStatus": "ON_LEAVE",
+        "reason": "demo-en002"
+      },
+      "expectedStatus": 401
+    }
+  ]
+}

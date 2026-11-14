@@ -57,6 +57,10 @@ public class LivePostgresLifecyclePersistenceTest {
             return null;
         }
         TestEnvironmentGuard.validateStagingConfiguration(jdbcUrl, user);
+        // PgBouncer transaction pooling conflicts with server-prepared statements.
+        if (!jdbcUrl.contains("prepareThreshold=")) {
+            jdbcUrl = jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "prepareThreshold=0";
+        }
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(user);
@@ -208,6 +212,170 @@ public class LivePostgresLifecyclePersistenceTest {
                     // best effort
                 }
                 conn.setAutoCommit(true);
+            }
+        } finally {
+            ds.close();
+        }
+    }
+
+    /**
+     * STM-04-EN-002: status+history atomic write under RLS; rollback leaves no orphan rows;
+     * cross-tenant write still denied.
+     */
+    @Test
+    public void stm04En002_transactionalStatusHistoryIntegrityAndRls() throws Exception {
+        if (!approved()) {
+            System.out.println("=== STM-04-EN-002 LIVE JDBC TEST GATED ===");
+            System.out.println("Authorize with -Dcampx.approve.stm04.write=true");
+            return;
+        }
+
+        HikariDataSource ds = createDevDataSource();
+        assertNotNull("JDBC datasource must be configured for live STM-04-EN-002 test", ds);
+
+        UUID tenantA = UUID.fromString("a0000000-0000-0000-0000-000000000001");
+        UUID tenantB = UUID.fromString("b0000000-0000-0000-0000-000000000002");
+        UUID userA = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID historyId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-11-14T12:00:00Z");
+
+        try (Connection conn = ds.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                bindClaims(conn, tenantA, userA, "REGISTRAR");
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO stu.lifecycle_status (tenant_id, student_id, status, effective_from, updated_at) "
+                                + "VALUES (?, ?, ?, ?, ?) "
+                                + "ON CONFLICT (tenant_id, student_id) DO UPDATE SET "
+                                + "status = EXCLUDED.status, effective_from = EXCLUDED.effective_from, updated_at = EXCLUDED.updated_at")) {
+                    ps.setObject(1, tenantA);
+                    ps.setObject(2, studentId);
+                    ps.setString(3, "ACTIVE");
+                    ps.setTimestamp(4, Timestamp.from(now));
+                    ps.setTimestamp(5, Timestamp.from(now));
+                    assertEquals(1, ps.executeUpdate());
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO stu.lifecycle_history "
+                                + "(tenant_id, id, student_id, status, action, actor_role, occurred_at) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setObject(1, tenantA);
+                    ps.setObject(2, historyId);
+                    ps.setObject(3, studentId);
+                    ps.setString(4, "ACTIVE");
+                    ps.setString(5, "STATUS_SET");
+                    ps.setString(6, "REGISTRAR");
+                    ps.setTimestamp(7, Timestamp.from(now));
+                    assertEquals(1, ps.executeUpdate());
+                }
+
+                // Same-tenant read-back proves both rows visible before rollback.
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT s.status AS standing, h.action AS history_action "
+                                + "FROM stu.lifecycle_status s "
+                                + "JOIN stu.lifecycle_history h ON h.tenant_id = s.tenant_id AND h.student_id = s.student_id "
+                                + "WHERE s.tenant_id = ? AND s.student_id = ? AND h.id = ?")) {
+                    ps.setObject(1, tenantA);
+                    ps.setObject(2, studentId);
+                    ps.setObject(3, historyId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("ACTIVE", rs.getString("standing"));
+                        assertEquals("STATUS_SET", rs.getString("history_action"));
+                    }
+                }
+
+                // Transition within same open transaction (status + history together).
+                Instant later = Instant.parse("2026-11-14T12:05:00Z");
+                UUID transitionHistoryId = UUID.randomUUID();
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE stu.lifecycle_status SET status = ?, effective_from = ?, updated_at = ? "
+                                + "WHERE tenant_id = ? AND student_id = ?")) {
+                    ps.setString(1, "ON_LEAVE");
+                    ps.setTimestamp(2, Timestamp.from(later));
+                    ps.setTimestamp(3, Timestamp.from(later));
+                    ps.setObject(4, tenantA);
+                    ps.setObject(5, studentId);
+                    assertEquals(1, ps.executeUpdate());
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO stu.lifecycle_history "
+                                + "(tenant_id, id, student_id, status, action, actor_role, occurred_at) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                    ps.setObject(1, tenantA);
+                    ps.setObject(2, transitionHistoryId);
+                    ps.setObject(3, studentId);
+                    ps.setString(4, "ON_LEAVE");
+                    ps.setString(5, "administrative.transition:EN-002");
+                    ps.setString(6, "REGISTRAR");
+                    ps.setTimestamp(7, Timestamp.from(later));
+                    assertEquals(1, ps.executeUpdate());
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT status FROM stu.lifecycle_status WHERE tenant_id = ? AND student_id = ?")) {
+                    ps.setObject(1, tenantA);
+                    ps.setObject(2, studentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("ON_LEAVE", rs.getString("status"));
+                    }
+                }
+
+                bindClaims(conn, tenantB, UUID.randomUUID(), "REGISTRAR");
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT count(*) AS c FROM stu.lifecycle_history WHERE student_id = ?")) {
+                    ps.setObject(1, studentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Cross-tenant history read must return 0", 0, rs.getInt("c"));
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE stu.lifecycle_status SET status = 'WITHDRAWN' WHERE student_id = ?")) {
+                    ps.setObject(1, studentId);
+                    assertEquals("Cross-tenant update must affect 0 rows under RLS", 0, ps.executeUpdate());
+                }
+
+                // Unconditional rollback: transactional integrity means ephemeral rows disappear.
+                conn.rollback();
+                bindClaims(conn, tenantA, userA, "REGISTRAR");
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT count(*) AS c FROM stu.lifecycle_status WHERE student_id = ?")) {
+                    ps.setObject(1, studentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Rolled-back status row must not remain", 0, rs.getInt("c"));
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT count(*) AS c FROM stu.lifecycle_history WHERE student_id = ?")) {
+                    ps.setObject(1, studentId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Rolled-back history rows must not remain", 0, rs.getInt("c"));
+                    }
+                }
+            } finally {
+                try {
+                    conn.rollback();
+                } catch (Exception ignored) {
+                    // best effort
+                }
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("RESET ROLE");
+                    stmt.execute("SELECT set_config('request.jwt.claims', '', true)");
+                } catch (Exception ignored) {
+                    // best effort
+                }
+                try {
+                    conn.setAutoCommit(true);
+                } catch (Exception ignored) {
+                    // best effort
+                }
             }
         } finally {
             ds.close();

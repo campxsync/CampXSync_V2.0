@@ -136,7 +136,7 @@ export default function StudentLifecyclePage() {
         <div>
           <div className="flex items-center gap-2">
             <Activity className="h-6 w-6 text-[#1F6FEB]" />
-            <h1 className="text-2xl font-bold tracking-tight text-[#0B1F3A]">Student Lifecycle Desk</h1>
+            <h1 data-testid="student-lifecycle-heading" className="text-2xl font-bold tracking-tight text-[#0B1F3A]">Student Lifecycle Desk</h1>
           </div>
           <p className="mt-1 text-sm text-[#475569]">
             Manage academic status, submit program transfer, leave of absence, and track registrar decisions.
@@ -151,7 +151,7 @@ export default function StudentLifecyclePage() {
       </div>
 
       {/* Current Status Card */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section data-testid="student-lifecycle-status-section" className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Current Academic Standing</span>
@@ -204,6 +204,7 @@ export default function StudentLifecyclePage() {
         </button>
         <button
           type="button"
+          data-testid="lifecycle-tab-history"
           onClick={() => setActiveTab('history')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${
             activeTab === 'history'
@@ -381,21 +382,21 @@ export default function StudentLifecyclePage() {
 
       {/* Tab 3: History */}
       {activeTab === 'history' && (
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <section data-testid="student-lifecycle-history-section" className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="p-4 border-b bg-slate-50">
             <h2 className="text-sm font-semibold text-slate-900">Academic Standing History</h2>
           </div>
           {history.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-500">
+            <div data-testid="student-lifecycle-history-empty" className="p-8 text-center text-sm text-slate-500">
               No historical status transitions recorded.
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100 p-4 space-y-2">
+            <ul data-testid="student-lifecycle-history-list" className="divide-y divide-slate-100 p-4 space-y-2">
               {history.map((row, idx) => (
-                <li key={idx} className="flex items-center justify-between text-xs py-2 text-slate-700">
+                <li key={idx} data-testid={`student-lifecycle-history-row-${idx}`} className="flex items-center justify-between text-xs py-2 text-slate-700">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <span className="font-semibold">{row.status}</span>
+                    <span data-testid={`student-lifecycle-history-status-${idx}`} className="font-semibold">{row.status}</span>
                     <span className="text-slate-400">·</span>
                     <span className="text-slate-600">{row.action}</span>
                     <span className="text-slate-400">·</span>

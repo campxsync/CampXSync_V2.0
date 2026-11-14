@@ -1,0 +1,92 @@
+{
+  "storyId": "STM-04-EN-005",
+  "title": "Frontend lifecycle management and student self-service",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student opens self-service Lifecycle Desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "Student Lifecycle Desk Loaded",
+      "description": "Student lifecycle heading proves self-service UI path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"student-lifecycle-heading\"]"
+    },
+    {
+      "title": "Current Standing Visible",
+      "description": "Student standing badge renders current academic status from gateway/Java",
+      "action": "wait_for",
+      "selector": "[data-testid=\"lifecycle-status-badge\"]",
+      "highlight": "[data-testid=\"lifecycle-status-badge\"]"
+    },
+    {
+      "title": "Open Lifecycle History Tab",
+      "description": "Student opens immutable history view for self-service auditability",
+      "action": "click",
+      "selector": "[data-testid=\"lifecycle-tab-history\"]",
+      "highlight": "[data-testid=\"lifecycle-tab-history\"]"
+    },
+    {
+      "title": "History Section Visible",
+      "description": "History panel loads for the authenticated student scope",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-lifecycle-history-section\"]",
+      "highlight": "[data-testid=\"student-lifecycle-history-section\"]"
+    },
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens institutional Lifecycle Desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/lifecycle",
+      "highlight": null
+    },
+    {
+      "title": "College Lifecycle Desk Visible",
+      "description": "Registrar desk heading confirms dual-persona frontend coverage",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-heading\"]",
+      "highlight": "[data-testid=\"college-lifecycle-heading\"]"
+    },
+    {
+      "title": "College Summary Section Visible",
+      "description": "Institutional summary analytics section is present for staff management",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-lifecycle-summary-section\"]",
+      "highlight": "[data-testid=\"college-lifecycle-summary-section\"]"
+    },
+    {
+      "title": "Faculty Advisees Desk",
+      "description": "Faculty advisor desk loads for advisee lifecycle monitoring",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=faculty&returnTo=/faculty/advisees",
+      "highlight": null
+    },
+    {
+      "title": "Faculty Advisees Heading Visible",
+      "description": "Faculty advisees workspace completes multi-persona frontend coverage",
+      "action": "wait_for",
+      "selector": "[data-testid=\"faculty-advisees-heading\"]",
+      "highlight": "[data-testid=\"faculty-advisees-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Lifecycle Status Read-Back",
+      "description": "Confirm student standing rows exist for pilot tenant",
+      "action": "db_check",
+      "query": "SELECT student_id, status FROM stu.lifecycle_status WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Student Status Blocked",
+      "description": "Unauthenticated GET on student status contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/lifecycle/status",
+      "expectedStatus": 401
+    }
+  ]
+}

@@ -138,8 +138,7 @@ public class PostgresLifecyclePersistence implements LifecyclePersistence {
                 String sql = "INSERT INTO stu.lifecycle_transition_rules "
                         + "(tenant_id, id, from_status, to_status, requires_approval, active) "
                         + "VALUES (?, ?, ?, ?, ?, ?) "
-                        + "ON CONFLICT (tenant_id, id) DO UPDATE SET "
-                        + "from_status = EXCLUDED.from_status, to_status = EXCLUDED.to_status, "
+                        + "ON CONFLICT (tenant_id, from_status, to_status) DO UPDATE SET "
                         + "requires_approval = EXCLUDED.requires_approval, active = EXCLUDED.active";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setObject(1, rule.tenantId);
