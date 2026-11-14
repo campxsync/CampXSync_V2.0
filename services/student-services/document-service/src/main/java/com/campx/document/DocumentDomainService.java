@@ -2,6 +2,8 @@ package com.campx.document;
 
 import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.DocumentPersistence;
+import com.campx.document.security.ControlledMalwareScanAdapter;
+import com.campx.document.security.SignedDownloadTokenService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -10,10 +12,12 @@ import com.campx.logger.context.LogContext;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -34,19 +38,35 @@ public class DocumentDomainService {
     public static final Set<String> ALLOWED_MIME_TYPES = Collections.unmodifiableSet(
             new HashSet<String>(Arrays.asList("application/pdf", "image/jpeg", "image/png", "image/webp")));
     public static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024L; // 10MB
+    public static final long SIGNED_URL_TTL_SECONDS = 300L;
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(DocumentDomainService.class);
     private static final Set<String> ALLOWED_CLASSIFICATIONS = Collections.unmodifiableSet(
             new HashSet<String>(Arrays.asList("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED")));
     public static final Set<String> ALLOWED_STAGES = Collections.unmodifiableSet(
             new HashSet<String>(Arrays.asList("ADMISSION", "ENROLLMENT", "ANNUAL_PROGRESSION", "EXAMINATION", "GRADUATION")));
+    private static final Set<String> BLOCKED_EXTENSIONS = Collections.unmodifiableSet(
+            new HashSet<String>(Arrays.asList("exe", "bat", "cmd", "com", "dll", "scr", "js", "msi", "sh", "ps1", "vbs")));
 
     private final DocumentPersistence persistence;
     private final DocumentIntelligenceService intelligenceService;
+    private final ControlledMalwareScanAdapter malwareScanAdapter;
+    private final SignedDownloadTokenService signedDownloadTokenService;
 
     public DocumentDomainService(DocumentPersistence persistence, DocumentIntelligenceService intelligenceService) {
+        this(persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService(null));
+    }
+
+    public DocumentDomainService(DocumentPersistence persistence,
+                                 DocumentIntelligenceService intelligenceService,
+                                 ControlledMalwareScanAdapter malwareScanAdapter,
+                                 SignedDownloadTokenService signedDownloadTokenService) {
         this.persistence = Objects.requireNonNull(persistence, "persistence");
         this.intelligenceService = intelligenceService == null ? new DocumentIntelligenceService() : intelligenceService;
+        this.malwareScanAdapter = malwareScanAdapter == null ? new ControlledMalwareScanAdapter() : malwareScanAdapter;
+        this.signedDownloadTokenService = signedDownloadTokenService == null
+                ? new SignedDownloadTokenService(null) : signedDownloadTokenService;
     }
 
     /**
@@ -1042,15 +1062,16 @@ public class DocumentDomainService {
             throw new DocumentException(422, "INVALID_TITLE", "Document title must be between 2 and 200 characters");
         }
 
-        if (req.mimeType == null || !ALLOWED_MIME_TYPES.contains(req.mimeType.trim().toLowerCase())) {
-            throw new DocumentException(422, "UNSUPPORTED_MIME_TYPE", "MIME type '" + req.mimeType + "' is not supported. Allowed: PDF, JPEG, PNG, WEBP");
-        }
+        String mimeType = validateSecureUpload(req.mimeType, req.sizeBytes, req.fileName);
+        String fileName = sanitizeFileName(req.fileName, mimeType);
+        String checksum = req.checksumSha256 != null && !req.checksumSha256.trim().isEmpty()
+                ? req.checksumSha256.trim() : null;
 
-        if (req.sizeBytes == null || req.sizeBytes <= 0) {
-            throw new DocumentException(422, "INVALID_FILE_SIZE", "File size must be greater than 0 bytes");
-        }
-        if (req.sizeBytes > MAX_FILE_SIZE_BYTES) {
-            throw new DocumentException(422, "FILE_TOO_LARGE", "File size (" + req.sizeBytes + " bytes) exceeds maximum limit of " + MAX_FILE_SIZE_BYTES + " bytes (10MB)");
+        ControlledMalwareScanAdapter.ScanResult scan =
+                malwareScanAdapter.scan(fileName, mimeType, checksum, req.sizeBytes);
+        if (!scan.clean) {
+            throw new DocumentException(422, "MALWARE_DETECTED",
+                    "Upload quarantined by malware scan (liveEndpoint=" + scan.liveEndpoint + ")");
         }
 
         UUID docId = UUID.randomUUID();
@@ -1058,9 +1079,10 @@ public class DocumentDomainService {
         UUID linkId = UUID.randomUUID();
         Instant now = Instant.now();
 
-        String fileName = req.fileName != null && !req.fileName.trim().isEmpty() ? req.fileName.trim() : "document.pdf";
         String storagePath = "tenants/" + actor.getTenantId() + "/students/" + targetStudentId + "/" + docId + "/v1-" + fileName;
-        String checksum = req.checksumSha256 != null && !req.checksumSha256.trim().isEmpty() ? req.checksumSha256.trim() : "sha256:simulated-" + docId;
+        if (checksum == null || checksum.isEmpty()) {
+            checksum = "sha256:simulated-" + docId;
+        }
 
         UUID targetCollegeId = req.collegeId != null ? req.collegeId : UUID.fromString("a0000000-0000-0000-0000-000000000002");
 
@@ -1077,7 +1099,7 @@ public class DocumentDomainService {
                 targetStudentId,
                 "student-documents",
                 storagePath,
-                req.mimeType.trim().toLowerCase(),
+                mimeType,
                 req.sizeBytes,
                 checksum,
                 1,
@@ -1119,6 +1141,18 @@ public class DocumentDomainService {
 
         persistence.saveStudentDocument(actor, doc, version, link);
 
+        DocumentLink scanLink = new DocumentLink(
+                UUID.randomUUID(),
+                actor.getTenantId(),
+                docId,
+                "SECURITY_SCAN",
+                actor.getUserId(),
+                "MALWARE_SCAN_PASSED",
+                now,
+                actor.getUserId()
+        );
+        persistence.saveDocumentLink(actor, scanLink);
+
         AuditEvent audit = AuditEvent.builder()
                 .action("document.uploaded")
                 .tenantId(actor.getTenantId().toString())
@@ -1129,7 +1163,8 @@ public class DocumentDomainService {
                 .correlationId(actor.getCorrelationId())
                 .status("SUCCESS")
                 .severity("INFO")
-                .description("Student document uploaded: docId=" + docId + ", docType=" + dt.code + ", owner=" + targetStudentId)
+                .description("Student document uploaded: docId=" + docId + ", docType=" + dt.code
+                        + ", owner=" + targetStudentId + ", malwareScan=" + scan.verdict)
                 .build();
         logger.audit(audit);
 
@@ -1340,15 +1375,15 @@ public class DocumentDomainService {
             throw new DocumentException(409, "DOCUMENT_ALREADY_APPROVED", "Cannot resubmit a document that has already been verified and approved");
         }
 
-        // File validation
-        if (req.mimeType == null || !ALLOWED_MIME_TYPES.contains(req.mimeType.toLowerCase().trim())) {
-            throw new DocumentException(422, "INVALID_MIME_TYPE", "File MIME type must be one of: " + ALLOWED_MIME_TYPES);
-        }
-        if (req.sizeBytes == null || req.sizeBytes <= 0) {
-            throw new DocumentException(422, "INVALID_FILE_SIZE", "File size must be greater than zero");
-        }
-        if (req.sizeBytes > MAX_FILE_SIZE_BYTES) {
-            throw new DocumentException(422, "FILE_TOO_LARGE", "File size exceeds 10MB limit");
+        // File validation + malware scan (STM-06-EN-003)
+        String secureMime = validateSecureUpload(req.mimeType, req.sizeBytes, req.fileName);
+        req.mimeType = secureMime;
+        String resubmitName = sanitizeFileName(req.fileName, secureMime);
+        ControlledMalwareScanAdapter.ScanResult rescan =
+                malwareScanAdapter.scan(resubmitName, secureMime, req.checksumSha256, req.sizeBytes);
+        if (!rescan.clean) {
+            throw new DocumentException(422, "MALWARE_DETECTED",
+                    "Resubmission quarantined by malware scan (liveEndpoint=" + rescan.liveEndpoint + ")");
         }
         if (req.checksumSha256 == null || req.checksumSha256.trim().isEmpty()) {
             throw new DocumentException(422, "MISSING_CHECKSUM", "File SHA-256 checksum is required");
@@ -1518,6 +1553,414 @@ public class DocumentDomainService {
             throw new DocumentException(403, "FORBIDDEN", "Unauthorized access to document retention");
         }
         return computeRetentionInfo(doc);
+    }
+
+    // --- STM-06-US-012 document access permissions (append-only via doc.document_links) ---
+
+    public static class GrantDocumentAccessRequest {
+        public UUID granteeId;
+        public String granteeType; // STAFF | EXTERNAL_AGENCY
+        public String purpose;
+    }
+
+    public DocumentLink grantDocumentAccess(Actor actor, UUID documentId, GrantDocumentAccessRequest req) {
+        requireCaller(actor);
+        requireAdmin(actor);
+        if (documentId == null) {
+            throw new DocumentException(422, "MISSING_DOCUMENT_ID", "Document ID is required");
+        }
+        if (req == null || req.granteeId == null) {
+            throw new DocumentException(422, "GRANTEE_REQUIRED", "granteeId is required");
+        }
+        String granteeType = req.granteeType == null ? "" : req.granteeType.trim().toUpperCase();
+        if (!"STAFF".equals(granteeType) && !"EXTERNAL_AGENCY".equals(granteeType)) {
+            throw new DocumentException(422, "INVALID_GRANTEE_TYPE", "granteeType must be STAFF or EXTERNAL_AGENCY");
+        }
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        Instant now = Instant.now();
+        DocumentLink link = new DocumentLink(UUID.randomUUID(), actor.getTenantId(), documentId, granteeType,
+                req.granteeId, "ACCESS_GRANTED", now, actor.getUserId());
+        persistence.saveDocumentLink(actor, link);
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action("document.access_granted")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(documentId.toString())
+                .correlationId(actor.getCorrelationId())
+                .status("SUCCESS")
+                .severity("INFO")
+                .description("Access granted to " + granteeType + " " + req.granteeId
+                        + (req.purpose != null ? (" purpose=" + req.purpose) : ""))
+                .build();
+        logger.audit(audit);
+        return link;
+    }
+
+    public DocumentLink revokeDocumentAccess(Actor actor, UUID documentId, UUID granteeId, String granteeType) {
+        requireCaller(actor);
+        requireAdmin(actor);
+        if (documentId == null || granteeId == null) {
+            throw new DocumentException(422, "MISSING_FIELDS", "documentId and granteeId are required");
+        }
+        String type = granteeType == null ? "STAFF" : granteeType.trim().toUpperCase();
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        boolean hadActive = false;
+        for (DocumentLink existing : persistence.listDocumentLinks(actor, documentId)) {
+            if (type.equals(existing.entityType) && granteeId.equals(existing.entityId)) {
+                if ("ACCESS_GRANTED".equals(existing.relation)) {
+                    hadActive = true;
+                    break;
+                }
+                if ("ACCESS_REVOKED".equals(existing.relation)) {
+                    break;
+                }
+            }
+        }
+        if (!hadActive) {
+            throw new DocumentException(404, "ACCESS_GRANT_NOT_FOUND", "No active access grant found for grantee");
+        }
+        Instant now = Instant.now();
+        DocumentLink link = new DocumentLink(UUID.randomUUID(), actor.getTenantId(), documentId, type,
+                granteeId, "ACCESS_REVOKED", now, actor.getUserId());
+        persistence.saveDocumentLink(actor, link);
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action("document.access_revoked")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(documentId.toString())
+                .correlationId(actor.getCorrelationId())
+                .status("SUCCESS")
+                .severity("INFO")
+                .description("Access revoked for " + type + " " + granteeId)
+                .build();
+        logger.audit(audit);
+        return link;
+    }
+
+    public List<DocumentLink> listDocumentAccessGrants(Actor actor, UUID documentId) {
+        requireCaller(actor);
+        StudentDocument doc = requireDocumentReadable(actor, documentId);
+        List<DocumentLink> all = persistence.listDocumentLinks(actor, documentId);
+        List<DocumentLink> grants = new ArrayList<DocumentLink>();
+        for (DocumentLink link : all) {
+            if ("ACCESS_GRANTED".equals(link.relation) || "ACCESS_REVOKED".equals(link.relation)) {
+                grants.add(link);
+            }
+        }
+        return grants;
+    }
+
+    // --- STM-06-US-013 document-sharing consent ---
+
+    public static class SharingConsentRequest {
+        public String purpose;
+    }
+
+    public DocumentLink recordSharingConsent(Actor actor, UUID documentId, SharingConsentRequest req) {
+        requireCaller(actor);
+        if (documentId == null) {
+            throw new DocumentException(422, "MISSING_DOCUMENT_ID", "Document ID is required");
+        }
+        if (req == null || req.purpose == null || req.purpose.trim().isEmpty()) {
+            throw new DocumentException(422, "PURPOSE_REQUIRED", "Sharing purpose is required");
+        }
+        String purpose = req.purpose.trim().toUpperCase().replace(' ', '_');
+        if (purpose.length() > 64) {
+            purpose = purpose.substring(0, 64);
+        }
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        boolean ownerOrAdmin = (actor.isStudent() && actor.getUserId().equals(doc.ownerId))
+                || actor.isCollegeAdmin() || actor.isRegistrar();
+        if (!ownerOrAdmin) {
+            throw new DocumentException(403, "FORBIDDEN", "Only document owner or registrar may record sharing consent");
+        }
+        Instant now = Instant.now();
+        DocumentLink link = new DocumentLink(UUID.randomUUID(), actor.getTenantId(), documentId,
+                "PURPOSE:" + purpose, actor.getUserId(), "SHARE_CONSENT", now, actor.getUserId());
+        persistence.saveDocumentLink(actor, link);
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action("document.sharing_consent_recorded")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(documentId.toString())
+                .correlationId(actor.getCorrelationId())
+                .status("SUCCESS")
+                .severity("INFO")
+                .description("Sharing consent recorded purpose=" + purpose)
+                .build();
+        logger.audit(audit);
+        return link;
+    }
+
+    public DocumentLink withdrawSharingConsent(Actor actor, UUID documentId, String purpose) {
+        requireCaller(actor);
+        if (documentId == null || purpose == null || purpose.trim().isEmpty()) {
+            throw new DocumentException(422, "MISSING_FIELDS", "documentId and purpose are required");
+        }
+        String normalized = purpose.trim().toUpperCase().replace(' ', '_');
+        if (normalized.length() > 64) {
+            normalized = normalized.substring(0, 64);
+        }
+        String entityType = "PURPOSE:" + normalized;
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        boolean ownerOrAdmin = (actor.isStudent() && actor.getUserId().equals(doc.ownerId))
+                || actor.isCollegeAdmin() || actor.isRegistrar();
+        if (!ownerOrAdmin) {
+            throw new DocumentException(403, "FORBIDDEN", "Only document owner or registrar may withdraw sharing consent");
+        }
+        boolean hadActive = false;
+        for (DocumentLink existing : persistence.listDocumentLinks(actor, documentId)) {
+            if (entityType.equals(existing.entityType) && actor.getUserId().equals(existing.entityId)) {
+                if ("SHARE_CONSENT".equals(existing.relation)) {
+                    hadActive = true;
+                    break;
+                }
+                if ("SHARE_CONSENT_WITHDRAWN".equals(existing.relation)) {
+                    break;
+                }
+            }
+        }
+        // Also allow withdraw of any active consent for purpose when registrar acts
+        if (!hadActive && (actor.isCollegeAdmin() || actor.isRegistrar())) {
+            for (DocumentLink existing : persistence.listDocumentLinks(actor, documentId)) {
+                if (entityType.equals(existing.entityType) && "SHARE_CONSENT".equals(existing.relation)) {
+                    hadActive = true;
+                    break;
+                }
+            }
+        }
+        if (!hadActive) {
+            throw new DocumentException(404, "CONSENT_NOT_FOUND", "No active sharing consent found for purpose");
+        }
+        Instant now = Instant.now();
+        DocumentLink link = new DocumentLink(UUID.randomUUID(), actor.getTenantId(), documentId,
+                entityType, actor.getUserId(), "SHARE_CONSENT_WITHDRAWN", now, actor.getUserId());
+        persistence.saveDocumentLink(actor, link);
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action("document.sharing_consent_withdrawn")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(documentId.toString())
+                .correlationId(actor.getCorrelationId())
+                .status("SUCCESS")
+                .severity("INFO")
+                .description("Sharing consent withdrawn purpose=" + normalized)
+                .build();
+        logger.audit(audit);
+        return link;
+    }
+
+    public List<DocumentLink> listSharingConsents(Actor actor, UUID documentId) {
+        requireCaller(actor);
+        requireDocumentReadable(actor, documentId);
+        List<DocumentLink> all = persistence.listDocumentLinks(actor, documentId);
+        List<DocumentLink> consents = new ArrayList<DocumentLink>();
+        for (DocumentLink link : all) {
+            if ("SHARE_CONSENT".equals(link.relation) || "SHARE_CONSENT_WITHDRAWN".equals(link.relation)) {
+                consents.add(link);
+            }
+        }
+        return consents;
+    }
+
+    // --- STM-06-EN-003 secure upload/download, validation, malware scan, signed URL ---
+
+    public static class SignedDownloadUrl {
+        public final UUID documentId;
+        public final String storageBucket;
+        public final String storagePath;
+        public final String mimeType;
+        public final long sizeBytes;
+        public final String token;
+        public final Instant expiresAt;
+        public final String downloadPath;
+        public final String scanStatus;
+        public final boolean malwareLiveEndpoint;
+
+        public SignedDownloadUrl(UUID documentId, String storageBucket, String storagePath, String mimeType,
+                                 long sizeBytes, String token, Instant expiresAt, String downloadPath,
+                                 String scanStatus, boolean malwareLiveEndpoint) {
+            this.documentId = documentId;
+            this.storageBucket = storageBucket;
+            this.storagePath = storagePath;
+            this.mimeType = mimeType;
+            this.sizeBytes = sizeBytes;
+            this.token = token;
+            this.expiresAt = expiresAt;
+            this.downloadPath = downloadPath;
+            this.scanStatus = scanStatus;
+            this.malwareLiveEndpoint = malwareLiveEndpoint;
+        }
+    }
+
+    public SignedDownloadUrl issueSignedDownloadUrl(Actor actor, UUID documentId) {
+        requireCaller(actor);
+        StudentDocument doc = requireDocumentReadable(actor, documentId);
+        String scanStatus = latestScanStatus(actor, documentId);
+        if ("MALWARE_SCAN_QUARANTINED".equals(scanStatus)) {
+            throw new DocumentException(403, "DOCUMENT_QUARANTINED", "Quarantined documents cannot be downloaded");
+        }
+        long exp = Instant.now().getEpochSecond() + SIGNED_URL_TTL_SECONDS;
+        String token = signedDownloadTokenService.issue(doc.id, actor.getTenantId(), actor.getUserId(), exp);
+        Instant expiresAt = Instant.ofEpochSecond(exp);
+        String downloadPath = "/api/v1/documents/download?token=" + token;
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action("document.signed_url_issued")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(documentId.toString())
+                .correlationId(actor.getCorrelationId())
+                .status("SUCCESS")
+                .severity("INFO")
+                .description("Signed download URL issued expiresAt=" + expiresAt + " scanStatus=" + scanStatus)
+                .build();
+        logger.audit(audit);
+        return new SignedDownloadUrl(doc.id, doc.storageBucket, doc.storagePath, doc.mimeType, doc.sizeBytes,
+                token, expiresAt, downloadPath, scanStatus, malwareScanAdapter.isLiveEndpointAvailable());
+    }
+
+    public SignedDownloadUrl resolveSignedDownload(Actor actor, String token) {
+        requireCaller(actor);
+        SignedDownloadTokenService.ParsedToken parsed;
+        try {
+            parsed = signedDownloadTokenService.parseAndVerify(token);
+        } catch (IllegalArgumentException ex) {
+            throw new DocumentException(403, "SIGNED_URL_INVALID", ex.getMessage());
+        }
+        if (Instant.now().getEpochSecond() > parsed.expiresAtEpochSec) {
+            throw new DocumentException(403, "SIGNED_URL_EXPIRED", "Signed download URL has expired");
+        }
+        if (!actor.getTenantId().equals(parsed.tenantId) || !actor.getUserId().equals(parsed.userId)) {
+            throw new DocumentException(403, "SIGNED_URL_ACTOR_MISMATCH", "Signed URL is not valid for this caller");
+        }
+        StudentDocument doc = requireDocumentReadable(actor, parsed.documentId);
+        String scanStatus = latestScanStatus(actor, parsed.documentId);
+        String downloadPath = "/api/v1/documents/download?token=" + token;
+        return new SignedDownloadUrl(doc.id, doc.storageBucket, doc.storagePath, doc.mimeType, doc.sizeBytes,
+                token, Instant.ofEpochSecond(parsed.expiresAtEpochSec), downloadPath, scanStatus,
+                malwareScanAdapter.isLiveEndpointAvailable());
+    }
+
+    public List<DocumentLink> listSecurityScans(Actor actor, UUID documentId) {
+        requireCaller(actor);
+        requireDocumentReadable(actor, documentId);
+        List<DocumentLink> all = persistence.listDocumentLinks(actor, documentId);
+        List<DocumentLink> scans = new ArrayList<DocumentLink>();
+        for (DocumentLink link : all) {
+            if ("MALWARE_SCAN_PASSED".equals(link.relation) || "MALWARE_SCAN_QUARANTINED".equals(link.relation)) {
+                scans.add(link);
+            }
+        }
+        return scans;
+    }
+
+    private String latestScanStatus(Actor actor, UUID documentId) {
+        List<DocumentLink> scans = listSecurityScans(actor, documentId);
+        if (scans.isEmpty()) {
+            return "SCAN_PENDING";
+        }
+        return scans.get(scans.size() - 1).relation;
+    }
+
+    private String validateSecureUpload(String mimeType, Long sizeBytes, String fileName) {
+        if (mimeType == null || !ALLOWED_MIME_TYPES.contains(mimeType.trim().toLowerCase(Locale.ROOT))) {
+            throw new DocumentException(422, "UNSUPPORTED_MIME_TYPE",
+                    "MIME type '" + mimeType + "' is not supported. Allowed: PDF, JPEG, PNG, WEBP");
+        }
+        if (sizeBytes == null || sizeBytes <= 0) {
+            throw new DocumentException(422, "INVALID_FILE_SIZE", "File size must be greater than 0 bytes");
+        }
+        if (sizeBytes > MAX_FILE_SIZE_BYTES) {
+            throw new DocumentException(422, "FILE_TOO_LARGE",
+                    "File size (" + sizeBytes + " bytes) exceeds maximum limit of " + MAX_FILE_SIZE_BYTES + " bytes (10MB)");
+        }
+        sanitizeFileName(fileName, mimeType.trim().toLowerCase(Locale.ROOT));
+        return mimeType.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String sanitizeFileName(String fileName, String mimeType) {
+        String name = (fileName == null || fileName.trim().isEmpty()) ? defaultFileNameForMime(mimeType) : fileName.trim();
+        if (name.contains("..") || name.contains("/") || name.contains("\\") || name.contains("\0")) {
+            throw new DocumentException(422, "INVALID_FILE_NAME", "File name must not contain path separators or traversal");
+        }
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0 || dot == name.length() - 1) {
+            throw new DocumentException(422, "INVALID_FILE_EXTENSION", "File name must include a valid extension");
+        }
+        String ext = name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        if (BLOCKED_EXTENSIONS.contains(ext)) {
+            throw new DocumentException(422, "BLOCKED_FILE_EXTENSION", "Executable or script extensions are not allowed");
+        }
+        if (!extensionMatchesMime(ext, mimeType)) {
+            throw new DocumentException(422, "MIME_EXTENSION_MISMATCH",
+                    "File extension ." + ext + " does not match MIME type " + mimeType);
+        }
+        return name;
+    }
+
+    private static String defaultFileNameForMime(String mimeType) {
+        if ("image/jpeg".equals(mimeType)) {
+            return "document.jpg";
+        }
+        if ("image/png".equals(mimeType)) {
+            return "document.png";
+        }
+        if ("image/webp".equals(mimeType)) {
+            return "document.webp";
+        }
+        return "document.pdf";
+    }
+
+    private static boolean extensionMatchesMime(String ext, String mimeType) {
+        if ("application/pdf".equals(mimeType)) {
+            return "pdf".equals(ext);
+        }
+        if ("image/jpeg".equals(mimeType)) {
+            return "jpg".equals(ext) || "jpeg".equals(ext);
+        }
+        if ("image/png".equals(mimeType)) {
+            return "png".equals(ext);
+        }
+        if ("image/webp".equals(mimeType)) {
+            return "webp".equals(ext);
+        }
+        return false;
+    }
+
+    private StudentDocument requireDocumentReadable(Actor actor, UUID documentId) {
+        if (documentId == null) {
+            throw new DocumentException(422, "MISSING_DOCUMENT_ID", "Document ID is required");
+        }
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        if (actor.isStudent() && !actor.getUserId().equals(doc.ownerId)) {
+            throw new DocumentException(403, "FORBIDDEN", "Unauthorized access to document");
+        }
+        return doc;
     }
 
     private void requireCaller(Actor actor) {

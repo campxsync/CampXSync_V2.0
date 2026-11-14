@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (CROSS/RBAC partials cleared; Kafka deferred)
+**Last current-state refresh:** 2026-11-14 (P1/P2/EN-003 queue done; Kafka held; no commit until authorized)
 
 ---
 
@@ -19,10 +19,10 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — continuous commit/push authorized this session.
-2. **Canonical backlog:** STM-06/10 EN + CROSS/RBAC **partials cleared**; Kafka (CROSS-EN-007) deferred yet-to-pickup.
+1. **Branch:** `feature/java-backend-integration` — **do not commit/push until owner authorizes**.
+2. **Canonical backlog:** Priority queue done: STM-05-EN-002, STM-06-US-012/013, STM-06-EN-003 (demos PASS).
 3. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-4. **Next:** owner prioritization for yet-to-pickup (storage/malware/Kafka/DDL FORCE gaps) — no remaining partials.
+4. **Next:** owner approval/commit for this queue; then yet-to-pickup (STM-06-EN-002 storage bytes, Kafka CROSS-EN-007, DDL FORCE gaps).
 5. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
 6. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
 7. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`; both needed for student enrolment BFF (`X-Student-Record-Id` via `/students/me`).

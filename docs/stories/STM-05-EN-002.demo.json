@@ -1,0 +1,64 @@
+{
+  "storyId": "STM-05-EN-002",
+  "title": "RLS and resource-scoped guardian access controls",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Guardians desk for RLS/resource-scope proof",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Guardians Desk Loaded",
+      "description": "College guardians heading proves staff path under tenant scope",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-heading\"]",
+      "highlight": "[data-testid=\"college-guardians-heading\"]"
+    },
+    {
+      "title": "Student Id Scope Input",
+      "description": "Student id input enforces resource-scoped guardianship lookups",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-guardians-student-input\"]",
+      "highlight": "[data-testid=\"college-guardians-student-input\"]"
+    },
+    {
+      "title": "Student Guardians Self-Service",
+      "description": "Student opens own guardians desk (owner resource scope)",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/guardians",
+      "highlight": null
+    },
+    {
+      "title": "Student Guardians Heading",
+      "description": "Student guardians heading confirms owner-scoped UI",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-guardians-heading\"]",
+      "highlight": "[data-testid=\"student-guardians-heading\"]"
+    },
+    {
+      "title": "PostgreSQL Guardianships RLS Forced",
+      "description": "Verify stu.guardianships RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'stu' AND c.relname = 'guardianships' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Emergency Contacts RLS Enabled",
+      "description": "Verify core.person_emergency_contacts has RLS enabled",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'core' AND c.relname = 'person_emergency_contacts' AND c.relrowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Guardians Blocked",
+      "description": "Unauthenticated GET on guardians contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/guardians",
+      "expectedStatus": 401
+    }
+  ]
+}

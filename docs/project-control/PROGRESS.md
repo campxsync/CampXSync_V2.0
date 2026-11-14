@@ -1,31 +1,33 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (CROSS/RBAC partials cleared; Kafka invent deferred)
+**Updated:** 2026-11-14 (Priority queue STM-05-EN-002 → US-012 → US-013 → EN-003 complete; no commit until authorized)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-03/04/05 EN (scoped) | **completed** (selected yet-to-pickup deferred) |
-| STM-06-EN-001/004/005/006 | **completed** |
-| STM-10-EN-005/006/007 | **completed** |
-| STM-CROSS-EN-001…006,008,009,011…013 | **completed** |
-| STM-RBAC-EN-001 | **completed** |
-| STM-CROSS-EN-007 | **yet to pickup** (no Kafka invent) |
+| STM-05-EN-002 | **completed** (demo 8/8; no commit) |
+| STM-06-US-012 | **completed** (demo 7/7; no commit) |
+| STM-06-US-013 | **completed** (demo 7/7; no commit) |
+| STM-06-EN-003 | **completed** (demo 7/7; malware liveEndpoint=false; no commit) |
+| STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
+| STM-06-EN-002 | **yet to pickup** (Storage bytes) |
 
 ## Evidence highlights
 
-- Schema audit: `docs/reports/STM_CROSS_EN_001_SCHEMA_AUDIT.md`
-- Ownership map: `docs/reports/STM_CROSS_EN_002_SERVICE_OWNERSHIP.md`
-- Demos under `docs/demos/STM-CROSS-EN-*` and `STM-RBAC-EN-001`
+- US-012: `docs/demos/STM-06-US-012/`
+- US-013: `docs/demos/STM-06-US-013/`
+- EN-003: `docs/demos/STM-06-EN-003/` — HMAC signed URL + ControlledMalwareScanAdapter
+- Traceability: `docs/reports/STM_IMPLEMENTATION_TRACEABILITY.csv`
 
 ## Caveats
 
-- Prefer partially completed before yet to pickup — **no remaining partials** except deferred invent/policy items.
-- Headed Playwright demos required each story.
-- No DEPARTMENT_STAFF / Kafka invent; no unapproved DDL.
+- No Kafka invent (CROSS-EN-007 held).
+- Malware AV live endpoint deferred (heuristic + EICAR gate only).
+- No unapproved DDL; scan outcomes via `doc.document_links`.
 - Cross-tenant penetration suite still not run.
+- **Awaiting owner `APPROVED …` / `APPROVED … COMMIT`.**
 
 ## Canonical files
 

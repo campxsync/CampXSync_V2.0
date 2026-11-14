@@ -1,28 +1,20 @@
 # Next Task
 
-**STATUS: EN/CROSS partial lane largely cleared.**
+**STATUS: QUEUE COMPLETE — awaiting owner approval / commit authorization.**
 
-## Cleared this session
+## Completed this session (no commit/push)
 
-- STM-06-EN-001/004/005/006
-- STM-10-EN-005/006/007
-- STM-CROSS-EN-001…006, 008, 009, 011…013
-- STM-RBAC-EN-001
+1. **STM-05-EN-002** — RLS and resource-scoped guardian access controls — PASS (demo 8/8)
+2. **STM-06-US-012** — Manage document access permissions — PASS (demo 7/7)
+3. **STM-06-US-013** — Manage document-sharing consent — PASS (demo 7/7)
+4. **STM-06-EN-003** — Secure upload/download, validation, malware scan, signed URL — PASS (demo 7/7)
 
-## Deferred (yet to pickup / blocked without invent)
+## On hold
 
-| ID | Reason |
-|---|---|
-| STM-06-EN-002/003 | storage bytes / malware scanning |
-| STM-CROSS-EN-007 | shared Kafka/event bus — do not invent |
-| STM-CROSS-EN-010/014 | yet to pickup (not partial) |
-| STM-05-EN-002/004, STM-04-EN-004 | deferred earlier |
+- **STM-CROSS-EN-007** — Kafka/event bus (not configured)
+- **STM-06-EN-002** — Supabase Storage bytes (separate from signed-URL gate)
+- Live AV endpoint for malware (`ControlledMalwareScanAdapter.liveEndpoint=false`)
 
-## Next
+## Rules
 
-Prefer remaining **yet to pickup** EN only with clear repo evidence, or stop for owner prioritization. No partials remain in CROSS/RBAC/STM-06/STM-10 EN lanes except deferred invent items.
-
-## Notes
-
-- Continuous commit/push authorized this session.
-- No unapproved DDL / Kafka invent.
+- **Do not commit or push until owner authorizes** (`APPROVED … COMMIT`).

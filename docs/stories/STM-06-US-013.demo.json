@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-06-US-013",
+  "title": "Manage document-sharing consent",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student opens documents desk for sharing consent",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Student Documents Heading",
+      "description": "Student documents desk loaded",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "Consent Section Visible",
+      "description": "Sharing consent section exposes purpose capture",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-consent-section\"]",
+      "highlight": "[data-testid=\"student-documents-consent-section\"]"
+    },
+    {
+      "title": "Consent Purpose Input",
+      "description": "Purpose input available for stated sharing outcome",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-consent-purpose-input\"]",
+      "highlight": "[data-testid=\"student-documents-consent-purpose-input\"]"
+    },
+    {
+      "title": "Record Consent Control",
+      "description": "Record consent routes through student BFF → gateway → document-service",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-consent-record-btn\"]",
+      "highlight": "[data-testid=\"student-documents-consent-record-btn\"]"
+    },
+    {
+      "title": "PostgreSQL Document Links Present",
+      "description": "Confirm document_links table supports SHARE_CONSENT relations",
+      "action": "db_check",
+      "query": "SELECT column_name FROM information_schema.columns WHERE table_schema='doc' AND table_name='document_links' AND column_name='relation'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Consent Blocked",
+      "description": "Unauthenticated GET on sharing-consent returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/00000000-0000-0000-0000-000000000001/sharing-consent",
+      "expectedStatus": 401
+    }
+  ]
+}

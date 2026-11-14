@@ -1224,7 +1224,7 @@ public class DocumentDomainServiceTest {
             fail("Expected DocumentException(422) for disallowed MIME type");
         } catch (DocumentException e) {
             assertEquals(422, e.getStatusCode());
-            assertEquals("INVALID_MIME_TYPE", e.getCode());
+            assertEquals("UNSUPPORTED_MIME_TYPE", e.getCode());
         }
     }
 
@@ -1548,6 +1548,115 @@ public class DocumentDomainServiceTest {
         }
     }
 
+    // --- STM-06-US-012 document access permissions ---
+
+    @Test
+    public void stm06Us012_grantAndRevokeDocumentAccess() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-US012-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Access Grant Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Access controlled";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        DocumentDomainService.GrantDocumentAccessRequest grant = new DocumentDomainService.GrantDocumentAccessRequest();
+        grant.granteeId = UUID.randomUUID();
+        grant.granteeType = "STAFF";
+        grant.purpose = "VERIFICATION";
+        DocumentDomainService.DocumentLink granted = service.grantDocumentAccess(adminTenantA, uploaded.id, grant);
+        assertEquals("ACCESS_GRANTED", granted.relation);
+        assertEquals("STAFF", granted.entityType);
+
+        List<DocumentDomainService.DocumentLink> grants = service.listDocumentAccessGrants(adminTenantA, uploaded.id);
+        assertTrue(grants.stream().anyMatch(g -> "ACCESS_GRANTED".equals(g.relation)));
+
+        DocumentDomainService.DocumentLink revoked =
+                service.revokeDocumentAccess(adminTenantA, uploaded.id, grant.granteeId, "STAFF");
+        assertEquals("ACCESS_REVOKED", revoked.relation);
+    }
+
+    @Test
+    public void stm06Us012_studentCannotGrantAccess() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-US012-FORBID-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Forbidden Grant Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Owned";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        DocumentDomainService.GrantDocumentAccessRequest grant = new DocumentDomainService.GrantDocumentAccessRequest();
+        grant.granteeId = UUID.randomUUID();
+        grant.granteeType = "EXTERNAL_AGENCY";
+        try {
+            service.grantDocumentAccess(studentTenantA, uploaded.id, grant);
+            fail("Students must not grant document access");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+    }
+
+    // --- STM-06-US-013 sharing consent ---
+
+    @Test
+    public void stm06Us013_recordAndWithdrawSharingConsent() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-US013-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Consent Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Consent controlled";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        DocumentDomainService.SharingConsentRequest consent = new DocumentDomainService.SharingConsentRequest();
+        consent.purpose = "TRANSCRIPT_SHARE";
+        DocumentDomainService.DocumentLink recorded = service.recordSharingConsent(studentTenantA, uploaded.id, consent);
+        assertEquals("SHARE_CONSENT", recorded.relation);
+        assertTrue(recorded.entityType.startsWith("PURPOSE:"));
+
+        DocumentDomainService.DocumentLink withdrawn =
+                service.withdrawSharingConsent(studentTenantA, uploaded.id, "TRANSCRIPT_SHARE");
+        assertEquals("SHARE_CONSENT_WITHDRAWN", withdrawn.relation);
+
+        List<DocumentDomainService.DocumentLink> consents = service.listSharingConsents(studentTenantA, uploaded.id);
+        assertTrue(consents.stream().anyMatch(c -> "SHARE_CONSENT_WITHDRAWN".equals(c.relation)));
+    }
+
+    @Test
+    public void stm06Us013_peerStudentCannotConsentOnOthersDocument() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-US013-PEER-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Peer Consent Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Owner only";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        Actor peer = new Actor(tenantA, UUID.randomUUID(), "STUDENT", "peer@campx.edu");
+        DocumentDomainService.SharingConsentRequest consent = new DocumentDomainService.SharingConsentRequest();
+        consent.purpose = "EMPLOYMENT";
+        try {
+            service.recordSharingConsent(peer, uploaded.id, consent);
+            fail("Peer student must not consent on another student's document");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+    }
+
     // --- STM-06-EN-005 cross-STM stage / checklist integration (STM-02/03; STM-09/10 via intel adapter) ---
 
     @Test
@@ -1635,6 +1744,96 @@ public class DocumentDomainServiceTest {
             fail("Unknown role must not configure document types");
         } catch (DocumentException e) {
             assertEquals(403, e.getStatusCode());
+        }
+    }
+
+    // --- STM-06-EN-003 secure upload/download, validation, malware, signed URL ---
+
+    @Test
+    public void stm06En003_cleanUploadRecordsMalwareScanPassedAndIssuesSignedUrl() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Secure Upload Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Clean PDF";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 2048L;
+        up.fileName = "clean_record.pdf";
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        assertNotNull(uploaded.storagePath);
+
+        List<DocumentDomainService.DocumentLink> scans = service.listSecurityScans(studentTenantA, uploaded.id);
+        assertTrue(scans.stream().anyMatch(s -> "MALWARE_SCAN_PASSED".equals(s.relation)));
+
+        DocumentDomainService.SignedDownloadUrl signed =
+                service.issueSignedDownloadUrl(studentTenantA, uploaded.id);
+        assertNotNull(signed.token);
+        assertEquals("MALWARE_SCAN_PASSED", signed.scanStatus);
+        assertFalse(signed.malwareLiveEndpoint);
+        assertTrue(signed.downloadPath.contains("/api/v1/documents/download"));
+
+        DocumentDomainService.SignedDownloadUrl resolved =
+                service.resolveSignedDownload(studentTenantA, signed.token);
+        assertEquals(uploaded.id, resolved.documentId);
+        assertEquals(uploaded.storagePath, resolved.storagePath);
+    }
+
+    @Test
+    public void stm06En003_malwareMarkerIsQuarantinedBeforePersist() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-MAL-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Malware Gate Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Eicar Probe";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        up.fileName = "eicar_test.pdf";
+        try {
+            service.uploadStudentDocument(studentTenantA, up);
+            fail("EICAR-named upload must be quarantined");
+        } catch (DocumentException e) {
+            assertEquals(422, e.getStatusCode());
+            assertEquals("MALWARE_DETECTED", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En003_blockedExtensionAndMimeMismatchRejected() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-EXT-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Extension Gate Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest exe = new UploadStudentDocumentRequest();
+        exe.documentTypeId = type.id;
+        exe.title = "Bad Ext";
+        exe.mimeType = "application/pdf";
+        exe.sizeBytes = 100L;
+        exe.fileName = "payload.exe";
+        try {
+            service.uploadStudentDocument(studentTenantA, exe);
+            fail("Executable extension must be blocked");
+        } catch (DocumentException e) {
+            assertEquals("BLOCKED_FILE_EXTENSION", e.getCode());
+        }
+
+        UploadStudentDocumentRequest mismatch = new UploadStudentDocumentRequest();
+        mismatch.documentTypeId = type.id;
+        mismatch.title = "Mime Mismatch";
+        mismatch.mimeType = "application/pdf";
+        mismatch.sizeBytes = 100L;
+        mismatch.fileName = "photo.png";
+        try {
+            service.uploadStudentDocument(studentTenantA, mismatch);
+            fail("MIME/extension mismatch must be rejected");
+        } catch (DocumentException e) {
+            assertEquals("MIME_EXTENSION_MISMATCH", e.getCode());
         }
     }
 }

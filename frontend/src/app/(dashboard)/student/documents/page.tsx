@@ -132,6 +132,12 @@ export default function StudentDocumentsPage() {
   const [resubmitSizeBytes, setResubmitSizeBytes] = useState<number>(2097152); // ~2MB default
   const [resubmitChangeNote, setResubmitChangeNote] = useState('');
   const [isResubmitting, setIsResubmitting] = useState(false);
+  const [consentDocId, setConsentDocId] = useState('');
+  const [consentPurpose, setConsentPurpose] = useState('TRANSCRIPT_SHARE');
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [signedUrlDocId, setSignedUrlDocId] = useState('');
+  const [signedUrlBusy, setSignedUrlBusy] = useState(false);
+  const [signedUrlResult, setSignedUrlResult] = useState<string | null>(null);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [resubmitRefId, setResubmitRefId] = useState<string | null>(null);
 
@@ -371,6 +377,9 @@ export default function StudentDocumentsPage() {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 data-testid="student-documents-heading" className="text-2xl font-bold tracking-tight text-[#0B1F3A]">Student Documents Desk</h1>
+          <p data-testid="student-documents-consent-hint" className="mt-1 text-xs text-slate-500">
+            Sharing consent for a stated purpose can be recorded per document (STM-06-US-013).
+          </p>
           <p className="text-sm text-gray-500">
             Verify stage requirements, upload mandatory certifications, and track verification status.
           </p>
@@ -411,6 +420,105 @@ export default function StudentDocumentsPage() {
           </Button>
         </div>
       )}
+
+      <section data-testid="student-documents-consent-section" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+        <h2 className="text-sm font-semibold text-[#0B1F3A]">Document sharing consent</h2>
+        <div className="grid gap-2 md:grid-cols-2">
+          <input
+            data-testid="student-documents-consent-doc-input"
+            className="rounded border px-2 py-1.5 text-sm"
+            placeholder="Document ID"
+            value={consentDocId}
+            onChange={(e) => setConsentDocId(e.target.value)}
+          />
+          <input
+            data-testid="student-documents-consent-purpose-input"
+            className="rounded border px-2 py-1.5 text-sm"
+            placeholder="Purpose"
+            value={consentPurpose}
+            onChange={(e) => setConsentPurpose(e.target.value)}
+          />
+        </div>
+        <button
+          data-testid="student-documents-consent-record-btn"
+          disabled={consentBusy}
+          className="rounded bg-[#1F6FEB] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          onClick={async () => {
+            setConsentBusy(true);
+            setErrorMsg(null);
+            try {
+              const res = await fetch('/api/student/documents/sharing-consent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documentId: consentDocId, purpose: consentPurpose }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                setErrorMsg(data.message || data.title || `Consent failed (${res.status})`);
+                return;
+              }
+              setSuccessMsg(`Sharing consent recorded: ${data.relation || 'SHARE_CONSENT'}`);
+            } catch (err: any) {
+              setErrorMsg(err.message || 'Consent failed');
+            } finally {
+              setConsentBusy(false);
+            }
+          }}
+        >
+          Record consent
+        </button>
+      </section>
+
+      <section data-testid="student-documents-secure-download-section" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+        <h2 className="text-sm font-semibold text-[#0B1F3A]">Secure signed download</h2>
+        <p className="text-xs text-slate-500">
+          Issues a short-lived HMAC signed URL after malware-scan gate (live AV endpoint deferred).
+        </p>
+        <div className="grid gap-2 md:grid-cols-2">
+          <input
+            data-testid="student-documents-signed-url-doc-input"
+            className="rounded border px-2 py-1.5 text-sm"
+            placeholder="Document ID"
+            value={signedUrlDocId}
+            onChange={(e) => setSignedUrlDocId(e.target.value)}
+          />
+          <button
+            data-testid="student-documents-signed-url-btn"
+            disabled={signedUrlBusy}
+            className="rounded bg-[#0B1F3A] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            onClick={async () => {
+              setSignedUrlBusy(true);
+              setErrorMsg(null);
+              setSignedUrlResult(null);
+              try {
+                const res = await fetch('/api/student/documents/signed-url', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ documentId: signedUrlDocId }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  setErrorMsg(data.message || data.title || `Signed URL failed (${res.status})`);
+                  return;
+                }
+                setSignedUrlResult(data.scanStatus || 'MALWARE_SCAN_PASSED');
+                setSuccessMsg(`Signed URL issued; scan=${data.scanStatus}; expires ${data.expiresAt || ''}`);
+              } catch (err: any) {
+                setErrorMsg(err.message || 'Signed URL failed');
+              } finally {
+                setSignedUrlBusy(false);
+              }
+            }}
+          >
+            Issue signed URL
+          </button>
+        </div>
+        {signedUrlResult && (
+          <p data-testid="student-documents-signed-url-status" className="text-xs font-mono text-emerald-700">
+            {signedUrlResult}
+          </p>
+        )}
+      </section>
 
       {errorMsg && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">

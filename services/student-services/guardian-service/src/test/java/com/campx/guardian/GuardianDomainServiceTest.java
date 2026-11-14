@@ -709,6 +709,55 @@ public class GuardianDomainServiceTest {
         assertTrue(service.listRelationshipHistory(registrar, student).size() >= 1);
     }
 
+    // --- STM-05-EN-002 RLS / resource-scoped guardian access controls ---
+
+    @Test
+    public void stm05En002_crossTenantRegistrarCannotSeePilotGuardians() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother",
+                null, null, true);
+        UUID otherTenant = UUID.randomUUID();
+        Actor otherRegistrar = new Actor(otherTenant, UUID.randomUUID(), "COLLEGE_ADMIN", "corr-other");
+        assertEquals(0, service.listGuardians(otherRegistrar, student).size());
+        try {
+            service.updateGuardian(otherRegistrar, link.id, "aunt", false);
+            fail("Cross-tenant registrar must not mutate another tenant guardianship");
+        } catch (GuardianException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm05En002_studentResourceScopeBlocksPeerGuardianList() {
+        UUID peerStudent = UUID.randomUUID();
+        service.addGuardian(registrar, peerStudent, "Ravi", "Das", "father", null, null, false);
+        try {
+            service.listGuardians(studentActor, peerStudent);
+            fail("Student must not list peer student guardians (resource scope)");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("GUARDIAN_VIEW_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05En002_crossTenantCannotGrantOrViewAccess() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        Actor otherRegistrar = new Actor(UUID.randomUUID(), UUID.randomUUID(), "COLLEGE_ADMIN", "corr-xt");
+        try {
+            service.grantAccess(otherRegistrar, link.id, java.util.Arrays.asList("FEES"), "FAMILY_SUPPORT", "2027-12-31");
+            fail("Cross-tenant grant must fail");
+        } catch (GuardianException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+        try {
+            service.viewAuthorizedInformation(otherRegistrar, link.id);
+            fail("Cross-tenant authorized view must fail");
+        } catch (GuardianException ex) {
+            assertTrue(ex.getStatus() == 404 || ex.getStatus() == 403);
+        }
+    }
+
     // --- STM-05-EN-003 Consent lifecycle, verification and revocation enforcement ---
 
     @Test

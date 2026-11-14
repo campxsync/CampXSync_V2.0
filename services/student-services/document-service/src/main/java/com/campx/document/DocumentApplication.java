@@ -6,7 +6,9 @@ import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.DocumentPersistence;
 import com.campx.document.persistence.InMemoryDocumentPersistence;
 import com.campx.document.persistence.PostgresDocumentPersistence;
+import com.campx.document.security.ControlledMalwareScanAdapter;
 import com.campx.document.security.GatewayHmacVerifier;
+import com.campx.document.security.SignedDownloadTokenService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.sun.net.httpserver.HttpExchange;
@@ -52,11 +54,16 @@ public class DocumentApplication {
         }
 
         DocumentIntelligenceService intelligenceService = new DocumentIntelligenceService();
-        DocumentDomainService domain = new DocumentDomainService(persistence, intelligenceService);
         String hmacSecret = System.getenv("CAMPX_INTERNAL_SECRET");
         if (hmacSecret == null || hmacSecret.trim().isEmpty()) {
             hmacSecret = System.getenv("CAMPX_GATEWAY_HMAC_SECRET");
         }
+        DocumentDomainService domain = new DocumentDomainService(
+                persistence,
+                intelligenceService,
+                new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService(hmacSecret)
+        );
         final DocumentController controller = new DocumentController(
                 domain,
                 new GatewayHmacVerifier(hmacSecret)

@@ -230,4 +230,96 @@ public class LivePostgresGuardianPersistenceTest {
             ds.close();
         }
     }
+
+    /**
+     * STM-05-EN-002: resource-scoped / cross-tenant RLS regression against live guardianships.
+     */
+    @Test
+    public void stm05En002_liveRlsResourceScopeAndCrossTenantDenial() throws Exception {
+        if (!approved()) {
+            System.out.println("=== STM-05-EN-002 LIVE RLS GATED ===");
+            System.out.println("Authorize with -Dcampx.approve.stm05.write=true");
+            return;
+        }
+
+        HikariDataSource ds = createDevDataSource();
+        assertNotNull("JDBC datasource must be configured for live STM-05-EN-002", ds);
+
+        try (Connection conn = ds.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                bindClaims(conn, PILOT_TENANT, COLLEGE_ADMIN_USER, "COLLEGE_ADMIN");
+
+                UUID visibleId = null;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id FROM stu.guardianships WHERE tenant_id = ? AND deleted_at IS NULL LIMIT 1")) {
+                    ps.setObject(1, PILOT_TENANT);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue("Pilot tenant must have at least one guardianship for EN-002", rs.next());
+                        visibleId = (UUID) rs.getObject("id");
+                    }
+                }
+                assertNotNull(visibleId);
+
+                // Same-tenant read of specific resource succeeds.
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id FROM stu.guardianships WHERE id = ?")) {
+                    ps.setObject(1, visibleId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue("Same-tenant resource read must succeed under RLS", rs.next());
+                    }
+                }
+
+                // Cross-tenant claims must not see pilot resource by id or tenant filter.
+                bindClaims(conn, OTHER_TENANT, UUID.randomUUID(), "COLLEGE_ADMIN");
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT count(*) AS c FROM stu.guardianships WHERE id = ?")) {
+                    ps.setObject(1, visibleId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Cross-tenant id lookup must return 0 under RLS", 0, rs.getInt("c"));
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT count(*) AS c FROM stu.guardianships WHERE tenant_id = ?")) {
+                    ps.setObject(1, PILOT_TENANT);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("Cross-tenant tenant_id filter must return 0 under RLS", 0, rs.getInt("c"));
+                    }
+                }
+
+                // Emergency contacts: RLS enabled (FORCE may still be pending DDL).
+                bindClaims(conn, PILOT_TENANT, COLLEGE_ADMIN_USER, "COLLEGE_ADMIN");
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT c.relrowsecurity AS rls FROM pg_class c "
+                                + "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                                + "WHERE n.nspname = 'core' AND c.relname = 'person_emergency_contacts'")) {
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertTrue("RLS must be enabled on person_emergency_contacts", rs.getBoolean("rls"));
+                    }
+                }
+            } finally {
+                try {
+                    conn.rollback();
+                } catch (Exception ignored) {
+                    // best effort
+                }
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("RESET ROLE");
+                    stmt.execute("SELECT set_config('request.jwt.claims', '', true)");
+                } catch (Exception ignored) {
+                    // best effort
+                }
+                try {
+                    conn.setAutoCommit(true);
+                } catch (Exception ignored) {
+                    // best effort
+                }
+            }
+        } finally {
+            ds.close();
+        }
+    }
 }

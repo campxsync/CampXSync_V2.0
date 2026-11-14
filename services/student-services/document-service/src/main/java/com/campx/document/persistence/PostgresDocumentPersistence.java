@@ -1057,5 +1057,64 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
             }
         });
     }
+
+    @Override
+    public void saveDocumentLink(final Actor actor, final DocumentDomainService.DocumentLink link) {
+        DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<Void>() {
+                    @Override
+                    public Void execute(Connection conn) throws SQLException {
+                        String linkSql = "INSERT INTO doc.document_links "
+                                + "(id, tenant_id, document_id, entity_type, entity_id, relation, created_at, created_by) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(linkSql)) {
+                            ps.setObject(1, link.id);
+                            ps.setObject(2, link.tenantId);
+                            ps.setObject(3, link.documentId);
+                            ps.setString(4, link.entityType);
+                            ps.setObject(5, link.entityId);
+                            ps.setString(6, link.relation);
+                            ps.setTimestamp(7, Timestamp.from(link.createdAt));
+                            ps.setObject(8, link.createdBy);
+                            ps.executeUpdate();
+                        }
+                        return null;
+                    }
+                });
+    }
+
+    @Override
+    public List<DocumentDomainService.DocumentLink> listDocumentLinks(final Actor actor, final UUID documentId) {
+        return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<List<DocumentDomainService.DocumentLink>>() {
+                    @Override
+                    public List<DocumentDomainService.DocumentLink> execute(Connection conn) throws SQLException {
+                        String sql = "SELECT id, tenant_id, document_id, entity_type, entity_id, relation, created_at, created_by "
+                                + "FROM doc.document_links WHERE tenant_id = ? AND document_id = ? "
+                                + "ORDER BY created_at DESC";
+                        List<DocumentDomainService.DocumentLink> list = new ArrayList<DocumentDomainService.DocumentLink>();
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setObject(1, actor.getTenantId());
+                            ps.setObject(2, documentId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    Timestamp createdAtTs = rs.getTimestamp("created_at");
+                                    list.add(new DocumentDomainService.DocumentLink(
+                                            (UUID) rs.getObject("id"),
+                                            (UUID) rs.getObject("tenant_id"),
+                                            (UUID) rs.getObject("document_id"),
+                                            rs.getString("entity_type"),
+                                            (UUID) rs.getObject("entity_id"),
+                                            rs.getString("relation"),
+                                            createdAtTs != null ? createdAtTs.toInstant() : Instant.now(),
+                                            (UUID) rs.getObject("created_by")
+                                    ));
+                                }
+                            }
+                        }
+                        return list;
+                    }
+                });
+    }
 }
 

@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-06-EN-003",
+  "title": "Secure upload/download, file validation, malware scanning and signed URL handling",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "Student Authentication",
+      "description": "Student opens documents desk for secure signed download controls",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=student&returnTo=/student/documents",
+      "highlight": null
+    },
+    {
+      "title": "Student Documents Heading",
+      "description": "Student documents desk loaded",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-heading\"]",
+      "highlight": "[data-testid=\"student-documents-heading\"]"
+    },
+    {
+      "title": "Secure Download Section Visible",
+      "description": "Signed URL / malware-gated download section is available",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-secure-download-section\"]",
+      "highlight": "[data-testid=\"student-documents-secure-download-section\"]"
+    },
+    {
+      "title": "Signed URL Document Input",
+      "description": "Document id input for signed URL issuance",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-signed-url-doc-input\"]",
+      "highlight": "[data-testid=\"student-documents-signed-url-doc-input\"]"
+    },
+    {
+      "title": "Issue Signed URL Control",
+      "description": "Issue signed URL routes through student BFF → gateway → document-service",
+      "action": "wait_for",
+      "selector": "[data-testid=\"student-documents-signed-url-btn\"]",
+      "highlight": "[data-testid=\"student-documents-signed-url-btn\"]"
+    },
+    {
+      "title": "PostgreSQL Document Links Present",
+      "description": "Confirm document_links supports MALWARE_SCAN_PASSED persistence without DDL",
+      "action": "db_check",
+      "query": "SELECT table_name FROM information_schema.tables WHERE table_schema='doc' AND table_name='document_links'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Signed URL Blocked",
+      "description": "Unauthenticated POST on signed-url returns HTTP 401",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/documents/00000000-0000-0000-0000-000000000001/signed-url",
+      "expectedStatus": 401
+    }
+  ]
+}

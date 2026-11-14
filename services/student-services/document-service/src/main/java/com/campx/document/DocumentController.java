@@ -383,6 +383,99 @@ public class DocumentController {
                 return json(200, accessLogListNode(logs), correlationId);
             }
 
+            // POST /api/v1/documents/{id}/access-grants — STM-06-US-012
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/access-grants")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/access-grants".length());
+                UUID documentId = UUID.fromString(idPart);
+                DocumentDomainService.GrantDocumentAccessRequest req = new DocumentDomainService.GrantDocumentAccessRequest();
+                String granteeIdText = text(json, "granteeId");
+                if (granteeIdText != null && !granteeIdText.trim().isEmpty()) {
+                    req.granteeId = UUID.fromString(granteeIdText.trim());
+                }
+                req.granteeType = text(json, "granteeType");
+                req.purpose = text(json, "purpose");
+                DocumentDomainService.DocumentLink link = domain.grantDocumentAccess(actor, documentId, req);
+                return json(201, documentLinkNode(link), correlationId);
+            }
+
+            // DELETE /api/v1/documents/{id}/access-grants/{granteeId} — STM-06-US-012 revoke
+            if ("DELETE".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.contains("/access-grants/")) {
+                String rest = normalized.substring("/api/v1/documents/".length());
+                int idx = rest.indexOf("/access-grants/");
+                UUID documentId = UUID.fromString(rest.substring(0, idx));
+                UUID granteeId = UUID.fromString(rest.substring(idx + "/access-grants/".length()));
+                String granteeType = text(json, "granteeType");
+                if (granteeType == null) {
+                    granteeType = header(headers, "x-grantee-type");
+                }
+                DocumentDomainService.DocumentLink link = domain.revokeDocumentAccess(actor, documentId, granteeId, granteeType);
+                return json(200, documentLinkNode(link), correlationId);
+            }
+
+            // GET /api/v1/documents/{id}/access-grants — STM-06-US-012
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/access-grants")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/access-grants".length());
+                UUID documentId = UUID.fromString(idPart);
+                List<DocumentDomainService.DocumentLink> links = domain.listDocumentAccessGrants(actor, documentId);
+                return json(200, documentLinkListNode(links), correlationId);
+            }
+
+            // POST /api/v1/documents/{id}/sharing-consent — STM-06-US-013
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/sharing-consent")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/sharing-consent".length());
+                UUID documentId = UUID.fromString(idPart);
+                DocumentDomainService.SharingConsentRequest req = new DocumentDomainService.SharingConsentRequest();
+                req.purpose = text(json, "purpose");
+                DocumentDomainService.DocumentLink link = domain.recordSharingConsent(actor, documentId, req);
+                return json(201, documentLinkNode(link), correlationId);
+            }
+
+            // DELETE /api/v1/documents/{id}/sharing-consent — STM-06-US-013 withdraw
+            if ("DELETE".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/sharing-consent")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/sharing-consent".length());
+                UUID documentId = UUID.fromString(idPart);
+                String purpose = text(json, "purpose");
+                if (purpose == null) {
+                    purpose = header(headers, "x-consent-purpose");
+                }
+                DocumentDomainService.DocumentLink link = domain.withdrawSharingConsent(actor, documentId, purpose);
+                return json(200, documentLinkNode(link), correlationId);
+            }
+
+            // GET /api/v1/documents/{id}/sharing-consent — STM-06-US-013
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/sharing-consent")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/sharing-consent".length());
+                UUID documentId = UUID.fromString(idPart);
+                List<DocumentDomainService.DocumentLink> links = domain.listSharingConsents(actor, documentId);
+                return json(200, documentLinkListNode(links), correlationId);
+            }
+
+            // POST /api/v1/documents/{id}/signed-url — STM-06-EN-003 issue signed download URL
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/signed-url")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/signed-url".length());
+                UUID documentId = UUID.fromString(idPart);
+                DocumentDomainService.SignedDownloadUrl signed = domain.issueSignedDownloadUrl(actor, documentId);
+                return json(200, signedDownloadNode(signed), correlationId);
+            }
+
+            // GET /api/v1/documents/{id}/security-scans — STM-06-EN-003
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/security-scans")) {
+                String idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - "/security-scans".length());
+                UUID documentId = UUID.fromString(idPart);
+                List<DocumentDomainService.DocumentLink> links = domain.listSecurityScans(actor, documentId);
+                return json(200, documentLinkListNode(links), correlationId);
+            }
+
+            // GET /api/v1/documents/download?token= — STM-06-EN-003 resolve signed download
+            if ("GET".equals(method) && "/api/v1/documents/download".equals(normalized)) {
+                String token = header(headers, "x-query-token");
+                if (token == null || token.trim().isEmpty()) {
+                    token = text(json, "token");
+                }
+                DocumentDomainService.SignedDownloadUrl resolved = domain.resolveSignedDownload(actor, token);
+                return json(200, signedDownloadNode(resolved), correlationId);
+            }
+
             // GET /api/v1/documents/{id}/retention (or /api/v1/documents/submissions/{id}/retention) - Get Retention & Expiry Info (STM-06-US-006)
             if ("GET".equals(method) && ((normalized.startsWith("/api/v1/documents/submissions/") && normalized.endsWith("/retention"))
                     || (normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/retention")))) {
@@ -664,6 +757,44 @@ public class DocumentController {
         node.put("isExpired", info.isExpired);
         node.put("isExpiringSoon", info.isExpiringSoon);
         node.put("expiresAt", info.expiresAt != null ? info.expiresAt.toString() : null);
+        return node;
+    }
+
+    private ObjectNode signedDownloadNode(DocumentDomainService.SignedDownloadUrl signed) {
+        ObjectNode node = mapper.createObjectNode();
+        node.put("documentId", signed.documentId != null ? signed.documentId.toString() : null);
+        node.put("storageBucket", signed.storageBucket);
+        node.put("storagePath", signed.storagePath);
+        node.put("mimeType", signed.mimeType);
+        node.put("sizeBytes", signed.sizeBytes);
+        node.put("token", signed.token);
+        node.put("expiresAt", signed.expiresAt != null ? signed.expiresAt.toString() : null);
+        node.put("downloadPath", signed.downloadPath);
+        node.put("scanStatus", signed.scanStatus);
+        node.put("malwareLiveEndpoint", signed.malwareLiveEndpoint);
+        return node;
+    }
+
+    private ObjectNode documentLinkNode(DocumentDomainService.DocumentLink link) {
+        ObjectNode node = mapper.createObjectNode();
+        node.put("id", link.id != null ? link.id.toString() : null);
+        node.put("tenantId", link.tenantId != null ? link.tenantId.toString() : null);
+        node.put("documentId", link.documentId != null ? link.documentId.toString() : null);
+        node.put("entityType", link.entityType);
+        node.put("entityId", link.entityId != null ? link.entityId.toString() : null);
+        node.put("relation", link.relation);
+        node.put("createdAt", link.createdAt != null ? link.createdAt.toString() : null);
+        node.put("createdBy", link.createdBy != null ? link.createdBy.toString() : null);
+        return node;
+    }
+
+    private ObjectNode documentLinkListNode(List<DocumentDomainService.DocumentLink> list) {
+        ObjectNode node = mapper.createObjectNode();
+        ArrayNode arr = node.putArray("items");
+        for (DocumentDomainService.DocumentLink item : list) {
+            arr.add(documentLinkNode(item));
+        }
+        node.put("total", list.size());
         return node;
     }
 

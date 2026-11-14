@@ -1,0 +1,57 @@
+{
+  "storyId": "STM-06-US-012",
+  "title": "Manage document access permissions",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens documents desk for access grant governance",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Desk Loaded",
+      "description": "Documents heading visible",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-heading\"]",
+      "highlight": "[data-testid=\"college-documents-heading\"]"
+    },
+    {
+      "title": "Open Access Permissions Tab",
+      "description": "Switch to access permissions surface (STM-06-US-012)",
+      "action": "click",
+      "selector": "[data-testid=\"college-documents-tab-access\"]",
+      "highlight": "[data-testid=\"college-documents-tab-access\"]"
+    },
+    {
+      "title": "Access Section Visible",
+      "description": "Access grant form section is available",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-access-section\"]",
+      "highlight": "[data-testid=\"college-documents-access-section\"]"
+    },
+    {
+      "title": "Grant Control Visible",
+      "description": "Grant access control routes through BFF → gateway → document-service",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-access-grant-btn\"]",
+      "highlight": "[data-testid=\"college-documents-access-grant-btn\"]"
+    },
+    {
+      "title": "PostgreSQL Document Links Schema",
+      "description": "Confirm doc.document_links exists for access grant persistence",
+      "action": "db_check",
+      "query": "SELECT table_name FROM information_schema.tables WHERE table_schema='doc' AND table_name='document_links'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Access Grants Blocked",
+      "description": "Unauthenticated GET on access-grants returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/00000000-0000-0000-0000-000000000001/access-grants",
+      "expectedStatus": 401
+    }
+  ]
+}

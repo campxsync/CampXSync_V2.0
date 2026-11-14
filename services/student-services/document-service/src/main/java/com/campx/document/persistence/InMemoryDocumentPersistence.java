@@ -391,6 +391,37 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public void saveDocumentLink(Actor actor, DocumentDomainService.DocumentLink link) {
+        List<DocumentDomainService.DocumentLink> links = linkStorage.get(link.documentId);
+        if (links == null) {
+            links = new ArrayList<DocumentDomainService.DocumentLink>();
+            linkStorage.put(link.documentId, links);
+        }
+        links.add(link);
+    }
+
+    @Override
+    public List<DocumentDomainService.DocumentLink> listDocumentLinks(Actor actor, UUID documentId) {
+        List<DocumentDomainService.DocumentLink> links = linkStorage.get(documentId);
+        if (links == null) {
+            return Collections.emptyList();
+        }
+        List<DocumentDomainService.DocumentLink> result = new ArrayList<DocumentDomainService.DocumentLink>();
+        for (DocumentDomainService.DocumentLink link : links) {
+            if (link.tenantId.equals(actor.getTenantId())) {
+                result.add(link);
+            }
+        }
+        Collections.sort(result, new Comparator<DocumentDomainService.DocumentLink>() {
+            @Override
+            public int compare(DocumentDomainService.DocumentLink o1, DocumentDomainService.DocumentLink o2) {
+                return o2.createdAt.compareTo(o1.createdAt);
+            }
+        });
+        return result;
+    }
+
+    @Override
     public List<DocumentDomainService.DocumentAccessLog> listAccessLogs(Actor actor, UUID documentId) {
         List<DocumentDomainService.DocumentAccessLog> list = accessStorage.get(documentId);
         if (list == null) {

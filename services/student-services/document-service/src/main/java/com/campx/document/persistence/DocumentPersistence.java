@@ -122,5 +122,15 @@ public interface DocumentPersistence {
      * Retrieves the regulatory access audit trail for a document (STM-06-US-006).
      */
     List<DocumentDomainService.DocumentAccessLog> listAccessLogs(Actor actor, UUID documentId);
+
+    /**
+     * Appends a document link row (access grant/revoke or sharing consent) to doc.document_links.
+     */
+    void saveDocumentLink(Actor actor, DocumentDomainService.DocumentLink link);
+
+    /**
+     * Lists document links for a document within the tenant, newest first.
+     */
+    List<DocumentDomainService.DocumentLink> listDocumentLinks(Actor actor, UUID documentId);
 }
 

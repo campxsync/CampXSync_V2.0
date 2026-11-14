@@ -82,7 +82,13 @@ const ACADEMIC_STAGES = [
  * US-004: Institutional officer verifies and approves/rejects submitted student documents.
  */
 export default function CollegeDocumentsPage() {
-  const [activeTab, setActiveTab] = useState<'verifications' | 'requirements' | 'catalog'>('verifications');
+  const [activeTab, setActiveTab] = useState<'verifications' | 'requirements' | 'catalog' | 'access'>('verifications');
+  const [accessDocId, setAccessDocId] = useState('');
+  const [accessGranteeId, setAccessGranteeId] = useState('');
+  const [accessGranteeType, setAccessGranteeType] = useState('STAFF');
+  const [accessPurpose, setAccessPurpose] = useState('VERIFICATION');
+  const [accessGrants, setAccessGrants] = useState<any[]>([]);
+  const [accessBusy, setAccessBusy] = useState(false);
 
   // Verification Queue State (US-004)
   const [queueItems, setQueueItems] = useState<VerificationQueueItem[]>([]);
@@ -428,6 +434,17 @@ export default function CollegeDocumentsPage() {
             {documentTypes.length}
           </span>
         </button>
+        <button
+          data-testid="college-documents-tab-access"
+          onClick={() => setActiveTab('access')}
+          className={`pb-4 px-2 text-sm font-semibold transition border-b-2 flex items-center gap-2 ${
+            activeTab === 'access'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <span>Access Permissions</span>
+        </button>
       </div>
 
       {/* Alerts */}
@@ -442,6 +459,117 @@ export default function CollegeDocumentsPage() {
           <span className="font-bold text-red-900">Alert:</span>
           <span>{errorMessage}</span>
         </div>
+      )}
+
+      {/* STM-06-US-012 Access Permissions */}
+      {activeTab === 'access' && (
+        <section data-testid="college-documents-access-section" className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">Grant / revoke document access</h2>
+          <p className="text-sm text-gray-500">Registrar grants staff or external agency access for a stated purpose (persisted via document links).</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="text-xs font-medium text-gray-700">
+              Document ID
+              <input
+                data-testid="college-documents-access-doc-input"
+                className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                value={accessDocId}
+                onChange={(e) => setAccessDocId(e.target.value)}
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-700">
+              Grantee ID
+              <input
+                data-testid="college-documents-access-grantee-input"
+                className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                value={accessGranteeId}
+                onChange={(e) => setAccessGranteeId(e.target.value)}
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-700">
+              Grantee type
+              <select
+                data-testid="college-documents-access-grantee-type"
+                className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                value={accessGranteeType}
+                onChange={(e) => setAccessGranteeType(e.target.value)}
+              >
+                <option value="STAFF">STAFF</option>
+                <option value="EXTERNAL_AGENCY">EXTERNAL_AGENCY</option>
+              </select>
+            </label>
+            <label className="text-xs font-medium text-gray-700">
+              Purpose
+              <input
+                data-testid="college-documents-access-purpose-input"
+                className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                value={accessPurpose}
+                onChange={(e) => setAccessPurpose(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              data-testid="college-documents-access-grant-btn"
+              disabled={accessBusy}
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              onClick={async () => {
+                setAccessBusy(true);
+                setErrorMessage('');
+                try {
+                  const res = await fetch('/api/college/documents/access-grants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      documentId: accessDocId,
+                      granteeId: accessGranteeId,
+                      granteeType: accessGranteeType,
+                      purpose: accessPurpose,
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    setErrorMessage(data.message || data.title || `Grant failed (${res.status})`);
+                    return;
+                  }
+                  setStatusMessage(`Access granted: ${data.relation || 'ACCESS_GRANTED'}`);
+                  const listRes = await fetch(`/api/college/documents/access-grants?documentId=${encodeURIComponent(accessDocId)}`);
+                  const listData = await listRes.json();
+                  setAccessGrants(listData.items || []);
+                } catch (err: any) {
+                  setErrorMessage(err.message || 'Grant failed');
+                } finally {
+                  setAccessBusy(false);
+                }
+              }}
+            >
+              Grant access
+            </button>
+            <button
+              data-testid="college-documents-access-refresh-btn"
+              disabled={accessBusy}
+              className="rounded border px-3 py-1.5 text-sm font-medium text-gray-700"
+              onClick={async () => {
+                setAccessBusy(true);
+                try {
+                  const listRes = await fetch(`/api/college/documents/access-grants?documentId=${encodeURIComponent(accessDocId)}`);
+                  const listData = await listRes.json();
+                  setAccessGrants(listData.items || []);
+                } finally {
+                  setAccessBusy(false);
+                }
+              }}
+            >
+              Refresh grants
+            </button>
+          </div>
+          <ul data-testid="college-documents-access-list" className="divide-y text-xs text-slate-700">
+            {accessGrants.map((g, idx) => (
+              <li key={g.id || idx} data-testid={`college-documents-access-row-${idx}`} className="py-2">
+                {g.relation} · {g.entityType} · {g.entityId}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* TAB 0: Document Verification Queue (STM-06-US-004) */}
