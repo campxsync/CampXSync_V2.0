@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-14 (STM-05 EN partials cleared except EN-002/004 yet-to-pickup)
+**Updated:** 2026-11-14 (STM-06-EN-001 completed; EN-004 next)
 
 ## Scoreboard (session)
 
@@ -11,12 +11,13 @@
 | STM-04 EN-001/002/003/005/006 | **completed** (EN-004 deferred) |
 | STM-05-EN-001/003/005/006 | **completed** + headed demos |
 | STM-05-EN-002/004 | deferred (yet to pickup) |
-| Next | remaining partials (likely STM-06 EN) |
+| STM-06-EN-001 | **completed** + headed demo |
+| Next | STM-06-EN-004 (partial) → EN-005 → EN-006 |
 
 ## Evidence highlights
 
-- Pushed commits: `fe2589f`, `91299a6`, `b41ebad`, `a037a25` (+ pending STM-05-EN-005/006)
-- Student Guardians & Consent desk: `/student/guardians` via gateway BFF
+- Latest: `docs/demos/STM-06-EN-001/` (8/8) + `DocumentDomainServiceTest#stm06En001*` 2/2
+- College documents desk testids: heading, catalog, requirements tabs
 
 ## Caveats
 

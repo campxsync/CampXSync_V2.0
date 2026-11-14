@@ -354,7 +354,7 @@ export default function CollegeDocumentsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-6 gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Student Document Governance</h1>
+            <h1 data-testid="college-documents-heading" className="text-3xl font-bold tracking-tight text-gray-900">Student Document Governance</h1>
           </div>
           <p className="text-gray-500 mt-2 text-sm">
             Institutional document catalog, stage-wise mandatory requirements, and compliance rules.
@@ -400,6 +400,7 @@ export default function CollegeDocumentsPage() {
         </button>
         <button
           id="tab-stage-requirements"
+          data-testid="college-documents-tab-requirements"
           onClick={() => setActiveTab('requirements')}
           className={`pb-4 px-2 text-sm font-semibold transition border-b-2 flex items-center gap-2 ${
             activeTab === 'requirements'
@@ -414,6 +415,7 @@ export default function CollegeDocumentsPage() {
         </button>
         <button
           id="tab-document-catalog"
+          data-testid="college-documents-tab-catalog"
           onClick={() => setActiveTab('catalog')}
           className={`pb-4 px-2 text-sm font-semibold transition border-b-2 flex items-center gap-2 ${
             activeTab === 'catalog'

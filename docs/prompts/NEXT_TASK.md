@@ -2,20 +2,19 @@
 
 **STATUS: Continue EN lane with headed demos.**
 
-## Cleared this session (STM-05 partials)
+## Cleared this session (STM-06-EN-001)
 
 | ID | Evidence |
 |---|---|
-| STM-05-EN-001 | Live JDBC 2/2 + demo 8/8 |
-| STM-05-EN-003 | Unit 3/3 + demo 7/7 |
-| STM-05-EN-005 | Student guardians UI+BFF; demo 10/10 |
-| STM-05-EN-006 | Unit 2/2 + demo 7/7 |
+| STM-06-EN-001 | Unit stm06En001* 2/2 + demo 8/8 |
 
-**Deferred yet-to-pickup:** STM-05-EN-002 (RLS suite), STM-05-EN-004 (cross STM/IAM).
+**Deferred yet-to-pickup:** STM-06-EN-002 (storage bytes), STM-06-EN-003 (malware/signed URL).
 
 ## Next
 
-Next remaining **partially completed** EN outside STM-05 (check backlog), typically **STM-06-EN-*** after STM-05 partials.
+**STM-06-EN-004** — RLS, tenant isolation and document-level authorization (partially completed).
+
+Then STM-06-EN-005, STM-06-EN-006.
 
 ## Notes
 

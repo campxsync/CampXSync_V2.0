@@ -1444,4 +1444,33 @@ public class DocumentDomainServiceTest {
         assertFalse(info.isExpired);
         assertNotNull(info.expiresAt);
     }
+
+    // --- STM-06-EN-001 Document metadata persistence / CRUD enablement ---
+
+    @Test
+    public void stm06En001_configureDocumentTypePersistsMetadata() {
+        ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
+        req.code = "DOC-EN001-" + UUID.randomUUID().toString().substring(0, 8);
+        req.name = "EN-001 Metadata Type";
+        req.retentionPolicyCode = "RET_1_YEAR";
+        DocumentType created = service.configureDocumentType(adminTenantA, req);
+        assertNotNull(created.id);
+        assertEquals(req.code.toUpperCase(), created.code);
+        assertEquals("EN-001 Metadata Type", created.name);
+        List<DocumentType> listed = service.listDocumentTypes(adminTenantA, null, null);
+        assertTrue(listed.stream().anyMatch(t -> created.id.equals(t.id)));
+    }
+
+    @Test
+    public void stm06En001_studentCannotConfigureDocumentType() {
+        ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
+        req.code = "DOC-EN001-FORBIDDEN";
+        req.name = "Should Fail";
+        try {
+            service.configureDocumentType(studentTenantA, req);
+            fail("Students must not configure document types");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+    }
 }

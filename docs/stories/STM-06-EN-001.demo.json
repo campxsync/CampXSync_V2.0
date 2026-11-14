@@ -1,0 +1,64 @@
+{
+  "storyId": "STM-06-EN-001",
+  "title": "Supabase document metadata persistence and CRUD integration",
+  "slowMo": 300,
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "College Administrator opens Document Governance desk backed by PostgresDocumentPersistence",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/documents",
+      "highlight": null
+    },
+    {
+      "title": "Documents Desk Loaded",
+      "description": "College documents heading proves UI → gateway → document-service path",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-heading\"]",
+      "highlight": "[data-testid=\"college-documents-heading\"]"
+    },
+    {
+      "title": "Open Document Types Catalog",
+      "description": "Switch to document types catalog for metadata CRUD surface",
+      "action": "click",
+      "selector": "[data-testid=\"college-documents-tab-catalog\"]",
+      "highlight": "[data-testid=\"college-documents-tab-catalog\"]"
+    },
+    {
+      "title": "Catalog Tab Active",
+      "description": "Document types catalog tab remains selected for metadata governance",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-documents-tab-catalog\"]",
+      "highlight": "[data-testid=\"college-documents-tab-catalog\"]"
+    },
+    {
+      "title": "Open Stage Requirements Tab",
+      "description": "Stage requirements tab exposes persisted programme/stage metadata rules",
+      "action": "click",
+      "selector": "[data-testid=\"college-documents-tab-requirements\"]",
+      "highlight": "[data-testid=\"college-documents-tab-requirements\"]"
+    },
+    {
+      "title": "PostgreSQL Document Types Read-Back",
+      "description": "Confirm doc.document_types rows exist for pilot tenant under RLS-enabled schema",
+      "action": "db_check",
+      "query": "SELECT id, code, name FROM doc.document_types WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' LIMIT 1",
+      "minCount": 1
+    },
+    {
+      "title": "Schema Ownership / RLS Audit",
+      "description": "Verify stage_document_requirements has RLS enabled and FORCED",
+      "action": "db_check",
+      "query": "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'doc' AND c.relname = 'stage_document_requirements' AND c.relrowsecurity = true AND c.relforcerowsecurity = true",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Types Blocked",
+      "description": "Unauthenticated GET on document types contract returns HTTP 401",
+      "action": "api_call",
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/documents/types",
+      "expectedStatus": 401
+    }
+  ]
+}
