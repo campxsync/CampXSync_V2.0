@@ -141,3 +141,32 @@ Working-tree state at demo: uncommitted enrollment domain/controller/tests + stu
 
 ### Owner decision
 Owner directive **start / test / commit** (2026-11-14). CSV → `completed`. Next proposed: `STM-03-US-004`.
+
+---
+
+## Entry 5 — STM-03-US-004 Update enrolment status (2026-11-14)
+
+**Task ID:** STM-03-US-004  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Base HEAD:** `1f6835d` (US-003); story changes **uncommitted** pending approval.
+
+### Scope completed
+- Registrar status updates (ELIGIBLE/SUSPENDED/REJECTED) with append-only history (`actorRole` in API history).
+- College desk Suspend / Reject / Set eligible controls; BFF `status` action.
+- Negatives: student self-update, faculty, department staff, cross-tenant, unauthenticated, invalid status.
+- No invented DEPARTMENT_STAFF grants.
+
+### Tests (§7A)
+
+| Command | Exit | Result |
+|---|---:|---|
+| `mvn test -pl services/student-services/enrollment-service -Dtest=EnrollmentDomainServiceTest` | 0 | 56 run, 0 fail (8 `stm03Us004_*`) |
+| `cd frontend; npx tsc --noEmit` | 0 | 0 errors |
+| `node scripts/demo/run_story_demo.mjs STM-03-US-004` | 0 | 14/14 PASS |
+
+### Evidence paths
+- `docs/demos/STM-03-US-004/`
+
+### Owner decision
+**APPROVED STM-03-US-004 COMMIT** (2026-11-14). CSV status set to `completed`. Next: `STM-03-US-005`.

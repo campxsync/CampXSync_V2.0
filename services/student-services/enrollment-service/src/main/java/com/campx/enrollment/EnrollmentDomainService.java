@@ -551,9 +551,14 @@ public class EnrollmentDomainService {
     }
 
     /**
-     * Updates an enrolment to ELIGIBLE, SUSPENDED, or REJECTED.
+     * Registrar updates enrolment status to ELIGIBLE, SUSPENDED, or REJECTED.
+     * Every change appends an immutable history row (status, action, actorRole, at) for traceability.
+     * Does not invent DEPARTMENT_STAFF grants (ROLE-CATALOGUE GAP).
      *
-     * @throws EnrollmentException 422 when the status is not one of those values
+     * @throws EnrollmentException 401 when tenant context is missing
+     * @throws EnrollmentException 403 when the caller is not registrar/college admin
+     * @throws EnrollmentException 404 when the enrolment is missing in the tenant
+     * @throws EnrollmentException 422 when the status is not one of the allowed values
      */
     public Enrolment updateStatus(Actor actor, UUID enrolmentId, String status) {
         requireRegistrar(actor);

@@ -620,6 +620,110 @@ public class EnrollmentDomainServiceTest {
         assertTrue(response.body.contains("\"status\":\"ELIGIBLE\""));
     }
 
+    // --- STM-03-US-004 Update enrolment status ---
+
+    @Test
+    public void stm03Us004_registrarStatusChangeIsTraceableInHistory() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentDomainService.Enrolment suspended = service.updateStatus(registrar, enrolment.id, "SUSPENDED");
+        assertEquals("SUSPENDED", suspended.status);
+        List<Map<String, String>> history = service.listHistory(registrar, enrolment.id);
+        assertTrue(history.size() >= 1);
+        Map<String, String> last = history.get(history.size() - 1);
+        assertEquals("SUSPENDED", last.get("status"));
+        assertEquals("status", last.get("action"));
+        assertEquals("REGISTRAR", last.get("actorRole"));
+        assertTrue(last.get("at") != null && last.get("at").length() > 0);
+    }
+
+    @Test
+    public void stm03Us004_invalidStatusRejected() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.updateStatus(registrar, enrolment.id, "ENROLLED");
+            fail("expected invalid");
+        } catch (EnrollmentException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("STATUS_INVALID", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us004_studentCannotSelfUpdateStatus() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.updateStatus(studentActor, enrolment.id, "ELIGIBLE");
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us004_facultyCannotUpdateStatus() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.updateStatus(facultyActor, enrolment.id, "SUSPENDED");
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us004_departmentStaffCannotUpdateStatus() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.updateStatus(departmentStaff, enrolment.id, "REJECTED");
+            fail("expected forbidden");
+        } catch (EnrollmentException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03Us004_crossTenantStatusUpdateFailsClosed() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr");
+        try {
+            service.updateStatus(outsider, enrolment.id, "SUSPENDED");
+            fail("expected not found");
+        } catch (EnrollmentException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+    }
+
+    @Test
+    public void stm03Us004_unauthenticatedStatusHttpRejected() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier("test-secret"));
+        EnrollmentController.Response response = controller.handle("POST",
+                "/api/v1/enrollment/enrolments/" + enrolment.id + "/status",
+                Collections.<String, String>emptyMap(), "{\"status\":\"SUSPENDED\"}");
+        assertEquals(401, response.status);
+    }
+
+    @Test
+    public void stm03Us004_httpReturnsUpdatedStatusAndHistoryActorRole() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentController controller = new EnrollmentController(service, new com.campx.enrollment.security.GatewayHmacVerifier(null));
+        java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
+        headers.put("x-tenant-id", tenant.toString());
+        headers.put("x-user-id", registrar.getUserId().toString());
+        headers.put("x-user-role", "REGISTRAR");
+        headers.put("x-correlation-id", "corr-status");
+        EnrollmentController.Response response = controller.handle("POST",
+                "/api/v1/enrollment/enrolments/" + enrolment.id + "/status",
+                headers, "{\"status\":\"REJECTED\"}");
+        assertEquals(200, response.status);
+        assertTrue(response.body.contains("\"status\":\"REJECTED\""));
+        assertTrue(response.body.contains("\"actorRole\":\"REGISTRAR\""));
+        assertTrue(response.body.contains("\"action\":\"status\""));
+    }
+
     private EnrollmentDomainService.Term term() {
         EnrollmentDomainService.Term created = service.seedTerm(tenant, "2026", "ODD", "Odd");
         service.seedWindow(tenant, created.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 1, 30);

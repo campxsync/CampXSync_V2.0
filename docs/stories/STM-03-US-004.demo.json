@@ -1,0 +1,122 @@
+{
+  "storyId": "STM-03-US-004",
+  "title": "Update enrolment status",
+  "slowMo": 350,
+  "seedSql": [
+    {
+      "query": "DELETE FROM stu.enrolment_status_history WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND enrolment_id IN (SELECT id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3040000-0000-4000-8000-000000000004')"
+    },
+    {
+      "query": "DELETE FROM stu.enrolment_selections WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND enrolment_id IN (SELECT id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3040000-0000-4000-8000-000000000004')"
+    },
+    {
+      "query": "DELETE FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3040000-0000-4000-8000-000000000004'"
+    }
+  ],
+  "steps": [
+    {
+      "title": "College Admin Authentication",
+      "description": "Registrar authenticates and opens the Course registration desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=college_admin&returnTo=/college/enrollment",
+      "highlight": null
+    },
+    {
+      "title": "Verify Enrolment Desk Loaded",
+      "description": "College enrolment desk renders",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-heading\"]",
+      "highlight": "[data-testid=\"college-enrollment-heading\"]"
+    },
+    {
+      "title": "Select Academic Term",
+      "description": "Registrar selects the 2026 ODD term",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]",
+      "highlight": "[data-testid=\"college-enrollment-select-term-a1000000-0000-0000-0000-000000000001\"]"
+    },
+    {
+      "title": "Enter Programme Identifier",
+      "description": "Staff supplies the programme id",
+      "action": "fill",
+      "selector": "[data-testid=\"college-enrollment-program-id\"]",
+      "value": "a0000000-0000-0000-0000-000000000040",
+      "highlight": "[data-testid=\"college-enrollment-program-id\"]"
+    },
+    {
+      "title": "Enter Application Identifier",
+      "description": "Dedicated application id for status-update story",
+      "action": "fill",
+      "selector": "[data-testid=\"college-enrollment-application-id\"]",
+      "value": "c3040000-0000-4000-8000-000000000004",
+      "highlight": "[data-testid=\"college-enrollment-application-id\"]"
+    },
+    {
+      "title": "Enter Student Identifier",
+      "description": "Dedicated student id to avoid term duplicate collisions",
+      "action": "fill",
+      "selector": "[data-testid=\"college-enrollment-student-id\"]",
+      "value": "c3040000-0000-4000-8000-000000000094",
+      "highlight": "[data-testid=\"college-enrollment-student-id\"]"
+    },
+    {
+      "title": "Open Enrolment From Handover",
+      "description": "Open a PENDING enrolment that will receive a status update",
+      "action": "click",
+      "selector": "[data-testid=\"college-enrollment-open-handover\"]",
+      "highlight": "[data-testid=\"college-enrollment-open-handover\"]"
+    },
+    {
+      "title": "Verify Handover Success Banner",
+      "description": "UI confirms the PENDING enrolment was persisted",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-success\"]",
+      "highlight": "[data-testid=\"college-enrollment-success\"]",
+      "timeout": 20000
+    },
+    {
+      "title": "Enrolment Row Visible",
+      "description": "Demo student enrolment appears in the registrar list",
+      "action": "wait_for",
+      "selector": "[data-testid^=\"college-enrollment-status-suspend-\"][data-student-id=\"c3040000-0000-4000-8000-000000000094\"]",
+      "highlight": "[data-testid^=\"college-enrollment-status-suspend-\"][data-student-id=\"c3040000-0000-4000-8000-000000000094\"]"
+    },
+    {
+      "title": "Suspend Enrolment",
+      "description": "Registrar updates enrolment status to SUSPENDED for a traceable change",
+      "action": "click",
+      "selector": "[data-testid^=\"college-enrollment-status-suspend-\"][data-student-id=\"c3040000-0000-4000-8000-000000000094\"]",
+      "highlight": "[data-testid^=\"college-enrollment-status-suspend-\"][data-student-id=\"c3040000-0000-4000-8000-000000000094\"]"
+    },
+    {
+      "title": "Status Update Success",
+      "description": "UI confirms status was updated",
+      "action": "wait_for",
+      "selector": "[data-testid=\"college-enrollment-success\"]",
+      "highlight": "[data-testid=\"college-enrollment-success\"]"
+    },
+    {
+      "title": "PostgreSQL Status Read-Back",
+      "description": "Read-only query verifies enrolment is SUSPENDED under the pilot tenant",
+      "action": "db_check",
+      "query": "SELECT id, status, application_id FROM stu.enrolments WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND application_id = 'c3040000-0000-4000-8000-000000000004' AND status = 'SUSPENDED'",
+      "minCount": 1
+    },
+    {
+      "title": "PostgreSQL History Trace Read-Back",
+      "description": "Read-only query verifies append-only status history row with action=status and SUSPENDED",
+      "action": "db_check",
+      "query": "SELECT h.status, h.action, h.actor_role FROM stu.enrolment_status_history h JOIN stu.enrolments e ON e.id = h.enrolment_id AND e.tenant_id = h.tenant_id WHERE e.tenant_id = 'a0000000-0000-0000-0000-000000000001' AND e.application_id = 'c3040000-0000-4000-8000-000000000004' AND h.status = 'SUSPENDED' AND h.action = 'status'",
+      "minCount": 1
+    },
+    {
+      "title": "Negative RBAC — Unauthenticated Gateway Blocked",
+      "description": "API Gateway blocks unauthenticated POST to enrolment status with HTTP 401",
+      "action": "api_call",
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/enrollment/enrolments/a1000000-0000-0000-0000-000000000031/status",
+      "body": { "status": "SUSPENDED" },
+      "expectedStatus": 401
+    }
+  ]
+}

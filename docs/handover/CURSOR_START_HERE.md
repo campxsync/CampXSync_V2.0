@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (`STM-03-US-003` COMMIT; next = PROPOSED `STM-03-US-004`)
+**Last current-state refresh:** 2026-11-14 (`STM-03-US-004` APPROVED + COMMIT; implementing `STM-03-US-005`)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — sole live assignment (`STM-03-US-004` PROPOSED; do not implement until owner approval).
+1. `docs/prompts/NEXT_TASK.md` — sole live assignment (`STM-03-US-005` in progress).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and open policy decisions.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.

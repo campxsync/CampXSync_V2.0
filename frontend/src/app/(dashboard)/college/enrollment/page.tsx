@@ -93,6 +93,8 @@ export default function CollegeEnrollmentDeskPage() {
         failures: Array.isArray(parsed.failures) ? parsed.failures.map(String) : [],
       });
       setMessage(parsed.eligible ? 'Enrolment is eligible.' : 'Enrolment failed eligibility checks.');
+    } else if (action === 'status' && parsed) {
+      setMessage(`Status updated to ${parsed.status || extra.status}.`);
     } else {
       setMessage(`${action} saved.`);
     }
@@ -255,6 +257,48 @@ export default function CollegeEnrollmentDeskPage() {
                 }}
               >
                 Validate eligibility
+              </button>
+              <button
+                type="button"
+                className="text-xs underline"
+                data-testid={`college-enrollment-status-suspend-${item.id}`}
+                data-student-id={item.studentId}
+                onClick={async () => {
+                  const result = await post('status', { enrolmentId: item.id, status: 'SUSPENDED' });
+                  if (result) {
+                    await load();
+                  }
+                }}
+              >
+                Suspend
+              </button>
+              <button
+                type="button"
+                className="text-xs underline"
+                data-testid={`college-enrollment-status-reject-${item.id}`}
+                data-student-id={item.studentId}
+                onClick={async () => {
+                  const result = await post('status', { enrolmentId: item.id, status: 'REJECTED' });
+                  if (result) {
+                    await load();
+                  }
+                }}
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                className="text-xs underline"
+                data-testid={`college-enrollment-status-eligible-${item.id}`}
+                data-student-id={item.studentId}
+                onClick={async () => {
+                  const result = await post('status', { enrolmentId: item.id, status: 'ELIGIBLE' });
+                  if (result) {
+                    await load();
+                  }
+                }}
+              >
+                Set eligible
               </button>
             </li>
           ))}

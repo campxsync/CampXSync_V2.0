@@ -328,6 +328,9 @@ public class EnrollmentController {
             ObjectNode item = history.addObject();
             item.put("status", row.get("status"));
             item.put("action", row.get("action"));
+            if (row.get("actorRole") != null) {
+                item.put("actorRole", row.get("actorRole"));
+            }
             item.put("at", row.get("at"));
         }
         ArrayNode selections = node.putArray("selections");
