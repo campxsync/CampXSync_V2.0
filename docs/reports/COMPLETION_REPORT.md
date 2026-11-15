@@ -314,3 +314,29 @@ None (no IAM seed apply; no Supabase write).
 
 ### Owner decision
 Awaiting Phase B authorization (R31 IAM seed + optional live delegation adapter). Local commits only; **no push**.
+
+---
+
+## Entry 10 — IAM delegation design note + queue preflight STOP (2026-11-15)
+
+**Task ID:** 0a/0b + RUN THE QUEUE (batch 4)  
+**Mode:** IMPLEMENT (docs) / STOP (queue)
+
+### Done
+- Created `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` — adapter marked **BLOCKED** until owner approves Path B (cross-schema) or Path C (new IAM check contract) and mapping M1/M2/M3.
+- Documented: existing IAM capabilities vs cross-schema vs new contract/infra; port interface; claims; caching/revocation; legacy flag **must not** bypass delegation/campus/SoD/matrix; SoD plan for five STM modules; prepare-only staging steps.
+- NEXT_TASK: added **1e R31-SoD**; marked 1/1b/1c/1d/US-006 Phase-B-dependent items **BLOCKED**; pointed live adapter at the design note.
+
+### Queue selection (not started — preflight STOP)
+Would-be next unblocked same-service candidates after clear: **1e R31-SoD** (cross-module) then document-service stories **US-010** / **US-015** (US-006 remains BLOCKED pending pilot Registrar / owner waive).
+
+### Preflight STOP
+Unexpected dirty: `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md`, `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md` (not in known-leftover list). No story implementation, no module suite re-run for queue work.
+
+### Tests (§7A)
+None for this entry (docs-only + STOP). Prior green full-suite evidence remains Entry 9.
+
+### Owner decision needed
+1. Keep / discard / authorize commit of the two dirty runbooks.  
+2. Approve or CHANGES on `IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` (Path + mapping).  
+3. Clear preflight → authorize queue resume (batch starts at **1e R31-SoD** or next unblocked).

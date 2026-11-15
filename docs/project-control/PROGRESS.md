@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (EN-002 regression fix + R31 Registrar Phase A implemented/tested; Phase B IAM seed not applied)
+**Updated:** 2026-11-15 (IAM delegation design note created/BLOCKED; queue preflight STOP on unexpected dirty runbooks)
 
 ## Scoreboard (session)
 
@@ -9,8 +9,23 @@
 |---|---|
 | STM-06-EN-002 regression | **tested** (full document-service suite green after Instant tie-break + live checklist harden) |
 | R31 Registrar Phase A | **implemented** / **tested** (STM-02..06; fake delegation; no live IAM apply) |
+| IAM live delegation adapter | **BLOCKED** — `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` (D12a; Path B/C + mapping awaiting owner) |
 | STM-06-EN-002 / EN-003 | **partially completed** (Phase B storage/IAM apply awaiting owner) |
+| Queue batch (RUN THE QUEUE) | **STOP** — preflight: unexpected modified runbooks (see below) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
+
+### Preflight dirty (2026-11-15) — beyond known leftovers
+
+Known leftovers (ignored): `classpath.txt`, `docs/reports/_csv_status_*.txt`, CSV scratch `.tmp` / `tmpcse61qy9.csv`.
+
+**Unexpected (STOP):**
+
+| Path | Notes |
+|---|---|
+| `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md` | Uncommitted edits: adapter BLOCKED language, legacy-flag non-bypass + expiry 2026-12-31, pre-apply gates |
+| `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md` | Uncommitted edits: security verification checklist, tenant-prefix/path/orphan gates, pre-apply authorization |
+
+Owner must confirm keep / discard / commit these before the queue may proceed.
 
 ## Evidence highlights
 
