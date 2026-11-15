@@ -42,6 +42,7 @@ public class DocumentDomainService {
     public static final String DOCUMENT_UPLOADED = "student.document.uploaded.v1";
     public static final String DOCUMENT_VERIFIED = "student.document.verified.v1";
     public static final String DOCUMENT_ACCESSED = "student.document.accessed.v1";
+    public static final String DOCUMENT_REVERIFICATION_REQUESTED = "student.document.reverification_requested.v1";
 
     public static final Set<String> ALLOWED_MIME_TYPES = Collections.unmodifiableSet(
             new HashSet<String>(Arrays.asList("application/pdf", "image/jpeg", "image/png", "image/webp")));
@@ -1529,6 +1530,83 @@ public class DocumentDomainService {
             logger.audit(audit);
 
             intelligenceService.publishDocumentUploaded(actor, updated, newVersion);
+            return updated;
+        } finally {
+            if (tracker != null) {
+                tracker.close();
+            }
+            LogContext.clear();
+        }
+    }
+
+    /**
+     * STM-06-US-010: Student requests re-verification without uploading a new file version.
+     * Allowed when status is REJECTED or APPROVED; returns document to the verification queue (SUBMITTED).
+     */
+    public StudentDocument requestReverification(Actor actor, UUID documentId, String reason) {
+        requireCaller(actor);
+        if (!actor.isStudent()) {
+            logger.warn("Re-verification request denied for non-student role={}", actor.getRole());
+            throw new DocumentException(403, "FORBIDDEN", "Only the document owner student may request re-verification");
+        }
+        if (documentId == null) {
+            throw new DocumentException(422, "MISSING_DOCUMENT_ID", "Document ID is required for re-verification request");
+        }
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new DocumentException(422, "MISSING_REASON", "Reason for re-verification is required");
+        }
+        String trimmedReason = reason.trim();
+        if (trimmedReason.length() < 3) {
+            throw new DocumentException(422, "INVALID_REASON", "Re-verification reason must be at least 3 characters");
+        }
+
+        StudentDocument existing = persistence.findStudentDocumentById(actor, documentId);
+        if (existing == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found in caller tenant: " + documentId);
+        }
+        if (!actor.getUserId().equals(existing.ownerId)) {
+            logger.warn("Security violation: Student {} attempted re-verification on doc {} owned by {}",
+                    actor.getUserId(), documentId, existing.ownerId);
+            throw new DocumentException(403, "FORBIDDEN", "Students may only request re-verification for their own documents");
+        }
+
+        String status = existing.status == null ? "" : existing.status.toUpperCase(Locale.ROOT);
+        if ("SUBMITTED".equals(status)) {
+            throw new DocumentException(409, "ALREADY_AWAITING_REVIEW",
+                    "Document is already submitted and awaiting verification");
+        }
+        if (!"REJECTED".equals(status) && !"APPROVED".equals(status)) {
+            throw new DocumentException(409, "INVALID_STATUS_FOR_REVERIFICATION",
+                    "Re-verification may only be requested for rejected or approved documents");
+        }
+
+        FlowTracker tracker = logger.flow("request-document-reverification", actor.getCorrelationId());
+        LogContext.setTenantId(actor.getTenantId().toString());
+        LogContext.setUserId(actor.getUserId().toString());
+        LogContext.setUserRole(actor.getRole());
+
+        try {
+            persistence.requestDocumentReverification(actor, existing.id);
+
+            StudentDocument updated = persistence.findStudentDocumentById(actor, existing.id);
+            logger.info("Re-verification requested: docId={} priorStatus={} newStatus=SUBMITTED",
+                    existing.id, existing.status);
+
+            AuditEvent audit = AuditEvent.builder()
+                    .action("document.reverification_requested")
+                    .tenantId(actor.getTenantId().toString())
+                    .principalId(actor.getUserId().toString())
+                    .principalRole(actor.getRole())
+                    .resourceType("STUDENT_DOCUMENT")
+                    .resourceId(existing.id.toString())
+                    .correlationId(actor.getCorrelationId())
+                    .status("SUCCESS")
+                    .severity("INFO")
+                    .description("Student requested document re-verification: reason=" + trimmedReason)
+                    .build();
+            logger.audit(audit);
+
+            intelligenceService.publishDocumentReverificationRequested(actor, updated, trimmedReason, existing.status);
             return updated;
         } finally {
             if (tracker != null) {

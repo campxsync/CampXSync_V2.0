@@ -215,6 +215,51 @@ public class DocumentIntelligenceService {
     }
 
     /**
+     * Emits student.document.reverification_requested.v1 when a student requests re-verification (STM-06-US-010).
+     */
+    public void publishDocumentReverificationRequested(Actor actor, DocumentDomainService.StudentDocument doc,
+                                                         String reason, String priorStatus) {
+        if (actor == null || doc == null || actor.getTenantId() == null) {
+            return;
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<String, Object>();
+            payload.put("documentId", doc.id != null ? doc.id.toString() : null);
+            payload.put("tenantId", doc.tenantId != null ? doc.tenantId.toString() : null);
+            payload.put("studentId", doc.ownerId != null ? doc.ownerId.toString() : null);
+            payload.put("documentTypeId", doc.documentTypeId != null ? doc.documentTypeId.toString() : null);
+            payload.put("documentTypeCode", doc.documentTypeCode);
+            payload.put("title", doc.title);
+            payload.put("priorStatus", priorStatus);
+            payload.put("status", doc.status);
+            payload.put("reason", reason);
+            payload.put("currentVersionNo", doc.currentVersionNo);
+            payload.put("requestedBy", actor.getUserId() != null ? actor.getUserId().toString() : null);
+            payload.put("requestedRole", actor.getRole());
+            payload.put("requestedAt", doc.updatedAt != null ? doc.updatedAt.toString() : java.time.Instant.now().toString());
+
+            IntelligenceContextEvent event = IntelligenceContextEvent.builder()
+                    .eventType(DocumentDomainService.DOCUMENT_REVERIFICATION_REQUESTED)
+                    .schemaVersion(DocumentDomainService.SCHEMA_VERSION)
+                    .aggregateType("STUDENT_DOCUMENT")
+                    .aggregateId(doc.id.toString())
+                    .tenantId(actor.getTenantId())
+                    .sourceService(SERVICE_NAME)
+                    .correlationId(actor.getCorrelationId())
+                    .idempotencyKey("intel-doc-reverify-" + actor.getTenantId() + "-" + doc.id + "-"
+                            + (doc.updatedAt != null ? doc.updatedAt.toEpochMilli() : System.currentTimeMillis()))
+                    .payloadJson(objectMapper.writeValueAsString(payload))
+                    .build();
+
+            adapter.publish(event);
+            logger.info("Published intelligence event: eventType={} documentId={} priorStatus={}",
+                    DocumentDomainService.DOCUMENT_REVERIFICATION_REQUESTED, doc.id, priorStatus);
+        } catch (Exception e) {
+            logger.error("Failed to publish document re-verification requested event", e);
+        }
+    }
+
+    /**
      * Emits student.document.accessed.v1 when a document is accessed or downloaded (STM-06-US-006).
      */
     public void publishDocumentAccessed(Actor actor, DocumentDomainService.StudentDocument doc, String channel) {

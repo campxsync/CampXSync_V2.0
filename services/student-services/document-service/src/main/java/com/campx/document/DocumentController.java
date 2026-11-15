@@ -328,6 +328,23 @@ public class DocumentController {
                 return json(200, studentDocumentNode(resubmitted), correlationId);
             }
 
+            // POST .../reverification-request (or .../request-reverification) - Request Re-verification (STM-06-US-010)
+            if ("POST".equals(method) && ((normalized.startsWith("/api/v1/documents/submissions/") && (normalized.endsWith("/reverification-request") || normalized.endsWith("/request-reverification")))
+                    || (normalized.startsWith("/api/v1/documents/") && !normalized.startsWith("/api/v1/documents/verifications")
+                    && (normalized.endsWith("/reverification-request") || normalized.endsWith("/request-reverification"))))) {
+                String suffix = normalized.endsWith("/reverification-request") ? "/reverification-request" : "/request-reverification";
+                String idPart;
+                if (normalized.startsWith("/api/v1/documents/submissions/")) {
+                    idPart = normalized.substring("/api/v1/documents/submissions/".length(), normalized.length() - suffix.length());
+                } else {
+                    idPart = normalized.substring("/api/v1/documents/".length(), normalized.length() - suffix.length());
+                }
+                UUID documentId = UUID.fromString(idPart);
+                String reason = text(json, "reason");
+                StudentDocument updated = domain.requestReverification(actor, documentId, reason);
+                return json(200, studentDocumentNode(updated), correlationId);
+            }
+
             // GET /api/v1/documents/submissions/{id}/verification (or /api/v1/documents/{id}/verification) - Get Latest Verification (STM-06-US-005)
             if ("GET".equals(method) && ((normalized.startsWith("/api/v1/documents/submissions/") && normalized.endsWith("/verification"))
                     || (normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/verification")))) {

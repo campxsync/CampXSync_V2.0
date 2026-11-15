@@ -2097,6 +2097,159 @@ public class DocumentDomainServiceTest {
     }
 
     @Test
+    public void stm06Us010_reverificationFromRejectedSuccess() {
+        DocumentType type = stm06Type("DOC-RVR-010-REJ");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Reverify After Reject";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        VerificationDecisionRequest reject = new VerificationDecisionRequest();
+        reject.decision = "REJECT";
+        reject.rejectionReason = "Expired seal";
+        service.verifyDocument(registrarTenantA, uploaded.id, reject);
+
+        StudentDocument fromRejected = service.requestReverification(studentTenantA, uploaded.id,
+                "Registrar stamp updated on original");
+        assertEquals("SUBMITTED", fromRejected.status);
+        assertEquals(1, fromRejected.currentVersionNo);
+    }
+
+    @Test
+    public void stm06Us010_reverificationFromApprovedSuccess() {
+        DocumentType type = stm06Type("DOC-RVR-010-APP");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Reverify After Approve";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        VerificationDecisionRequest approve = new VerificationDecisionRequest();
+        approve.decision = "APPROVE";
+        service.verifyDocument(registrarTenantA, uploaded.id, approve);
+
+        StudentDocument fromApproved = service.requestReverification(studentTenantA, uploaded.id,
+                "Need fresh verification for graduation desk");
+        assertEquals("SUBMITTED", fromApproved.status);
+        assertEquals(1, fromApproved.currentVersionNo);
+    }
+
+    @Test
+    public void stm06Us010_unauthenticatedAndWrongRoleDenied() {
+        DocumentType type = stm06Type("DOC-RVR-NEG-ROLE");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Role Negatives";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        try {
+            service.requestReverification(null, uploaded.id, "Valid reason");
+            fail("Unauthenticated must be denied");
+        } catch (DocumentException e) {
+            assertEquals(401, e.getStatusCode());
+            assertEquals("UNAUTHENTICATED", e.getCode());
+        }
+
+        Actor faculty = new Actor(tenantA, UUID.randomUUID(), campusA, "FACULTY", "f@campx.edu", null);
+        try {
+            service.requestReverification(faculty, uploaded.id, "Faculty attempt");
+            fail("Faculty must be denied");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
+
+        try {
+            service.requestReverification(registrarTenantA, uploaded.id, "Registrar attempt");
+            fail("Registrar must not request student re-verification");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us010_wrongTenantOtherStudentAndAlreadySubmittedDenied() {
+        DocumentType type = stm06Type("DOC-RVR-NEG-OWN");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Ownership Negatives";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        Actor otherStudent = new Actor(tenantA, UUID.randomUUID(), campusA, "STUDENT", "other@campx.edu", null);
+        try {
+            service.requestReverification(otherStudent, uploaded.id, "Not my document");
+            fail("Other student must be forbidden");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
+
+        Actor crossTenant = new Actor(tenantB, studentTenantA.getUserId(), campusB, "STUDENT", "xt@campx.edu", null);
+        try {
+            service.requestReverification(crossTenant, uploaded.id, "Cross tenant");
+            fail("Cross-tenant must not find document");
+        } catch (DocumentException e) {
+            assertEquals(404, e.getStatusCode());
+            assertEquals("DOCUMENT_NOT_FOUND", e.getCode());
+        }
+
+        try {
+            service.requestReverification(studentTenantA, uploaded.id, "Already in queue");
+            fail("SUBMITTED status must conflict");
+        } catch (DocumentException e) {
+            assertEquals(409, e.getStatusCode());
+            assertEquals("ALREADY_AWAITING_REVIEW", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us010_reasonValidationDenied() {
+        DocumentType type = stm06Type("DOC-RVR-NEG-REASON");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Reason Negatives";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 512L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        VerificationDecisionRequest dec = new VerificationDecisionRequest();
+        dec.decision = "APPROVE";
+        service.verifyDocument(registrarTenantA, uploaded.id, dec);
+
+        try {
+            service.requestReverification(studentTenantA, uploaded.id, null);
+            fail("Null reason must be rejected");
+        } catch (DocumentException e) {
+            assertEquals(422, e.getStatusCode());
+            assertEquals("MISSING_REASON", e.getCode());
+        }
+
+        try {
+            service.requestReverification(studentTenantA, uploaded.id, "  ");
+            fail("Blank reason must be rejected");
+        } catch (DocumentException e) {
+            assertEquals(422, e.getStatusCode());
+            assertEquals("MISSING_REASON", e.getCode());
+        }
+
+        try {
+            service.requestReverification(studentTenantA, uploaded.id, "ab");
+            fail("Short reason must be rejected");
+        } catch (DocumentException e) {
+            assertEquals(422, e.getStatusCode());
+            assertEquals("INVALID_REASON", e.getCode());
+        }
+    }
+
+    @Test
     public void stm06R31_deniedWithoutDelegationOutsideCampusSameActorAndWrongRole() {
         DocumentType type = stm06Type("DOC-R31-NEG");
         UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();

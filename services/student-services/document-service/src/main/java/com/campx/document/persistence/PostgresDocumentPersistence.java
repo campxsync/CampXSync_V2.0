@@ -978,6 +978,28 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public void requestDocumentReverification(final Actor actor, final UUID documentId) {
+        DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager, new DocumentSecurityContext.TransactionCallback<Void>() {
+            @Override
+            public Void execute(Connection conn) throws SQLException {
+                String updateDocSql = "UPDATE doc.documents SET "
+                        + "status = 'SUBMITTED', updated_at = now(), updated_by = ?, row_version = row_version + 1 "
+                        + "WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL";
+                try (PreparedStatement ps = conn.prepareStatement(updateDocSql)) {
+                    ps.setObject(1, actor.getUserId());
+                    ps.setObject(2, actor.getTenantId());
+                    ps.setObject(3, documentId);
+                    int updated = ps.executeUpdate();
+                    if (updated == 0) {
+                        throw new SQLException("Failed to update document for re-verification: " + documentId);
+                    }
+                }
+                return null;
+            }
+        });
+    }
+
+    @Override
     public DocumentDomainService.DocumentAccessLog recordAccessLog(final Actor actor, final UUID documentId, final String channel, final String status, final String clientIp) {
         return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager, new DocumentSecurityContext.TransactionCallback<DocumentDomainService.DocumentAccessLog>() {
             @Override

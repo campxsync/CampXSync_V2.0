@@ -114,6 +114,11 @@ public interface DocumentPersistence {
     void resubmitStudentDocument(Actor actor, UUID documentId, DocumentDomainService.DocumentVersion newVersion, String newMimeType);
 
     /**
+     * Resets document status to SUBMITTED for institutional re-verification without a new file (STM-06-US-010).
+     */
+    void requestDocumentReverification(Actor actor, UUID documentId);
+
+    /**
      * Records an immutable access/download log in doc.document_deliveries (STM-06-US-006).
      */
     DocumentDomainService.DocumentAccessLog recordAccessLog(Actor actor, UUID documentId, String channel, String status, String clientIp);

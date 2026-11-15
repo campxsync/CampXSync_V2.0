@@ -375,6 +375,37 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public void requestDocumentReverification(Actor actor, UUID documentId) {
+        DocumentDomainService.StudentDocument existing = docStorage.get(documentId);
+        if (existing != null && existing.tenantId.equals(actor.getTenantId())) {
+            DocumentDomainService.StudentDocument updated = new DocumentDomainService.StudentDocument(
+                    existing.id,
+                    existing.tenantId,
+                    existing.collegeId,
+                    existing.documentTypeId,
+                    existing.documentTypeCode,
+                    existing.documentTypeName,
+                    existing.title,
+                    existing.classification,
+                    "SUBMITTED",
+                    existing.ownerId,
+                    existing.storageBucket,
+                    existing.storagePath,
+                    existing.mimeType,
+                    existing.sizeBytes,
+                    existing.checksumSha256,
+                    existing.currentVersionNo,
+                    existing.createdAt,
+                    Instant.now().plusMillis(1),
+                    existing.createdBy,
+                    actor.getUserId(),
+                    existing.rowVersion + 1
+            );
+            docStorage.put(documentId, updated);
+        }
+    }
+
+    @Override
     public DocumentDomainService.DocumentAccessLog recordAccessLog(Actor actor, UUID documentId, String channel, String status, String clientIp) {
         DocumentDomainService.DocumentAccessLog log = new DocumentDomainService.DocumentAccessLog(
                 UUID.randomUUID(),
