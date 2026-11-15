@@ -3,6 +3,8 @@ package com.campx.document;
 import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.DocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
+import com.campx.document.security.DelegationPort;
+import com.campx.document.security.FailClosedDelegationPort;
 import com.campx.document.security.SignedDownloadTokenService;
 import com.campx.document.storage.DocumentObjectStorage;
 import com.campx.document.storage.DocumentStorageConfig;
@@ -54,15 +56,19 @@ public class DocumentDomainService {
     private static final Set<String> BLOCKED_EXTENSIONS = Collections.unmodifiableSet(
             new HashSet<String>(Arrays.asList("exe", "bat", "cmd", "com", "dll", "scr", "js", "msi", "sh", "ps1", "vbs")));
 
+    public static final String DELEGATION_APPROVE_KEY = "STM-06.DOCUMENTS.A";
+
     private final DocumentPersistence persistence;
     private final DocumentIntelligenceService intelligenceService;
     private final ControlledMalwareScanAdapter malwareScanAdapter;
     private final SignedDownloadTokenService signedDownloadTokenService;
     private final DocumentObjectStorage objectStorage;
+    private final DelegationPort delegationPort;
 
     public DocumentDomainService(DocumentPersistence persistence, DocumentIntelligenceService intelligenceService) {
         this(persistence, intelligenceService, new ControlledMalwareScanAdapter(),
-                new SignedDownloadTokenService(null), new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false));
+                new SignedDownloadTokenService(null), new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false),
+                new FailClosedDelegationPort());
     }
 
     public DocumentDomainService(DocumentPersistence persistence,
@@ -70,7 +76,8 @@ public class DocumentDomainService {
                                  ControlledMalwareScanAdapter malwareScanAdapter,
                                  SignedDownloadTokenService signedDownloadTokenService) {
         this(persistence, intelligenceService, malwareScanAdapter, signedDownloadTokenService,
-                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false));
+                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false),
+                new FailClosedDelegationPort());
     }
 
     public DocumentDomainService(DocumentPersistence persistence,
@@ -78,6 +85,16 @@ public class DocumentDomainService {
                                  ControlledMalwareScanAdapter malwareScanAdapter,
                                  SignedDownloadTokenService signedDownloadTokenService,
                                  DocumentObjectStorage objectStorage) {
+        this(persistence, intelligenceService, malwareScanAdapter, signedDownloadTokenService, objectStorage,
+                new FailClosedDelegationPort());
+    }
+
+    public DocumentDomainService(DocumentPersistence persistence,
+                                 DocumentIntelligenceService intelligenceService,
+                                 ControlledMalwareScanAdapter malwareScanAdapter,
+                                 SignedDownloadTokenService signedDownloadTokenService,
+                                 DocumentObjectStorage objectStorage,
+                                 DelegationPort delegationPort) {
         this.persistence = Objects.requireNonNull(persistence, "persistence");
         this.intelligenceService = intelligenceService == null ? new DocumentIntelligenceService() : intelligenceService;
         this.malwareScanAdapter = malwareScanAdapter == null ? new ControlledMalwareScanAdapter() : malwareScanAdapter;
@@ -85,6 +102,7 @@ public class DocumentDomainService {
                 ? new SignedDownloadTokenService(null) : signedDownloadTokenService;
         this.objectStorage = objectStorage == null
                 ? new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false) : objectStorage;
+        this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
     }
 
     /**
@@ -1287,7 +1305,7 @@ public class DocumentDomainService {
      */
     public List<VerificationQueueItem> getVerificationQueue(Actor actor, String statusFilter) {
         requireCaller(actor);
-        requireAdmin(actor);
+        requireRegistrarCampus(actor);
 
         LogContext.setTenantId(actor.getTenantId().toString());
         LogContext.setUserId(actor.getUserId().toString());
@@ -1300,10 +1318,12 @@ public class DocumentDomainService {
 
     /**
      * STM-06-US-004: Institutional officer verifies and approves or rejects a student document.
+     * A/R requires active IAM delegation (D12a). Same actor cannot verify then approve without resubmit (D10).
      */
     public DocumentVerificationRecord verifyDocument(Actor actor, UUID documentId, VerificationDecisionRequest req) {
         requireCaller(actor);
-        requireAdmin(actor);
+        requireRegistrarCampus(actor);
+        requireDelegationForApproveReject(actor);
 
         if (documentId == null) {
             throw new DocumentException(422, "DOCUMENT_ID_REQUIRED", "Document ID is required for verification");
@@ -1328,6 +1348,20 @@ public class DocumentDomainService {
         StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
         if (doc == null) {
             throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        requireCampusMatch(actor, doc.collegeId);
+
+        if ("APPROVE".equals(rawDecision)) {
+            DocumentVerificationRecord priorByActor = persistence.findLatestVerificationByDocumentId(actor, documentId);
+            // If this actor already acted as verifier/decider on this document and it was not
+            // resubmitted afterward, deny approve (same actor cannot verify and approve).
+            if (priorByActor != null && actor.getUserId().equals(priorByActor.createdBy)) {
+                Instant docTouch = doc.updatedAt != null ? doc.updatedAt : doc.createdAt;
+                if (priorByActor.verifiedAt != null && docTouch != null && !docTouch.isAfter(priorByActor.verifiedAt)) {
+                    throw new DocumentException(403, "SAME_ACTOR_VERIFY_APPROVE",
+                            "The same actor cannot both verify and approve in one workflow");
+                }
+            }
         }
 
         String newStatus;
@@ -1621,7 +1655,7 @@ public class DocumentDomainService {
 
     public DocumentLink grantDocumentAccess(Actor actor, UUID documentId, GrantDocumentAccessRequest req) {
         requireCaller(actor);
-        requireAdmin(actor);
+        requireRegistrarCampus(actor);
         if (documentId == null) {
             throw new DocumentException(422, "MISSING_DOCUMENT_ID", "Document ID is required");
         }
@@ -1659,7 +1693,7 @@ public class DocumentDomainService {
 
     public DocumentLink revokeDocumentAccess(Actor actor, UUID documentId, UUID granteeId, String granteeType) {
         requireCaller(actor);
-        requireAdmin(actor);
+        requireRegistrarCampus(actor);
         if (documentId == null || granteeId == null) {
             throw new DocumentException(422, "MISSING_FIELDS", "documentId and granteeId are required");
         }
@@ -2141,11 +2175,39 @@ public class DocumentDomainService {
         }
     }
 
+    /** College Admin for catalogue/config (US-001). Registrar does not inherit Academic Admin rights (D12d). */
     private void requireAdmin(Actor actor) {
-        if (!actor.isCollegeAdmin() && !actor.isRegistrar()) {
+        if (!actor.isCollegeAdmin()) {
             logger.warn("Unauthorized document type configuration attempt by role={}", actor.getRole());
             throw new DocumentException(403, "FORBIDDEN",
-                    "College Admin or Registrar role required to configure document types");
+                    "College Admin role required to configure document types");
+        }
+    }
+
+    private void requireRegistrarCampus(Actor actor) {
+        if (!actor.isRegistrar()) {
+            logger.warn("Registrar action denied for role={}", actor.getRole());
+            throw new DocumentException(403, "REGISTRAR_FORBIDDEN",
+                    "Catalogue role R31 Registrar required");
+        }
+        if (actor.getCollegeId() == null) {
+            throw new DocumentException(403, "CAMPUS_SCOPE_REQUIRED",
+                    "Assigned campus (college_id) is required for Registrar actions");
+        }
+    }
+
+    private void requireDelegationForApproveReject(Actor actor) {
+        if (!delegationPort.hasActiveDelegation(actor.getTenantId(), actor.getUserId(), DELEGATION_APPROVE_KEY)) {
+            throw new DocumentException(403, "DELEGATION_REQUIRED",
+                    "Approve/reject requires an active IAM delegation for " + DELEGATION_APPROVE_KEY);
+        }
+    }
+
+    private void requireCampusMatch(Actor actor, UUID resourceCollegeId) {
+        if (resourceCollegeId != null && actor.getCollegeId() != null
+                && !actor.getCollegeId().equals(resourceCollegeId)) {
+            throw new DocumentException(403, "CAMPUS_SCOPE_DENIED",
+                    "Registrar action denied outside assigned campus");
         }
     }
 }

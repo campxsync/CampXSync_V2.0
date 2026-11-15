@@ -1,5 +1,7 @@
 package com.campx.enrollment;
 
+import com.campx.enrollment.security.FakeDelegationPort;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -20,6 +22,8 @@ public class EnrollmentDomainServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-11-07T08:00:00Z");
     private EnrollmentDomainService service;
+    private FakeDelegationPort delegations;
+    private UUID campus;
     private UUID tenant;
     private UUID otherTenant;
     private UUID student;
@@ -36,20 +40,32 @@ public class EnrollmentDomainServiceTest {
 
     @Before
     public void setUp() {
-        service = new EnrollmentDomainService(Clock.fixed(NOW, ZoneOffset.UTC));
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
+        campus = UUID.fromString("a0000000-0000-0000-0000-000000000002");
+        delegations = new FakeDelegationPort();
+        service = new EnrollmentDomainService(Clock.fixed(NOW, ZoneOffset.UTC), null, null, delegations);
         tenant = UUID.randomUUID();
         otherTenant = UUID.randomUUID();
         student = UUID.randomUUID();
         otherStudent = UUID.randomUUID();
         program = UUID.randomUUID();
         faculty = UUID.randomUUID();
-        registrar = new Actor(tenant, UUID.randomUUID(), "REGISTRAR", "corr-1");
-        registrarCoded = new Actor(tenant, UUID.randomUUID(), "R31", "corr-r31");
-        departmentStaff = new Actor(tenant, UUID.randomUUID(), "DEPARTMENT_STAFF", "corr-2");
-        studentActor = new Actor(tenant, student, "STUDENT", "corr-3");
-        facultyActor = new Actor(tenant, faculty, "FACULTY", "corr-4");
-        hod = new Actor(tenant, UUID.randomUUID(), "HOD", "corr-5");
-        dean = new Actor(tenant, UUID.randomUUID(), "R07", "corr-r07");
+        UUID registrarUser = UUID.randomUUID();
+        UUID r31User = UUID.randomUUID();
+        registrar = new Actor(tenant, registrarUser, null, campus, "REGISTRAR", "corr-1");
+        registrarCoded = new Actor(tenant, r31User, null, campus, "R31", "corr-r31");
+        delegations.grant(tenant, registrarUser, EnrollmentDomainService.DELEGATION_APPROVE_KEY);
+        delegations.grant(tenant, r31User, EnrollmentDomainService.DELEGATION_APPROVE_KEY);
+        departmentStaff = new Actor(tenant, UUID.randomUUID(), null, campus, "DEPARTMENT_STAFF", "corr-2");
+        studentActor = new Actor(tenant, student, null, campus, "STUDENT", "corr-3");
+        facultyActor = new Actor(tenant, faculty, null, campus, "FACULTY", "corr-4");
+        hod = new Actor(tenant, UUID.randomUUID(), null, campus, "HOD", "corr-5");
+        dean = new Actor(tenant, UUID.randomUUID(), null, campus, "R07", "corr-r07");
+    }
+
+    @After
+    public void tearDown() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
     }
 
     @Test
@@ -110,7 +126,7 @@ public class EnrollmentDomainServiceTest {
             service.updateStatus(facultyActor, enrolment.id, "ELIGIBLE");
             fail("expected forbidden");
         } catch (EnrollmentException ex) {
-            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 
@@ -121,7 +137,7 @@ public class EnrollmentDomainServiceTest {
             service.updateStatus(departmentStaff, enrolment.id, "SUSPENDED");
             fail("expected forbidden");
         } catch (EnrollmentException ex) {
-            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 
@@ -611,6 +627,7 @@ public class EnrollmentDomainServiceTest {
         java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
         headers.put("x-tenant-id", tenant.toString());
         headers.put("x-user-id", registrar.getUserId().toString());
+        headers.put("x-college-id", campus.toString());
         headers.put("x-user-role", "REGISTRAR");
         headers.put("x-correlation-id", "corr-elig");
         EnrollmentController.Response response = controller.handle("POST",
@@ -656,7 +673,7 @@ public class EnrollmentDomainServiceTest {
             fail("expected forbidden");
         } catch (EnrollmentException ex) {
             assertEquals(403, ex.getStatus());
-            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 
@@ -668,7 +685,7 @@ public class EnrollmentDomainServiceTest {
             fail("expected forbidden");
         } catch (EnrollmentException ex) {
             assertEquals(403, ex.getStatus());
-            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 
@@ -680,14 +697,16 @@ public class EnrollmentDomainServiceTest {
             fail("expected forbidden");
         } catch (EnrollmentException ex) {
             assertEquals(403, ex.getStatus());
-            assertEquals("CONFIG_FORBIDDEN", ex.getCode());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 
     @Test
     public void stm03Us004_crossTenantStatusUpdateFailsClosed() {
         EnrollmentDomainService.Enrolment enrolment = opened();
-        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr");
+        UUID outsiderUser = UUID.randomUUID();
+        Actor outsider = new Actor(otherTenant, outsiderUser, null, campus, "REGISTRAR", "corr");
+        delegations.grant(otherTenant, outsiderUser, EnrollmentDomainService.DELEGATION_APPROVE_KEY);
         try {
             service.updateStatus(outsider, enrolment.id, "SUSPENDED");
             fail("expected not found");
@@ -713,6 +732,7 @@ public class EnrollmentDomainServiceTest {
         java.util.Map<String, String> headers = new java.util.HashMap<String, String>();
         headers.put("x-tenant-id", tenant.toString());
         headers.put("x-user-id", registrar.getUserId().toString());
+        headers.put("x-college-id", campus.toString());
         headers.put("x-user-role", "REGISTRAR");
         headers.put("x-correlation-id", "corr-status");
         EnrollmentController.Response response = controller.handle("POST",
@@ -1167,7 +1187,8 @@ public class EnrollmentDomainServiceTest {
 
     @Test
     public void collegeAdminCanOpenTermAndStudentCanSwapSection() {
-        Actor collegeAdmin = new Actor(tenant, UUID.randomUUID(), "COLLEGE_ADMIN", "corr-college");
+        System.setProperty("campx.stm.legacyRegistrarStandin", "true");
+        Actor collegeAdmin = new Actor(tenant, UUID.randomUUID(), null, campus, "COLLEGE_ADMIN", "corr-college");
         EnrollmentDomainService.Term term = service.createTerm(collegeAdmin, "2026", "ODD", "Odd");
         service.createWindow(collegeAdmin, term.id, NOW.minusSeconds(60), NOW.plusSeconds(3600), 3, 6);
         EnrollmentDomainService.Course core = service.addCourse(collegeAdmin, program, term.id, "CS101", 3, true, Collections.<UUID>emptyList());
@@ -1296,6 +1317,65 @@ public class EnrollmentDomainServiceTest {
             fail("missing tenant must be rejected");
         } catch (EnrollmentException ex) {
             assertTrue(ex.getStatus() == 401 || ex.getStatus() == 403);
+        }
+    }
+
+    // --- R31 Registrar Phase A (D10 / D12a-d) ---
+
+    @Test
+    public void stm03R31_registrarCanUpdateStatusWithDelegationAndCampus() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentDomainService.Enrolment updated = service.updateStatus(registrarCoded, enrolment.id, "SUSPENDED");
+        assertEquals("SUSPENDED", updated.status);
+    }
+
+    @Test
+    public void stm03R31_collegeAdminDeniedAsRegistrarWhenFlagOff() {
+        Actor admin = new Actor(tenant, UUID.randomUUID(), null, campus, "COLLEGE_ADMIN", "corr-admin");
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        try {
+            service.updateStatus(admin, enrolment.id, "REJECTED");
+            fail("COLLEGE_ADMIN must not update status when legacy flag is OFF");
+        } catch (EnrollmentException ex) {
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm03R31_collegeAdminAllowedAsRegistrarWhenLegacyFlagOn() {
+        System.setProperty("campx.stm.legacyRegistrarStandin", "true");
+        UUID adminUser = UUID.randomUUID();
+        Actor admin = new Actor(tenant, adminUser, null, campus, "COLLEGE_ADMIN", "corr-admin-leg");
+        delegations.grant(tenant, adminUser, EnrollmentDomainService.DELEGATION_APPROVE_KEY);
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        EnrollmentDomainService.Enrolment updated = service.updateStatus(admin, enrolment.id, "REJECTED");
+        assertEquals("REJECTED", updated.status);
+    }
+
+    @Test
+    public void stm03R31_deniedWithoutDelegationCampusAndWrongRole() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        delegations.revokeAll();
+        try {
+            service.updateStatus(registrar, enrolment.id, "SUSPENDED");
+            fail("Missing delegation must fail closed");
+        } catch (EnrollmentException ex) {
+            assertEquals("DELEGATION_REQUIRED", ex.getCode());
+        } finally {
+            delegations.grant(tenant, registrar.getUserId(), EnrollmentDomainService.DELEGATION_APPROVE_KEY);
+        }
+        Actor noCampus = new Actor(tenant, registrar.getUserId(), null, null, "REGISTRAR", "corr");
+        try {
+            service.updateStatus(noCampus, enrolment.id, "SUSPENDED");
+            fail("Missing campus must be denied");
+        } catch (EnrollmentException ex) {
+            assertEquals("CAMPUS_SCOPE_REQUIRED", ex.getCode());
+        }
+        try {
+            service.updateStatus(facultyActor, enrolment.id, "SUSPENDED");
+            fail("Wrong role must be denied");
+        } catch (EnrollmentException ex) {
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 

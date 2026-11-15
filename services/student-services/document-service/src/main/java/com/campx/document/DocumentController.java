@@ -810,10 +810,20 @@ public class DocumentController {
         String role = header(headers, "x-user-role");
         String email = header(headers, "x-user-email");
         String correlationId = header(headers, "x-correlation-id");
+        String college = header(headers, "x-college-id");
         if (tenant == null || user == null) {
             throw new DocumentException(401, "IDENTITY_REQUIRED", "Tenant and user identity are required in request headers");
         }
-        return new Actor(UUID.fromString(tenant), UUID.fromString(user), role == null ? "STUDENT" : role, email, correlationId);
+        UUID collegeId = null;
+        if (college != null && !college.trim().isEmpty()) {
+            try {
+                collegeId = UUID.fromString(college.trim());
+            } catch (IllegalArgumentException ignored) {
+                collegeId = null;
+            }
+        }
+        return new Actor(UUID.fromString(tenant), UUID.fromString(user), collegeId,
+                role == null ? "STUDENT" : role, email, correlationId);
     }
 
     private static String header(Map<String, String> headers, String name) {

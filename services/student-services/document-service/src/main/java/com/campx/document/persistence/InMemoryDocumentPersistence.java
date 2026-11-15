@@ -357,7 +357,8 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
                     newVersion.checksumSha256,
                     newVersion.versionNo,
                     existing.createdAt,
-                    Instant.now(),
+                    // Ensure updatedAt is strictly after any same-ms verification Instant
+                    Instant.now().plusMillis(1),
                     existing.createdBy,
                     actor.getUserId(),
                     existing.rowVersion + 1

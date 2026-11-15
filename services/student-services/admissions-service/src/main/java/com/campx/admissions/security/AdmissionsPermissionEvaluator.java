@@ -12,7 +12,10 @@ import java.util.*;
  */
 public class AdmissionsPermissionEvaluator {
 
+    public static final String DELEGATION_APPROVE_KEY = "STM-02.ADMISSIONS.A";
+
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(AdmissionsPermissionEvaluator.class);
+    private static volatile DelegationPort delegationPort = new FailClosedDelegationPort();
 
     // Administrative roles authorized to configure intakes and manage admissions operations
     private static final Set<String> ADMISSIONS_ADMIN_ROLES = new HashSet<>(Arrays.asList(
@@ -90,10 +93,66 @@ public class AdmissionsPermissionEvaluator {
         }
     }
 
-    public static void requireDecisionApprovalPermission(UserSecurityContext context) {
-        if (!DECISION_APPROVER_ROLES.contains(context.getRole())) {
-            throw new AdmissionsSecurityViolationException("Caller lacks executive authority to record admission decisions");
+    /**
+     * Unit tests only: inject in-memory delegation grants.
+     */
+    public static void setDelegationPortForTests(DelegationPort port) {
+        delegationPort = port == null ? new FailClosedDelegationPort() : port;
+    }
+
+  public static void resetDelegationPortForTests() {
+        delegationPort = new FailClosedDelegationPort();
+    }
+
+    public static boolean isCatalogueRegistrar(UserSecurityContext context) {
+        if (context == null || context.getRole() == null) {
+            return false;
         }
+        String role = context.getRole().trim().toUpperCase();
+        if ("R31".equals(role) || "REGISTRAR".equals(role)) {
+            return true;
+        }
+        if (LegacyRegistrarStandin.isEnabled()) {
+            return "COLLEGE_ADMIN".equals(role) || "INSTITUTION_ADMIN".equals(role);
+        }
+        return false;
+    }
+
+    private static boolean isLegacyCollegeOrInstitutionAdmin(String role) {
+        if (role == null) {
+            return false;
+        }
+        String normalized = role.trim().toUpperCase();
+        return "COLLEGE_ADMIN".equals(normalized) || "INSTITUTION_ADMIN".equals(normalized);
+    }
+
+    public static void requireRegistrarCampusAndDelegation(UserSecurityContext context) {
+        if (!isCatalogueRegistrar(context)) {
+            throw new AdmissionsSecurityViolationException("Caller lacks catalogue Registrar (R31) authority");
+        }
+        if (context.getCollegeId() == null) {
+            throw new AdmissionsSecurityViolationException("Assigned campus (college_id) is required for Registrar decisions");
+        }
+        if (!delegationPort.hasActiveDelegation(context.getTenantId(), context.getUserId(), DELEGATION_APPROVE_KEY)) {
+            throw new AdmissionsSecurityViolationException(
+                    "Approve/reject requires an active IAM delegation for " + DELEGATION_APPROVE_KEY);
+        }
+    }
+
+    public static void requireDecisionApprovalPermission(UserSecurityContext context) {
+        if (isCatalogueRegistrar(context)) {
+            requireRegistrarCampusAndDelegation(context);
+            return;
+        }
+        String role = context.getRole();
+        if (DECISION_APPROVER_ROLES.contains(role)) {
+            if (isLegacyCollegeOrInstitutionAdmin(role) && !LegacyRegistrarStandin.isEnabled()) {
+                throw new AdmissionsSecurityViolationException(
+                        "College Admin cannot record admission decisions without legacy registrar stand-in");
+            }
+            return;
+        }
+        throw new AdmissionsSecurityViolationException("Caller lacks executive authority to record admission decisions");
     }
 
     public static void requireAuditLogReadPermission(UserSecurityContext context) {

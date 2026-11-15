@@ -32,10 +32,19 @@ When URL + service-role key are absent, the service runs in **metadata-only** pr
 2. `GET /api/v1/documents/download?token=...` streams **bytes through this service** after token + RBAC checks. Does **not** return Supabase signed URLs to clients.
 3. `?mode=metadata` returns the EN-003 JSON metadata shape for diagnostics.
 
+## Registrar R31 (D10 / D12)
+
+- Canonical role: `R31` / `REGISTRAR` with assigned campus (`X-College-Id` → `Actor.collegeId`).
+- Approve/reject requires active delegation via `DelegationPort` (`STM-06.DOCUMENTS.A`). Default runtime port is fail-closed.
+- `CAMPX_STM_LEGACY_REGISTRAR_STANDIN` (default OFF): when ON, `COLLEGE_ADMIN` / `INSTITUTION_ADMIN` may satisfy Registrar checks — **staging only**, temporary until first real college onboarding.
+- Catalogue/config (document types, stage requirements) remains **College Admin**; Registrar does not inherit those rights.
+- Staging IAM seed: `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md` (prepare-only).
+
 ## Open gaps
 
 - Live malware scanner: OUT OF SCOPE (would require a new tool). Heuristic `ControlledMalwareScanAdapter` remains (`liveEndpoint=false`).
 - Staging bucket/policies: prepared in `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md` — not applied until Phase B approval.
+- Live IAM delegation adapter (cross-schema): fail-closed until Phase B / owner design.
 
 ## Tests (no DB / no live Supabase)
 

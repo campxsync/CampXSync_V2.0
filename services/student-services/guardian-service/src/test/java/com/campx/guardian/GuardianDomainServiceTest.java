@@ -1,5 +1,7 @@
 package com.campx.guardian;
 
+import com.campx.guardian.security.FakeDelegationPort;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -15,6 +17,8 @@ import static org.junit.Assert.fail;
 public class GuardianDomainServiceTest {
 
     private GuardianDomainService service;
+    private FakeDelegationPort delegations;
+    private UUID campus;
     private UUID tenant;
     private UUID student;
     private Actor registrar;
@@ -22,11 +26,22 @@ public class GuardianDomainServiceTest {
 
     @Before
     public void setUp() {
-        service = new GuardianDomainService();
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
+        campus = UUID.fromString("a0000000-0000-0000-0000-000000000002");
+        delegations = new FakeDelegationPort();
+        service = new GuardianDomainService(Clock.fixed(Instant.parse("2026-11-07T10:00:00Z"), ZoneOffset.UTC),
+                null, null, delegations);
         tenant = UUID.randomUUID();
         student = UUID.randomUUID();
-        registrar = new Actor(tenant, UUID.randomUUID(), "COLLEGE_ADMIN", "corr-reg");
-        studentActor = new Actor(tenant, student, "STUDENT", "corr-stu");
+        UUID registrarUser = UUID.randomUUID();
+        registrar = new Actor(tenant, registrarUser, null, campus, "R31", "corr-reg");
+        delegations.grant(tenant, registrarUser, GuardianDomainService.DELEGATION_APPROVE_KEY);
+        studentActor = new Actor(tenant, student, null, campus, "STUDENT", "corr-stu");
+    }
+
+    @After
+    public void tearDown() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
     }
 
     @Test
@@ -96,7 +111,8 @@ public class GuardianDomainServiceTest {
     public void reviewerCannotDecideTheirOwnRelationship() {
         GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         service.submitEvidence(registrar, link.id, "PASSPORT");
-        Actor party = new Actor(tenant, link.guardianPersonId, "COLLEGE_ADMIN", "corr-party");
+        delegations.grant(tenant, link.guardianPersonId, GuardianDomainService.DELEGATION_APPROVE_KEY);
+        Actor party = new Actor(tenant, link.guardianPersonId, null, campus, "R31", "corr-party");
         try {
             service.reviewEvidence(party, link.id, "VERIFY", "IDENTITY_CONFIRMED");
             fail("A party to the relationship must not review it");
@@ -313,7 +329,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void elapsedAccessPeriodExpiresOnReadAndStaysDenied() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-08T12:00:00Z"), ZoneOffset.UTC);
-        GuardianDomainService timed = new GuardianDomainService(clock, null, null);
+        GuardianDomainService timed = new GuardianDomainService(clock, null, null, delegations);
         GuardianDomainService.GuardianLink link = timed.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         timed.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         timed.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
@@ -420,7 +436,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void elapsedGrantCannotBeViewed() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-08T12:00:00Z"), ZoneOffset.UTC);
-        GuardianDomainService timed = new GuardianDomainService(clock, null, null);
+        GuardianDomainService timed = new GuardianDomainService(clock, null, null, delegations);
         GuardianDomainService.GuardianLink link = timed.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         timed.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         timed.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
@@ -716,7 +732,7 @@ public class GuardianDomainServiceTest {
         GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother",
                 null, null, true);
         UUID otherTenant = UUID.randomUUID();
-        Actor otherRegistrar = new Actor(otherTenant, UUID.randomUUID(), "COLLEGE_ADMIN", "corr-other");
+        Actor otherRegistrar = new Actor(otherTenant, UUID.randomUUID(), null, campus, "R31", "corr-other");
         assertEquals(0, service.listGuardians(otherRegistrar, student).size());
         try {
             service.updateGuardian(otherRegistrar, link.id, "aunt", false);
@@ -743,7 +759,7 @@ public class GuardianDomainServiceTest {
     public void stm05En002_crossTenantCannotGrantOrViewAccess() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
         service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
-        Actor otherRegistrar = new Actor(UUID.randomUUID(), UUID.randomUUID(), "COLLEGE_ADMIN", "corr-xt");
+        Actor otherRegistrar = new Actor(UUID.randomUUID(), UUID.randomUUID(), null, campus, "R31", "corr-xt");
         try {
             service.grantAccess(otherRegistrar, link.id, java.util.Arrays.asList("FEES"), "FAMILY_SUPPORT", "2027-12-31");
             fail("Cross-tenant grant must fail");
@@ -816,6 +832,71 @@ public class GuardianDomainServiceTest {
             fail("Students must not list another student's guardians");
         } catch (GuardianException ex) {
             assertEquals(403, ex.getStatus());
+        }
+    }
+
+    // --- R31 Registrar Phase A (D10 / D12a-d) ---
+
+    @Test
+    public void stm05R31_registrarCanReviewWithDelegationAndCampus() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Ravi", "Nair", "FATHER",
+                "ravi@example.com", "9000000001", true);
+        service.submitEvidence(studentActor, link.id, "BIRTH_CERTIFICATE");
+        GuardianDomainService.ReviewDecision decision = service.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
+        assertEquals("VERIFIED", decision.decision);
+    }
+
+    @Test
+    public void stm05R31_collegeAdminDeniedAsRegistrarWhenFlagOff() {
+        Actor admin = new Actor(tenant, UUID.randomUUID(), null, campus, "COLLEGE_ADMIN", "corr-admin");
+        try {
+            service.addGuardian(admin, student, "A", "B", "MOTHER", "a@ex.com", "1", false);
+            fail("COLLEGE_ADMIN must not act as Registrar when legacy flag is OFF");
+        } catch (GuardianException ex) {
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05R31_collegeAdminAllowedAsRegistrarWhenLegacyFlagOn() {
+        System.setProperty("campx.stm.legacyRegistrarStandin", "true");
+        UUID adminUser = UUID.randomUUID();
+        Actor admin = new Actor(tenant, adminUser, null, campus, "COLLEGE_ADMIN", "corr-admin-leg");
+        delegations.grant(tenant, adminUser, GuardianDomainService.DELEGATION_APPROVE_KEY);
+        GuardianDomainService.GuardianLink link = service.addGuardian(admin, student, "Legacy", "Admin", "GUARDIAN",
+                "leg@ex.com", "2", false);
+        service.submitEvidence(studentActor, link.id, "BIRTH_CERTIFICATE");
+        GuardianDomainService.ReviewDecision decision = service.reviewEvidence(admin, link.id, "REJECT", "DOCUMENT_MISMATCH");
+        assertEquals("REJECTED", decision.decision);
+    }
+
+    @Test
+    public void stm05R31_deniedWithoutDelegationCampusAndWrongRole() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Neg", "Test", "FATHER",
+                "neg@ex.com", "3", false);
+        service.submitEvidence(studentActor, link.id, "BIRTH_CERTIFICATE");
+        delegations.revokeAll();
+        try {
+            service.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
+            fail("Missing delegation must fail closed");
+        } catch (GuardianException ex) {
+            assertEquals("DELEGATION_REQUIRED", ex.getCode());
+        } finally {
+            delegations.grant(tenant, registrar.getUserId(), GuardianDomainService.DELEGATION_APPROVE_KEY);
+        }
+        Actor noCampus = new Actor(tenant, registrar.getUserId(), null, null, "R31", "corr");
+        try {
+            service.reviewEvidence(noCampus, link.id, "VERIFY", "IDENTITY_CONFIRMED");
+            fail("Missing campus must be denied");
+        } catch (GuardianException ex) {
+            assertEquals("CAMPUS_SCOPE_REQUIRED", ex.getCode());
+        }
+        Actor faculty = new Actor(tenant, UUID.randomUUID(), null, campus, "FACULTY", "corr-f");
+        try {
+            service.reviewEvidence(faculty, link.id, "VERIFY", "IDENTITY_CONFIRMED");
+            fail("Wrong role must be denied");
+        } catch (GuardianException ex) {
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
 }

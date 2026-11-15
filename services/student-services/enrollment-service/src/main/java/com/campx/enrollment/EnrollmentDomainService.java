@@ -1,5 +1,7 @@
 package com.campx.enrollment;
 
+import com.campx.enrollment.security.DelegationPort;
+import com.campx.enrollment.security.FailClosedDelegationPort;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -31,12 +33,14 @@ public class EnrollmentDomainService {
     /** Emitted when an approved admission is converted into a PENDING enrolment (STM-03-US-001). */
     public static final String ENROLMENT_OPENED = "student.enrolment.opened.v1";
     public static final String SCHEMA_VERSION = "1.0.0";
+    public static final String DELEGATION_APPROVE_KEY = "STM-03.ENROLMENT.A";
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(EnrollmentDomainService.class);
 
     private final Clock clock;
     private final com.campx.enrollment.persistence.EnrollmentPersistence persistence;
     private final com.campx.enrollment.intelligence.EnrollmentIntelligenceService intelligenceService;
+    private final DelegationPort delegationPort;
     private final Map<String, Term> terms = new ConcurrentHashMap<String, Term>();
     private final Map<String, Window> windows = new ConcurrentHashMap<String, Window>();
     private final Map<String, Course> courses = new ConcurrentHashMap<String, Course>();
@@ -47,24 +51,31 @@ public class EnrollmentDomainService {
     private final List<Map<String, Object>> events = Collections.synchronizedList(new ArrayList<Map<String, Object>>());
 
     public EnrollmentDomainService() {
-        this(Clock.systemUTC(), null, null);
+        this(Clock.systemUTC(), null, null, new FailClosedDelegationPort());
     }
 
     public EnrollmentDomainService(Clock clock) {
-        this(clock, null, null);
+        this(clock, null, null, new FailClosedDelegationPort());
     }
 
     public EnrollmentDomainService(Clock clock, com.campx.enrollment.persistence.EnrollmentPersistence persistence) {
-        this(clock, persistence, null);
+        this(clock, persistence, null, new FailClosedDelegationPort());
     }
 
     public EnrollmentDomainService(Clock clock, com.campx.enrollment.persistence.EnrollmentPersistence persistence,
                                    com.campx.enrollment.intelligence.EnrollmentIntelligenceService intelligenceService) {
+        this(clock, persistence, intelligenceService, new FailClosedDelegationPort());
+    }
+
+    public EnrollmentDomainService(Clock clock, com.campx.enrollment.persistence.EnrollmentPersistence persistence,
+                                   com.campx.enrollment.intelligence.EnrollmentIntelligenceService intelligenceService,
+                                   DelegationPort delegationPort) {
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.persistence = persistence;
         this.intelligenceService = intelligenceService == null
                 ? new com.campx.enrollment.intelligence.EnrollmentIntelligenceService()
                 : intelligenceService;
+        this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
     }
 
     public boolean isPersistent() {
@@ -251,7 +262,7 @@ public class EnrollmentDomainService {
      */
     public List<Map<String, String>> listHistory(Actor actor, UUID enrolmentId) {
         Enrolment enrolment = getEnrolment(actor, enrolmentId);
-        if (persistence != null && (isRegistrar(actor) || (isStudent(actor) && ownsEnrolment(actor, enrolment)))) {
+        if (persistence != null && (actor.isRegistrar() || (isStudent(actor) && ownsEnrolment(actor, enrolment)))) {
             List<Map<String, String>> persisted = persistence.findHistory(actor, enrolmentId);
             if (persisted != null && !persisted.isEmpty()) {
                 return persisted;
@@ -261,7 +272,7 @@ public class EnrollmentDomainService {
     }
 
     public int waitlistPosition(Actor actor, UUID sectionId) {
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "WAITLIST_VIEW_FORBIDDEN", "Waitlist position is limited to the student or registrar");
         }
         Section section = requireSection(actor.getTenantId(), sectionId);
@@ -334,7 +345,7 @@ public class EnrollmentDomainService {
             throw reject(401, "TENANT_REQUIRED", "Tenant context is required");
         }
         Enrolment enrolment = requireEnrolment(actor.getTenantId(), enrolmentId);
-        if (isRegistrar(actor)) {
+        if (actor.isRegistrar()) {
             log(actor, "enrolment.viewed", enrolment.id);
             return enrolment;
         }
@@ -384,7 +395,7 @@ public class EnrollmentDomainService {
             }
             return mine;
         }
-        if (isRegistrar(actor)) {
+        if (actor.isRegistrar()) {
             hydrateTenantEnrolments(actor);
             for (Enrolment enrolment : enrolments.values()) {
                 if (enrolment.tenantId.equals(actor.getTenantId())) {
@@ -567,7 +578,7 @@ public class EnrollmentDomainService {
      * @throws EnrollmentException 422 when the status is not one of the allowed values
      */
     public Enrolment updateStatus(Actor actor, UUID enrolmentId, String status) {
-        requireRegistrar(actor);
+        requireRegistrarApproveReject(actor);
         if (status == null || (!"ELIGIBLE".equals(status) && !"SUSPENDED".equals(status) && !"REJECTED".equals(status))) {
             throw reject(422, "STATUS_INVALID", "Status must be ELIGIBLE, SUSPENDED, or REJECTED");
         }
@@ -1040,9 +1051,34 @@ public class EnrollmentDomainService {
         if (actor == null || actor.getTenantId() == null) {
             throw reject(401, "TENANT_REQUIRED", "Tenant context is required");
         }
-        if (!isRegistrar(actor)) {
+        if (!actor.isRegistrar()) {
             throw reject(403, "CONFIG_FORBIDDEN",
                     "STM-03 configuration and approval require catalogue role R31 Registrar");
+        }
+    }
+
+    private void requireRegistrarApproveReject(Actor actor) {
+        requireRegistrarCampus(actor);
+        requireDelegationForApproveReject(actor);
+    }
+
+    private void requireRegistrarCampus(Actor actor) {
+        if (actor == null || actor.getTenantId() == null) {
+            throw reject(401, "TENANT_REQUIRED", "Tenant context is required");
+        }
+        if (!actor.isRegistrar()) {
+            throw reject(403, "REGISTRAR_FORBIDDEN",
+                    "STM-03 configuration and approval require catalogue role R31 Registrar");
+        }
+        if (actor.getCollegeId() == null) {
+            throw reject(403, "CAMPUS_SCOPE_REQUIRED", "Assigned campus (college_id) is required for Registrar actions");
+        }
+    }
+
+    private void requireDelegationForApproveReject(Actor actor) {
+        if (!delegationPort.hasActiveDelegation(actor.getTenantId(), actor.getUserId(), DELEGATION_APPROVE_KEY)) {
+            throw reject(403, "DELEGATION_REQUIRED",
+                    "Approve/reject requires an active IAM delegation for " + DELEGATION_APPROVE_KEY);
         }
     }
 
@@ -1054,12 +1090,6 @@ public class EnrollmentDomainService {
             throw reject(403, "ALLOCATE_FORBIDDEN",
                     "Section allocation requires catalogue role R07 Dean or R08 HOD");
         }
-    }
-
-    private boolean isRegistrar(Actor actor) {
-        String role = actor.getRole();
-        return "R31".equals(role) || "REGISTRAR".equals(role)
-                || "COLLEGE_ADMIN".equals(role) || "INSTITUTION_ADMIN".equals(role);
     }
 
     private void hydrateTerms(Actor actor) {

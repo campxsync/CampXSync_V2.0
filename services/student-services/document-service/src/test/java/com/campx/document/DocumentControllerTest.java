@@ -4,7 +4,12 @@ import com.campx.document.DocumentDomainService.ConfigureDocumentTypeRequest;
 import com.campx.document.DocumentDomainService.DocumentType;
 import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.InMemoryDocumentPersistence;
+import com.campx.document.security.ControlledMalwareScanAdapter;
+import com.campx.document.security.FakeDelegationPort;
 import com.campx.document.security.GatewayHmacVerifier;
+import com.campx.document.security.SignedDownloadTokenService;
+import com.campx.document.storage.DocumentStorageConfig;
+import com.campx.document.storage.FakeDocumentObjectStorage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.After;
@@ -29,30 +34,50 @@ public class DocumentControllerTest {
     private DocumentController controller;
     private final ObjectMapper mapper = new ObjectMapper();
     private final UUID tenantId = UUID.fromString("a0000000-0000-0000-0000-000000000001");
+    private final UUID campusId = UUID.fromString("a0000000-0000-0000-0000-000000000002");
     private final UUID adminId = UUID.randomUUID();
+    private final UUID registrarId = UUID.randomUUID();
     private final UUID studentId = UUID.randomUUID();
 
     @Before
     public void setUp() {
         System.setProperty("campx.internal.auth.enabled", "false");
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
         InMemoryDocumentPersistence persistence = new InMemoryDocumentPersistence();
         DocumentIntelligenceService intelligenceService = new DocumentIntelligenceService();
-        DocumentDomainService domain = new DocumentDomainService(persistence, intelligenceService);
+        FakeDelegationPort delegations = new FakeDelegationPort();
+        delegations.grant(tenantId, registrarId, DocumentDomainService.DELEGATION_APPROVE_KEY);
+        DocumentDomainService domain = new DocumentDomainService(persistence, intelligenceService,
+                new ControlledMalwareScanAdapter(), new SignedDownloadTokenService(null),
+                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false), delegations);
         controller = new DocumentController(domain, new GatewayHmacVerifier(null));
     }
 
     @After
     public void tearDown() {
         System.clearProperty("campx.internal.auth.enabled");
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
     }
 
     private Map<String, String> adminHeaders() {
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("x-tenant-id", tenantId.toString());
         headers.put("x-user-id", adminId.toString());
+        headers.put("x-college-id", campusId.toString());
         headers.put("x-user-role", "COLLEGE_ADMIN");
         headers.put("x-user-email", "admin@campx.edu");
         headers.put("x-correlation-id", "test-corr-123");
+        return headers;
+    }
+
+    private Map<String, String> registrarHeaders() {
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("x-tenant-id", tenantId.toString());
+        headers.put("x-user-id", registrarId.toString());
+        headers.put("x-college-id", campusId.toString());
+        headers.put("x-user-role", "REGISTRAR");
+        headers.put("x-user-email", "registrar@campx.edu");
+        headers.put("x-correlation-id", "test-corr-reg");
         return headers;
     }
 
@@ -60,6 +85,7 @@ public class DocumentControllerTest {
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("x-tenant-id", tenantId.toString());
         headers.put("x-user-id", studentId.toString());
+        headers.put("x-college-id", campusId.toString());
         headers.put("x-user-role", "STUDENT");
         headers.put("x-user-email", "student@campx.edu");
         headers.put("x-correlation-id", "test-corr-456");
@@ -322,7 +348,7 @@ public class DocumentControllerTest {
         String uploadPayload = "{\"documentTypeId\":\"" + dtId + "\",\"title\":\"Doc for Queue API\",\"mimeType\":\"application/pdf\",\"sizeBytes\":2048}";
         controller.handle("POST", "/api/v1/documents/submissions", studentHeaders(), uploadPayload);
 
-        DocumentController.Response queueResp = controller.handle("GET", "/api/v1/documents/verifications", adminHeaders(), null);
+        DocumentController.Response queueResp = controller.handle("GET", "/api/v1/documents/verifications", registrarHeaders(), null);
         assertEquals(200, queueResp.status);
         JsonNode qJson = mapper.readTree(queueResp.body);
         assertTrue(qJson.get("total").asInt() >= 1);
@@ -339,7 +365,7 @@ public class DocumentControllerTest {
         String docId = mapper.readTree(uploadResp.body).get("id").asText();
 
         String decisionPayload = "{\"decision\":\"APPROVE\",\"verificationNotes\":\"Approved after inspection\"}";
-        DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", adminHeaders(), decisionPayload);
+        DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", registrarHeaders(), decisionPayload);
         assertEquals(200, decResp.status);
 
         JsonNode decJson = mapper.readTree(decResp.body);
@@ -358,7 +384,7 @@ public class DocumentControllerTest {
         String docId = mapper.readTree(uploadResp.body).get("id").asText();
 
         String decisionPayload = "{\"decision\":\"REJECT\",\"rejectionReason\":\"Blurry image scan\"}";
-        DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", adminHeaders(), decisionPayload);
+        DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", registrarHeaders(), decisionPayload);
         assertEquals(200, decResp.status);
 
         JsonNode decJson = mapper.readTree(decResp.body);
@@ -377,7 +403,7 @@ public class DocumentControllerTest {
         String docId = mapper.readTree(uploadResp.body).get("id").asText();
 
         String decisionPayload = "{\"decision\":\"REJECT\",\"rejectionReason\":\"\"}";
-        DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", adminHeaders(), decisionPayload);
+        DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", registrarHeaders(), decisionPayload);
         assertEquals(422, decResp.status);
         JsonNode decJson = mapper.readTree(decResp.body);
         assertEquals("REJECTION_REASON_REQUIRED", decJson.get("code").asText());
@@ -389,7 +415,7 @@ public class DocumentControllerTest {
         DocumentController.Response decResp = controller.handle("POST", "/api/v1/documents/verifications/" + UUID.randomUUID() + "/decision", studentHeaders(), decisionPayload);
         assertEquals(403, decResp.status);
         JsonNode decJson = mapper.readTree(decResp.body);
-        assertEquals("FORBIDDEN", decJson.get("code").asText());
+        assertEquals("REGISTRAR_FORBIDDEN", decJson.get("code").asText());
     }
 
     @Test
@@ -404,7 +430,7 @@ public class DocumentControllerTest {
 
         // Reject it
         String decPayload = "{\"decision\":\"REJECT\",\"rejectionReason\":\"Page 2 was truncated\"}";
-        controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", adminHeaders(), decPayload);
+        controller.handle("POST", "/api/v1/documents/verifications/" + docId + "/decision", registrarHeaders(), decPayload);
 
         // Resubmit v2
         String resubmitPayload = "{\"fileName\":\"form_complete.pdf\",\"mimeType\":\"application/pdf\",\"sizeBytes\":4096,\"checksumSha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"changeNote\":\"Added missing page 2\"}";

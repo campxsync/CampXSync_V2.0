@@ -5,9 +5,12 @@ import com.campx.admissions.exception.AdmissionsSecurityViolationException;
 import com.campx.admissions.model.*;
 import com.campx.admissions.model.dto.*;
 import com.campx.admissions.repository.*;
+import com.campx.admissions.security.AdmissionsPermissionEvaluator;
+import com.campx.admissions.security.FakeDelegationPort;
 import com.campx.admissions.security.UserSecurityContext;
 import com.campx.admissions.service.AdmissionsStateEngine;
 import com.campx.admissions.service.ReviewAndDecisionService;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -38,9 +41,15 @@ public class ReviewAndDecisionServiceTest {
     private UserSecurityContext applicantContext;
     private UserSecurityContext reviewerContext;
     private UserSecurityContext approverContext;
+    private FakeDelegationPort delegations;
+    private UUID campus;
 
     @Before
     public void setUp() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
+        delegations = new FakeDelegationPort();
+        AdmissionsPermissionEvaluator.setDelegationPortForTests(delegations);
+        campus = UUID.fromString("a0000000-0000-0000-0000-000000000002");
         applicationRepository = new InMemoryApplicationRepository();
         intakeRepository = new InMemoryAdmissionIntakeRepository();
         reviewRepository = new InMemoryApplicationReviewRepository();
@@ -90,6 +99,12 @@ public class ReviewAndDecisionServiceTest {
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setRowVersion(0);
         applicationRepository.save(app);
+    }
+
+    @After
+    public void tearDown() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
+        AdmissionsPermissionEvaluator.resetDelegationPortForTests();
     }
 
     @Test
@@ -183,6 +198,70 @@ public class ReviewAndDecisionServiceTest {
             fail("Expected AdmissionsConflictException due to exhausted intake capacity");
         } catch (AdmissionsConflictException e) {
             assertTrue(e.getMessage().contains("capacity exhausted"));
+        }
+    }
+
+    // --- R31 Registrar Phase A (D10 / D12a-d) ---
+
+    @Test
+    public void stm02R31_registrarCanRecordDecisionWithDelegationAndCampus() {
+        UUID r31User = UUID.randomUUID();
+        delegations.grant(tenantId, r31User, AdmissionsPermissionEvaluator.DELEGATION_APPROVE_KEY);
+        UserSecurityContext r31 = new UserSecurityContext(r31User, tenantId, campus, null, "R31", false);
+        RecordDecisionRequest decReq = new RecordDecisionRequest();
+        decReq.setDecisionType(DecisionType.REJECTED);
+        decReq.setDecisionNotes("R31 reject");
+        AdmissionDecisionEntity decision = reviewAndDecisionService.recordDecision(r31, applicationId, decReq);
+        assertEquals(DecisionType.REJECTED, decision.getDecisionType());
+    }
+
+    @Test(expected = AdmissionsSecurityViolationException.class)
+    public void stm02R31_collegeAdminDeniedAsRegistrarWhenFlagOff() {
+        UserSecurityContext admin = new UserSecurityContext(UUID.randomUUID(), tenantId, campus, null, "COLLEGE_ADMIN", false);
+        RecordDecisionRequest decReq = new RecordDecisionRequest();
+        decReq.setDecisionType(DecisionType.REJECTED);
+        reviewAndDecisionService.recordDecision(admin, applicationId, decReq);
+    }
+
+    @Test
+    public void stm02R31_collegeAdminAllowedAsRegistrarWhenLegacyFlagOn() {
+        System.setProperty("campx.stm.legacyRegistrarStandin", "true");
+        UUID adminUser = UUID.randomUUID();
+        delegations.grant(tenantId, adminUser, AdmissionsPermissionEvaluator.DELEGATION_APPROVE_KEY);
+        UserSecurityContext admin = new UserSecurityContext(adminUser, tenantId, campus, null, "COLLEGE_ADMIN", false);
+        RecordDecisionRequest decReq = new RecordDecisionRequest();
+        decReq.setDecisionType(DecisionType.REJECTED);
+        decReq.setDecisionNotes("Legacy admin");
+        AdmissionDecisionEntity decision = reviewAndDecisionService.recordDecision(admin, applicationId, decReq);
+        assertEquals(DecisionType.REJECTED, decision.getDecisionType());
+    }
+
+    @Test
+    public void stm02R31_deniedWithoutDelegationCampusAndWrongRole() {
+        UUID r31User = UUID.randomUUID();
+        UserSecurityContext r31NoDeleg = new UserSecurityContext(r31User, tenantId, campus, null, "R31", false);
+        RecordDecisionRequest decReq = new RecordDecisionRequest();
+        decReq.setDecisionType(DecisionType.REJECTED);
+        try {
+            reviewAndDecisionService.recordDecision(r31NoDeleg, applicationId, decReq);
+            fail("Missing delegation must fail closed");
+        } catch (AdmissionsSecurityViolationException ex) {
+            assertTrue(ex.getMessage().toLowerCase().contains("delegation"));
+        }
+        delegations.grant(tenantId, r31User, AdmissionsPermissionEvaluator.DELEGATION_APPROVE_KEY);
+        UserSecurityContext noCampus = new UserSecurityContext(r31User, tenantId, null, null, "R31", false);
+        try {
+            reviewAndDecisionService.recordDecision(noCampus, applicationId, decReq);
+            fail("Missing campus must be denied");
+        } catch (AdmissionsSecurityViolationException ex) {
+            assertTrue(ex.getMessage().toLowerCase().contains("campus"));
+        }
+        UserSecurityContext faculty = new UserSecurityContext(UUID.randomUUID(), tenantId, campus, null, "FACULTY", false);
+        try {
+            reviewAndDecisionService.recordDecision(faculty, applicationId, decReq);
+            fail("Wrong role must be denied");
+        } catch (AdmissionsSecurityViolationException ex) {
+            assertTrue(ex.getMessage().contains("executive authority"));
         }
     }
 }

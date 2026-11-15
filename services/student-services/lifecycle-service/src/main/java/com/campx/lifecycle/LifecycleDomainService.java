@@ -2,6 +2,8 @@ package com.campx.lifecycle;
 
 import com.campx.lifecycle.intelligence.LifecycleIntelligenceService;
 import com.campx.lifecycle.persistence.LifecyclePersistence;
+import com.campx.lifecycle.security.DelegationPort;
+import com.campx.lifecycle.security.FailClosedDelegationPort;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -25,9 +27,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * STM-04 student lifecycle authority.
  * <p>
- * Students (R25) view and submit requests only for their own record. Registrars (R31), including
- * college and institution administrators, approve requests, configure transition rules, and record
- * graduation. Parents (R26) see a limited status for the linked student named in the request header.
+ * Students (R25) view and submit requests only for their own record. Registrars (R31 / REGISTRAR)
+ * approve requests when delegated (D12a), scoped to assigned campus (D12b). College Admin is not
+ * Registrar unless {@code CAMPX_STM_LEGACY_REGISTRAR_STANDIN} is ON (D12d). Parents (R26) see a
+ * limited status for the linked student named in the request header.
  * Faculty are denied the student record; an advisor may see only assigned advisees.
  * Business rule failures are returned as {@link LifecycleException} and written to {@link CampXLogger}.
  * PostgreSQL remains the source of truth when a persistence implementation is bound.
@@ -36,12 +39,14 @@ public class LifecycleDomainService {
 
     public static final String LIFECYCLE_CHANGED = "student.lifecycle.changed.v1";
     public static final String SCHEMA_VERSION = "1.0.0";
+    public static final String DELEGATION_APPROVE_KEY = "STM-04.LIFECYCLE.A";
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(LifecycleDomainService.class);
 
     private final Clock clock;
     private final LifecyclePersistence persistence;
     private final LifecycleIntelligenceService intelligenceService;
+    private final DelegationPort delegationPort;
 
     private final Map<String, LifecycleStatus> statuses = new ConcurrentHashMap<String, LifecycleStatus>();
     private final Map<String, List<HistoryEntry>> history = new ConcurrentHashMap<String, List<HistoryEntry>>();
@@ -52,23 +57,30 @@ public class LifecycleDomainService {
     private final List<Map<String, Object>> events = Collections.synchronizedList(new ArrayList<Map<String, Object>>());
 
     public LifecycleDomainService() {
-        this(Clock.systemUTC(), null, null);
+        this(Clock.systemUTC(), null, null, new FailClosedDelegationPort());
     }
 
     public LifecycleDomainService(Clock clock) {
-        this(clock, null, null);
+        this(clock, null, null, new FailClosedDelegationPort());
     }
 
     public LifecycleDomainService(Clock clock, LifecyclePersistence persistence) {
-        this(clock, persistence, null);
+        this(clock, persistence, null, new FailClosedDelegationPort());
     }
 
     public LifecycleDomainService(Clock clock, LifecyclePersistence persistence, LifecycleIntelligenceService intelligenceService) {
+        this(clock, persistence, intelligenceService, new FailClosedDelegationPort());
+    }
+
+    public LifecycleDomainService(Clock clock, LifecyclePersistence persistence,
+                                  LifecycleIntelligenceService intelligenceService,
+                                  DelegationPort delegationPort) {
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.persistence = persistence;
         this.intelligenceService = intelligenceService == null
                 ? new LifecycleIntelligenceService()
                 : intelligenceService;
+        this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
     }
 
     public boolean isPersistent() {
@@ -103,7 +115,7 @@ public class LifecycleDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(studentId)) {
             throw reject(403, "VIEW_FORBIDDEN", "Students may only view their own lifecycle status");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "VIEW_FORBIDDEN", "Lifecycle status view requires R25 Student or R31 Registrar");
         }
         return requireOrOpenOwn(actor, studentId);
@@ -120,7 +132,7 @@ public class LifecycleDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(studentId)) {
             throw reject(403, "VIEW_FORBIDDEN", "Students may only view their own lifecycle history");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "VIEW_FORBIDDEN", "Lifecycle history requires R25 Student or R31 Registrar");
         }
         String key = statusKey(actor.getTenantId(), studentId);
@@ -193,7 +205,7 @@ public class LifecycleDomainService {
      * @throws LifecycleException 409 when the request was already decided
      */
     public LifecycleRequest decideRequest(Actor actor, UUID requestId, String decision) {
-        requireRegistrar(actor);
+        requireRegistrarApproveReject(actor);
         requireText(decision, "decision");
         String normalized = decision.trim().toUpperCase();
         if (!"APPROVED".equals(normalized) && !"REJECTED".equals(normalized)) {
@@ -775,8 +787,30 @@ public class LifecycleDomainService {
 
     private void requireRegistrar(Actor actor) {
         requireTenant(actor);
-        if (!isRegistrar(actor)) {
+        if (!actor.isRegistrar()) {
             throw reject(403, "REGISTRAR_FORBIDDEN", "STM-04 configuration and approval require catalogue role R31 Registrar");
+        }
+    }
+
+    private void requireRegistrarApproveReject(Actor actor) {
+        requireRegistrarCampus(actor);
+        requireDelegationForApproveReject(actor);
+    }
+
+    private void requireRegistrarCampus(Actor actor) {
+        requireTenant(actor);
+        if (!actor.isRegistrar()) {
+            throw reject(403, "REGISTRAR_FORBIDDEN", "STM-04 configuration and approval require catalogue role R31 Registrar");
+        }
+        if (actor.getCollegeId() == null) {
+            throw reject(403, "CAMPUS_SCOPE_REQUIRED", "Assigned campus (college_id) is required for Registrar actions");
+        }
+    }
+
+    private void requireDelegationForApproveReject(Actor actor) {
+        if (!delegationPort.hasActiveDelegation(actor.getTenantId(), actor.getUserId(), DELEGATION_APPROVE_KEY)) {
+            throw reject(403, "DELEGATION_REQUIRED",
+                    "Approve/reject requires an active IAM delegation for " + DELEGATION_APPROVE_KEY);
         }
     }
 
@@ -833,12 +867,6 @@ public class LifecycleDomainService {
             }
             throw ex;
         }
-    }
-
-    private boolean isRegistrar(Actor actor) {
-        String role = actor.getRole();
-        return "R31".equals(role) || "REGISTRAR".equals(role)
-                || "COLLEGE_ADMIN".equals(role) || "INSTITUTION_ADMIN".equals(role);
     }
 
     private boolean isStudent(Actor actor) {

@@ -17,9 +17,11 @@ import com.campx.document.DocumentDomainService.ResubmitDocumentRequest;
 import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.InMemoryDocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
+import com.campx.document.security.FakeDelegationPort;
 import com.campx.document.security.SignedDownloadTokenService;
 import com.campx.document.storage.DocumentStorageConfig;
 import com.campx.document.storage.FakeDocumentObjectStorage;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -44,20 +46,41 @@ public class DocumentDomainServiceTest {
     private InMemoryDocumentPersistence persistence;
     private DocumentIntelligenceService intelligenceService;
     private DocumentDomainService service;
+    private FakeDelegationPort delegations;
 
     private final UUID tenantA = UUID.fromString("a0000000-0000-0000-0000-000000000001");
     private final UUID tenantB = UUID.fromString("b0000000-0000-0000-0000-000000000002");
+    /** Matches default collegeId assigned on upload when request omits collegeId. */
+    private final UUID campusA = UUID.fromString("a0000000-0000-0000-0000-000000000002");
+    private final UUID campusB = UUID.fromString("b0000000-0000-0000-0000-000000000099");
 
-    private final Actor adminTenantA = new Actor(tenantA, UUID.randomUUID(), "COLLEGE_ADMIN", "admin.a@campx.edu");
-    private final Actor registrarTenantA = new Actor(tenantA, UUID.randomUUID(), "REGISTRAR", "registrar.a@campx.edu");
-    private final Actor studentTenantA = new Actor(tenantA, UUID.randomUUID(), "STUDENT", "student.a@campx.edu");
-    private final Actor adminTenantB = new Actor(tenantB, UUID.randomUUID(), "COLLEGE_ADMIN", "admin.b@campx.edu");
+    private final Actor adminTenantA = new Actor(tenantA, UUID.randomUUID(), campusA, "COLLEGE_ADMIN", "admin.a@campx.edu", null);
+    private Actor registrarTenantA;
+    private Actor registrarR31TenantA;
+    private final Actor studentTenantA = new Actor(tenantA, UUID.randomUUID(), campusA, "STUDENT", "student.a@campx.edu", null);
+    private final Actor adminTenantB = new Actor(tenantB, UUID.randomUUID(), campusB, "COLLEGE_ADMIN", "admin.b@campx.edu", null);
 
     @Before
     public void setUp() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
         persistence = new InMemoryDocumentPersistence();
         intelligenceService = new DocumentIntelligenceService();
-        service = new DocumentDomainService(persistence, intelligenceService);
+        delegations = new FakeDelegationPort();
+        UUID registrarUser = UUID.randomUUID();
+        UUID registrarR31User = UUID.randomUUID();
+        registrarTenantA = new Actor(tenantA, registrarUser, campusA, "REGISTRAR", "registrar.a@campx.edu", null);
+        registrarR31TenantA = new Actor(tenantA, registrarR31User, campusA, "R31", "registrar.r31@campx.edu", null);
+        delegations.grant(tenantA, registrarUser, DocumentDomainService.DELEGATION_APPROVE_KEY);
+        delegations.grant(tenantA, registrarR31User, DocumentDomainService.DELEGATION_APPROVE_KEY);
+        service = new DocumentDomainService(persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService(null),
+                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false),
+                delegations);
+    }
+
+    @After
+    public void tearDown() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
     }
 
     @Test
@@ -98,19 +121,21 @@ public class DocumentDomainServiceTest {
     }
 
     @Test
-    public void registrarCanConfigureDocumentType() {
+    public void registrarCannotConfigureDocumentType_d12d() {
+        // D12d: catalogue/config remains College Admin; Registrar does not inherit admin configure rights.
         ConfigureDocumentTypeRequest req = new ConfigureDocumentTypeRequest();
         req.code = "DOC-NATIONAL-ID";
         req.name = "Government Issued National ID / Passport";
         req.category = "IDENTIFICATION";
         req.defaultClassification = "RESTRICTED";
         req.requiresSignature = false;
-
-        DocumentType created = service.configureDocumentType(registrarTenantA, req);
-        assertNotNull(created);
-        assertEquals("DOC-NATIONAL-ID", created.code);
-        assertEquals("RESTRICTED", created.defaultClassification);
-        assertEquals("STUDENT", created.module); // default
+        try {
+            service.configureDocumentType(registrarTenantA, req);
+            fail("Registrar must not configure document types");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
     }
 
     @Test
@@ -417,21 +442,24 @@ public class DocumentDomainServiceTest {
     }
 
     @Test
-    public void registrarCanDefineStageRequirement() {
+    public void registrarCannotDefineStageRequirement_d12d() {
         ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
         dtReq.code = "DOC-MIGRATION";
         dtReq.name = "Migration Certificate";
         dtReq.category = "ACADEMIC";
-        DocumentType dt = service.configureDocumentType(registrarTenantA, dtReq);
+        DocumentType dt = service.configureDocumentType(adminTenantA, dtReq);
 
         DefineStageRequirementRequest req = new DefineStageRequirementRequest();
         req.academicStage = "ENROLLMENT";
         req.documentTypeId = dt.id;
         req.isMandatory = true;
-
-        StageDocumentRequirement created = service.defineStageRequirement(registrarTenantA, req);
-        assertNotNull(created);
-        assertEquals("ENROLLMENT", created.academicStage);
+        try {
+            service.defineStageRequirement(registrarTenantA, req);
+            fail("Registrar must not define stage requirements (College Admin catalogue)");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("FORBIDDEN", e.getCode());
+        }
     }
 
     @Test
@@ -899,7 +927,7 @@ public class DocumentDomainServiceTest {
         up.sizeBytes = 4096L;
         StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
 
-        List<VerificationQueueItem> queue = service.getVerificationQueue(adminTenantA, "SUBMITTED");
+        List<VerificationQueueItem> queue = service.getVerificationQueue(registrarTenantA, "SUBMITTED");
         assertNotNull(queue);
         boolean found = false;
         for (VerificationQueueItem item : queue) {
@@ -933,11 +961,11 @@ public class DocumentDomainServiceTest {
         dec.verificationCode = "VERIFIED-APP-001";
         dec.verificationNotes = "All seals and signatures verified";
 
-        DocumentVerificationRecord record = service.verifyDocument(adminTenantA, uploaded.id, dec);
+        DocumentVerificationRecord record = service.verifyDocument(registrarTenantA, uploaded.id, dec);
         assertNotNull(record);
         assertEquals("VALID", record.result);
         assertEquals("VERIFIED-APP-001", record.verificationCode);
-        assertEquals(adminTenantA.getUserId(), record.createdBy);
+        assertEquals(registrarTenantA.getUserId(), record.createdBy);
 
         StudentDocument updatedDoc = persistence.findStudentDocumentById(adminTenantA, uploaded.id);
         assertNotNull(updatedDoc);
@@ -991,7 +1019,7 @@ public class DocumentDomainServiceTest {
         dec.rejectionReason = ""; // Missing reason
 
         try {
-            service.verifyDocument(adminTenantA, uploaded.id, dec);
+            service.verifyDocument(registrarTenantA, uploaded.id, dec);
             fail("Expected DocumentException(422) for missing rejection reason");
         } catch (DocumentException e) {
             assertEquals(422, e.getStatusCode());
@@ -1005,7 +1033,7 @@ public class DocumentDomainServiceTest {
         dec.decision = "APPROVE";
 
         try {
-            service.verifyDocument(adminTenantA, UUID.randomUUID(), dec);
+            service.verifyDocument(registrarTenantA, UUID.randomUUID(), dec);
             fail("Expected DocumentException(404) for non-existent document ID");
         } catch (DocumentException e) {
             assertEquals(404, e.getStatusCode());
@@ -1035,7 +1063,7 @@ public class DocumentDomainServiceTest {
             fail("Expected DocumentException(403) when student attempts verification");
         } catch (DocumentException e) {
             assertEquals(403, e.getStatusCode());
-            assertEquals("FORBIDDEN", e.getCode());
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
         }
     }
 
@@ -1067,7 +1095,7 @@ public class DocumentDomainServiceTest {
         // Approve document
         VerificationDecisionRequest dec = new VerificationDecisionRequest();
         dec.decision = "APPROVE";
-        service.verifyDocument(adminTenantA, uploaded.id, dec);
+        service.verifyDocument(registrarTenantA, uploaded.id, dec);
 
         // After decision: checklist status is VERIFIED
         List<StudentChecklistItem> after = service.getStudentChecklist(studentTenantA, studentTenantA.getUserId(), "GRADUATION", null);
@@ -1095,7 +1123,7 @@ public class DocumentDomainServiceTest {
         VerificationDecisionRequest dec = new VerificationDecisionRequest();
         dec.decision = "REJECT";
         dec.rejectionReason = "Scan is blurry and unreadable";
-        service.verifyDocument(adminTenantA, uploaded.id, dec);
+        service.verifyDocument(registrarTenantA, uploaded.id, dec);
 
         List<StudentDocument> rejectedList = service.listStudentDocuments(studentTenantA, studentTenantA.getUserId(), "REJECTED");
         assertEquals(1, rejectedList.size());
@@ -1140,7 +1168,7 @@ public class DocumentDomainServiceTest {
         VerificationDecisionRequest dec = new VerificationDecisionRequest();
         dec.decision = "REJECT";
         dec.rejectionReason = "Needs correction";
-        service.verifyDocument(adminTenantA, uploaded.id, dec);
+        service.verifyDocument(registrarTenantA, uploaded.id, dec);
 
         Actor anotherStudent = new Actor(UUID.fromString("a0000000-0000-0000-0000-000000000001"), UUID.randomUUID(), "STUDENT", "fraud@campx.edu");
 
@@ -1175,7 +1203,7 @@ public class DocumentDomainServiceTest {
 
         VerificationDecisionRequest dec = new VerificationDecisionRequest();
         dec.decision = "APPROVE";
-        service.verifyDocument(adminTenantA, uploaded.id, dec);
+        service.verifyDocument(registrarTenantA, uploaded.id, dec);
 
         ResubmitDocumentRequest resubmitReq = new ResubmitDocumentRequest();
         resubmitReq.mimeType = "application/pdf";
@@ -1253,7 +1281,7 @@ public class DocumentDomainServiceTest {
         dec.decision = "REJECT";
         dec.rejectionReason = "Signature missing on page 2";
         dec.verificationCode = "REJ-NO-SIG";
-        service.verifyDocument(adminTenantA, uploaded.id, dec);
+        service.verifyDocument(registrarTenantA, uploaded.id, dec);
 
         DocumentVerificationRecord record = service.getLatestVerification(studentTenantA, uploaded.id);
         assertNotNull(record);
@@ -1404,7 +1432,7 @@ public class DocumentDomainServiceTest {
         VerificationDecisionRequest reject = new VerificationDecisionRequest();
         reject.decision = "REJECT";
         reject.rejectionReason = "Please rescan";
-        service.verifyDocument(adminTenantA, uploaded.id, reject);
+        service.verifyDocument(registrarTenantA, uploaded.id, reject);
 
         ResubmitDocumentRequest resubmit = new ResubmitDocumentRequest();
         resubmit.fileName = "proof-v2.pdf";
@@ -1415,14 +1443,14 @@ public class DocumentDomainServiceTest {
         StudentDocument replaced = service.resubmitStudentDocument(studentTenantA, uploaded.id, resubmit);
         assertEquals("SUBMITTED", replaced.status);
 
-        List<VerificationQueueItem> queue = service.getVerificationQueue(adminTenantA, null);
+        List<VerificationQueueItem> queue = service.getVerificationQueue(registrarTenantA, null);
         assertTrue(queue.size() >= 1);
 
         VerificationDecisionRequest approve = new VerificationDecisionRequest();
         approve.decision = "APPROVE";
         approve.verificationCode = "VERIFIED-STORY-011";
         approve.verificationNotes = "OK";
-        service.verifyDocument(adminTenantA, uploaded.id, approve);
+        service.verifyDocument(registrarTenantA, uploaded.id, approve);
 
         DocumentVerificationRecord latest = service.getLatestVerification(studentTenantA, uploaded.id);
         assertNotNull(latest);
@@ -1577,15 +1605,15 @@ public class DocumentDomainServiceTest {
         grant.granteeId = UUID.randomUUID();
         grant.granteeType = "STAFF";
         grant.purpose = "VERIFICATION";
-        DocumentDomainService.DocumentLink granted = service.grantDocumentAccess(adminTenantA, uploaded.id, grant);
+        DocumentDomainService.DocumentLink granted = service.grantDocumentAccess(registrarTenantA, uploaded.id, grant);
         assertEquals("ACCESS_GRANTED", granted.relation);
         assertEquals("STAFF", granted.entityType);
 
-        List<DocumentDomainService.DocumentLink> grants = service.listDocumentAccessGrants(adminTenantA, uploaded.id);
+        List<DocumentDomainService.DocumentLink> grants = service.listDocumentAccessGrants(registrarTenantA, uploaded.id);
         assertTrue(grants.stream().anyMatch(g -> "ACCESS_GRANTED".equals(g.relation)));
 
         DocumentDomainService.DocumentLink revoked =
-                service.revokeDocumentAccess(adminTenantA, uploaded.id, grant.granteeId, "STAFF");
+                service.revokeDocumentAccess(registrarTenantA, uploaded.id, grant.granteeId, "STAFF");
         assertEquals("ACCESS_REVOKED", revoked.relation);
     }
 
@@ -2010,6 +2038,129 @@ public class DocumentDomainServiceTest {
             fail("Unconfigured storage must not stream bytes");
         } catch (DocumentException e) {
             assertEquals("STORAGE_NOT_CONFIGURED", e.getCode());
+        }
+    }
+
+    // --- R31 Registrar Phase A (D10 / D12a-d) ---
+
+    @Test
+    public void stm06R31_registrarR31CanApproveWithDelegationAndCampus() {
+        DocumentType type = stm06Type("DOC-R31-OK");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "R31 Doc";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 100L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        VerificationDecisionRequest approve = new VerificationDecisionRequest();
+        approve.decision = "APPROVE";
+        approve.verificationCode = "R31-OK";
+        DocumentVerificationRecord record = service.verifyDocument(registrarR31TenantA, uploaded.id, approve);
+        assertEquals("VALID", record.result);
+    }
+
+    @Test
+    public void stm06R31_collegeAdminDeniedAsRegistrarWhenFlagOff() {
+        DocumentType type = stm06Type("DOC-R31-ADMIN");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Admin Denied";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 100L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        VerificationDecisionRequest approve = new VerificationDecisionRequest();
+        approve.decision = "APPROVE";
+        try {
+            service.verifyDocument(adminTenantA, uploaded.id, approve);
+            fail("COLLEGE_ADMIN must not act as Registrar when legacy flag is OFF");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06R31_collegeAdminAllowedAsRegistrarWhenLegacyFlagOn() {
+        System.setProperty("campx.stm.legacyRegistrarStandin", "true");
+        delegations.grant(tenantA, adminTenantA.getUserId(), DocumentDomainService.DELEGATION_APPROVE_KEY);
+        DocumentType type = stm06Type("DOC-R31-LEGACY");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Legacy Admin";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 100L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        VerificationDecisionRequest approve = new VerificationDecisionRequest();
+        approve.decision = "APPROVE";
+        DocumentVerificationRecord record = service.verifyDocument(adminTenantA, uploaded.id, approve);
+        assertEquals("VALID", record.result);
+    }
+
+    @Test
+    public void stm06R31_deniedWithoutDelegationOutsideCampusSameActorAndWrongRole() {
+        DocumentType type = stm06Type("DOC-R31-NEG");
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Negatives";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 100L;
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+
+        FakeDelegationPort empty = new FakeDelegationPort();
+        DocumentDomainService noDeleg = new DocumentDomainService(persistence, intelligenceService,
+                new ControlledMalwareScanAdapter(), new SignedDownloadTokenService(null),
+                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false), empty);
+        VerificationDecisionRequest approve = new VerificationDecisionRequest();
+        approve.decision = "APPROVE";
+        try {
+            noDeleg.verifyDocument(registrarTenantA, uploaded.id, approve);
+            fail("Missing delegation must fail closed");
+        } catch (DocumentException e) {
+            assertEquals("DELEGATION_REQUIRED", e.getCode());
+        }
+
+        Actor otherCampus = new Actor(tenantA, registrarTenantA.getUserId(), campusB, "REGISTRAR", "x@campx.edu", null);
+        delegations.grant(tenantA, otherCampus.getUserId(), DocumentDomainService.DELEGATION_APPROVE_KEY);
+        try {
+            service.verifyDocument(otherCampus, uploaded.id, approve);
+            fail("Outside campus must be denied");
+        } catch (DocumentException e) {
+            assertEquals("CAMPUS_SCOPE_DENIED", e.getCode());
+        }
+
+        Actor crossTenant = new Actor(tenantB, UUID.randomUUID(), campusA, "REGISTRAR", "xt@campx.edu", null);
+        delegations.grant(tenantB, crossTenant.getUserId(), DocumentDomainService.DELEGATION_APPROVE_KEY);
+        try {
+            service.verifyDocument(crossTenant, uploaded.id, approve);
+            fail("Cross-tenant must be denied");
+        } catch (DocumentException e) {
+            assertTrue(e.getStatusCode() == 403 || e.getStatusCode() == 404);
+        }
+
+        VerificationDecisionRequest reject = new VerificationDecisionRequest();
+        reject.decision = "REJECT";
+        reject.rejectionReason = "Need clearer scan";
+        service.verifyDocument(registrarTenantA, uploaded.id, reject);
+        try {
+            service.verifyDocument(registrarTenantA, uploaded.id, approve);
+            fail("Same actor verify then approve without resubmit must be denied");
+        } catch (DocumentException e) {
+            assertEquals("SAME_ACTOR_VERIFY_APPROVE", e.getCode());
+        }
+
+        Actor faculty = new Actor(tenantA, UUID.randomUUID(), campusA, "FACULTY", "f@campx.edu", null);
+        try {
+            service.verifyDocument(faculty, uploaded.id, approve);
+            fail("Wrong role must be denied");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+
+        try {
+            service.verifyDocument(null, uploaded.id, approve);
+            fail("Unauthenticated must be denied");
+        } catch (DocumentException e) {
+            assertEquals(401, e.getStatusCode());
         }
     }
 

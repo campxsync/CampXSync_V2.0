@@ -264,7 +264,17 @@ public class LifecycleController {
         if (studentRecord != null && !studentRecord.trim().isEmpty()) {
             studentRecordId = UUID.fromString(studentRecord.trim());
         }
-        return new Actor(UUID.fromString(tenant), UUID.fromString(user), studentRecordId, header(headers, "x-user-role"), correlationId);
+        UUID collegeId = null;
+        String college = header(headers, "x-college-id");
+        if (college != null && !college.trim().isEmpty()) {
+            try {
+                collegeId = UUID.fromString(college.trim());
+            } catch (IllegalArgumentException ignored) {
+                collegeId = null;
+            }
+        }
+        return new Actor(UUID.fromString(tenant), UUID.fromString(user), studentRecordId, collegeId,
+                header(headers, "x-user-role"), correlationId);
     }
 
     private ObjectNode statusNode(LifecycleDomainService.LifecycleStatus status) {

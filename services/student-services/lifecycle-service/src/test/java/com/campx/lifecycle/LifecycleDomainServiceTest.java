@@ -1,6 +1,8 @@
 package com.campx.lifecycle;
 
 import com.campx.lifecycle.intelligence.LifecycleIntelligenceService;
+import com.campx.lifecycle.security.FakeDelegationPort;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -21,7 +23,9 @@ public class LifecycleDomainServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
 
     private LifecycleDomainService service;
+    private FakeDelegationPort delegations;
     private UUID tenant;
+    private UUID campus;
     private UUID student;
     private UUID otherStudent;
     private UUID program;
@@ -32,17 +36,27 @@ public class LifecycleDomainServiceTest {
 
     @Before
     public void setUp() {
-        service = new LifecycleDomainService(Clock.fixed(NOW, ZoneOffset.UTC));
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
         tenant = UUID.randomUUID();
+        campus = UUID.fromString("a0000000-0000-0000-0000-000000000002");
         student = UUID.randomUUID();
         otherStudent = UUID.randomUUID();
         program = UUID.randomUUID();
-        registrar = new Actor(tenant, UUID.randomUUID(), "REGISTRAR", "corr-reg");
-        studentActor = new Actor(tenant, student, "STUDENT", "corr-stu");
-        parentActor = new Actor(tenant, UUID.randomUUID(), "PARENT", "corr-par");
-        facultyActor = new Actor(tenant, UUID.randomUUID(), "FACULTY", "corr-fac");
+        UUID registrarUser = UUID.randomUUID();
+        registrar = new Actor(tenant, registrarUser, null, campus, "REGISTRAR", "corr-reg");
+        studentActor = new Actor(tenant, student, null, campus, "STUDENT", "corr-stu");
+        parentActor = new Actor(tenant, UUID.randomUUID(), null, campus, "PARENT", "corr-par");
+        facultyActor = new Actor(tenant, UUID.randomUUID(), null, campus, "FACULTY", "corr-fac");
+        delegations = new FakeDelegationPort();
+        delegations.grant(tenant, registrarUser, LifecycleDomainService.DELEGATION_APPROVE_KEY);
+        service = new LifecycleDomainService(Clock.fixed(NOW, ZoneOffset.UTC), null, null, delegations);
         service.seedStudent(tenant, student);
         service.seedStudent(tenant, otherStudent);
+    }
+
+    @After
+    public void tearDown() {
+        System.clearProperty("campx.stm.legacyRegistrarStandin");
     }
 
     @Test
@@ -542,8 +556,71 @@ public class LifecycleDomainServiceTest {
         assertTrue(service.listHistory(studentActor, student).size() >= 1);
 
         UUID otherTenant = UUID.randomUUID();
-        Actor foreignRegistrar = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr-foreign");
+        Actor foreignRegistrar = new Actor(otherTenant, UUID.randomUUID(), null, campus, "REGISTRAR", "corr-foreign");
         // In-memory keys are tenant-scoped; foreign registrar must not see this tenant's history rows.
         assertEquals(0, service.listHistory(foreignRegistrar, student).size());
+    }
+
+    // --- R31 Registrar Phase A (D10 / D12a-d) ---
+
+    @Test
+    public void stm04R31_registrarR31CanDecideWithDelegationAndCampus() {
+        UUID r31User = UUID.randomUUID();
+        Actor r31 = new Actor(tenant, r31User, null, campus, "R31", "corr-r31");
+        delegations.grant(tenant, r31User, LifecycleDomainService.DELEGATION_APPROVE_KEY);
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "R31 ok");
+        LifecycleDomainService.LifecycleRequest decided = service.decideRequest(r31, pending.id, "APPROVED");
+        assertEquals("APPROVED", decided.status);
+    }
+
+    @Test
+    public void stm04R31_collegeAdminDeniedAsRegistrarWhenFlagOff() {
+        Actor admin = new Actor(tenant, UUID.randomUUID(), null, campus, "COLLEGE_ADMIN", "corr-admin");
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Admin blocked");
+        try {
+            service.decideRequest(admin, pending.id, "APPROVED");
+            fail("COLLEGE_ADMIN must not decide when legacy flag is OFF");
+        } catch (LifecycleException ex) {
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm04R31_collegeAdminAllowedAsRegistrarWhenLegacyFlagOn() {
+        System.setProperty("campx.stm.legacyRegistrarStandin", "true");
+        UUID adminUser = UUID.randomUUID();
+        Actor admin = new Actor(tenant, adminUser, null, campus, "COLLEGE_ADMIN", "corr-admin-legacy");
+        delegations.grant(tenant, adminUser, LifecycleDomainService.DELEGATION_APPROVE_KEY);
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Legacy admin");
+        LifecycleDomainService.LifecycleRequest decided = service.decideRequest(admin, pending.id, "APPROVED");
+        assertEquals("APPROVED", decided.status);
+    }
+
+    @Test
+    public void stm04R31_deniedWithoutDelegationCampusAndWrongRole() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "Negatives");
+        FakeDelegationPort empty = new FakeDelegationPort();
+        LifecycleDomainService noDeleg = new LifecycleDomainService(Clock.fixed(NOW, ZoneOffset.UTC), null, null, empty);
+        noDeleg.seedStudent(tenant, student);
+        LifecycleDomainService.LifecycleRequest pendingNoDeleg = noDeleg.submitRequest(studentActor, student, "LEAVE", "No deleg");
+        try {
+            noDeleg.decideRequest(registrar, pendingNoDeleg.id, "APPROVED");
+            fail("Missing delegation must fail closed");
+        } catch (LifecycleException ex) {
+            assertEquals("DELEGATION_REQUIRED", ex.getCode());
+        }
+        Actor noCampus = new Actor(tenant, registrar.getUserId(), null, null, "REGISTRAR", "corr");
+        try {
+            service.decideRequest(noCampus, pending.id, "APPROVED");
+            fail("Missing campus must be denied");
+        } catch (LifecycleException ex) {
+            assertEquals("CAMPUS_SCOPE_REQUIRED", ex.getCode());
+        }
+        try {
+            service.decideRequest(facultyActor, pending.id, "APPROVED");
+            fail("Wrong role must be denied");
+        } catch (LifecycleException ex) {
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
+        }
     }
 }

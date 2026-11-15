@@ -2,6 +2,8 @@ package com.campx.guardian;
 
 import com.campx.guardian.intelligence.GuardianIntelligenceService;
 import com.campx.guardian.persistence.GuardianPersistence;
+import com.campx.guardian.security.DelegationPort;
+import com.campx.guardian.security.FailClosedDelegationPort;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -40,6 +42,7 @@ public class GuardianDomainService {
     public static final String GUARDIAN_AUTHORIZED_VIEW = "student.guardian.authorized_view.v1";
     public static final String GUARDIAN_HISTORY_REVIEWED = "student.guardian.history_reviewed.v1";
     public static final String SCHEMA_VERSION = "1.0.0";
+    public static final String DELEGATION_APPROVE_KEY = "STM-05.GUARDIAN.A";
     private static final java.util.Set<String> EVIDENCE_TYPES = new java.util.HashSet<String>(java.util.Arrays.asList(
             "BIRTH_CERTIFICATE", "AADHAAR", "PASSPORT", "COURT_ORDER"));
 
@@ -48,6 +51,7 @@ public class GuardianDomainService {
     private final Clock clock;
     private final GuardianPersistence persistence;
     private final GuardianIntelligenceService intelligenceService;
+    private final DelegationPort delegationPort;
     private final Map<String, List<GuardianLink>> links = new ConcurrentHashMap<String, List<GuardianLink>>();
     private final Map<UUID, EvidenceRecord> pendingEvidence = new ConcurrentHashMap<UUID, EvidenceRecord>();
     private final Map<UUID, Boolean> verifiedEvidence = new ConcurrentHashMap<UUID, Boolean>();
@@ -56,13 +60,19 @@ public class GuardianDomainService {
     private final List<HistoryEntry> historyEntries = Collections.synchronizedList(new ArrayList<HistoryEntry>());
 
     public GuardianDomainService() {
-        this(Clock.systemUTC(), null, null);
+        this(Clock.systemUTC(), null, null, new FailClosedDelegationPort());
     }
 
     public GuardianDomainService(Clock clock, GuardianPersistence persistence, GuardianIntelligenceService intelligenceService) {
+        this(clock, persistence, intelligenceService, new FailClosedDelegationPort());
+    }
+
+    public GuardianDomainService(Clock clock, GuardianPersistence persistence, GuardianIntelligenceService intelligenceService,
+                                 DelegationPort delegationPort) {
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.persistence = persistence;
         this.intelligenceService = intelligenceService == null ? new GuardianIntelligenceService() : intelligenceService;
+        this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
     }
 
     public boolean isPersistent() {
@@ -208,7 +218,7 @@ public class GuardianDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(current.studentId)) {
             throw reject(403, "GUARDIAN_UPDATE_FORBIDDEN", "Students may update only their own guardians");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "GUARDIAN_UPDATE_FORBIDDEN", "Updating a guardian requires the student or a registrar");
         }
         GuardianLink updated = new GuardianLink(current.tenantId, current.id, current.studentId, current.guardianPersonId,
@@ -247,7 +257,7 @@ public class GuardianDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(current.studentId)) {
             throw reject(403, "GUARDIAN_UPDATE_FORBIDDEN", "Students may update only their own guardians");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "GUARDIAN_UPDATE_FORBIDDEN", "Submitting guardian evidence requires the student or a registrar");
         }
         EvidenceRecord record = new EvidenceRecord(UUID.randomUUID(), UUID.randomUUID(), current.id, type, "SUBMITTED");
@@ -271,7 +281,7 @@ public class GuardianDomainService {
      * @throws GuardianException 404 when no submitted evidence is waiting
      */
     public ReviewDecision reviewEvidence(Actor actor, UUID guardianshipId, String decision, String reasonCode) {
-        requireRegistrar(actor);
+        requireRegistrarApproveReject(actor);
         if (guardianshipId == null) {
             throw reject(422, "GUARDIAN_REQUIRED", "Guardian id is required");
         }
@@ -337,7 +347,7 @@ public class GuardianDomainService {
         requireText(reasonCode, "reasonCode");
         String normalizedReason = reasonCode.trim().toUpperCase();
         boolean studentCaller = isStudent(actor);
-        boolean registrarCaller = isRegistrar(actor);
+        boolean registrarCaller = actor.isRegistrar();
         if (!studentCaller && !registrarCaller) {
             throw reject(403, "GUARDIAN_DEACTIVATE_FORBIDDEN", "Ending a guardian relationship requires the student or a registrar");
         }
@@ -754,7 +764,7 @@ public class GuardianDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(studentId)) {
             throw reject(403, "EMERGENCY_CONTACT_FORBIDDEN", "Students may maintain only their own emergency contacts");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "EMERGENCY_CONTACT_FORBIDDEN", "Emergency contacts require the student or a registrar");
         }
     }
@@ -841,7 +851,7 @@ public class GuardianDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(studentId)) {
             throw reject(403, "GUARDIAN_VIEW_FORBIDDEN", "Students may list only their own guardians");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "GUARDIAN_VIEW_FORBIDDEN", "Guardian view requires the student or a registrar");
         }
         if (persistence != null) {
@@ -866,7 +876,7 @@ public class GuardianDomainService {
         if (guardianPersonId == null) {
             throw reject(422, "GUARDIAN_PERSON_REQUIRED", "Guardian person id is required");
         }
-        if (!isRegistrar(actor) && !(actor.getUserId() != null && actor.getUserId().equals(guardianPersonId))) {
+        if (!actor.isRegistrar() && !(actor.getUserId() != null && actor.getUserId().equals(guardianPersonId))) {
             throw reject(403, "GUARDIAN_VIEW_FORBIDDEN", "Viewing linked students requires a registrar or the guardian themselves");
         }
         if (persistence != null) {
@@ -894,7 +904,7 @@ public class GuardianDomainService {
         if (studentId == null) {
             throw reject(422, "STUDENT_REQUIRED", "Student record id is required");
         }
-        if (!isRegistrar(actor)) {
+        if (!actor.isRegistrar()) {
             throw reject(403, "HISTORY_FORBIDDEN", "Relationship history requires a registrar");
         }
         List<HistoryEntry> rows;
@@ -963,7 +973,7 @@ public class GuardianDomainService {
         if (isStudent(actor) && !actor.subjectStudentId().equals(current.studentId)) {
             throw reject(403, "ACCESS_PERIOD_FORBIDDEN", "Students may set access only for their own guardians");
         }
-        if (!isStudent(actor) && !isRegistrar(actor)) {
+        if (!isStudent(actor) && !actor.isRegistrar()) {
             throw reject(403, "ACCESS_PERIOD_FORBIDDEN", "Setting an access period requires the student or a registrar");
         }
         return current;
@@ -989,8 +999,30 @@ public class GuardianDomainService {
 
     private void requireRegistrar(Actor actor) {
         requireTenant(actor);
-        if (!isRegistrar(actor)) {
+        if (!actor.isRegistrar()) {
             throw reject(403, "REGISTRAR_FORBIDDEN", "Adding a guardian requires catalogue role R31 Registrar");
+        }
+    }
+
+    private void requireRegistrarApproveReject(Actor actor) {
+        requireRegistrarCampus(actor);
+        requireDelegationForApproveReject(actor);
+    }
+
+    private void requireRegistrarCampus(Actor actor) {
+        requireTenant(actor);
+        if (!actor.isRegistrar()) {
+            throw reject(403, "REGISTRAR_FORBIDDEN", "Adding a guardian requires catalogue role R31 Registrar");
+        }
+        if (actor.getCollegeId() == null) {
+            throw reject(403, "CAMPUS_SCOPE_REQUIRED", "Assigned campus (college_id) is required for Registrar actions");
+        }
+    }
+
+    private void requireDelegationForApproveReject(Actor actor) {
+        if (!delegationPort.hasActiveDelegation(actor.getTenantId(), actor.getUserId(), DELEGATION_APPROVE_KEY)) {
+            throw reject(403, "DELEGATION_REQUIRED",
+                    "Approve/reject requires an active IAM delegation for " + DELEGATION_APPROVE_KEY);
         }
     }
 
@@ -1004,12 +1036,6 @@ public class GuardianDomainService {
         if (value == null || value.trim().isEmpty()) {
             throw reject(422, "FIELD_REQUIRED", field + " is required");
         }
-    }
-
-    private boolean isRegistrar(Actor actor) {
-        String role = actor.getRole();
-        return "R31".equals(role) || "REGISTRAR".equals(role)
-                || "COLLEGE_ADMIN".equals(role) || "INSTITUTION_ADMIN".equals(role);
     }
 
     private boolean isStudent(Actor actor) {
