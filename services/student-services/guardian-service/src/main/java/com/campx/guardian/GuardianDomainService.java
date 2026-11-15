@@ -687,7 +687,7 @@ public class GuardianDomainService {
         String contactName = requireContactName(name);
         String relation = requireContactRelation(relationship);
         String number = requirePhone(phone);
-        EmergencyContact contact = new EmergencyContact(UUID.randomUUID(), studentId, contactName, relation, number, "ACTIVE");
+        EmergencyContact contact = new EmergencyContact(UUID.randomUUID(), studentId, contactName, relation, number, "ACTIVE", 1);
         rememberContact(actor, contact);
         if (persistence != null) {
             contact = persistence.saveEmergencyContact(actor, contact);
@@ -716,7 +716,7 @@ public class GuardianDomainService {
             throw reject(409, "CONTACT_INACTIVE", "An inactive emergency contact cannot be changed");
         }
         EmergencyContact updated = new EmergencyContact(current.id, studentId, requireContactName(name),
-                requireContactRelation(relationship), requirePhone(phone), "ACTIVE");
+                requireContactRelation(relationship), requirePhone(phone), "ACTIVE", current.priority);
         replaceContact(actor, updated);
         if (persistence != null) {
             updated = persistence.updateEmergencyContact(actor, updated);
@@ -742,7 +742,8 @@ public class GuardianDomainService {
         if (!"ACTIVE".equals(current.status)) {
             throw reject(409, "CONTACT_INACTIVE", "This emergency contact is already inactive");
         }
-        EmergencyContact inactive = new EmergencyContact(current.id, studentId, current.name, current.relationship, current.phone, "INACTIVE");
+        EmergencyContact inactive = new EmergencyContact(current.id, studentId, current.name, current.relationship,
+                current.phone, "INACTIVE", current.priority);
         replaceContact(actor, inactive);
         if (persistence != null) {
             inactive = persistence.removeEmergencyContact(actor, inactive);
@@ -751,6 +752,84 @@ public class GuardianDomainService {
         log(actor, "emergency_contact.inactivated", inactive.id);
         intelligenceService.publishEmergencyContact(actor, inactive, "INACTIVATED");
         return inactive;
+    }
+
+    /**
+     * Designates primary (priority 1) and secondary (priority 2) emergency contacts (STM-05-US-007).
+     * Other active contacts that held priority 1 or 2 are demoted to priority 3.
+     *
+     * @throws GuardianException 422 when ids are missing, equal, or invalid
+     * @throws GuardianException 404 when a contact is not found for this student
+     * @throws GuardianException 409 when a designated contact is inactive
+     */
+    public List<EmergencyContact> designateEmergencyContactPriorities(Actor actor, UUID studentId, UUID primaryContactId,
+                                                                      UUID secondaryContactId) {
+        requireContactManager(actor, studentId);
+        if (primaryContactId == null || secondaryContactId == null) {
+            throw reject(422, "CONTACT_REQUIRED", "Primary and secondary contact ids are required");
+        }
+        if (primaryContactId.equals(secondaryContactId)) {
+            throw reject(422, "PRIORITY_DUPLICATE", "Primary and secondary contacts must be distinct");
+        }
+        EmergencyContact primary = findContact(actor, studentId, primaryContactId);
+        EmergencyContact secondary = findContact(actor, studentId, secondaryContactId);
+        if (primary == null || secondary == null) {
+            throw reject(404, "CONTACT_NOT_FOUND", "Emergency contact was not found");
+        }
+        if (!"ACTIVE".equals(primary.status) || !"ACTIVE".equals(secondary.status)) {
+            throw reject(409, "CONTACT_INACTIVE", "Only active emergency contacts can be designated");
+        }
+        if (persistence != null) {
+            List<EmergencyContact> refreshed = persistence.designateEmergencyContactPriorities(actor, studentId,
+                    primaryContactId, secondaryContactId);
+            EmergencyContact designatedPrimary = findContactInList(refreshed, primaryContactId);
+            EmergencyContact designatedSecondary = findContactInList(refreshed, secondaryContactId);
+            logger.info("stm05 emergency contacts designated studentId={} primary={} secondary={}",
+                    studentId, primaryContactId, secondaryContactId);
+            log(actor, "emergency_contact.priorities_designated", primaryContactId);
+            intelligenceService.publishEmergencyContact(actor, designatedPrimary, "DESIGNATED");
+            intelligenceService.publishEmergencyContact(actor, designatedSecondary, "UPDATED");
+            return refreshed;
+        }
+        List<EmergencyContact> rows = emergencyContacts.get(statusKey(actor.getTenantId(), studentId));
+        if (rows != null) {
+            for (int i = 0; i < rows.size(); i++) {
+                EmergencyContact current = rows.get(i);
+                if (!"ACTIVE".equals(current.status)) {
+                    continue;
+                }
+                int nextPriority = current.priority;
+                if (current.id.equals(primaryContactId)) {
+                    nextPriority = 1;
+                } else if (current.id.equals(secondaryContactId)) {
+                    nextPriority = 2;
+                } else if (current.priority == 1 || current.priority == 2) {
+                    nextPriority = 3;
+                }
+                if (nextPriority != current.priority) {
+                    rows.set(i, new EmergencyContact(current.id, current.studentId, current.name, current.relationship,
+                            current.phone, current.status, nextPriority));
+                }
+            }
+        }
+        List<EmergencyContact> result = listEmergencyContacts(actor, studentId);
+        EmergencyContact designatedPrimary = findContactInList(result, primaryContactId);
+        EmergencyContact designatedSecondary = findContactInList(result, secondaryContactId);
+        logger.info("stm05 emergency contacts designated studentId={} primary={} secondary={}",
+                studentId, primaryContactId, secondaryContactId);
+        log(actor, "emergency_contact.priorities_designated", primaryContactId);
+        intelligenceService.publishEmergencyContact(actor, designatedPrimary, "DESIGNATED");
+        intelligenceService.publishEmergencyContact(actor, designatedSecondary, "UPDATED");
+        return result;
+    }
+
+    private static EmergencyContact findContactInList(List<EmergencyContact> rows, UUID contactId) {
+        for (EmergencyContact contact : rows) {
+            if (contact.id.equals(contactId)) {
+                return contact;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1140,14 +1219,22 @@ public class GuardianDomainService {
         public final String relationship;
         public final String phone;
         public final String status;
+        /** 1 = primary, 2 = secondary, 3+ or 0 = other ordering. */
+        public final int priority;
 
         public EmergencyContact(UUID id, UUID studentId, String name, String relationship, String phone, String status) {
+            this(id, studentId, name, relationship, phone, status, 1);
+        }
+
+        public EmergencyContact(UUID id, UUID studentId, String name, String relationship, String phone, String status,
+                                int priority) {
             this.id = id;
             this.studentId = studentId;
             this.name = name;
             this.relationship = relationship;
             this.phone = phone;
             this.status = status;
+            this.priority = priority;
         }
     }
 

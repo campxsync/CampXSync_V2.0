@@ -84,6 +84,7 @@ public class GuardianIntelligenceService {
             payload.put("studentId", contact.studentId.toString());
             payload.put("action", action);
             payload.put("status", contact.status);
+            payload.put("priority", contact.priority);
             payload.put("academicAccess", false);
             payload.put("financialAccess", false);
             payload.put("portalAccess", false);

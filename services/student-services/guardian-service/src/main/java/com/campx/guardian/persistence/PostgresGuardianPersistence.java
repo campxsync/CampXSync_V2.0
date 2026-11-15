@@ -482,16 +482,17 @@ public class PostgresGuardianPersistence implements GuardianPersistence {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO core.person_emergency_contacts "
                                 + "(id, tenant_id, person_id, name, relationship, phone, priority, created_at, updated_at, created_by, row_version) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1)")) {
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)")) {
                     ps.setObject(1, contact.id);
                     ps.setObject(2, actor.getTenantId());
                     ps.setObject(3, personId);
                     ps.setString(4, contact.name);
                     ps.setString(5, contact.relationship);
                     ps.setString(6, contact.phone);
-                    ps.setTimestamp(7, now);
+                    ps.setShort(7, (short) contact.priority);
                     ps.setTimestamp(8, now);
-                    ps.setObject(9, actor.getUserId());
+                    ps.setTimestamp(9, now);
+                    ps.setObject(10, actor.getUserId());
                     ps.executeUpdate();
                 }
                 logger.info("Saved emergency contact id={} studentId={} status=ACTIVE accessGranted=false", contact.id, contact.studentId);
@@ -560,7 +561,7 @@ public class PostgresGuardianPersistence implements GuardianPersistence {
             public EmergencyContact execute(Connection conn) throws SQLException {
                 UUID personId = studentPersonId(conn, actor, studentId);
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT id, name, relationship, phone, deleted_at FROM core.person_emergency_contacts "
+                        "SELECT id, name, relationship, phone, priority, deleted_at FROM core.person_emergency_contacts "
                                 + "WHERE tenant_id = ? AND person_id = ? AND id = ?")) {
                     ps.setObject(1, actor.getTenantId());
                     ps.setObject(2, personId);
@@ -584,8 +585,8 @@ public class PostgresGuardianPersistence implements GuardianPersistence {
                 UUID personId = studentPersonId(conn, actor, studentId);
                 List<EmergencyContact> rows = new ArrayList<EmergencyContact>();
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT id, name, relationship, phone, deleted_at FROM core.person_emergency_contacts "
-                                + "WHERE tenant_id = ? AND person_id = ? ORDER BY created_at")) {
+                        "SELECT id, name, relationship, phone, priority, deleted_at FROM core.person_emergency_contacts "
+                                + "WHERE tenant_id = ? AND person_id = ? ORDER BY priority, created_at")) {
                     ps.setObject(1, actor.getTenantId());
                     ps.setObject(2, personId);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -737,15 +738,81 @@ public class PostgresGuardianPersistence implements GuardianPersistence {
                 (UUID) rs.getObject("principal_id"), when == null ? "" : when.toInstant().toString(), oldValue, newValue, true);
     }
 
+    @Override
+    public List<EmergencyContact> designateEmergencyContactPriorities(final Actor actor, final UUID studentId,
+                                                                      final UUID primaryContactId,
+                                                                      final UUID secondaryContactId) {
+        return GuardianSecurityContext.fromActor(actor).executeInTransaction(connectionManager,
+                new GuardianSecurityContext.TransactionCallback<List<EmergencyContact>>() {
+                    @Override
+                    public List<EmergencyContact> execute(Connection conn) throws SQLException {
+                        UUID personId = studentPersonId(conn, actor, studentId);
+                        if (!activeContact(conn, actor.getTenantId(), personId, primaryContactId)
+                                || !activeContact(conn, actor.getTenantId(), personId, secondaryContactId)) {
+                            throw new GuardianException(404, "CONTACT_NOT_FOUND",
+                                    "Emergency contact was not found or is inactive");
+                        }
+                        Timestamp now = Timestamp.from(java.time.Instant.now());
+                        String sql = "UPDATE core.person_emergency_contacts SET priority = CASE "
+                                + "WHEN id = ? THEN 1 WHEN id = ? THEN 2 WHEN priority IN (1, 2) THEN 3 ELSE priority END, "
+                                + "updated_at = ?, updated_by = ?, row_version = row_version + 1 "
+                                + "WHERE tenant_id = ? AND person_id = ? AND deleted_at IS NULL";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setObject(1, primaryContactId);
+                            ps.setObject(2, secondaryContactId);
+                            ps.setTimestamp(3, now);
+                            ps.setObject(4, actor.getUserId());
+                            ps.setObject(5, actor.getTenantId());
+                            ps.setObject(6, personId);
+                            ps.executeUpdate();
+                        }
+                        logger.info("Designated emergency contact priorities studentId={} primary={} secondary={}",
+                                studentId, primaryContactId, secondaryContactId);
+                        List<EmergencyContact> rows = new ArrayList<EmergencyContact>();
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "SELECT id, name, relationship, phone, priority, deleted_at FROM core.person_emergency_contacts "
+                                        + "WHERE tenant_id = ? AND person_id = ? ORDER BY priority, created_at")) {
+                            ps.setObject(1, actor.getTenantId());
+                            ps.setObject(2, personId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    rows.add(mapContact(rs, studentId));
+                                }
+                            }
+                        }
+                        return rows;
+                    }
+                });
+    }
+
+    private static boolean activeContact(Connection conn, UUID tenantId, UUID personId, UUID contactId)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM core.person_emergency_contacts WHERE tenant_id = ? AND person_id = ? AND id = ? "
+                        + "AND deleted_at IS NULL")) {
+            ps.setObject(1, tenantId);
+            ps.setObject(2, personId);
+            ps.setObject(3, contactId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     private static EmergencyContact mapContact(ResultSet rs, UUID studentId) throws SQLException {
         boolean inactive = rs.getTimestamp("deleted_at") != null;
+        int priority = rs.getInt("priority");
+        if (rs.wasNull()) {
+            priority = 1;
+        }
         return new EmergencyContact(
                 (UUID) rs.getObject("id"),
                 studentId,
                 rs.getString("name"),
                 rs.getString("relationship"),
                 rs.getString("phone"),
-                inactive ? "INACTIVE" : "ACTIVE");
+                inactive ? "INACTIVE" : "ACTIVE",
+                priority);
     }
 
     private static GuardianLink mapLink(ResultSet rs) throws SQLException {

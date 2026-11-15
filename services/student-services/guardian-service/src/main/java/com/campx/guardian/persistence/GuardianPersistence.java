@@ -34,6 +34,9 @@ public interface GuardianPersistence {
 
     java.util.List<EmergencyContact> findEmergencyContacts(Actor actor, java.util.UUID studentId);
 
+    List<EmergencyContact> designateEmergencyContactPriorities(Actor actor, UUID studentId, UUID primaryContactId,
+                                                               UUID secondaryContactId);
+
     GuardianLink findGuardian(Actor actor, UUID guardianshipId);
 
     EvidenceRecord saveEvidence(Actor actor, GuardianLink link, String documentType);

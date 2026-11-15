@@ -49,6 +49,13 @@ public class GuardianController {
                 UUID studentId = UUID.fromString(studentPart);
                 return json(200, historyNode(studentId, domain.listRelationshipHistory(actor, studentId)), correlationId);
             }
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/guardians/students/") && normalized.endsWith("/emergency-contacts/priorities")) {
+                String studentPart = normalized.substring("/api/v1/guardians/students/".length(),
+                        normalized.length() - "/emergency-contacts/priorities".length());
+                return json(200, emergencyListNode(domain.designateEmergencyContactPriorities(actor,
+                        UUID.fromString(studentPart), uuid(json, "primaryContactId"), uuid(json, "secondaryContactId"))),
+                        correlationId);
+            }
             if ("POST".equals(method) && normalized.startsWith("/api/v1/guardians/students/") && normalized.endsWith("/emergency-contacts")) {
                 String studentPart = normalized.substring("/api/v1/guardians/students/".length(), normalized.length() - "/emergency-contacts".length());
                 GuardianDomainService.EmergencyContact saved = domain.addEmergencyContact(actor, UUID.fromString(studentPart),
@@ -239,6 +246,7 @@ public class GuardianController {
         node.put("relationship", contact.relationship);
         node.put("phone", contact.phone);
         node.put("status", contact.status);
+        node.put("priority", contact.priority);
         node.put("academicAccess", false);
         node.put("financialAccess", false);
         node.put("portalAccess", false);

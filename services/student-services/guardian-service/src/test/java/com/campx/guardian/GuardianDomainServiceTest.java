@@ -689,6 +689,126 @@ public class GuardianDomainServiceTest {
     }
 
     @Test
+    public void stm05Us007_designatePrimaryAndSecondaryHappyPath() {
+        GuardianDomainService.EmergencyContact first = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000021");
+        GuardianDomainService.EmergencyContact second = service.addEmergencyContact(studentActor, student,
+                "Ravi Das", "uncle", "9000000022");
+        GuardianDomainService.EmergencyContact third = service.addEmergencyContact(studentActor, student,
+                "Neha Shah", "aunt", "9000000023");
+        assertEquals(1, first.priority);
+        java.util.List<GuardianDomainService.EmergencyContact> designated = service.designateEmergencyContactPriorities(
+                studentActor, student, first.id, second.id);
+        assertEquals(3, designated.size());
+        assertEquals(1, findContactPriority(designated, first.id));
+        assertEquals(2, findContactPriority(designated, second.id));
+        assertEquals(3, findContactPriority(designated, third.id));
+    }
+
+    @Test
+    public void stm05Us007_sameContactIdTwiceDenied() {
+        GuardianDomainService.EmergencyContact first = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000031");
+        service.addEmergencyContact(studentActor, student, "Ravi Das", "uncle", "9000000032");
+        try {
+            service.designateEmergencyContactPriorities(studentActor, student, first.id, first.id);
+            fail("Primary and secondary must be distinct");
+        } catch (GuardianException ex) {
+            assertEquals(422, ex.getStatus());
+            assertEquals("PRIORITY_DUPLICATE", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05Us007_inactiveContactDenied() {
+        GuardianDomainService.EmergencyContact primary = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000041");
+        GuardianDomainService.EmergencyContact inactive = service.addEmergencyContact(studentActor, student,
+                "Ravi Das", "uncle", "9000000042");
+        service.removeEmergencyContact(studentActor, inactive.id, student);
+        try {
+            service.designateEmergencyContactPriorities(studentActor, student, primary.id, inactive.id);
+            fail("Inactive contact must not be designated");
+        } catch (GuardianException ex) {
+            assertEquals(409, ex.getStatus());
+            assertEquals("CONTACT_INACTIVE", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05Us007_wrongStudentIdorDenied() {
+        UUID peer = UUID.randomUUID();
+        GuardianDomainService.EmergencyContact mine = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000051");
+        GuardianDomainService.EmergencyContact theirs = service.addEmergencyContact(registrar, peer,
+                "Peer Contact", "guardian", "9000000052");
+        try {
+            service.designateEmergencyContactPriorities(studentActor, peer, theirs.id, mine.id);
+            fail("Student must not designate contacts for another student");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("EMERGENCY_CONTACT_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05Us007_wrongRoleDenied() {
+        Actor faculty = new Actor(tenant, UUID.randomUUID(), null, campus, "R10", "corr-fac");
+        GuardianDomainService.EmergencyContact first = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000061");
+        GuardianDomainService.EmergencyContact second = service.addEmergencyContact(studentActor, student,
+                "Ravi Das", "uncle", "9000000062");
+        try {
+            service.designateEmergencyContactPriorities(faculty, student, first.id, second.id);
+            fail("Faculty must not designate emergency contacts");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("EMERGENCY_CONTACT_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05Us007_nullActorDenied() {
+        GuardianDomainService.EmergencyContact first = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000071");
+        GuardianDomainService.EmergencyContact second = service.addEmergencyContact(studentActor, student,
+                "Ravi Das", "uncle", "9000000072");
+        try {
+            service.designateEmergencyContactPriorities(null, student, first.id, second.id);
+            fail("Null actor must be rejected");
+        } catch (GuardianException ex) {
+            assertEquals(401, ex.getStatus());
+            assertEquals("TENANT_REQUIRED", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm05Us007_crossTenantCannotDesignate() {
+        GuardianDomainService.EmergencyContact first = service.addEmergencyContact(studentActor, student,
+                "Priya Rao", "mother", "9000000081");
+        GuardianDomainService.EmergencyContact second = service.addEmergencyContact(studentActor, student,
+                "Ravi Das", "uncle", "9000000082");
+        UUID otherTenant = UUID.randomUUID();
+        Actor otherRegistrar = new Actor(otherTenant, UUID.randomUUID(), null, campus, "R31", "corr-x-007");
+        try {
+            service.designateEmergencyContactPriorities(otherRegistrar, student, first.id, second.id);
+            fail("Cross-tenant registrar must not see student contacts");
+        } catch (GuardianException ex) {
+            assertEquals(404, ex.getStatus());
+            assertEquals("CONTACT_NOT_FOUND", ex.getCode());
+        }
+    }
+
+    private static int findContactPriority(java.util.List<GuardianDomainService.EmergencyContact> rows, UUID id) {
+        for (GuardianDomainService.EmergencyContact contact : rows) {
+            if (contact.id.equals(id)) {
+                return contact.priority;
+            }
+        }
+        return -1;
+    }
+
+    @Test
     public void stm05Us009_010_grantAccessAndStudentSetsConsentPeriod() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
         GuardianDomainService.AccessGrant grant = service.grantAccess(approver, link.id,
