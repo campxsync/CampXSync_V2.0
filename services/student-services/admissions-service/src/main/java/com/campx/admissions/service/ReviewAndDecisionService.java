@@ -110,8 +110,11 @@ public class ReviewAndDecisionService {
         ApplicationEntity application = applicationRepository.findById(context.getTenantId(), applicationId)
                 .orElseThrow(() -> new AdmissionsNotFoundException("Application not found: " + applicationId));
 
-        // Segregation of Duties: Submitter cannot approve own application
+        // Segregation of Duties: submitter / assigned reviewer / any submitted review by this actor
         AdmissionsPermissionEvaluator.validateSegregationOfDutiesOnDecision(context, application.getApplicantPersonId(), application.getAssignedReviewerId());
+        reviewRepository.findByApplicationAndReviewer(context.getTenantId(), applicationId, context.getUserId())
+                .ifPresent(existing -> AdmissionsPermissionEvaluator.validateSegregationOfDutiesAgainstSubmittedReview(
+                        context, existing.getReviewerId()));
 
         AdmissionDecisionEntity decision = new AdmissionDecisionEntity();
         decision.setTenantId(context.getTenantId());

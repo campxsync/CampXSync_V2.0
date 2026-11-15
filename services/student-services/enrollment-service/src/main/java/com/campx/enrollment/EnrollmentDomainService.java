@@ -48,6 +48,8 @@ public class EnrollmentDomainService {
     private final Map<String, Set<UUID>> cleared = new ConcurrentHashMap<String, Set<UUID>>();
     private final Map<String, Enrolment> enrolments = new ConcurrentHashMap<String, Enrolment>();
     private final Map<String, String> idempotency = new ConcurrentHashMap<String, String>();
+    /** Enrolment id → user who last ran eligibility verification (D10 SoD). */
+    private final Map<UUID, UUID> eligibilityVerifiedBy = new ConcurrentHashMap<UUID, UUID>();
     private final List<Map<String, Object>> events = Collections.synchronizedList(new ArrayList<Map<String, Object>>());
 
     public EnrollmentDomainService() {
@@ -477,9 +479,15 @@ public class EnrollmentDomainService {
             enrolment.history.add(row);
             persistEnrolment(actor, enrolment);
             persistHistory(actor, enrolment, row);
+            if (actor.getUserId() != null) {
+                eligibilityVerifiedBy.put(enrolment.id, actor.getUserId());
+            }
             log(actor, "enrolment.eligible", enrolment.id);
         } else if (!failures.isEmpty()) {
             log(actor, "enrolment.eligibility_failed", enrolment.id);
+        } else if (actor.getUserId() != null) {
+            // Record verifier even when already ELIGIBLE so later A/R can enforce SoD.
+            eligibilityVerifiedBy.put(enrolment.id, actor.getUserId());
         }
         return failures;
     }
@@ -583,6 +591,13 @@ public class EnrollmentDomainService {
             throw reject(422, "STATUS_INVALID", "Status must be ELIGIBLE, SUSPENDED, or REJECTED");
         }
         Enrolment enrolment = requireEnrolment(actor.getTenantId(), enrolmentId);
+        // D10: same actor cannot verify (eligibility) and approve/reject status in one workflow.
+        if (("ELIGIBLE".equals(status) || "REJECTED".equals(status))
+                && actor.getUserId() != null
+                && actor.getUserId().equals(eligibilityVerifiedBy.get(enrolment.id))) {
+            throw reject(403, "SAME_ACTOR_VERIFY_APPROVE",
+                    "The same actor cannot both verify eligibility and approve or reject in one workflow");
+        }
         enrolment.status = status;
         Map<String, String> historyRow = history(actor, status, "status");
         enrolment.history.add(historyRow);

@@ -55,6 +55,8 @@ public class GuardianDomainService {
     private final Map<String, List<GuardianLink>> links = new ConcurrentHashMap<String, List<GuardianLink>>();
     private final Map<UUID, EvidenceRecord> pendingEvidence = new ConcurrentHashMap<UUID, EvidenceRecord>();
     private final Map<UUID, Boolean> verifiedEvidence = new ConcurrentHashMap<UUID, Boolean>();
+    /** Guardianship id → user who verified evidence (D10 SoD vs grantAccess). */
+    private final Map<UUID, UUID> evidenceVerifiedBy = new ConcurrentHashMap<UUID, UUID>();
     private final Map<UUID, AccessWindow> accessWindows = new ConcurrentHashMap<UUID, AccessWindow>();
     private final Map<String, List<EmergencyContact>> emergencyContacts = new ConcurrentHashMap<String, List<EmergencyContact>>();
     private final List<HistoryEntry> historyEntries = Collections.synchronizedList(new ArrayList<HistoryEntry>());
@@ -320,6 +322,11 @@ public class GuardianDomainService {
                 verifiedEvidence.remove(guardianshipId);
             }
         }
+        if ("VERIFY".equals(normalizedDecision) && actor.getUserId() != null) {
+            evidenceVerifiedBy.put(current.id, actor.getUserId());
+        } else if ("REJECT".equals(normalizedDecision)) {
+            evidenceVerifiedBy.remove(current.id);
+        }
         ReviewDecision result = new ReviewDecision(documentId, current.id, outcome, storedStatus, normalizedReason);
         logger.info("stm05 review outcome={} reasonCode={} guardianshipId={} reviewer={}",
                 outcome, normalizedReason, current.id, actor.getUserId());
@@ -496,6 +503,11 @@ public class GuardianDomainService {
                 : Boolean.TRUE.equals(verifiedEvidence.get(guardianshipId));
         if (!verified) {
             throw reject(422, "RELATIONSHIP_NOT_VERIFIED", "Access can be granted only after the relationship evidence is verified");
+        }
+        // D10: same actor cannot verify evidence and grant access (approve) in one workflow.
+        if (actor.getUserId() != null && actorVerifiedEvidence(current.id, actor.getUserId())) {
+            throw reject(403, "SAME_ACTOR_VERIFY_APPROVE",
+                    "The same actor cannot both verify evidence and grant access in one workflow");
         }
         AccessWindow previous = persistence != null ? persistence.findAccess(actor, current) : accessWindows.get(current.id);
         if (persistence != null) {
@@ -932,6 +944,25 @@ public class GuardianDomainService {
         } else {
             historyEntries.add(entry);
         }
+    }
+
+    /** True when this user previously recorded a VERIFY decision for the guardianship. */
+    private boolean actorVerifiedEvidence(UUID guardianshipId, UUID userId) {
+        if (userId.equals(evidenceVerifiedBy.get(guardianshipId))) {
+            return true;
+        }
+        for (HistoryEntry entry : historyEntries) {
+            if (entry == null || entry.guardianshipId == null || entry.actorId == null) {
+                continue;
+            }
+            if (guardianshipId.equals(entry.guardianshipId)
+                    && userId.equals(entry.actorId)
+                    && "VERIFICATION".equals(entry.kind)
+                    && "APPROVED".equals(entry.newValue)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String flagText(AccessWindow window) {

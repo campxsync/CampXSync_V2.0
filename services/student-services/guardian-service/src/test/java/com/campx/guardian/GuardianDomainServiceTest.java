@@ -22,6 +22,8 @@ public class GuardianDomainServiceTest {
     private UUID tenant;
     private UUID student;
     private Actor registrar;
+    /** Distinct from registrar — grants access after verify (D10 SoD). */
+    private Actor approver;
     private Actor studentActor;
 
     @Before
@@ -36,6 +38,9 @@ public class GuardianDomainServiceTest {
         UUID registrarUser = UUID.randomUUID();
         registrar = new Actor(tenant, registrarUser, null, campus, "R31", "corr-reg");
         delegations.grant(tenant, registrarUser, GuardianDomainService.DELEGATION_APPROVE_KEY);
+        UUID approverUser = UUID.randomUUID();
+        approver = new Actor(tenant, approverUser, null, campus, "R31", "corr-apr");
+        delegations.grant(tenant, approverUser, GuardianDomainService.DELEGATION_APPROVE_KEY);
         studentActor = new Actor(tenant, student, null, campus, "STUDENT", "corr-stu");
     }
 
@@ -291,7 +296,7 @@ public class GuardianDomainServiceTest {
         service.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         service.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
         java.util.List<String> categories = java.util.Arrays.asList("ACADEMICS");
-        GuardianDomainService.AccessGrant grant = service.grantAccess(registrar, link.id, categories, "FAMILY_SUPPORT", "2027-06-30");
+        GuardianDomainService.AccessGrant grant = service.grantAccess(approver, link.id, categories, "FAMILY_SUPPORT", "2027-06-30");
         assertTrue(grant.viewAcademics);
         assertTrue(!grant.viewFees);
         assertTrue(!grant.payFees);
@@ -304,7 +309,7 @@ public class GuardianDomainServiceTest {
     public void unverifiedRelationshipCannotReceiveAccess() {
         GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         try {
-            service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+            service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
             fail("Unverified evidence must not receive access");
         } catch (GuardianException ex) {
             assertEquals(422, ex.getStatus());
@@ -318,7 +323,7 @@ public class GuardianDomainServiceTest {
         service.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         service.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
         try {
-            service.grantAccess(registrar, link.id, java.util.Arrays.asList("EVERYTHING"), "FAMILY_SUPPORT", "2027-06-30");
+            service.grantAccess(approver, link.id, java.util.Arrays.asList("EVERYTHING"), "FAMILY_SUPPORT", "2027-06-30");
             fail("A blanket grant must be rejected");
         } catch (GuardianException ex) {
             assertEquals(422, ex.getStatus());
@@ -333,7 +338,7 @@ public class GuardianDomainServiceTest {
         GuardianDomainService.GuardianLink link = timed.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         timed.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         timed.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
-        timed.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        timed.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
         timed.setAccessPeriod(registrar, link.id, "2026-11-01", "2026-11-07");
         GuardianDomainService.AccessDecision expired = timed.currentAccess(registrar, link.id);
         assertEquals("ACTIVE", expired.relationshipStatus);
@@ -363,7 +368,7 @@ public class GuardianDomainServiceTest {
         GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         service.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         service.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");
         GuardianDomainService.AccessDecision revoked = service.revokeAccess(studentActor, link.id);
         assertEquals("ACTIVE", revoked.relationshipStatus);
         assertEquals("REVOKED", revoked.accessState);
@@ -407,7 +412,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void authorizedViewReturnsOnlyGrantedCategories() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
         service.setAccessPeriod(registrar, link.id, "2026-11-01", "2027-06-30");
         GuardianDomainService.AuthorizedView view = service.viewAuthorizedInformation(studentActor, link.id);
         assertEquals(student, view.studentId);
@@ -422,7 +427,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void revokedGrantCannotBeViewed() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");
         service.revokeAccess(studentActor, link.id);
         try {
             service.viewAuthorizedInformation(studentActor, link.id);
@@ -440,7 +445,7 @@ public class GuardianDomainServiceTest {
         GuardianDomainService.GuardianLink link = timed.addGuardian(registrar, student, "Asha", "Rao", "mother", null, null, true);
         timed.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
         timed.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
-        timed.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        timed.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
         timed.setAccessPeriod(registrar, link.id, "2026-11-01", "2026-11-07");
         try {
             timed.viewAuthorizedInformation(registrar, link.id);
@@ -467,7 +472,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void facultyCannotViewAuthorizedInformation() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
         Actor faculty = new Actor(tenant, UUID.randomUUID(), "FACULTY", "corr-fac");
         try {
             service.viewAuthorizedInformation(faculty, link.id);
@@ -481,7 +486,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void auditorReviewsClaimVerificationGrantAndRevocation() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");
         service.revokeAccess(studentActor, link.id);
         java.util.List<GuardianDomainService.HistoryEntry> rows = service.listRelationshipHistory(registrar, student);
         assertEquals(4, rows.size());
@@ -686,7 +691,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void stm05Us009_010_grantAccessAndStudentSetsConsentPeriod() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        GuardianDomainService.AccessGrant grant = service.grantAccess(registrar, link.id,
+        GuardianDomainService.AccessGrant grant = service.grantAccess(approver, link.id,
                 java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-12-31");
         assertTrue(grant.viewAcademics);
         assertTrue(grant.viewFees);
@@ -698,7 +703,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void stm05Us011_012_revokeAccessAndAuthorizedView() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "ACADEMIC_PROGRESS", "2027-12-31");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "ACADEMIC_PROGRESS", "2027-12-31");
         service.setAccessPeriod(registrar, link.id, "2026-11-01", "2027-12-31");
         GuardianDomainService.AuthorizedView view = service.viewAuthorizedInformation(studentActor, link.id);
         assertTrue(view.categories.contains("ACADEMICS"));
@@ -715,13 +720,13 @@ public class GuardianDomainServiceTest {
     public void stm05Us013_014_historyAndRefuseBlanketGrant() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
         try {
-            service.grantAccess(registrar, link.id, java.util.Arrays.asList("EVERYTHING"), "FAMILY_SUPPORT", "2027-12-31");
+            service.grantAccess(approver, link.id, java.util.Arrays.asList("EVERYTHING"), "FAMILY_SUPPORT", "2027-12-31");
             fail("blanket grant must be refused");
         } catch (GuardianException ex) {
             assertEquals(422, ex.getStatus());
             assertEquals("CATEGORY_UNSUPPORTED", ex.getCode());
         }
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
         assertTrue(service.listRelationshipHistory(registrar, student).size() >= 1);
     }
 
@@ -758,7 +763,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void stm05En002_crossTenantCannotGrantOrViewAccess() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
         Actor otherRegistrar = new Actor(UUID.randomUUID(), UUID.randomUUID(), null, campus, "R31", "corr-xt");
         try {
             service.grantAccess(otherRegistrar, link.id, java.util.Arrays.asList("FEES"), "FAMILY_SUPPORT", "2027-12-31");
@@ -779,7 +784,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void stm05En003_grantPeriodThenRevokeDeniesAuthorizedView() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-12-31");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-12-31");
         GuardianDomainService.AccessDecision period = service.setAccessPeriod(studentActor, link.id,
                 "2026-11-01", "2027-12-31");
         assertEquals("PERIOD_SET", period.accessState);
@@ -804,7 +809,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void stm05En003_secondRevokeRejected() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
         service.revokeAccess(studentActor, link.id);
         try {
             service.revokeAccess(studentActor, link.id);
@@ -819,7 +824,7 @@ public class GuardianDomainServiceTest {
     @Test
     public void stm05En006_relationshipHistoryRecordsGrantAndRevoke() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
-        service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
         service.revokeAccess(studentActor, link.id);
         assertTrue(service.listRelationshipHistory(registrar, student).size() >= 2);
     }
@@ -898,5 +903,22 @@ public class GuardianDomainServiceTest {
         } catch (GuardianException ex) {
             assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
+    }
+
+    @Test
+    public void stm05R31SoD_sameActorCannotVerifyThenGrantAccess() {
+        GuardianDomainService.GuardianLink link = service.addGuardian(registrar, student, "SoD", "Test", "MOTHER",
+                "sod@ex.com", "9", true);
+        service.submitEvidence(registrar, link.id, "BIRTH_CERTIFICATE");
+        service.reviewEvidence(registrar, link.id, "VERIFY", "IDENTITY_CONFIRMED");
+        try {
+            service.grantAccess(registrar, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+            fail("Same actor verify then grant must be denied");
+        } catch (GuardianException ex) {
+            assertEquals("SAME_ACTOR_VERIFY_APPROVE", ex.getCode());
+        }
+        GuardianDomainService.AccessGrant grant = service.grantAccess(approver, link.id,
+                java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
+        assertTrue(grant.viewAcademics);
     }
 }

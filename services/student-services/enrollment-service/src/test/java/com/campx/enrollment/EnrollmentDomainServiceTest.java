@@ -1379,6 +1379,21 @@ public class EnrollmentDomainServiceTest {
         }
     }
 
+    @Test
+    public void stm03R31SoD_sameActorCannotVerifyEligibilityThenApproveOrReject() {
+        EnrollmentDomainService.Enrolment enrolment = opened();
+        List<String> failures = service.evaluateEligibility(registrar, enrolment.id);
+        assertTrue(failures.isEmpty());
+        try {
+            service.updateStatus(registrar, enrolment.id, "REJECTED");
+            fail("Same actor verify then reject must be denied");
+        } catch (EnrollmentException ex) {
+            assertEquals("SAME_ACTOR_VERIFY_APPROVE", ex.getCode());
+        }
+        EnrollmentDomainService.Enrolment rejected = service.updateStatus(registrarCoded, enrolment.id, "REJECTED");
+        assertEquals("REJECTED", rejected.status);
+    }
+
     private static final class Fixture {
         EnrollmentDomainService.Term term;
         EnrollmentDomainService.Course core;

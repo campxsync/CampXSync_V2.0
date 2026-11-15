@@ -264,4 +264,40 @@ public class ReviewAndDecisionServiceTest {
             assertTrue(ex.getMessage().contains("executive authority"));
         }
     }
+
+    @Test
+    public void stm02R31SoD_sameActorCannotReviewThenApprove() {
+        UUID sameUser = UUID.randomUUID();
+        UserSecurityContext asReviewer = new UserSecurityContext(sameUser, tenantId, campus, null, "FACULTY_REVIEWER", false);
+        delegations.grant(tenantId, sameUser, AdmissionsPermissionEvaluator.DELEGATION_APPROVE_KEY);
+        UserSecurityContext asRegistrar = new UserSecurityContext(sameUser, tenantId, campus, null, "R31", false);
+
+        ApplicationEntity app = applicationRepository.findById(tenantId, applicationId).get();
+        app.setAssignedReviewerId(sameUser);
+        app.setStatus(ApplicationStatus.UNDER_REVIEW);
+        applicationRepository.save(app);
+
+        SubmitReviewRequest reviewReq = new SubmitReviewRequest();
+        reviewReq.setRubricVersion("1.0.0");
+        reviewReq.setRubricScores("{\"academics\":8}");
+        reviewReq.setTotalScore(new BigDecimal("80.00"));
+        reviewReq.setRecommendation(ReviewRecommendation.RECOMMEND_OFFER);
+        reviewAndDecisionService.submitReview(asReviewer, applicationId, reviewReq);
+
+        RecordDecisionRequest decReq = new RecordDecisionRequest();
+        decReq.setDecisionType(DecisionType.OFFER_APPROVED);
+        decReq.setDecisionNotes("Self approve");
+        try {
+            reviewAndDecisionService.recordDecision(asRegistrar, applicationId, decReq);
+            fail("Same actor review then approve must be denied");
+        } catch (AdmissionsSecurityViolationException ex) {
+            assertTrue(ex.getMessage().contains("SAME_ACTOR_VERIFY_APPROVE"));
+        }
+
+        RecordDecisionRequest ok = new RecordDecisionRequest();
+        ok.setDecisionType(DecisionType.OFFER_APPROVED);
+        ok.setDecisionNotes("Other approver");
+        AdmissionDecisionEntity decision = reviewAndDecisionService.recordDecision(approverContext, applicationId, ok);
+        assertEquals(DecisionType.OFFER_APPROVED, decision.getDecisionType());
+    }
 }

@@ -623,4 +623,23 @@ public class LifecycleDomainServiceTest {
             assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
         }
     }
+
+    @Test
+    public void stm04R31SoD_sameActorCannotEndorseThenApprove() {
+        UUID sameUser = UUID.randomUUID();
+        Actor facultySame = new Actor(tenant, sameUser, null, campus, "FACULTY", "corr-fac-same");
+        Actor registrarSame = new Actor(tenant, sameUser, null, campus, "R31", "corr-reg-same");
+        delegations.grant(tenant, sameUser, LifecycleDomainService.DELEGATION_APPROVE_KEY);
+        service.assignAdvisor(registrar, sameUser, student);
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE", "SoD leave");
+        service.endorseRequest(facultySame, pending.id, "RECOMMENDED", "Recommend leave for student");
+        try {
+            service.decideRequest(registrarSame, pending.id, "APPROVED");
+            fail("Same actor endorse then approve must be denied");
+        } catch (LifecycleException ex) {
+            assertEquals("SAME_ACTOR_VERIFY_APPROVE", ex.getCode());
+        }
+        LifecycleDomainService.LifecycleRequest decided = service.decideRequest(registrar, pending.id, "APPROVED");
+        assertEquals("APPROVED", decided.status);
+    }
 }

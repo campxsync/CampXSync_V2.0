@@ -54,6 +54,8 @@ public class LifecycleDomainService {
     private final Map<String, TransitionRule> rules = new ConcurrentHashMap<String, TransitionRule>();
     private final Map<String, GraduationRecord> graduations = new ConcurrentHashMap<String, GraduationRecord>();
     private final Map<String, Set<UUID>> adviseesByAdvisor = new ConcurrentHashMap<String, Set<UUID>>();
+    /** Request id → faculty/HOD who endorsed (D10 SoD vs registrar decide). */
+    private final Map<UUID, UUID> requestEndorsedBy = new ConcurrentHashMap<UUID, UUID>();
     private final List<Map<String, Object>> events = Collections.synchronizedList(new ArrayList<Map<String, Object>>());
 
     public LifecycleDomainService() {
@@ -214,6 +216,15 @@ public class LifecycleDomainService {
         LifecycleRequest request = requireRequest(actor.getTenantId(), requestId);
         if (!"PENDING".equals(request.status)) {
             throw reject(409, "REQUEST_ALREADY_DECIDED", "Request has already been decided");
+        }
+        // D10: endorser (verify-equivalent) cannot also approve/reject the same request.
+        UUID endorser = requestEndorsedBy.get(request.id);
+        if (endorser == null) {
+            endorser = request.endorsedBy;
+        }
+        if (endorser != null && actor.getUserId() != null && actor.getUserId().equals(endorser)) {
+            throw reject(403, "SAME_ACTOR_VERIFY_APPROVE",
+                    "The same actor cannot both endorse and approve or reject in one workflow");
         }
 
         LifecycleStatus current = null;
@@ -418,6 +429,10 @@ public class LifecycleDomainService {
             request.reason = endorsementSuffix.trim();
         } else if (!request.reason.contains("HOD Endorsement")) {
             request.reason = request.reason + endorsementSuffix;
+        }
+        if (actor.getUserId() != null) {
+            request.endorsedBy = actor.getUserId();
+            requestEndorsedBy.put(request.id, actor.getUserId());
         }
 
         if (persistence != null) {
@@ -983,6 +998,8 @@ public class LifecycleDomainService {
         public final LocalDate effectiveDate;
         public UUID decidedBy;
         public Instant decidedAt;
+        /** Faculty/HOD who endorsed; used for D10 same-actor SoD (in-memory / service layer). */
+        public UUID endorsedBy;
         public final Instant createdAt;
 
         public LifecycleRequest(UUID tenantId, UUID id, UUID studentId, String requestType, String status, String reason,

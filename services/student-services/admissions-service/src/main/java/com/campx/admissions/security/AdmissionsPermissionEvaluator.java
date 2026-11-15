@@ -189,9 +189,20 @@ public class AdmissionsPermissionEvaluator {
             throw new AdmissionsSecurityViolationException("Segregation of duties violation: Applicant cannot approve their own application");
         }
 
-        // Reviewer who scored cannot be the decision approver (Segregation of Duties)
-        if (reviewerId != null && context.getUserId().equals(reviewerId) && !"Super Admin".equalsIgnoreCase(context.getRole()) && !"R01".equalsIgnoreCase(context.getRole())) {
-            throw new AdmissionsSecurityViolationException("Segregation of duties violation: Assigned reviewer cannot approve decision for the same application");
+        // D10: same actor cannot verify (review) and approve in one workflow — no role bypass.
+        if (reviewerId != null && context.getUserId().equals(reviewerId)) {
+            throw new AdmissionsSecurityViolationException(
+                    "SAME_ACTOR_VERIFY_APPROVE: Assigned reviewer cannot approve decision for the same application");
+        }
+    }
+
+    /**
+     * D10 SoD using a submitted review row: any prior review by this user blocks decision approval.
+     */
+    public static void validateSegregationOfDutiesAgainstSubmittedReview(UserSecurityContext context, UUID submittedReviewerId) {
+        if (submittedReviewerId != null && context.getUserId().equals(submittedReviewerId)) {
+            throw new AdmissionsSecurityViolationException(
+                    "SAME_ACTOR_VERIFY_APPROVE: The same actor cannot both review and approve in one workflow");
         }
     }
 
