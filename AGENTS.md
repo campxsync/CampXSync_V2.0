@@ -65,3 +65,25 @@ Consult `docs/project-control/WAVE_IMPLEMENTATION_PLAN.md` and `docs/handover/CU
 - **Next task:** `docs/prompts/NEXT_TASK.md`
 - **Running completion report:** `docs/reports/COMPLETION_REPORT.md`
 - **Do not read `docs/archive/` for status, approvals or instructions.**
+
+## Standard Task Protocol (owner-approved 15-11-2026; subordinate to docs/AGREEMENT_V2.1.md)
+1. Read order: Agreement, this file, docs/project-control/PROGRESS.md (owner decisions), docs/prompts/NEXT_TASK.md,
+   docs/reports/COMPLETION_REPORT.md. Authoritative RBAC file: docs/architecture/Security/RBAC_Combined.docx.
+   Backlog: docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv.
+2. Treat every earlier "done/tested" claim, including your own, as unverified until re-checked in the repository.
+3. Per story: read the full CSV row (RBAC columns, Required Negative Tests, DoD, Execution Directive); inspect the
+   actual code; implement only the gaps; no invented tables, endpoints, roles or grants.
+4. Standards: UI -> API Gateway -> Java Services -> Supabase (PostgreSQL only); tenant from the trusted token, never the
+   client; exception handling, logging service reuse and documentation (Agreement 3.2); no secrets in code, logs, errors.
+5. Tests: include the CSV's negative tests that apply; run the FULL suite of every touched module; any red test is fixed
+   in scope or reported (STOP). Evidence per Agreement 7A.
+6. After each story: update PROGRESS.md, COMPLETION_REPORT.md, NEXT_TASK.md, task docs, and the story's CSV
+   "Implementation status" cell. Allowed values: completed | partially completed | yet to pickup. Use "completed" only if
+   every acceptance clause is traced to code and a passing automated test (table in the report) AND nothing the story
+   needs was left unexercised (live database, storage, browser). Otherwise "partially completed". Never write "verified".
+7. Commits: one local commit per story; never push, amend, rebase, reset, stash or force.
+8. STOP and report for: red suite not fixable in scope; open policy flag or unmapped role; any Supabase staging or
+   production write (prepare a runbook only); a new tool, library, service or infrastructure; acceptance criteria that
+   conflict with the RBAC document; a failed earlier claim; any boundary in Agreement Section 5.
+9. Capacity guard: never leave a story half done. If capacity is low, finish the current story completely (tests green, docs
+   updated, commit made), record what remains in NEXT_TASK.md, and stop.
