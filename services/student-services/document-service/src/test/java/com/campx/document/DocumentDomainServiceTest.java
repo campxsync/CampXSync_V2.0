@@ -16,10 +16,17 @@ import com.campx.document.DocumentDomainService.VerificationQueueItem;
 import com.campx.document.DocumentDomainService.ResubmitDocumentRequest;
 import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.InMemoryDocumentPersistence;
+import com.campx.document.security.ControlledMalwareScanAdapter;
+import com.campx.document.security.SignedDownloadTokenService;
+import com.campx.document.storage.DocumentStorageConfig;
+import com.campx.document.storage.FakeDocumentObjectStorage;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -1835,5 +1842,182 @@ public class DocumentDomainServiceTest {
         } catch (DocumentException e) {
             assertEquals("MIME_EXTENSION_MISMATCH", e.getCode());
         }
+    }
+
+    // --- STM-06-EN-002 object storage bytes (fake client; no live Supabase) ---
+
+    @Test
+    public void stm06En002_configuredStorageRequiresContentAndStoresBytes() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage);
+
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN002-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Storage Doc";
+        DocumentType type = storageService.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest missing = new UploadStudentDocumentRequest();
+        missing.documentTypeId = type.id;
+        missing.title = "Needs Bytes";
+        missing.mimeType = "application/pdf";
+        missing.sizeBytes = 12L;
+        missing.fileName = "needs.pdf";
+        try {
+            storageService.uploadStudentDocument(studentTenantA, missing);
+            fail("Configured storage must require contentBase64");
+        } catch (DocumentException e) {
+            assertEquals("CONTENT_REQUIRED", e.getCode());
+        }
+
+        byte[] pdf = ("%PDF-1.4 test").getBytes(StandardCharsets.US_ASCII);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Stored PDF";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = (long) pdf.length;
+        up.fileName = "stored.pdf";
+        up.checksumSha256 = sha256Hex(pdf);
+        up.contentBase64 = Base64.getEncoder().encodeToString(pdf);
+        StudentDocument uploaded = storageService.uploadStudentDocument(studentTenantA, up);
+        assertEquals(1, storage.objectCount());
+        assertTrue(uploaded.storagePath.startsWith("tenants/" + tenantA + "/"));
+
+        DocumentDomainService.SignedDownloadUrl signed =
+                storageService.issueSignedDownloadUrl(studentTenantA, uploaded.id);
+        DocumentDomainService.DocumentDownloadPayload payload =
+                storageService.downloadDocumentBytes(studentTenantA, signed.token);
+        assertEquals(pdf.length, payload.bytes.length);
+        assertEquals("application/pdf", payload.mimeType);
+    }
+
+    @Test
+    public void stm06En002_negativeAuthTenantAndChecksumAndStorageFailure() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage);
+
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN002-NEG-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Storage Neg";
+        DocumentType type = storageService.configureDocumentType(adminTenantA, dtReq);
+
+        try {
+            storageService.uploadStudentDocument(null, new UploadStudentDocumentRequest());
+            fail("Unauthenticated must fail");
+        } catch (DocumentException e) {
+            assertEquals(401, e.getStatusCode());
+        }
+
+        byte[] pdf = ("%PDF-1.4 aaa").getBytes(StandardCharsets.US_ASCII);
+        UploadStudentDocumentRequest badChecksum = new UploadStudentDocumentRequest();
+        badChecksum.documentTypeId = type.id;
+        badChecksum.title = "Bad checksum";
+        badChecksum.mimeType = "application/pdf";
+        badChecksum.sizeBytes = (long) pdf.length;
+        badChecksum.fileName = "bad.pdf";
+        badChecksum.checksumSha256 = "0000000000000000000000000000000000000000000000000000000000000000";
+        badChecksum.contentBase64 = Base64.getEncoder().encodeToString(pdf);
+        try {
+            storageService.uploadStudentDocument(studentTenantA, badChecksum);
+            fail("Checksum mismatch must fail");
+        } catch (DocumentException e) {
+            assertEquals("CHECKSUM_MISMATCH", e.getCode());
+        }
+
+        UploadStudentDocumentRequest badSig = new UploadStudentDocumentRequest();
+        badSig.documentTypeId = type.id;
+        badSig.title = "Bad signature";
+        badSig.mimeType = "application/pdf";
+        byte[] notPdf = "NOT_A_PDF_FILE".getBytes(StandardCharsets.US_ASCII);
+        badSig.sizeBytes = (long) notPdf.length;
+        badSig.fileName = "nosig.pdf";
+        badSig.checksumSha256 = sha256Hex(notPdf);
+        badSig.contentBase64 = Base64.getEncoder().encodeToString(notPdf);
+        try {
+            storageService.uploadStudentDocument(studentTenantA, badSig);
+            fail("MIME signature mismatch must fail");
+        } catch (DocumentException e) {
+            assertEquals("MIME_SIGNATURE_MISMATCH", e.getCode());
+        }
+
+        Actor peer = new Actor(tenantA, UUID.randomUUID(), "STUDENT", "peer@campx.edu");
+        UploadStudentDocumentRequest ok = new UploadStudentDocumentRequest();
+        ok.documentTypeId = type.id;
+        ok.title = "Owner doc";
+        ok.mimeType = "application/pdf";
+        ok.sizeBytes = (long) pdf.length;
+        ok.fileName = "owner.pdf";
+        ok.checksumSha256 = sha256Hex(pdf);
+        ok.contentBase64 = Base64.getEncoder().encodeToString(pdf);
+        StudentDocument uploaded = storageService.uploadStudentDocument(studentTenantA, ok);
+        DocumentDomainService.SignedDownloadUrl signed =
+                storageService.issueSignedDownloadUrl(studentTenantA, uploaded.id);
+        try {
+            storageService.downloadDocumentBytes(peer, signed.token);
+            fail("Peer student must not use owner signed token (actor mismatch / forbidden)");
+        } catch (DocumentException e) {
+            assertTrue(e.getStatusCode() == 403);
+        }
+
+        Actor crossTenant = new Actor(tenantB, UUID.randomUUID(), "STUDENT", "b@campx.edu");
+        try {
+            storageService.downloadDocumentBytes(crossTenant, signed.token);
+            fail("Cross-tenant download must fail");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+
+        storage.failNextOperation();
+        UploadStudentDocumentRequest failPut = new UploadStudentDocumentRequest();
+        failPut.documentTypeId = type.id;
+        failPut.title = "Storage fail";
+        failPut.mimeType = "application/pdf";
+        failPut.sizeBytes = (long) pdf.length;
+        failPut.fileName = "fail.pdf";
+        failPut.checksumSha256 = sha256Hex(pdf);
+        failPut.contentBase64 = Base64.getEncoder().encodeToString(pdf);
+        try {
+            storageService.uploadStudentDocument(studentTenantA, failPut);
+            fail("Storage backend failure must surface");
+        } catch (DocumentException e) {
+            assertEquals(503, e.getStatusCode());
+            assertEquals("STORAGE_UNAVAILABLE", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En002_metadataOnlyAllowedWhenStorageNotConfigured() {
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN002-META-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Meta Only";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+        up.documentTypeId = type.id;
+        up.title = "Metadata only";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 128L;
+        up.fileName = "meta.pdf";
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        assertNotNull(uploaded.id);
+        try {
+            service.downloadDocumentBytes(studentTenantA,
+                    service.issueSignedDownloadUrl(studentTenantA, uploaded.id).token);
+            fail("Unconfigured storage must not stream bytes");
+        } catch (DocumentException e) {
+            assertEquals("STORAGE_NOT_CONFIGURED", e.getCode());
+        }
+    }
+
+    private static String sha256Hex(byte[] bytes) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(bytes);
+        StringBuilder sb = new StringBuilder(hash.length * 2);
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 }

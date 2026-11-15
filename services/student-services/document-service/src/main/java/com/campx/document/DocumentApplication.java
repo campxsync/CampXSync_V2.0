@@ -9,6 +9,10 @@ import com.campx.document.persistence.PostgresDocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
 import com.campx.document.security.GatewayHmacVerifier;
 import com.campx.document.security.SignedDownloadTokenService;
+import com.campx.document.storage.DocumentObjectStorage;
+import com.campx.document.storage.DocumentStorageConfig;
+import com.campx.document.storage.FakeDocumentObjectStorage;
+import com.campx.document.storage.SupabaseStorageHttpClient;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.sun.net.httpserver.HttpExchange;
@@ -58,11 +62,22 @@ public class DocumentApplication {
         if (hmacSecret == null || hmacSecret.trim().isEmpty()) {
             hmacSecret = System.getenv("CAMPX_GATEWAY_HMAC_SECRET");
         }
+        DocumentStorageConfig storageConfig = DocumentStorageConfig.fromEnvironment();
+        DocumentObjectStorage objectStorage;
+        if (storageConfig.configured) {
+            objectStorage = new SupabaseStorageHttpClient(storageConfig);
+            logger.info("STM-06 object storage configured bucket={} (service-role present; value not logged)",
+                    storageConfig.bucket);
+        } else {
+            objectStorage = new FakeDocumentObjectStorage(storageConfig.bucket, false);
+            logger.warn("STM-06 object storage not configured; metadata-only upload allowed for local/test profile");
+        }
         DocumentDomainService domain = new DocumentDomainService(
                 persistence,
                 intelligenceService,
                 new ControlledMalwareScanAdapter(),
-                new SignedDownloadTokenService(hmacSecret)
+                new SignedDownloadTokenService(hmacSecret),
+                objectStorage
         );
         final DocumentController controller = new DocumentController(
                 domain,
@@ -106,8 +121,21 @@ public class DocumentApplication {
                     exchange.getResponseHeaders().set("X-Trace-Id", traceId.trim());
                     exchange.getResponseHeaders().set("X-Correlation-Id", traceId.trim());
                 }
-                byte[] bytes = response.body.getBytes(StandardCharsets.UTF_8);
-                String contentType = response.status >= 400 ? "application/problem+json; charset=UTF-8" : "application/json; charset=UTF-8";
+                byte[] bytes;
+                String contentType;
+                if (response.isBinary()) {
+                    bytes = response.binaryBody;
+                    contentType = response.contentType != null ? response.contentType : "application/octet-stream";
+                    if (response.fileName != null && !response.fileName.trim().isEmpty()) {
+                        exchange.getResponseHeaders().set("Content-Disposition",
+                                "attachment; filename=\"" + response.fileName.replace("\"", "") + "\"");
+                    }
+                } else {
+                    bytes = response.body.getBytes(StandardCharsets.UTF_8);
+                    contentType = response.status >= 400
+                            ? "application/problem+json; charset=UTF-8"
+                            : "application/json; charset=UTF-8";
+                }
                 exchange.getResponseHeaders().set("Content-Type", contentType);
                 exchange.sendResponseHeaders(response.status, bytes.length);
                 OutputStream os = exchange.getResponseBody();

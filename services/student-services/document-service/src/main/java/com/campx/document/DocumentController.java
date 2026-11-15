@@ -249,6 +249,7 @@ public class DocumentController {
                 req.fileName = text(json, "fileName");
                 req.changeNote = text(json, "changeNote");
                 req.checksumSha256 = text(json, "checksumSha256");
+                req.contentBase64 = text(json, "contentBase64");
 
                 StudentDocument uploaded = domain.uploadStudentDocument(actor, req);
                 return json(201, studentDocumentNode(uploaded), correlationId);
@@ -466,14 +467,19 @@ public class DocumentController {
                 return json(200, documentLinkListNode(links), correlationId);
             }
 
-            // GET /api/v1/documents/download?token= — STM-06-EN-003 resolve signed download
+            // GET /api/v1/documents/download?token= — STM-06-EN-002 stream bytes after signed-token check
             if ("GET".equals(method) && "/api/v1/documents/download".equals(normalized)) {
                 String token = header(headers, "x-query-token");
                 if (token == null || token.trim().isEmpty()) {
                     token = text(json, "token");
                 }
-                DocumentDomainService.SignedDownloadUrl resolved = domain.resolveSignedDownload(actor, token);
-                return json(200, signedDownloadNode(resolved), correlationId);
+                String mode = header(headers, "x-query-mode");
+                if ("metadata".equalsIgnoreCase(mode)) {
+                    DocumentDomainService.SignedDownloadUrl resolved = domain.resolveSignedDownload(actor, token);
+                    return json(200, signedDownloadNode(resolved), correlationId);
+                }
+                DocumentDomainService.DocumentDownloadPayload payload = domain.downloadDocumentBytes(actor, token);
+                return binary(200, payload.bytes, payload.mimeType, payload.fileName, correlationId);
             }
 
             // GET /api/v1/documents/{id}/retention (or /api/v1/documents/submissions/{id}/retention) - Get Retention & Expiry Info (STM-06-US-006)
@@ -826,13 +832,35 @@ public class DocumentController {
         return value == null || value.trim().isEmpty() ? null : value;
     }
 
+    private Response binary(int status, byte[] bytes, String contentType, String fileName, String correlationId) {
+        Response response = new Response(status, null, bytes,
+                contentType == null ? "application/octet-stream" : contentType, fileName);
+        response.correlationId = correlationId;
+        return response;
+    }
+
     public static final class Response {
         public final int status;
         public final String body;
+        public final byte[] binaryBody;
+        public final String contentType;
+        public final String fileName;
+        public String correlationId;
 
         public Response(int status, String body) {
+            this(status, body, null, null, null);
+        }
+
+        public Response(int status, String body, byte[] binaryBody, String contentType, String fileName) {
             this.status = status;
             this.body = body;
+            this.binaryBody = binaryBody;
+            this.contentType = contentType;
+            this.fileName = fileName;
+        }
+
+        public boolean isBinary() {
+            return binaryBody != null;
         }
     }
 }

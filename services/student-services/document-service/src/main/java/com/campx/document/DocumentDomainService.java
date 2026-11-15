@@ -4,16 +4,22 @@ import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.DocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
 import com.campx.document.security.SignedDownloadTokenService;
+import com.campx.document.storage.DocumentObjectStorage;
+import com.campx.document.storage.DocumentStorageConfig;
+import com.campx.document.storage.DocumentStorageException;
+import com.campx.document.storage.FakeDocumentObjectStorage;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
 import com.campx.logger.api.FlowTracker;
 import com.campx.logger.context.LogContext;
 
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -52,21 +58,33 @@ public class DocumentDomainService {
     private final DocumentIntelligenceService intelligenceService;
     private final ControlledMalwareScanAdapter malwareScanAdapter;
     private final SignedDownloadTokenService signedDownloadTokenService;
+    private final DocumentObjectStorage objectStorage;
 
     public DocumentDomainService(DocumentPersistence persistence, DocumentIntelligenceService intelligenceService) {
         this(persistence, intelligenceService, new ControlledMalwareScanAdapter(),
-                new SignedDownloadTokenService(null));
+                new SignedDownloadTokenService(null), new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false));
     }
 
     public DocumentDomainService(DocumentPersistence persistence,
                                  DocumentIntelligenceService intelligenceService,
                                  ControlledMalwareScanAdapter malwareScanAdapter,
                                  SignedDownloadTokenService signedDownloadTokenService) {
+        this(persistence, intelligenceService, malwareScanAdapter, signedDownloadTokenService,
+                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false));
+    }
+
+    public DocumentDomainService(DocumentPersistence persistence,
+                                 DocumentIntelligenceService intelligenceService,
+                                 ControlledMalwareScanAdapter malwareScanAdapter,
+                                 SignedDownloadTokenService signedDownloadTokenService,
+                                 DocumentObjectStorage objectStorage) {
         this.persistence = Objects.requireNonNull(persistence, "persistence");
         this.intelligenceService = intelligenceService == null ? new DocumentIntelligenceService() : intelligenceService;
         this.malwareScanAdapter = malwareScanAdapter == null ? new ControlledMalwareScanAdapter() : malwareScanAdapter;
         this.signedDownloadTokenService = signedDownloadTokenService == null
                 ? new SignedDownloadTokenService(null) : signedDownloadTokenService;
+        this.objectStorage = objectStorage == null
+                ? new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false) : objectStorage;
     }
 
     /**
@@ -436,7 +454,26 @@ public class DocumentDomainService {
         public String fileName;
         public String changeNote;
         public String checksumSha256;
+        /** Optional Base64 file bytes (STM-06-EN-002). Required when object storage is configured. */
+        public String contentBase64;
         public Instant expiresAt;
+    }
+
+    public static class DocumentDownloadPayload {
+        public final byte[] bytes;
+        public final String mimeType;
+        public final String fileName;
+        public final String storagePath;
+        public final UUID documentId;
+
+        public DocumentDownloadPayload(UUID documentId, String storagePath, String mimeType,
+                                       String fileName, byte[] bytes) {
+            this.documentId = documentId;
+            this.storagePath = storagePath;
+            this.mimeType = mimeType;
+            this.fileName = fileName;
+            this.bytes = bytes;
+        }
     }
 
     /**
@@ -1064,8 +1101,18 @@ public class DocumentDomainService {
 
         String mimeType = validateSecureUpload(req.mimeType, req.sizeBytes, req.fileName);
         String fileName = sanitizeFileName(req.fileName, mimeType);
+        byte[] contentBytes = decodeAndValidateContent(req, mimeType);
         String checksum = req.checksumSha256 != null && !req.checksumSha256.trim().isEmpty()
-                ? req.checksumSha256.trim() : null;
+                ? normalizeChecksum(req.checksumSha256.trim()) : null;
+        if (contentBytes != null) {
+            String computed = sha256Hex(contentBytes);
+            if (checksum == null) {
+                checksum = computed;
+            } else if (!checksum.equalsIgnoreCase(computed)) {
+                throw new DocumentException(422, "CHECKSUM_MISMATCH",
+                        "Declared checksumSha256 does not match decoded content");
+            }
+        }
 
         ControlledMalwareScanAdapter.ScanResult scan =
                 malwareScanAdapter.scan(fileName, mimeType, checksum, req.sizeBytes);
@@ -1079,9 +1126,18 @@ public class DocumentDomainService {
         UUID linkId = UUID.randomUUID();
         Instant now = Instant.now();
 
+        String storageBucket = objectStorage.getDefaultBucket();
         String storagePath = "tenants/" + actor.getTenantId() + "/students/" + targetStudentId + "/" + docId + "/v1-" + fileName;
         if (checksum == null || checksum.isEmpty()) {
             checksum = "sha256:simulated-" + docId;
+        }
+
+        if (contentBytes != null) {
+            try {
+                objectStorage.putObject(storageBucket, storagePath, contentBytes, mimeType);
+            } catch (DocumentStorageException e) {
+                throw new DocumentException(503, e.getCode(), "Object storage put failed: " + e.getMessage());
+            }
         }
 
         UUID targetCollegeId = req.collegeId != null ? req.collegeId : UUID.fromString("a0000000-0000-0000-0000-000000000002");
@@ -1097,7 +1153,7 @@ public class DocumentDomainService {
                 dt.defaultClassification,
                 "SUBMITTED",
                 targetStudentId,
-                "student-documents",
+                storageBucket,
                 storagePath,
                 mimeType,
                 req.sizeBytes,
@@ -1843,6 +1899,52 @@ public class DocumentDomainService {
 
     public SignedDownloadUrl resolveSignedDownload(Actor actor, String token) {
         requireCaller(actor);
+        SignedDownloadTokenService.ParsedToken parsed = parseSignedToken(actor, token);
+        StudentDocument doc = requireDocumentReadable(actor, parsed.documentId);
+        String scanStatus = latestScanStatus(actor, parsed.documentId);
+        String downloadPath = "/api/v1/documents/download?token=" + token;
+        return new SignedDownloadUrl(doc.id, doc.storageBucket, doc.storagePath, doc.mimeType, doc.sizeBytes,
+                token, Instant.ofEpochSecond(parsed.expiresAtEpochSec), downloadPath, scanStatus,
+                malwareScanAdapter.isLiveEndpointAvailable());
+    }
+
+    /**
+     * STM-06-EN-002: After signed-token check, stream object bytes through the service.
+     * Does not issue Supabase signed URLs to clients.
+     */
+    public DocumentDownloadPayload downloadDocumentBytes(Actor actor, String token) {
+        requireCaller(actor);
+        SignedDownloadTokenService.ParsedToken parsed = parseSignedToken(actor, token);
+        StudentDocument doc = requireDocumentReadable(actor, parsed.documentId);
+        if (!objectStorage.isConfigured()) {
+            throw new DocumentException(503, "STORAGE_NOT_CONFIGURED",
+                    "Object storage is not configured; bytes cannot be downloaded in this profile");
+        }
+        try {
+            byte[] bytes = objectStorage.getObject(doc.storageBucket, doc.storagePath);
+            String fileName = doc.storagePath.contains("/")
+                    ? doc.storagePath.substring(doc.storagePath.lastIndexOf('/') + 1)
+                    : "document";
+            AuditEvent audit = AuditEvent.builder()
+                    .tenantId(actor.getTenantId().toString())
+                    .action("document.bytes_downloaded")
+                    .principalId(actor.getUserId().toString())
+                    .principalRole(actor.getRole())
+                    .resourceType("STUDENT_DOCUMENT")
+                    .resourceId(doc.id.toString())
+                    .correlationId(actor.getCorrelationId())
+                    .status("SUCCESS")
+                    .severity("INFO")
+                    .description("Document bytes streamed via service pathLen=" + doc.storagePath.length())
+                    .build();
+            logger.audit(audit);
+            return new DocumentDownloadPayload(doc.id, doc.storagePath, doc.mimeType, fileName, bytes);
+        } catch (DocumentStorageException e) {
+            throw new DocumentException(503, e.getCode(), "Object storage get failed: " + e.getMessage());
+        }
+    }
+
+    private SignedDownloadTokenService.ParsedToken parseSignedToken(Actor actor, String token) {
         SignedDownloadTokenService.ParsedToken parsed;
         try {
             parsed = signedDownloadTokenService.parseAndVerify(token);
@@ -1855,12 +1957,7 @@ public class DocumentDomainService {
         if (!actor.getTenantId().equals(parsed.tenantId) || !actor.getUserId().equals(parsed.userId)) {
             throw new DocumentException(403, "SIGNED_URL_ACTOR_MISMATCH", "Signed URL is not valid for this caller");
         }
-        StudentDocument doc = requireDocumentReadable(actor, parsed.documentId);
-        String scanStatus = latestScanStatus(actor, parsed.documentId);
-        String downloadPath = "/api/v1/documents/download?token=" + token;
-        return new SignedDownloadUrl(doc.id, doc.storageBucket, doc.storagePath, doc.mimeType, doc.sizeBytes,
-                token, Instant.ofEpochSecond(parsed.expiresAtEpochSec), downloadPath, scanStatus,
-                malwareScanAdapter.isLiveEndpointAvailable());
+        return parsed;
     }
 
     public List<DocumentLink> listSecurityScans(Actor actor, UUID documentId) {
@@ -1898,6 +1995,81 @@ public class DocumentDomainService {
         }
         sanitizeFileName(fileName, mimeType.trim().toLowerCase(Locale.ROOT));
         return mimeType.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Decodes optional contentBase64. When storage is configured, bytes are required.
+     * Metadata-only is allowed only when storage is not configured (in-memory/test profile).
+     */
+    private byte[] decodeAndValidateContent(UploadStudentDocumentRequest req, String mimeType) {
+        boolean hasContent = req.contentBase64 != null && !req.contentBase64.trim().isEmpty();
+        if (objectStorage.isConfigured() && !hasContent) {
+            throw new DocumentException(422, "CONTENT_REQUIRED",
+                    "contentBase64 is required when object storage is configured");
+        }
+        if (!hasContent) {
+            return null;
+        }
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(req.contentBase64.trim().replaceAll("\\s", ""));
+        } catch (IllegalArgumentException e) {
+            throw new DocumentException(422, "INVALID_CONTENT_BASE64", "contentBase64 is not valid Base64");
+        }
+        if (bytes.length != req.sizeBytes.longValue()) {
+            throw new DocumentException(422, "SIZE_MISMATCH",
+                    "Decoded content length (" + bytes.length + ") does not equal sizeBytes (" + req.sizeBytes + ")");
+        }
+        if (!magicMatchesMime(bytes, mimeType)) {
+            throw new DocumentException(422, "MIME_SIGNATURE_MISMATCH",
+                    "File signature does not match declared mimeType " + mimeType);
+        }
+        return bytes;
+    }
+
+    private static boolean magicMatchesMime(byte[] bytes, String mimeType) {
+        if (bytes == null || bytes.length < 4) {
+            return false;
+        }
+        if ("application/pdf".equals(mimeType)) {
+            return bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46; // %PDF
+        }
+        if ("image/jpeg".equals(mimeType)) {
+            return (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF;
+        }
+        if ("image/png".equals(mimeType)) {
+            return (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+        }
+        if ("image/webp".equals(mimeType)) {
+            if (bytes.length < 12) {
+                return false;
+            }
+            return bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+                    && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
+        }
+        return false;
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(bytes);
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new DocumentException(500, "CHECKSUM_COMPUTE_FAILED", "Unable to compute SHA-256");
+        }
+    }
+
+    private static String normalizeChecksum(String checksum) {
+        String c = checksum.trim();
+        if (c.toLowerCase(Locale.ROOT).startsWith("sha256:")) {
+            c = c.substring("sha256:".length()).trim();
+        }
+        return c.toLowerCase(Locale.ROOT);
     }
 
     private String sanitizeFileName(String fileName, String mimeType) {
