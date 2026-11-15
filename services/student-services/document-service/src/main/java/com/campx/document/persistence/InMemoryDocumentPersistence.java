@@ -276,6 +276,74 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public List<DocumentDomainService.StudentDocument> listExpiringDocuments(Actor actor, UUID collegeId,
+                                                                           Instant afterExclusive, Instant onOrBefore) {
+        List<DocumentDomainService.StudentDocument> result = new ArrayList<DocumentDomainService.StudentDocument>();
+        for (DocumentDomainService.StudentDocument doc : docStorage.values()) {
+            if (!doc.tenantId.equals(actor.getTenantId())) {
+                continue;
+            }
+            if (collegeId != null && (doc.collegeId == null || !collegeId.equals(doc.collegeId))) {
+                continue;
+            }
+            if (doc.expiresAt == null) {
+                continue;
+            }
+            if (!doc.expiresAt.isAfter(afterExclusive)) {
+                continue;
+            }
+            if (doc.expiresAt.isAfter(onOrBefore)) {
+                continue;
+            }
+            result.add(doc);
+        }
+        Collections.sort(result, new Comparator<DocumentDomainService.StudentDocument>() {
+            @Override
+            public int compare(DocumentDomainService.StudentDocument o1, DocumentDomainService.StudentDocument o2) {
+                return o1.expiresAt.compareTo(o2.expiresAt);
+            }
+        });
+        return result;
+    }
+
+    @Override
+    public void updateStudentDocumentExpiresAt(Actor actor, UUID documentId, Instant expiresAt) {
+        DocumentDomainService.StudentDocument existing = docStorage.get(documentId);
+        if (existing == null || !existing.tenantId.equals(actor.getTenantId())) {
+            return;
+        }
+        DocumentDomainService.StudentDocument updated = new DocumentDomainService.StudentDocument(
+                existing.id,
+                existing.tenantId,
+                existing.collegeId,
+                existing.documentTypeId,
+                existing.documentTypeCode,
+                existing.documentTypeName,
+                existing.title,
+                existing.classification,
+                existing.status,
+                existing.ownerId,
+                existing.storageBucket,
+                existing.storagePath,
+                existing.mimeType,
+                existing.sizeBytes,
+                existing.checksumSha256,
+                existing.currentVersionNo,
+                existing.createdAt,
+                Instant.now(),
+                existing.createdBy,
+                actor.getUserId(),
+                existing.rowVersion + 1,
+                existing.latestVerificationResult,
+                existing.latestVerificationCode,
+                existing.latestVerifiedAt,
+                expiresAt,
+                existing.retentionPolicyCode
+        );
+        docStorage.put(documentId, updated);
+    }
+
+    @Override
     public void recordVerificationDecision(Actor actor, UUID documentId, String newStatus, DocumentDomainService.DocumentVerificationRecord verification) {
         DocumentDomainService.StudentDocument existing = docStorage.get(documentId);
         if (existing != null && existing.tenantId.equals(actor.getTenantId())) {

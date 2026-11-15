@@ -642,4 +642,36 @@ public class LifecycleDomainServiceTest {
         LifecycleDomainService.LifecycleRequest decided = service.decideRequest(registrar, pending.id, "APPROVED");
         assertEquals("APPROVED", decided.status);
     }
+
+    // --- STM-CROSS-EN-010 (STM-04) tenant isolation + RBAC negatives ---
+
+    @Test
+    public void stmCrossEn010_crossTenantMutationDenied() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "STM-CROSS-EN-010 cross-tenant decide");
+        UUID otherTenant = UUID.randomUUID();
+        UUID outsiderUser = UUID.randomUUID();
+        Actor foreignRegistrar = new Actor(otherTenant, outsiderUser, null, campus, "REGISTRAR", "corr-cross-en-010");
+        delegations.grant(otherTenant, outsiderUser, LifecycleDomainService.DELEGATION_APPROVE_KEY);
+        try {
+            service.decideRequest(foreignRegistrar, pending.id, "APPROVED");
+            fail("Cross-tenant registrar must not decide lifecycle request");
+        } catch (LifecycleException ex) {
+            assertEquals(404, ex.getStatus());
+            assertEquals("REQUEST_NOT_FOUND", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stmCrossEn010_wrongRoleDenied() {
+        LifecycleDomainService.LifecycleRequest pending = service.submitRequest(studentActor, student, "LEAVE",
+                "STM-CROSS-EN-010 wrong role decide");
+        try {
+            service.decideRequest(facultyActor, pending.id, "APPROVED");
+            fail("Faculty must not decide lifecycle request");
+        } catch (LifecycleException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("REGISTRAR_FORBIDDEN", ex.getCode());
+        }
+    }
 }

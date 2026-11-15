@@ -58,6 +58,8 @@ public class DocumentDomainService {
             new HashSet<String>(Arrays.asList("exe", "bat", "cmd", "com", "dll", "scr", "js", "msi", "sh", "ps1", "vbs")));
 
     public static final String DELEGATION_APPROVE_KEY = "STM-06.DOCUMENTS.A";
+    public static final String NOTIFICATION_DOCUMENT_EXPIRING = "DOCUMENT_EXPIRING";
+    public static final int DEFAULT_EXPIRY_WINDOW_DAYS = 30;
 
     private final DocumentPersistence persistence;
     private final DocumentIntelligenceService intelligenceService;
@@ -65,6 +67,8 @@ public class DocumentDomainService {
     private final SignedDownloadTokenService signedDownloadTokenService;
     private final DocumentObjectStorage objectStorage;
     private final DelegationPort delegationPort;
+    private final List<DocumentExpiryNotification> documentExpiryNotifications =
+            Collections.synchronizedList(new ArrayList<DocumentExpiryNotification>());
 
     public DocumentDomainService(DocumentPersistence persistence, DocumentIntelligenceService intelligenceService) {
         this(persistence, intelligenceService, new ControlledMalwareScanAdapter(),
@@ -399,6 +403,32 @@ public class DocumentDomainService {
             this.isExpired = isExpired;
             this.isExpiringSoon = isExpiringSoon;
             this.expiresAt = expiresAt;
+        }
+    }
+
+    /**
+     * In-app notification for registrar document expiry (STM-06-US-015). Not email/SMS/push.
+     */
+    public static class DocumentExpiryNotification {
+        public final UUID id;
+        public final UUID tenantId;
+        public final UUID userId;
+        public final String type;
+        public final UUID documentId;
+        public final Instant expiresAt;
+        public boolean read;
+        public final Instant createdAt;
+
+        public DocumentExpiryNotification(UUID id, UUID tenantId, UUID userId, String type,
+                                        UUID documentId, Instant expiresAt, boolean read, Instant createdAt) {
+            this.id = id;
+            this.tenantId = tenantId;
+            this.userId = userId;
+            this.type = type;
+            this.documentId = documentId;
+            this.expiresAt = expiresAt;
+            this.read = read;
+            this.createdAt = createdAt;
         }
     }
 
@@ -1314,6 +1344,125 @@ public class DocumentDomainService {
             return persistence.getVerificationQueue(actor, statusFilter);
         } finally {
             LogContext.clear();
+        }
+    }
+
+    /**
+     * STM-06-US-015: Lists documents expiring within the given window for the registrar's campus (uses doc.expires_at).
+     */
+    public List<StudentDocument> listExpiringDocuments(Actor actor, int withinDays) {
+        requireCaller(actor);
+        requireRegistrarCampus(actor);
+        if (withinDays < 1) {
+            throw new DocumentException(422, "INVALID_WINDOW", "withinDays must be at least 1");
+        }
+        Instant now = Instant.now();
+        Instant windowEnd = now.plus(withinDays, ChronoUnit.DAYS);
+        List<StudentDocument> expiring = persistence.listExpiringDocuments(actor, actor.getCollegeId(), now, windowEnd);
+        ensureExpiryNotifications(actor, expiring);
+        return expiring;
+    }
+
+    /**
+     * STM-06-US-015: In-app expiry notifications for the calling registrar.
+     */
+    public List<DocumentExpiryNotification> listInAppNotifications(Actor actor) {
+        requireCaller(actor);
+        requireRegistrarCampus(actor);
+        syncExpiryNotifications(actor, DEFAULT_EXPIRY_WINDOW_DAYS);
+        List<DocumentExpiryNotification> result = new ArrayList<DocumentExpiryNotification>();
+        synchronized (documentExpiryNotifications) {
+            for (DocumentExpiryNotification notification : documentExpiryNotifications) {
+                if (notification.tenantId.equals(actor.getTenantId())
+                        && notification.userId.equals(actor.getUserId())) {
+                    result.add(notification);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * STM-06-US-015: Marks an in-app expiry notification as read for the calling registrar.
+     */
+    public DocumentExpiryNotification markNotificationRead(Actor actor, UUID notificationId) {
+        requireCaller(actor);
+        requireRegistrarCampus(actor);
+        if (notificationId == null) {
+            throw new DocumentException(422, "NOTIFICATION_ID_REQUIRED", "notificationId is required");
+        }
+        synchronized (documentExpiryNotifications) {
+            for (DocumentExpiryNotification notification : documentExpiryNotifications) {
+                if (!notification.id.equals(notificationId)) {
+                    continue;
+                }
+                if (!notification.tenantId.equals(actor.getTenantId())
+                        || !notification.userId.equals(actor.getUserId())) {
+                    throw new DocumentException(404, "NOTIFICATION_NOT_FOUND", "Notification not found");
+                }
+                notification.read = true;
+                return notification;
+            }
+        }
+        throw new DocumentException(404, "NOTIFICATION_NOT_FOUND", "Notification not found");
+    }
+
+    /**
+     * STM-06-US-015: Registrar sets document expiry (persists to doc.expires_at when available).
+     */
+    public StudentDocument setDocumentExpiry(Actor actor, UUID documentId, Instant expiresAt) {
+        requireCaller(actor);
+        requireRegistrarCampus(actor);
+        if (documentId == null) {
+            throw new DocumentException(422, "DOCUMENT_ID_REQUIRED", "Document ID is required");
+        }
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        requireCampusMatch(actor, doc.collegeId);
+        persistence.updateStudentDocumentExpiresAt(actor, documentId, expiresAt);
+        return persistence.findStudentDocumentById(actor, documentId);
+    }
+
+    private void syncExpiryNotifications(Actor actor, int withinDays) {
+        Instant now = Instant.now();
+        Instant windowEnd = now.plus(withinDays, ChronoUnit.DAYS);
+        List<StudentDocument> expiring = persistence.listExpiringDocuments(actor, actor.getCollegeId(), now, windowEnd);
+        ensureExpiryNotifications(actor, expiring);
+    }
+
+    private void ensureExpiryNotifications(Actor actor, List<StudentDocument> expiring) {
+        if (expiring == null || expiring.isEmpty()) {
+            return;
+        }
+        UUID tenantId = actor.getTenantId();
+        UUID userId = actor.getUserId();
+        Instant now = Instant.now();
+        synchronized (documentExpiryNotifications) {
+            for (StudentDocument doc : expiring) {
+                boolean exists = false;
+                for (DocumentExpiryNotification existing : documentExpiryNotifications) {
+                    if (existing.tenantId.equals(tenantId)
+                            && existing.userId.equals(userId)
+                            && existing.documentId.equals(doc.id)
+                            && NOTIFICATION_DOCUMENT_EXPIRING.equals(existing.type)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    documentExpiryNotifications.add(new DocumentExpiryNotification(
+                            UUID.randomUUID(),
+                            tenantId,
+                            userId,
+                            NOTIFICATION_DOCUMENT_EXPIRING,
+                            doc.id,
+                            doc.expiresAt,
+                            false,
+                            now));
+                }
+            }
         }
     }
 

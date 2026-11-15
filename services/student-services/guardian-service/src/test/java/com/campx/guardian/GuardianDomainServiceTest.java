@@ -1041,4 +1041,16 @@ public class GuardianDomainServiceTest {
                 java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-12-31");
         assertTrue(grant.viewAcademics);
     }
+
+    // --- STM-CROSS-EN-010 discoverability (STM-05) ---
+
+    @Test
+    public void stmCrossEn010_crossTenantMutationDenied() {
+        stm05En002_crossTenantRegistrarCannotSeePilotGuardians();
+    }
+
+    @Test
+    public void stmCrossEn010_wrongRoleDenied() {
+        stm05Us007_wrongRoleDenied();
+    }
 }

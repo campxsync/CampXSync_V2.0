@@ -8,6 +8,7 @@ import com.campx.document.DocumentDomainService.StudentDocument;
 import com.campx.document.DocumentDomainService.DocumentVersion;
 import com.campx.document.DocumentDomainService.DocumentLink;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -137,5 +138,17 @@ public interface DocumentPersistence {
      * Lists document links for a document within the tenant, newest first.
      */
     List<DocumentDomainService.DocumentLink> listDocumentLinks(Actor actor, UUID documentId);
+
+    /**
+     * Lists tenant documents whose {@code expires_at} falls between {@code afterExclusive} and {@code onOrBefore}
+     * (STM-06-US-015). Optional {@code collegeId} scopes to registrar campus.
+     */
+    List<DocumentDomainService.StudentDocument> listExpiringDocuments(Actor actor, UUID collegeId,
+                                                                    Instant afterExclusive, Instant onOrBefore);
+
+    /**
+     * Updates {@code expires_at} on an existing student document (STM-06-US-015 registrar configuration).
+     */
+    void updateStudentDocumentExpiresAt(Actor actor, UUID documentId, Instant expiresAt);
 }
 

@@ -284,6 +284,29 @@ public class DocumentController {
                 return json(200, verificationQueueListNode(queue), correlationId);
             }
 
+            // GET /api/v1/documents/expiring?withinDays= — STM-06-US-015
+            if ("GET".equals(method) && "/api/v1/documents/expiring".equals(normalized)) {
+                int withinDays = withinDaysFromHeaders(headers);
+                List<StudentDocument> list = domain.listExpiringDocuments(actor, withinDays);
+                return json(200, studentDocumentListNode(list), correlationId);
+            }
+
+            // GET /api/v1/documents/expiry-notifications — STM-06-US-015
+            if ("GET".equals(method) && "/api/v1/documents/expiry-notifications".equals(normalized)) {
+                List<DocumentDomainService.DocumentExpiryNotification> notifications = domain.listInAppNotifications(actor);
+                return json(200, expiryNotificationListNode(notifications), correlationId);
+            }
+
+            // POST /api/v1/documents/expiry-notifications/{id}/read — STM-06-US-015
+            if ("POST".equals(method) && normalized.startsWith("/api/v1/documents/expiry-notifications/")
+                    && normalized.endsWith("/read")) {
+                String idPart = normalized.substring("/api/v1/documents/expiry-notifications/".length(),
+                        normalized.length() - "/read".length());
+                UUID notificationId = UUID.fromString(idPart);
+                DocumentDomainService.DocumentExpiryNotification updated = domain.markNotificationRead(actor, notificationId);
+                return json(200, expiryNotificationNode(updated), correlationId);
+            }
+
             // POST /api/v1/documents/verifications/{id}/decision - Review Decision (STM-06-US-004)
             if ("POST".equals(method) && (normalized.startsWith("/api/v1/documents/verifications/") && normalized.endsWith("/decision")
                     || normalized.startsWith("/api/v1/documents/submissions/") && normalized.endsWith("/decision"))) {
@@ -781,6 +804,44 @@ public class DocumentController {
         node.put("isExpiringSoon", info.isExpiringSoon);
         node.put("expiresAt", info.expiresAt != null ? info.expiresAt.toString() : null);
         return node;
+    }
+
+    private ObjectNode expiryNotificationNode(DocumentDomainService.DocumentExpiryNotification notification) {
+        ObjectNode node = mapper.createObjectNode();
+        node.put("id", notification.id != null ? notification.id.toString() : null);
+        node.put("tenantId", notification.tenantId != null ? notification.tenantId.toString() : null);
+        node.put("userId", notification.userId != null ? notification.userId.toString() : null);
+        node.put("type", notification.type);
+        node.put("documentId", notification.documentId != null ? notification.documentId.toString() : null);
+        node.put("expiresAt", notification.expiresAt != null ? notification.expiresAt.toString() : null);
+        node.put("read", notification.read);
+        node.put("createdAt", notification.createdAt != null ? notification.createdAt.toString() : null);
+        return node;
+    }
+
+    private ObjectNode expiryNotificationListNode(List<DocumentDomainService.DocumentExpiryNotification> list) {
+        ObjectNode node = mapper.createObjectNode();
+        ArrayNode arr = node.putArray("items");
+        for (DocumentDomainService.DocumentExpiryNotification item : list) {
+            arr.add(expiryNotificationNode(item));
+        }
+        node.put("total", list.size());
+        return node;
+    }
+
+    private static int withinDaysFromHeaders(Map<String, String> headers) {
+        String value = header(headers, "x-query-within-days");
+        if (value == null || value.trim().isEmpty()) {
+            value = header(headers, "x-query-withindays");
+        }
+        if (value == null || value.trim().isEmpty()) {
+            return DocumentDomainService.DEFAULT_EXPIRY_WINDOW_DAYS;
+        }
+        int parsed = Integer.parseInt(value.trim());
+        if (parsed < 1) {
+            throw new IllegalArgumentException("withinDays must be at least 1");
+        }
+        return parsed;
     }
 
     private ObjectNode signedDownloadNode(DocumentDomainService.SignedDownloadUrl signed) {

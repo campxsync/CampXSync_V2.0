@@ -28,6 +28,7 @@ import org.junit.Test;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -2315,6 +2316,131 @@ public class DocumentDomainServiceTest {
         } catch (DocumentException e) {
             assertEquals(401, e.getStatusCode());
         }
+    }
+
+    // --- STM-06-US-015 Document expiry in-app notifications ---
+
+    private StudentDocument uploadExpiringDocument(String code, Instant expiresAt, UUID collegeId) {
+        DocumentType type = stm06Type(code);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Expiring " + code;
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        up.expiresAt = expiresAt;
+        if (collegeId != null) {
+            up.collegeId = collegeId;
+        }
+        return service.uploadStudentDocument(studentTenantA, up);
+    }
+
+    @Test
+    public void stm06Us015_registrarSeesExpiringAndInAppNotifications() {
+        Instant soon = Instant.now().plus(14, ChronoUnit.DAYS);
+        StudentDocument expiring = uploadExpiringDocument("DOC-EXP-015", soon, campusA);
+
+        List<StudentDocument> expiringList = service.listExpiringDocuments(registrarTenantA, 30);
+        assertTrue(expiringList.stream().anyMatch(d -> d.id.equals(expiring.id)));
+
+        List<DocumentDomainService.DocumentExpiryNotification> notifications =
+                service.listInAppNotifications(registrarTenantA);
+        assertFalse(notifications.isEmpty());
+        assertTrue(notifications.stream().anyMatch(n -> expiring.id.equals(n.documentId)
+                && DocumentDomainService.NOTIFICATION_DOCUMENT_EXPIRING.equals(n.type)
+                && !n.read));
+    }
+
+    @Test
+    public void stm06Us015_studentDenied() {
+        try {
+            service.listExpiringDocuments(studentTenantA, 30);
+            fail("Student must not list expiring documents");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+        try {
+            service.listInAppNotifications(studentTenantA);
+            fail("Student must not list expiry notifications");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us015_facultyDenied() {
+        Actor faculty = new Actor(tenantA, UUID.randomUUID(), campusA, "FACULTY", "faculty@campx.edu", null);
+        try {
+            service.listInAppNotifications(faculty);
+            fail("Faculty must not list expiry notifications");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us015_wrongTenantEmpty() {
+        Instant soon = Instant.now().plus(7, ChronoUnit.DAYS);
+        uploadExpiringDocument("DOC-EXP-TENANT", soon, campusA);
+
+        Actor registrarTenantB = new Actor(tenantB, UUID.randomUUID(), campusB, "REGISTRAR", "r.b@campx.edu", null);
+        List<StudentDocument> expiring = service.listExpiringDocuments(registrarTenantB, 30);
+        assertTrue(expiring.isEmpty());
+        List<DocumentDomainService.DocumentExpiryNotification> notifications =
+                service.listInAppNotifications(registrarTenantB);
+        assertTrue(notifications.isEmpty());
+    }
+
+    @Test
+    public void stm06Us015_otherCampusExcludedFromExpiringList() {
+        Instant soon = Instant.now().plus(10, ChronoUnit.DAYS);
+        uploadExpiringDocument("DOC-EXP-CAMPUS-A", soon, campusA);
+        uploadExpiringDocument("DOC-EXP-CAMPUS-B", soon, campusB);
+
+        List<StudentDocument> campusAOnly = service.listExpiringDocuments(registrarTenantA, 30);
+        assertEquals(1, campusAOnly.size());
+        assertEquals(campusA, campusAOnly.get(0).collegeId);
+    }
+
+    @Test
+    public void stm06Us015_markNotificationRead() {
+        Instant soon = Instant.now().plus(5, ChronoUnit.DAYS);
+        StudentDocument doc = uploadExpiringDocument("DOC-EXP-READ", soon, campusA);
+        service.listExpiringDocuments(registrarTenantA, 30);
+        List<DocumentDomainService.DocumentExpiryNotification> notifications =
+                service.listInAppNotifications(registrarTenantA);
+        DocumentDomainService.DocumentExpiryNotification target = null;
+        for (DocumentDomainService.DocumentExpiryNotification n : notifications) {
+            if (doc.id.equals(n.documentId)) {
+                target = n;
+                break;
+            }
+        }
+        assertNotNull(target);
+        assertFalse(target.read);
+
+        DocumentDomainService.DocumentExpiryNotification marked =
+                service.markNotificationRead(registrarTenantA, target.id);
+        assertTrue(marked.read);
+
+        Actor otherRegistrar = new Actor(tenantA, UUID.randomUUID(), campusA, "R31", "other.r31@campx.edu", null);
+        try {
+            service.markNotificationRead(otherRegistrar, target.id);
+            fail("Other registrar must not mark another user's notification");
+        } catch (DocumentException e) {
+            assertEquals("NOTIFICATION_NOT_FOUND", e.getCode());
+        }
+    }
+
+    // --- STM-CROSS-EN-010 discoverability (STM-06) ---
+
+    @Test
+    public void stmCrossEn010_crossTenantMutationDenied() {
+        stm06En004_crossTenantUploadDenied();
+    }
+
+    @Test
+    public void stmCrossEn010_wrongRoleDenied() {
+        stm06Us010_unauthenticatedAndWrongRoleDenied();
     }
 
     private static String sha256Hex(byte[] bytes) throws Exception {

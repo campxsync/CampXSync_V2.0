@@ -1394,6 +1394,18 @@ public class EnrollmentDomainServiceTest {
         assertEquals("REJECTED", rejected.status);
     }
 
+    // --- STM-CROSS-EN-010 discoverability (STM-03) ---
+
+    @Test
+    public void stmCrossEn010_crossTenantMutationDenied() {
+        stm03Us004_crossTenantStatusUpdateFailsClosed();
+    }
+
+    @Test
+    public void stmCrossEn010_wrongRoleDenied() {
+        stm03En002_wrongRoleCannotMutateStatus();
+    }
+
     private static final class Fixture {
         EnrollmentDomainService.Term term;
         EnrollmentDomainService.Course core;

@@ -629,6 +629,80 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public List<DocumentDomainService.StudentDocument> listExpiringDocuments(final Actor actor, final UUID collegeId,
+                                                                           final Instant afterExclusive, final Instant onOrBefore) {
+        return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<List<DocumentDomainService.StudentDocument>>() {
+                    @Override
+                    public List<DocumentDomainService.StudentDocument> execute(Connection conn) throws SQLException {
+                        StringBuilder sql = new StringBuilder(
+                                "SELECT d.id, d.tenant_id, d.college_id, d.document_type_id, dt.code AS doc_type_code, dt.name AS doc_type_name, "
+                                + "d.title, d.classification, d.status, d.owner_id, d.storage_bucket, d.storage_path, d.mime_type, d.size_bytes, "
+                                + "d.checksum_sha256, d.current_version_no, d.created_at, d.updated_at, d.created_by, d.updated_by, d.row_version, "
+                                + "v.result AS latest_verification_result, v.verification_code AS latest_verification_code, v.verified_at AS latest_verified_at, "
+                                + "d.expires_at, dt.retention_policy_code "
+                                + "FROM doc.documents d "
+                                + "LEFT JOIN doc.document_types dt ON dt.id = d.document_type_id "
+                                + "LEFT JOIN LATERAL ( "
+                                + "    SELECT result, verification_code, verified_at "
+                                + "    FROM doc.verifications "
+                                + "    WHERE tenant_id = d.tenant_id AND document_id = d.id "
+                                + "    ORDER BY verified_at DESC LIMIT 1 "
+                                + ") v ON true "
+                                + "WHERE d.tenant_id = ? AND d.deleted_at IS NULL "
+                                + "AND d.expires_at IS NOT NULL "
+                                + "AND d.expires_at > ? AND d.expires_at <= ?"
+                        );
+                        if (collegeId != null) {
+                            sql.append(" AND d.college_id = ?");
+                        }
+                        sql.append(" ORDER BY d.expires_at ASC");
+
+                        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+                            int idx = 1;
+                            ps.setObject(idx++, actor.getTenantId());
+                            ps.setTimestamp(idx++, Timestamp.from(afterExclusive));
+                            ps.setTimestamp(idx++, Timestamp.from(onOrBefore));
+                            if (collegeId != null) {
+                                ps.setObject(idx++, collegeId);
+                            }
+                            try (ResultSet rs = ps.executeQuery()) {
+                                List<DocumentDomainService.StudentDocument> list = new ArrayList<DocumentDomainService.StudentDocument>();
+                                while (rs.next()) {
+                                    list.add(mapStudentDocument(rs));
+                                }
+                                return list;
+                            }
+                        }
+                    }
+                });
+    }
+
+    @Override
+    public void updateStudentDocumentExpiresAt(final Actor actor, final UUID documentId, final Instant expiresAt) {
+        DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<Void>() {
+                    @Override
+                    public Void execute(Connection conn) throws SQLException {
+                        String sql = "UPDATE doc.documents SET expires_at = ?, updated_at = NOW(), updated_by = ?, "
+                                + "row_version = row_version + 1 "
+                                + "WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setTimestamp(1, expiresAt != null ? Timestamp.from(expiresAt) : null);
+                            ps.setObject(2, actor.getUserId());
+                            ps.setObject(3, actor.getTenantId());
+                            ps.setObject(4, documentId);
+                            int updated = ps.executeUpdate();
+                            if (updated == 0) {
+                                throw new SQLException("Document not found for expiry update: " + documentId);
+                            }
+                        }
+                        return null;
+                    }
+                });
+    }
+
+    @Override
     public List<DocumentDomainService.DocumentVersion> listDocumentVersions(final Actor actor, final UUID documentId) {
         return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager, new DocumentSecurityContext.TransactionCallback<List<DocumentDomainService.DocumentVersion>>() {
             @Override
