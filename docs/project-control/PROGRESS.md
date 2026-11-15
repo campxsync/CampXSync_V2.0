@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (R31 pilot Auth+IAM applied on Dev; Path C live allow verified)
+**Updated:** 2026-11-15 (EN-002 private bucket applied on Dev; service-role live path pending)
 
 ## Scoreboard (session)
 
@@ -13,8 +13,8 @@
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
-| IAM live delegation adapter | **partially completed** — Path C Phase 2 + privileged registrar join; pilot Auth+IAM applied on Dev after `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`; live Path C allow STM-02..06; full STM HTTP stack smoke **BLOCKED** (RAM ~1.36 GB free) |
-| STM-06-EN-002 / EN-003 | **partially completed** (Phase B apply awaiting owner) |
+| IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS** (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); storage / frontend remain |
+| STM-06-EN-002 / EN-003 | **partially completed** — Phase B bucket/policies on Dev; deny 8/8; live put/get **BLOCKED** until `CAMPX_SUPABASE_SERVICE_ROLE_KEY` set in `.env.audit` |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights

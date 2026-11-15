@@ -613,3 +613,100 @@ Phases 4–5 live pilot verification; Phase 6 storage apply.
 
 ### Status
 **partially completed** — Auth/IAM/Path C service-layer live allow done; stack smoke + storage remain. CSV `STM-CROSS-EN-010` notes updated.
+
+---
+
+## Entry 18 — STM-02..06 Path C HTTP stack smoke (2026-11-15)
+
+**Task ID:** R31-PILOT-STACK-SMOKE  
+**Mode:** VERIFY (no Supabase writes; no git push)  
+**Branch:** `feature/java-backend-integration`  
+**Owner precondition:** free RAM confirmed ≥4 GB (measured **4.06 GB** before start)
+
+### Startup (sequential, tight heaps)
+
+| Service | Port | Start | Path C client |
+|---|---:|---|---|
+| institute-admin | 8081 | LISTEN OK | evaluator (postgres) |
+| api-gateway | 8080 | LISTEN OK | n/a (ingress) |
+| admissions (STM-02) | 8094 | LISTEN OK | `HttpIamDelegationPort` enabled |
+| enrollment (STM-03) | 8095 | LISTEN OK | `HttpIamDelegationPort` enabled |
+| lifecycle (STM-04) | 8096 | LISTEN OK | `HttpIamDelegationPort` enabled |
+| guardian (STM-05) | 8097 | LISTEN OK | `HttpIamDelegationPort` enabled |
+| document (STM-06) | 8098 | LISTEN OK | `HttpIamDelegationPort` enabled |
+
+Startup evidence: `docs/reports/R31_PATH_C_STARTUP_2026-11-15.json`  
+Logs: `docs/latency-audit/logs/path-c-smoke/*.out.log`  
+All listed ports stopped cleanly after smoke (free RAM after stop **3.83 GB**).
+
+### HTTP Path C results (`scripts/demo/smoke_path_c_http.mjs`)
+
+**Summary: 17/17 PASS** — `docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`
+
+| Check | Result |
+|---|---|
+| Path C ALLOW STM-02..06.A (HMAC → :8081) | `allowed:true` / `ACTIVE_R31_DELEGATION` |
+| Deny unauthorized key `FIN.PAYROLL.A` | `UNAUTHORIZED_PERMISSION_KEY` |
+| Deny caller≠subject | `CALLER_SUBJECT_MISMATCH` |
+| Deny non-delegatee | `NO_ACTIVE_REGISTRAR_DELEGATION` |
+| Gateway public route without Bearer | **401** `GATEWAY_MISSING_AUTH` (expected; STM clients call IAM loopback directly) |
+| STM health listeners | STM-02/04/06 HTTP 200; STM-03/05 respond 401 HMAC-required on `/health` (process up) |
+| STM-06 A/R pilot + fake doc | **404** `DOCUMENT_NOT_FOUND` (past Path C into domain) |
+| STM-06 A/R non-Registrar | **403** `REGISTRAR_FORBIDDEN` |
+
+### Scripts
+- `scripts/demo/run_path_c_stack_smoke.ps1`
+- `scripts/demo/smoke_path_c_http.mjs`
+
+### Remaining (superseded by Entry 19 for storage)
+- Frontend Registrar mapping / contentBase64 still queued
+
+---
+
+## Entry 19 — STM-06-EN-002 Phase B storage apply (2026-11-15)
+
+**Task ID:** STM-06-EN-002  
+**Mode:** IMPLEMENT (Phase B partial)  
+**Branch:** `feature/java-backend-integration`  
+**Owner approval:** `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`  
+**Project:** CampXSync-Architecture-Dev / `azulbaxszsqxymqmlwfe` only
+
+### Applied
+| Item | Result |
+|---|---|
+| Bucket `student-documents` | `public=false`, `file_size_limit=10485760`, MIME allowlist pdf/jpeg/png/webp |
+| Policies | Restrictive deny ALL for `anon` + `authenticated` on this bucket |
+| `.env.audit` (gitignored) | Set `CAMPX_SUPABASE_URL`, `CAMPX_STORAGE_BUCKET`; service-role key placeholder comment only |
+
+### Security verification (§7A evidence)
+
+| Check | Result |
+|---|---|
+| Anon upload/download/delete | Denied (HTTP 400) |
+| Anon/authenticated list | HTTP 200 `[]` (no object leakage) |
+| Authenticated client upload/download | Denied (HTTP 400) |
+| Path traversal guard in code | `SupabaseStorageHttpClient.requirePath` rejects `..` and absolute paths |
+| document-service full suite | **127 run, 0 fail, 0 err, 0 skip** |
+
+Evidence file: `docs/reports/STM06_EN002_STORAGE_APPLY_VERIFY_2026-11-15.json`  
+Runbook: `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md`
+
+### Acceptance → code → test
+
+| Clause | Code / asset | Evidence |
+|---|---|---|
+| Private bucket for bytes | `storage.buckets.student-documents` | SQL read-back public=false |
+| No anon/client direct access | Restrictive policies + REST deny | verify JSON 8/8 |
+| Service streams via document-service | `SupabaseStorageHttpClient` | Live put/get **not run** (no service-role key in agent env) |
+| Server-constructed tenant path | `DocumentDomainService` upload path builder | unit suite + requirePath |
+| MIME/size limits | Bucket config + `MAX_FILE_SIZE_BYTES` | config match 10MB / allowlist |
+| Orphan cleanup on DB failure | **gap** — no `deleteObject` on `DocumentObjectStorage` | residual reconciliation documented in runbook |
+
+### Gaps / STOP for owner
+1. Set `CAMPX_SUPABASE_SERVICE_ROLE_KEY` in gitignored `.env.audit` from Dev Dashboard → Settings → API (do not paste into chat). Then restart document-service and confirm log “object storage configured bucket=student-documents”.
+2. After key set: authorize live put/get + tenant-prefix isolation smoke (no production).
+3. Orphan object delete API not implemented — use documented reconciliation until separately authorized.
+4. Malware AV remains open gap (D11).
+
+### Status
+CSV `STM-06-EN-002` = **partially completed** (bucket/policies/deny done; live service-role path pending).

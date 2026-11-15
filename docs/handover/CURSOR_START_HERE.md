@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-15 (R31 pilot Auth+IAM on Dev; Path C live allow; set CAMPX_IAM_DELEGATION_BASE_URL when stack up)
+**Last current-state refresh:** 2026-11-15 (EN-002 private `student-documents` bucket on Dev; set service-role key for live put/get)
 
 ---
 
@@ -22,8 +22,8 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits only when authorized; **no push** unless owner says.
 2. **STM-06-EN-002 Phase A:** storage abstraction + `contentBase64` validation + service-streamed download; fake storage tests PASS; staging runbook prepared **not applied**.
 3. **CSV:** EN-002 and EN-003 marked `partially completed` (no prior byte store / content validation against real bytes; live AV still open gap).
-4. **Next (queue):** EN-002 Phase B storage (`APPROVED EN-002-STORAGE …`) → stack Path C smoke (≥3 GB free) → frontend 1b/1c → CROSS e2e / US-015 DDL as approved.
-5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C live allow verified against Dev IAM rows; STM HTTP A/R still needs running stack + `CAMPX_IAM_DELEGATION_BASE_URL`.
+4. **Next (queue):** Owner sets `CAMPX_SUPABASE_SERVICE_ROLE_KEY` in `.env.audit` → `CONTINUE EN-002-STORAGE-LIVE` → frontend 1b/1c → CROSS e2e / US-015 DDL as approved.
+5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C HTTP stack smoke passed (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` when STM services run.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`.

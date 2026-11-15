@@ -1,0 +1,100 @@
+{
+  "startedAt": "2026-11-15T13:42:39.258Z",
+  "iamBase": "http://127.0.0.1:8081",
+  "freeRamNote": "owner-confirmed >=4GB before run",
+  "checks": [
+    {
+      "name": "api-gateway-health",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "pathc-allow-STM-02.ADMISSIONS.A",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":true,\"reason\":\"ACTIVE_R31_DELEGATION\",\"permissionKey\":\"STM-02.ADMISSIONS.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-allow-STM-03.ENROLMENT.A",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":true,\"reason\":\"ACTIVE_R31_DELEGATION\",\"permissionKey\":\"STM-03.ENROLMENT.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-allow-STM-04.LIFECYCLE.A",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":true,\"reason\":\"ACTIVE_R31_DELEGATION\",\"permissionKey\":\"STM-04.LIFECYCLE.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-allow-STM-05.GUARDIAN.A",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":true,\"reason\":\"ACTIVE_R31_DELEGATION\",\"permissionKey\":\"STM-05.GUARDIAN.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-allow-STM-06.DOCUMENTS.A",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":true,\"reason\":\"ACTIVE_R31_DELEGATION\",\"permissionKey\":\"STM-06.DOCUMENTS.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-deny-unauthorized-key",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":false,\"reason\":\"UNAUTHORIZED_PERMISSION_KEY\",\"permissionKey\":\"FIN.PAYROLL.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-deny-caller-subject-mismatch",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":false,\"reason\":\"CALLER_SUBJECT_MISMATCH\",\"permissionKey\":\"STM-06.DOCUMENTS.A\",\"subjectUserId\":\"c31a0000-0000-4000-8000-000000000031\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "pathc-deny-no-delegation",
+      "ok": true,
+      "detail": "HTTP 200 body={\"allowed\":false,\"reason\":\"NO_ACTIVE_REGISTRAR_DELEGATION\",\"permissionKey\":\"STM-06.DOCUMENTS.A\",\"subjectUserId\":\"81dd67d3-1d5f-4d8e-8061-a6764861f924\",\"tenantId\":\"a0000000-0000-0000-0000-000000000001\"}"
+    },
+    {
+      "name": "gateway-route-pathc-connectivity",
+      "ok": true,
+      "detail": "HTTP 401 body={\"timestamp\":1794750161963,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\":\"Missing Authorization header\",\"path\":\"/api/v1/admin/internal/delegations/active-check\",\"traceId\":\"0bc0b1b6fd054076bfdf54d3f6d54705\",\"correlationId\":\"0bc0b1b6fd054076bfdf54d3f6d54705\"}",
+      "note": "401/403 acceptable if gateway requires Bearer before forward; 200 proves route+IAM"
+    },
+    {
+      "name": "STM-02-health",
+      "ok": true,
+      "detail": "HTTP 200 body={\"port\":8094,\"service\":\"admissions-service\",\"status\":\"UP\"}"
+    },
+    {
+      "name": "STM-03-health",
+      "ok": true,
+      "detail": "HTTP 401 body={\"type\":\"https://campxsync.edu/errors/gateway_signature_missing\",\"title\":\"Missing required gateway signature headers\",\"status\":401,\"code\":\"GATEWAY_SIGNATURE_MISSING\",\"correlationId\":\"\"}"
+    },
+    {
+      "name": "STM-04-health",
+      "ok": true,
+      "detail": "HTTP 200 body={\"status\":\"UP\",\"service\":\"lifecycle-service\",\"module\":\"STM-04\",\"correlationId\":\"\"}"
+    },
+    {
+      "name": "STM-05-health",
+      "ok": true,
+      "detail": "HTTP 401 body={\"type\":\"https://campxsync.edu/errors/gateway_signature_missing\",\"title\":\"Missing required gateway signature headers\",\"status\":401,\"code\":\"GATEWAY_SIGNATURE_MISSING\",\"correlationId\":\"\"}"
+    },
+    {
+      "name": "STM-06-health",
+      "ok": true,
+      "detail": "HTTP 200 body={\"status\":\"UP\",\"service\":\"document-service\",\"module\":\"STM-06\",\"correlationId\":\"9bec22515da349dbb4a0f757abdbf842\"}"
+    },
+    {
+      "name": "STM-06-AR-pilot-past-delegation-or-domain",
+      "ok": true,
+      "detail": "HTTP 404 body={\"timestamp\":1794750162829,\"status\":404,\"error\":\"Not Found\",\"title\":\"Not Found\",\"code\":\"DOCUMENT_NOT_FOUND\",\"errorCode\":\"DOCUMENT_NOT_FOUND\",\"message\":\"Document not found: c31a0000-0000-4000-8000-00000000dead\",\"path\":\"/api/v1/documents/verifications/c31a0000-0000-4000-8000-00000000dead/decision\",\"traceId\":\"b57bb4345e1a4fc482607a3c7b7caf85\",\"correlationId\":\"b57bb4345e1a4fc482607a3c7b7caf85\"}"
+    },
+    {
+      "name": "STM-06-AR-nondelegate-denied",
+      "ok": true,
+      "detail": "HTTP 403 body={\"timestamp\":1794750162844,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"REGISTRAR_FORBIDDEN\",\"errorCode\":\"REGISTRAR_FORBIDDEN\",\"message\":\"Catalogue role R31 Registrar required\",\"path\":\"/api/v1/documents/verifications/c31a0000-0000-4000-8000-00000000dead/decision\",\"traceId\":\"42883059568844e3a84fd2ced12efce5\",\"correlationId\":\"42883059568844e3a84fd2ced12efce5\"}"
+    }
+  ],
+  "endedAt": "2026-11-15T13:42:42.846Z",
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "failedNames": []
+  }
+}

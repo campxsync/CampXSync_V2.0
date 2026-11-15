@@ -1,0 +1,67 @@
+﻿[
+    {
+        "step":  "ram-before",
+        "ok":  true,
+        "detail":  "4.06 GB"
+    },
+    {
+        "step":  "start-institute-admin",
+        "ok":  true,
+        "detail":  "port 8081"
+    },
+    {
+        "step":  "start-api-gateway",
+        "ok":  true,
+        "detail":  "port 8080"
+    },
+    {
+        "step":  "start-admissions",
+        "ok":  true,
+        "detail":  "port 8094"
+    },
+    {
+        "step":  "start-enrollment",
+        "ok":  true,
+        "detail":  "port 8095"
+    },
+    {
+        "step":  "start-lifecycle",
+        "ok":  true,
+        "detail":  "port 8096"
+    },
+    {
+        "step":  "start-guardian",
+        "ok":  true,
+        "detail":  "port 8097"
+    },
+    {
+        "step":  "start-document",
+        "ok":  true,
+        "detail":  "port 8098"
+    },
+    {
+        "step":  "pathc-client-admissions",
+        "ok":  true,
+        "detail":  "HttpIamDelegationPort enabled"
+    },
+    {
+        "step":  "pathc-client-enrollment",
+        "ok":  true,
+        "detail":  "HttpIamDelegationPort enabled"
+    },
+    {
+        "step":  "pathc-client-lifecycle",
+        "ok":  true,
+        "detail":  "HttpIamDelegationPort enabled"
+    },
+    {
+        "step":  "pathc-client-guardian",
+        "ok":  true,
+        "detail":  "HttpIamDelegationPort enabled"
+    },
+    {
+        "step":  "pathc-client-document",
+        "ok":  true,
+        "detail":  "HttpIamDelegationPort enabled"
+    }
+]

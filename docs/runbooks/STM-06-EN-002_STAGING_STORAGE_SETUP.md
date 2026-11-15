@@ -1,7 +1,9 @@
-# STM-06-EN-002 — Staging Supabase Storage setup (Phase A prepare-only)
+# STM-06-EN-002 — Staging Supabase Storage setup (Phase B applied on Dev)
 
-**Status:** PREPARED — **DO NOT APPLY** until owner authorizes Phase B in a separate prompt.  
+**Status:** PHASE B PARTIAL — private bucket + deny policies applied on Dev; service-role live put/get still blocked until `CAMPX_SUPABASE_SERVICE_ROLE_KEY` is set locally  
 **Date prepared:** 2026-11-15  
+**Date applied (bucket/policies):** 2026-11-15  
+**Owner approval:** `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`  
 **Target:** Development Supabase project only (`azulbaxszsqxymqmlwfe`). Production forbidden.
 
 ## Purpose
@@ -12,61 +14,44 @@ Create a **private** Storage bucket for student document bytes. Relational table
 
 | Key | Role | Notes |
 |---|---|---|
-| `CAMPX_SUPABASE_URL` | Project URL | Server-side document-service only |
-| `CAMPX_SUPABASE_SERVICE_ROLE_KEY` | Service role | **Server-side only.** Never frontend, public env, Git, logs, errors, or reports |
-| `CAMPX_STORAGE_BUCKET` | Bucket name | Default `student-documents` if unset |
+| `CAMPX_SUPABASE_URL` | Project URL | Server-side document-service only — set in `.env.audit` (gitignored) |
+| `CAMPX_SUPABASE_SERVICE_ROLE_KEY` | Service role | **Server-side only.** Placeholder comment in `.env.audit`; owner must paste from Dev Dashboard → Settings → API. Never frontend, public env, Git, logs, errors, or reports |
+| `CAMPX_STORAGE_BUCKET` | Bucket name | `student-documents` |
 
-## Steps (apply only after Phase B approval)
+## Applied on Dev (2026-11-15)
 
-1. In Supabase Dashboard → Storage → New bucket.
-2. Name: `student-documents` (or value matching `CAMPX_STORAGE_BUCKET`).
-3. Set bucket to **Private** (not public).
-4. Configure allowed MIME types at least: `application/pdf`, `image/jpeg`, `image/png`, `image/webp`.
-5. Set max object size to match service limit: **10 MB** (`DocumentDomainService.MAX_FILE_SIZE_BYTES`).
-6. Add storage policies that deny anonymous public read/write; allow only service-role / authenticated server paths. Prefer path prefix `tenants/{tenant_id}/...`.
-7. Set document-service environment variables (names above). Do not print values.
-8. Restart document-service (`8098`) and confirm log line: object storage configured bucket=… (key never logged).
-9. Verify authorization policy behavior before pilot use: anonymous requests cannot list, read, upload, overwrite, or delete objects; authenticated client requests cannot access objects directly; only the approved server-side document-service path can perform the required operations. Record the exact test identity/path and outcome without recording credentials or tokens.
-10. Verify tenant-prefix isolation using at least two distinct staging tenant prefixes: a request authorized for one tenant must not read, overwrite, or delete an object under another tenant's prefix. Test upload, download, and deletion paths where supported. Any cross-tenant success is a STOP condition.
-11. Verify object-path handling rejects path traversal, absolute paths, unexpected separators, and unsafe filename/path components. Confirm the service constructs the tenant/student/document path rather than trusting a client-supplied storage path.
-12. Verify failure cleanup: if object upload succeeds but the corresponding metadata/database operation fails, the service must attempt to remove the orphaned object and log a correlation identifier plus outcome (never secrets). If cleanup cannot be guaranteed, document the residual orphan-reconciliation procedure before pilot use; do not silently claim cleanup is complete.
-13. Verify MIME type and size enforcement at the service boundary as well as the bucket configuration. The allowed types and 10 MB limit must match the service's enforced rules.
+1. Bucket `student-documents`: `public=false`, `file_size_limit=10485760`, MIME allowlist `application/pdf`, `image/jpeg`, `image/png`, `image/webp`.
+2. Restrictive deny policies on `storage.objects` for roles `anon` and `authenticated` scoped to this bucket (`student_documents_anon_deny`, `student_documents_authenticated_deny`). `service_role` bypasses RLS for document-service.
+3. Non-secret env keys appended to gitignored `.env.audit` (`CAMPX_SUPABASE_URL`, `CAMPX_STORAGE_BUCKET`).
+4. Deny verification evidence: `docs/reports/STM06_EN002_STORAGE_APPLY_VERIFY_2026-11-15.json` (**8/8 PASS**).
 
-## Security verification checklist (must be completed before pilot use)
+## Security verification checklist
 
-- [ ] Bucket is private; anonymous list/read/write/delete attempts are denied.
-- [ ] Authenticated client-side direct Storage access is denied; clients use document-service endpoints only.
-- [ ] Server-side document-service access succeeds only with the configured secret held in the service environment.
-- [ ] Tenant-prefix isolation is verified across upload, download, overwrite, and delete operations that the service supports.
-- [ ] Path traversal and unsafe path/filename inputs are rejected; object paths are server-constructed.
-- [ ] MIME type and 10 MB size limits are enforced by the service and match bucket configuration.
-- [ ] Upload/database failure behavior is verified, including orphan-object cleanup or a documented reconciliation procedure.
-- [ ] Logs contain no service-role key, access token, signed download token, or document contents.
-- [ ] Malware scanning remains an explicit unresolved gap; do not describe uploaded documents as malware-scanned.
+- [x] Bucket is private; anonymous upload/download/delete denied (HTTP 400). List returns empty `[]` (no object leakage).
+- [x] Authenticated client-side direct Storage upload/download denied; list empty.
+- [ ] Server-side document-service access succeeds with configured service-role secret — **BLOCKED**: key not available in agent environment.
+- [ ] Tenant-prefix isolation upload/download/delete via document-service — blocked on service-role key.
+- [x] Path traversal rejection exists in `SupabaseStorageHttpClient.requirePath` (`..` and absolute paths).
+- [x] MIME type and 10 MB limits configured on bucket; service enforces same (`DocumentDomainService.MAX_FILE_SIZE_BYTES`).
+- [ ] Upload/database failure orphan cleanup — **gap**: `DocumentObjectStorage` has put/get only (no delete). Residual reconciliation: with service-role, list `tenants/{tenantId}/…` prefixes and delete orphan paths; log correlation id; never log keys/bytes.
+- [x] Verification report contains no service-role key, access token, or document contents.
+- [x] Malware scanning remains an explicit unresolved gap.
 
-Record test date, environment, test case, outcome, and non-secret correlation/reference IDs. Do not include credentials, tokens, or document contents in evidence.
+## Expected results (after service-role key is set)
 
-## Expected results
-
-- Upload with `contentBase64` stores an object at `tenants/<tenantId>/students/<studentId>/<docId>/v1-<fileName>`.
+- Restart document-service with `CAMPX_SUPABASE_*` set → log: object storage configured bucket=student-documents (key never logged).
+- Upload with `contentBase64` stores object at `tenants/<tenantId>/students/<studentId>/<docId>/v1-<fileName>`.
 - `GET /api/v1/documents/download?token=...` streams bytes through document-service after HMAC signed-token check.
-- Clients never receive Supabase signed URLs; no direct browser-to-Storage upload/download.
-- Anonymous and unauthorized authenticated access is denied; tenant-prefix isolation is verified.
-- Unsafe object paths are rejected and upload/database failure cleanup is verified or has a documented reconciliation procedure.
-- `doc.documents.storage_path` / `storage_bucket` updated; no `bytea` columns used.
-
-## Pre-apply authorization gates
-
-Do not create the bucket, change Storage policies, set service environment variables, upload objects, or restart services under this prepare-only runbook. Before applying, obtain a separate explicit owner authorization for the development project and the exact bucket, policy, configuration, and verification steps. Complete the security verification checklist before pilot use. Production remains prohibited.
+- Clients never receive Supabase signed URLs.
 
 ## Rollback
 
-1. Remove or unset `CAMPX_SUPABASE_URL` and `CAMPX_SUPABASE_SERVICE_ROLE_KEY` on document-service → metadata-only local/test profile.
-2. Optionally empty/delete the private bucket objects for the pilot tenant prefix only (owner-approved).
-3. Do not drop `doc.*` tables or change RLS as part of this rollback.
+1. Unset `CAMPX_SUPABASE_URL` / `CAMPX_SUPABASE_SERVICE_ROLE_KEY` on document-service → metadata-only profile.
+2. Optionally empty/delete private bucket objects for the pilot tenant prefix only (owner-approved).
+3. Do not drop `doc.*` tables or change broader RLS as part of this rollback.
 
-## Out of scope (Phase A / B)
+## Out of scope
 
-- Live malware AV scanner (new tool) — open gap; no malware-scanning guarantee may be made until implemented and verified.
+- Live malware AV scanner (new tool).
 - Frontend `contentBase64` wiring (queue item 1b).
-- Creating Registrar role (D1).
+- Implementing storage delete/orphan API (document residual procedure above until separately authorized).

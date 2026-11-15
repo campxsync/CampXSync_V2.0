@@ -232,7 +232,7 @@ Gateway must resolve identity so downstream receives:
 | Path C evaluator fix | `hasActiveRegistrarDelegation` privileged join (RLS-safe) |
 | Live allow | `LivePostgresDelegationActiveCheckTest` ALLOW for all five STM `*.A` keys |
 | Live deny | unauthorized key / caller≠subject / non-delegatee |
-| STM HTTP stack smoke | **not run** — free RAM ~1.36 GB |
+| STM HTTP stack smoke | **17/17 PASS** (2026-11-15; RAM 4.06 GB) — see `docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json` |
 | Storage | still **0** buckets |
 
 ---

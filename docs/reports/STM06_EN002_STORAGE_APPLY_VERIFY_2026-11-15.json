@@ -1,0 +1,52 @@
+{
+    "at":  "2026-11-15T19:27:11.4034605+05:30",
+    "project":  "azulbaxszsqxymqmlwfe",
+    "bucket":  "student-documents",
+    "checks":  [
+                   {
+                       "name":  "anon-list",
+                       "ok":  true,
+                       "detail":  "HTTP 200 body=[]"
+                   },
+                   {
+                       "name":  "anon-upload",
+                       "ok":  true,
+                       "detail":  "HTTP 400 body="
+                   },
+                   {
+                       "name":  "anon-download",
+                       "ok":  true,
+                       "detail":  "HTTP 400 body="
+                   },
+                   {
+                       "name":  "anon-delete",
+                       "ok":  true,
+                       "detail":  "HTTP 400 body="
+                   },
+                   {
+                       "name":  "authenticated-client-list",
+                       "ok":  true,
+                       "detail":  "HTTP 200 body=[]"
+                   },
+                   {
+                       "name":  "authenticated-client-upload",
+                       "ok":  true,
+                       "detail":  "HTTP 400 body="
+                   },
+                   {
+                       "name":  "authenticated-client-download",
+                       "ok":  true,
+                       "detail":  "HTTP 400 body="
+                   },
+                   {
+                       "name":  "bucket-private-config",
+                       "ok":  true,
+                       "detail":  "public=false; 10MB; mime allowlist; restrictive deny policies for anon+authenticated"
+                   }
+               ],
+    "summary":  {
+                    "failed":  0,
+                    "total":  8,
+                    "passed":  8
+                }
+}
