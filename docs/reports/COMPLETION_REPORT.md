@@ -551,3 +551,27 @@ No DDL. No seed apply. No push. No new dependencies.
 
 ### Status
 CSV `STM-CROSS-EN-010` notes updated — Path C Phase 2 **partially completed** (live A/R still needs R31 seed + env URL). Design note §14.6.
+
+---
+
+## Entry 16 — R31 pilot activation package + Dev write gate (2026-11-15)
+
+**Mode:** IMPLEMENT (stopped at authorized DB/Auth write boundary)  
+**Branch:** `feature/java-backend-integration`
+
+### Phase 1 review
+- Confirmed Path C in `268c036`: active-check API, gateway route, five `HttpIamDelegationPort` clients.
+- Runbooks reviewed; R31 seed still unapplied for assignments/delegations; EN-002 storage still 0 buckets.
+
+### Phase 2–3
+- Live identity verified via Supabase MCP: **CampXSync-Architecture-Dev** / `azulbaxszsqxymqmlwfe` only; ACTIVE_HEALTHY.
+- Frontend URL fingerprint: Dev only. Production project not in MCP session.
+- REGISTRAR/R31 template + tenant role rows already present; **zero** REGISTRAR assignments; storage buckets **0**.
+- Execution package: `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md` (exact Auth + SQL + rollback + service env).
+
+### STOP
+Awaiting owner: `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe` before Auth create / IAM SQL.  
+Separate for storage: `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`.
+
+### Not done yet
+Phases 4–5 live pilot verification; Phase 6 storage apply.

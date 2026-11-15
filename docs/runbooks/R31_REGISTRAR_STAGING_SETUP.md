@@ -1,6 +1,6 @@
 # R31 Registrar — Staging IAM setup (Phase A prepare-only)
 
-**Status:** PREPARED — **DO NOT APPLY** until owner authorizes Phase B.  
+**Status:** SUPERSEDED for pilot apply — use `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md` (Path C Phase 2 is implemented in `268c036`). This file remains historical prepare-only context.  
 **Date prepared:** 2026-11-15  
 **Target:** Development Supabase project only (`azulbaxszsqxymqmlwfe`). Production forbidden.
 
@@ -26,7 +26,7 @@ Add canonical catalogue role **R31 Registrar** to IAM so real users can be assig
 3. Map **only** STM action-level permissions from the Registrar (R31) rows in RBAC_Combined (C/U/RV; A/R when delegated). **No** ACD/LMS/EXM/HRM/FIN grants. **No** delete.
 4. For each pilot tenant, run seed/refresh so `iam.roles` contains `REGISTRAR` / R31.
 5. Assign a pilot user via `iam.role_assignments` with **non-null** `college_id` (assigned campus).
-6. Prepare the required active `iam.delegations` row(s) (or approved equivalent) covering the STM A/R keys used by services (`STM-06.DOCUMENTS.A`, `STM-04.LIFECYCLE.A`, `STM-03.ENROLMENT.A`, `STM-05.GUARDIAN.A`) for that user when approvals are required. **This seed/setup step does not authorize or implement a Java delegation adapter.** The adapter remains BLOCKED until the owner reviews and separately approves `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md`. If the service cannot consume the delegation safely through an already-approved contract, the service must fail closed; do not add cross-schema reads, a new service contract, or new infrastructure under this runbook.
+6. Prepare the required active `iam.delegations` row(s) covering STM A/R via Path C M1 (active REGISTRAR/R31 delegation). Live adapter is implemented (`HttpIamDelegationPort`); set `CAMPX_IAM_DELEGATION_BASE_URL`. Exact pilot SQL: `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md`.
 7. Restart STM services. Confirm gateway forwards `X-User-Role=REGISTRAR` (or `R31`) and `X-College-Id=<campus>`.
 8. **Temporary flag:** `CAMPX_STM_LEGACY_REGISTRAR_STANDIN` may be set `true` **only on staging**; default in code is OFF. It is a temporary compatibility mechanism for the explicitly approved legacy Registrar stand-in checks only. It must never grant permissions beyond the applicable STM action-level matrix, and must never bypass assigned-campus checks, active-delegation checks for A/R, same-actor verification/approval segregation, tenant isolation, or any other authorization check. It must not create ACD/LMS/EXM/HRM/FIN permissions or confer Academic Admin rights.
 9. **Flag expiry:** the flag must be disabled at the earlier of (a) the first real-college onboarding or (b) **2026-12-31**. Record the actual disablement date and remove the staging environment setting. Do not extend the deadline without a new explicit owner decision.

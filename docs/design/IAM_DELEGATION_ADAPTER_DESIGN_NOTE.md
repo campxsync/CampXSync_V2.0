@@ -303,3 +303,5 @@ Therefore Path C **cannot** be completed using only existing contracts. Building
 | Env | `CAMPX_IAM_DELEGATION_BASE_URL` (e.g. `http://127.0.0.1:8081`) |
 
 **Still separate:** R31 / delegation seed apply; staging smoke with real rows; no DDL.
+
+Pilot activation package (Dev write gate): `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md`.
