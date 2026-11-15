@@ -436,3 +436,67 @@ Updated `CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` I
 
 ### Owner decisions needed (unchanged)
 Phase B applies; IAM design note Path B/C; CROSS e2e harness; US-015 notification DDL; schedule CROSS-EN-014.
+
+---
+
+## Entry 14 — IAM delegation adapter M1 + Path C investigation STOP (2026-11-15)
+
+**Task ID:** IAM_DELEGATION_ADAPTER (D12a follow-on)  
+**Mode:** IMPLEMENT (stopped at authorized infrastructure boundary)  
+**Branch:** `feature/java-backend-integration`
+
+### Owner approvals recorded
+| Decision | Value |
+|---|---|
+| Mapping | **M1** (active REGISTRAR/R31 role delegation → STM `*.A` in-tenant) |
+| Integration | **Path C** (central IAM contract; no STM cross-schema `iam.delegations` reads) |
+| Cache | **None** |
+| Revocation | Authoritative IAM check on every A/R |
+| Failure | **Fail closed** |
+
+### Investigation — what exists
+- STM `DelegationPort` / `FakeDelegationPort` / `FailClosedDelegationPort` in all five STM services (document, enrollment, lifecycle, guardian, admissions); live constructors remain FailClosed.
+- A/R gates, campus scope, SoD same-actor deny, legacy stand-in role-recognition-only already in Phase A.
+- `institute-admin-service`: `DelegationRepository`, `PostgresDelegationRepository`, `InMemoryDelegationRepository` (CRUD against `iam.delegations`).
+- API Gateway routes institute-admin admin paths; **no** delegation-check route.
+
+### Investigation — what is missing (verified)
+1. No institute-admin HTTP controller for delegations / active-check.
+2. No domain service wiring repository → authorization decision for STM permission keys.
+3. No gateway route for such a contract.
+4. No STM `HttpIamDelegationPort` client (correctly absent — contract does not exist).
+
+### Why existing infrastructure cannot finish Path C
+STM must not JDBC-read `iam.*` (Path C / anti–Path B). The only IAM-side code is a **repository**, not a callable check API. Inventing a URL + response shape would violate “do not invent an endpoint.”
+
+### Status
+**partially completed** at architecture/docs layer; **live adapter BLOCKED** pending separate owner approval for **Path C Phase 2**:
+- Internal active-delegation check API on existing `institute-admin-service` (M1 logic)
+- Gateway registration
+- Five STM HTTP clients; Fake/FailClosed preserved for tests
+- No DDL, seed apply, new containers, or Path B
+
+### Acceptance clause → code → test (current boundary)
+
+| Clause | Code location | Test / evidence |
+|---|---|---|
+| M1 + Path C decisions recorded | `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` §0, §5, §14 | Design note review |
+| Port contract present | `…/security/DelegationPort.java` (five services) | Existing Fake/FailClosed unit suites |
+| Live deny without IAM API | `FailClosedDelegationPort` in production constructors | Always `false` → A/R denied |
+| No Path B introduced | No STM JDBC to `iam.delegations` | Repo inspection |
+| Campus / SoD / legacy flag limits | Phase A domain services | Existing R31 / SoD tests (prior commits) |
+| Http live adapter + IAM check API | **Not built** (STOP §14) | N/A until Phase 2 approval |
+
+### Tests (§7A)
+No Java modules modified this entry — no suite re-run required. Prior Phase A suites remain the evidence for Fake/FailClosed behaviour.
+
+### Database / infra
+None touched. No DDL. No staging/production writes. No push.
+
+### Docs / CSV
+- Design note updated (approved decisions + §14 STOP).
+- `PROGRESS.md`, `NEXT_TASK.md`, this entry.
+- CSV `STM-CROSS-EN-010` Implementation Notes appended with IAM 2026-11-15 STOP note.
+
+### Owner decision needed next
+**Approve Path C Phase 2** (exact ask in design note §14.5): institute-admin internal active-check API + gateway route + STM `HttpIamDelegationPort` wiring under M1 / no cache / fail closed.

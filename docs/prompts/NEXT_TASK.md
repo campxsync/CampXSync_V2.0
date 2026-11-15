@@ -4,10 +4,11 @@
 
 ## Pickup queue (order)
 
+0. **IAM Path C Phase 2 (unblocks live adapter)** — **BLOCKED** awaiting owner approval to add internal active-delegation check API on existing `institute-admin-service` + gateway route + STM `HttpIamDelegationPort` clients. Architecture **M1 + Path C + no cache + fail-closed** already approved. Gap analysis: `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` §14. Do **not** substitute Path B.
 1. **STM-06-EN-002** — Phase A implemented/tested; **BLOCKED** (Phase B awaits owner approval: staging bucket apply + live check).
 1b. **Frontend:** send file content on document upload (`file` input → `contentBase64`). **BLOCKED** (frontend).
 1c. **Frontend:** Registrar role mapping (`resolve-role.ts`, `UserRole`, BFFs) and staging Registrar user. **BLOCKED** (needs R31 IAM seed Phase B).
-1d. **R31 Phase B:** apply `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md`. **BLOCKED** (awaits owner). Live delegation adapter **BLOCKED** pending `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md`.
+1d. **R31 Phase B:** apply `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md`. **BLOCKED** (awaits owner). Live delegation adapter remains FailClosed until Path C Phase 2.
 1e. **R31-SoD** — **DONE** (`dfc6788`).
 2. **STM-CROSS-EN-010** — **partially completed** (`7a41325`); remaining unified multi-service e2e / penetration harness **BLOCKED** (needs owner approval — new harness / stack-wide e2e).
 3. **STM-06-US-010** — **DONE** (`0b1f73d`).
@@ -27,10 +28,11 @@
 
 - STM-RBAC-FLAG-001 remaining open labels (Registrar code R31 decided in D10)
 - STM-RBAC-FLAG-002, -003, -006, -007
-- Live IAM delegation adapter — **BLOCKED**; design note: `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` (D12a)
+- Live IAM delegation adapter — architecture approved (M1+Path C); **implementation STOP** at missing IAM check API (design note §14)
 
 ## Rules
 
 - No push unless owner authorizes.
 - No Supabase Storage apply until Phase B approval.
-- No live delegation adapter until owner approves the design note.
+- No Path B cross-schema STM reads of `iam.delegations`.
+- No inventing the Path C check endpoint without owner Phase 2 approval.
