@@ -344,6 +344,45 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public void updateStudentDocumentMetadata(Actor actor, UUID documentId, String title, String classification,
+                                              Instant expiresAt, UUID documentTypeId, String documentTypeCode,
+                                              String documentTypeName) {
+        DocumentDomainService.StudentDocument existing = docStorage.get(documentId);
+        if (existing == null || !existing.tenantId.equals(actor.getTenantId())) {
+            return;
+        }
+        DocumentDomainService.StudentDocument updated = new DocumentDomainService.StudentDocument(
+                existing.id,
+                existing.tenantId,
+                existing.collegeId,
+                documentTypeId,
+                documentTypeCode,
+                documentTypeName,
+                title,
+                classification,
+                existing.status,
+                existing.ownerId,
+                existing.storageBucket,
+                existing.storagePath,
+                existing.mimeType,
+                existing.sizeBytes,
+                existing.checksumSha256,
+                existing.currentVersionNo,
+                existing.createdAt,
+                Instant.now(),
+                existing.createdBy,
+                actor.getUserId(),
+                existing.rowVersion + 1,
+                existing.latestVerificationResult,
+                existing.latestVerificationCode,
+                existing.latestVerifiedAt,
+                expiresAt,
+                existing.retentionPolicyCode
+        );
+        docStorage.put(documentId, updated);
+    }
+
+    @Override
     public void recordVerificationDecision(Actor actor, UUID documentId, String newStatus, DocumentDomainService.DocumentVerificationRecord verification) {
         DocumentDomainService.StudentDocument existing = docStorage.get(documentId);
         if (existing != null && existing.tenantId.equals(actor.getTenantId())) {

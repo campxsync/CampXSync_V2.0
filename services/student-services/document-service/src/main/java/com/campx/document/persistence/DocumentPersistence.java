@@ -150,5 +150,12 @@ public interface DocumentPersistence {
      * Updates {@code expires_at} on an existing student document (STM-06-US-015 registrar configuration).
      */
     void updateStudentDocumentExpiresAt(Actor actor, UUID documentId, Instant expiresAt);
+
+    /**
+     * Updates registrar-correctable metadata on doc.documents (STM-06-US-006).
+     */
+    void updateStudentDocumentMetadata(Actor actor, UUID documentId, String title, String classification,
+                                       Instant expiresAt, UUID documentTypeId, String documentTypeCode,
+                                       String documentTypeName);
 }
 

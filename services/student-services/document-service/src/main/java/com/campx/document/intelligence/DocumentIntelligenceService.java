@@ -260,6 +260,55 @@ public class DocumentIntelligenceService {
     }
 
     /**
+     * Emits student.document.metadata_updated.v1 when a registrar corrects document metadata (STM-06-US-006).
+     */
+    public void publishDocumentMetadataUpdated(Actor actor, DocumentDomainService.StudentDocument prior,
+                                               DocumentDomainService.StudentDocument updated, String correctionNote) {
+        if (actor == null || prior == null || updated == null || actor.getTenantId() == null) {
+            return;
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<String, Object>();
+            payload.put("tenantId", updated.tenantId != null ? updated.tenantId.toString() : null);
+            payload.put("documentId", updated.id != null ? updated.id.toString() : null);
+            payload.put("studentId", updated.ownerId != null ? updated.ownerId.toString() : null);
+            payload.put("priorTitle", prior.title);
+            payload.put("title", updated.title);
+            payload.put("priorClassification", prior.classification);
+            payload.put("classification", updated.classification);
+            payload.put("priorDocumentTypeId",
+                    prior.documentTypeId != null ? prior.documentTypeId.toString() : null);
+            payload.put("documentTypeId",
+                    updated.documentTypeId != null ? updated.documentTypeId.toString() : null);
+            payload.put("priorExpiresAt", prior.expiresAt != null ? prior.expiresAt.toString() : null);
+            payload.put("expiresAt", updated.expiresAt != null ? updated.expiresAt.toString() : null);
+            payload.put("correctionNote", correctionNote);
+            payload.put("correctedBy", actor.getUserId() != null ? actor.getUserId().toString() : null);
+            payload.put("correctedRole", actor.getRole());
+            payload.put("correctedAt", java.time.Instant.now().toString());
+
+            IntelligenceContextEvent event = IntelligenceContextEvent.builder()
+                    .eventType(DocumentDomainService.DOCUMENT_METADATA_UPDATED)
+                    .schemaVersion(DocumentDomainService.SCHEMA_VERSION)
+                    .aggregateType("STUDENT_DOCUMENT")
+                    .aggregateId(updated.id.toString())
+                    .tenantId(actor.getTenantId())
+                    .sourceService(SERVICE_NAME)
+                    .correlationId(actor.getCorrelationId())
+                    .idempotencyKey("intel-doc-meta-" + actor.getTenantId() + "-" + updated.id + "-"
+                            + (updated.updatedAt != null ? updated.updatedAt.toEpochMilli() : System.currentTimeMillis()))
+                    .payloadJson(objectMapper.writeValueAsString(payload))
+                    .build();
+
+            adapter.publish(event);
+            logger.info("Published intelligence event: eventType={} documentId={}",
+                    DocumentDomainService.DOCUMENT_METADATA_UPDATED, updated.id);
+        } catch (Exception e) {
+            logger.error("Failed to publish document metadata updated event", e);
+        }
+    }
+
+    /**
      * Emits student.document.accessed.v1 when a document is accessed or downloaded (STM-06-US-006).
      */
     public void publishDocumentAccessed(Actor actor, DocumentDomainService.StudentDocument doc, String channel) {

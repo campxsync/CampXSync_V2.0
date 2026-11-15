@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -408,6 +409,40 @@ public class DocumentController {
                 }
                 DocumentDomainService.DocumentAccessLog accessLog = domain.recordAccessLog(actor, documentId, channel, clientIp);
                 return json(201, accessLogNode(accessLog), correlationId);
+            }
+
+            // PATCH or POST .../metadata — registrar metadata correction (STM-06-US-006)
+            if (("PATCH".equals(method) || "POST".equals(method))
+                    && ((normalized.startsWith("/api/v1/documents/submissions/") && normalized.endsWith("/metadata"))
+                    || (normalized.startsWith("/api/v1/documents/") && normalized.endsWith("/metadata")
+                    && !normalized.contains("/submissions/") && !normalized.startsWith("/api/v1/documents/types")
+                    && !normalized.startsWith("/api/v1/documents/requirements")))) {
+                String idPart;
+                if (normalized.startsWith("/api/v1/documents/submissions/")) {
+                    idPart = normalized.substring("/api/v1/documents/submissions/".length(),
+                            normalized.length() - "/metadata".length());
+                } else {
+                    idPart = normalized.substring("/api/v1/documents/".length(),
+                            normalized.length() - "/metadata".length());
+                }
+                UUID documentId = UUID.fromString(idPart);
+                DocumentDomainService.UpdateDocumentMetadataRequest req =
+                        new DocumentDomainService.UpdateDocumentMetadataRequest();
+                req.title = text(json, "title");
+                req.classification = text(json, "classification");
+                if (json != null && json.has("expiresAt")) {
+                    req.expiresAtSpecified = true;
+                    if (!json.get("expiresAt").isNull()) {
+                        req.expiresAt = Instant.parse(json.get("expiresAt").asText());
+                    }
+                }
+                String docTypeIdText = text(json, "documentTypeId");
+                if (docTypeIdText != null && !docTypeIdText.trim().isEmpty()) {
+                    req.documentTypeId = UUID.fromString(docTypeIdText.trim());
+                }
+                req.correctionNote = text(json, "correctionNote");
+                StudentDocument updated = domain.updateDocumentMetadata(actor, documentId, req);
+                return json(200, studentDocumentNode(updated), correlationId);
             }
 
             // GET /api/v1/documents/{id}/audit-trail (or /api/v1/documents/submissions/{id}/audit-trail) - Get Audit Trail (STM-06-US-006)

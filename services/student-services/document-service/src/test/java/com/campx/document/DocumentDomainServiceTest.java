@@ -14,6 +14,7 @@ import com.campx.document.DocumentDomainService.DocumentVerificationRecord;
 import com.campx.document.DocumentDomainService.VerificationDecisionRequest;
 import com.campx.document.DocumentDomainService.VerificationQueueItem;
 import com.campx.document.DocumentDomainService.ResubmitDocumentRequest;
+import com.campx.document.DocumentDomainService.UpdateDocumentMetadataRequest;
 import com.campx.document.intelligence.DocumentIntelligenceService;
 import com.campx.document.persistence.InMemoryDocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
@@ -2428,6 +2429,140 @@ public class DocumentDomainServiceTest {
             fail("Other registrar must not mark another user's notification");
         } catch (DocumentException e) {
             assertEquals("NOTIFICATION_NOT_FOUND", e.getCode());
+        }
+    }
+
+    // --- STM-06-US-006 Update document metadata ---
+
+    private StudentDocument uploadMetadataDoc(String code, String title) {
+        DocumentType type = stm06Type(code);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = title;
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 1024L;
+        return service.uploadStudentDocument(studentTenantA, up);
+    }
+
+    private UpdateDocumentMetadataRequest metadataReq(String note, String title, String classification) {
+        UpdateDocumentMetadataRequest req = new UpdateDocumentMetadataRequest();
+        req.correctionNote = note;
+        req.title = title;
+        req.classification = classification;
+        return req;
+    }
+
+    @Test
+    public void stm06Us006_registrarUpdatesSubmittedDocumentMetadata() {
+        StudentDocument doc = uploadMetadataDoc("DOC-META-SUB", "Original Submitted Title");
+        StudentDocument updated = service.updateDocumentMetadata(registrarTenantA, doc.id,
+                metadataReq("Corrected typo in title", "Corrected Submitted Title", null));
+        assertEquals("Corrected Submitted Title", updated.title);
+        assertEquals("SUBMITTED", updated.status);
+        assertEquals(registrarTenantA.getUserId(), updated.updatedBy);
+        assertTrue(updated.rowVersion > doc.rowVersion);
+    }
+
+    @Test
+    public void stm06Us006_registrarUpdatesRejectedDocumentClassification() {
+        StudentDocument doc = uploadMetadataDoc("DOC-META-REJ", "Rejected Doc");
+        VerificationDecisionRequest dec = new VerificationDecisionRequest();
+        dec.decision = "REJECT";
+        dec.rejectionReason = "Stamp missing on page 1";
+        service.verifyDocument(registrarTenantA, doc.id, dec);
+
+        UpdateDocumentMetadataRequest req = metadataReq("Reclassified after review", null, "RESTRICTED");
+        StudentDocument updated = service.updateDocumentMetadata(registrarR31TenantA, doc.id, req);
+        assertEquals("RESTRICTED", updated.classification);
+        assertEquals("REJECTED", updated.status);
+    }
+
+    @Test
+    public void stm06Us006_deniesApprovedDocument() {
+        StudentDocument doc = uploadMetadataDoc("DOC-META-APP", "Approved Doc");
+        VerificationDecisionRequest dec = new VerificationDecisionRequest();
+        dec.decision = "APPROVE";
+        dec.verificationCode = "OK-001";
+        service.verifyDocument(registrarTenantA, doc.id, dec);
+
+        try {
+            service.updateDocumentMetadata(registrarTenantA, doc.id,
+                    metadataReq("Should not apply", "New Title", null));
+            fail("Approved document must not allow metadata correction");
+        } catch (DocumentException e) {
+            assertEquals(409, e.getStatusCode());
+            assertEquals("DOCUMENT_ALREADY_VERIFIED", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us006_studentAndFacultyDenied() {
+        StudentDocument doc = uploadMetadataDoc("DOC-META-ROLE", "Role Test");
+        UpdateDocumentMetadataRequest req = metadataReq("Illegal attempt", "Hacked", null);
+
+        try {
+            service.updateDocumentMetadata(studentTenantA, doc.id, req);
+            fail("Student must not correct metadata");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+
+        Actor faculty = new Actor(tenantA, UUID.randomUUID(), campusA, "FACULTY", "faculty@campx.edu", null);
+        try {
+            service.updateDocumentMetadata(faculty, doc.id, req);
+            fail("Faculty must not correct metadata");
+        } catch (DocumentException e) {
+            assertEquals("REGISTRAR_FORBIDDEN", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us006_crossTenantAndWrongCampusDenied() {
+        StudentDocument doc = uploadMetadataDoc("DOC-META-TENANT", "Tenant Scoped");
+        UpdateDocumentMetadataRequest req = metadataReq("Cross tenant attempt", "X", null);
+
+        Actor registrarTenantB = new Actor(tenantB, UUID.randomUUID(), campusB, "REGISTRAR", "r.b@campx.edu", null);
+        try {
+            service.updateDocumentMetadata(registrarTenantB, doc.id, req);
+            fail("Cross-tenant metadata update must fail");
+        } catch (DocumentException e) {
+            assertEquals("DOCUMENT_NOT_FOUND", e.getCode());
+        }
+
+        Actor registrarOtherCampus = new Actor(tenantA, UUID.randomUUID(), campusB, "REGISTRAR", "r.c@campx.edu", null);
+        try {
+            service.updateDocumentMetadata(registrarOtherCampus, doc.id, req);
+            fail("Wrong campus must be denied");
+        } catch (DocumentException e) {
+            assertEquals("CAMPUS_SCOPE_DENIED", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06Us006_nullActorBlankNoteInvalidClassification() {
+        StudentDocument doc = uploadMetadataDoc("DOC-META-VAL", "Validation Doc");
+
+        try {
+            service.updateDocumentMetadata(null, doc.id, metadataReq("ok", "New", null));
+            fail("Null actor must be denied");
+        } catch (DocumentException e) {
+            assertEquals(401, e.getStatusCode());
+        }
+
+        try {
+            UpdateDocumentMetadataRequest shortNote = metadataReq("no", "New Title", null);
+            service.updateDocumentMetadata(registrarTenantA, doc.id, shortNote);
+            fail("Short correction note must be rejected");
+        } catch (DocumentException e) {
+            assertEquals("CORRECTION_NOTE_REQUIRED", e.getCode());
+        }
+
+        try {
+            UpdateDocumentMetadataRequest badClass = metadataReq("Fix classification", null, "TOP_SECRET");
+            service.updateDocumentMetadata(registrarTenantA, doc.id, badClass);
+            fail("Invalid classification must be rejected");
+        } catch (DocumentException e) {
+            assertEquals("INVALID_CLASSIFICATION", e.getCode());
         }
     }
 

@@ -703,6 +703,37 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
     }
 
     @Override
+    public void updateStudentDocumentMetadata(final Actor actor, final UUID documentId, final String title,
+                                              final String classification, final Instant expiresAt,
+                                              final UUID documentTypeId, final String documentTypeCode,
+                                              final String documentTypeName) {
+        DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<Void>() {
+                    @Override
+                    public Void execute(Connection conn) throws SQLException {
+                        String sql = "UPDATE doc.documents SET title = ?, classification = ?, expires_at = ?, "
+                                + "document_type_id = ?, updated_at = NOW(), updated_by = ?, "
+                                + "row_version = row_version + 1 "
+                                + "WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setString(1, title);
+                            ps.setString(2, classification);
+                            ps.setTimestamp(3, expiresAt != null ? Timestamp.from(expiresAt) : null);
+                            ps.setObject(4, documentTypeId);
+                            ps.setObject(5, actor.getUserId());
+                            ps.setObject(6, actor.getTenantId());
+                            ps.setObject(7, documentId);
+                            int updated = ps.executeUpdate();
+                            if (updated == 0) {
+                                throw new SQLException("Document not found for metadata update: " + documentId);
+                            }
+                        }
+                        return null;
+                    }
+                });
+    }
+
+    @Override
     public List<DocumentDomainService.DocumentVersion> listDocumentVersions(final Actor actor, final UUID documentId) {
         return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager, new DocumentSecurityContext.TransactionCallback<List<DocumentDomainService.DocumentVersion>>() {
             @Override

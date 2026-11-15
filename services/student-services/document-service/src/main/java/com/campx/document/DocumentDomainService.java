@@ -42,6 +42,7 @@ public class DocumentDomainService {
     public static final String DOCUMENT_UPLOADED = "student.document.uploaded.v1";
     public static final String DOCUMENT_VERIFIED = "student.document.verified.v1";
     public static final String DOCUMENT_ACCESSED = "student.document.accessed.v1";
+    public static final String DOCUMENT_METADATA_UPDATED = "student.document.metadata_updated.v1";
     public static final String DOCUMENT_REVERIFICATION_REQUESTED = "student.document.reverification_requested.v1";
 
     public static final Set<String> ALLOWED_MIME_TYPES = Collections.unmodifiableSet(
@@ -650,6 +651,19 @@ public class DocumentDomainService {
         public String fileName;
         public String checksumSha256;
         public String changeNote;
+    }
+
+    /**
+     * Registrar correction payload for student document metadata (STM-06-US-006).
+     */
+    public static class UpdateDocumentMetadataRequest {
+        public String title;
+        public String classification;
+        public Instant expiresAt;
+        /** When true, {@link #expiresAt} (including null) is applied. */
+        public boolean expiresAtSpecified;
+        public UUID documentTypeId;
+        public String correctionNote;
     }
 
     /**
@@ -1423,6 +1437,114 @@ public class DocumentDomainService {
         requireCampusMatch(actor, doc.collegeId);
         persistence.updateStudentDocumentExpiresAt(actor, documentId, expiresAt);
         return persistence.findStudentDocumentById(actor, documentId);
+    }
+
+    /**
+     * STM-06-US-006: Registrar corrects document metadata (audited; never on APPROVED documents).
+     */
+    public StudentDocument updateDocumentMetadata(Actor actor, UUID documentId, UpdateDocumentMetadataRequest req) {
+        requireCaller(actor);
+        requireRegistrarCampus(actor);
+        if (documentId == null) {
+            throw new DocumentException(422, "DOCUMENT_ID_REQUIRED", "Document ID is required");
+        }
+        if (req == null) {
+            throw new DocumentException(422, "PAYLOAD_REQUIRED", "Metadata correction payload is required");
+        }
+        String correctionNote = req.correctionNote == null ? "" : req.correctionNote.trim();
+        if (correctionNote.length() < 3) {
+            throw new DocumentException(422, "CORRECTION_NOTE_REQUIRED",
+                    "Correction note (minimum 3 characters) is required for audit");
+        }
+
+        StudentDocument doc = persistence.findStudentDocumentById(actor, documentId);
+        if (doc == null) {
+            throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
+        }
+        requireCampusMatch(actor, doc.collegeId);
+
+        if ("APPROVED".equalsIgnoreCase(doc.status)) {
+            throw new DocumentException(409, "DOCUMENT_ALREADY_VERIFIED",
+                    "Cannot correct metadata on a document that has already been verified and approved");
+        }
+
+        boolean anyChange = false;
+        String newTitle = doc.title;
+        if (req.title != null) {
+            String trimmed = req.title.trim();
+            if (trimmed.isEmpty()) {
+                throw new DocumentException(422, "DOCUMENT_TITLE_REQUIRED", "Document title cannot be blank");
+            }
+            if (!trimmed.equals(doc.title)) {
+                anyChange = true;
+            }
+            newTitle = trimmed;
+        }
+
+        String newClassification = doc.classification;
+        if (req.classification != null) {
+            String normalized = req.classification.trim().toUpperCase(Locale.ROOT);
+            if (!ALLOWED_CLASSIFICATIONS.contains(normalized)) {
+                throw new DocumentException(422, "INVALID_CLASSIFICATION",
+                        "Classification must be one of: PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED");
+            }
+            if (!normalized.equals(doc.classification)) {
+                anyChange = true;
+            }
+            newClassification = normalized;
+        }
+
+        Instant newExpiresAt = doc.expiresAt;
+        if (req.expiresAtSpecified) {
+            if (!Objects.equals(req.expiresAt, doc.expiresAt)) {
+                anyChange = true;
+            }
+            newExpiresAt = req.expiresAt;
+        }
+
+        UUID newDocumentTypeId = doc.documentTypeId;
+        String newDocumentTypeCode = doc.documentTypeCode;
+        String newDocumentTypeName = doc.documentTypeName;
+        if (req.documentTypeId != null) {
+            if (!req.documentTypeId.equals(doc.documentTypeId)) {
+                DocumentType docType = persistence.findDocumentTypeById(actor, req.documentTypeId);
+                if (docType == null) {
+                    throw new DocumentException(404, "DOCUMENT_TYPE_NOT_FOUND",
+                            "Document type not found: " + req.documentTypeId);
+                }
+                anyChange = true;
+                newDocumentTypeId = docType.id;
+                newDocumentTypeCode = docType.code;
+                newDocumentTypeName = docType.name;
+            }
+        }
+
+        if (!anyChange) {
+            throw new DocumentException(422, "NO_METADATA_CHANGES",
+                    "At least one metadata field must change");
+        }
+
+        persistence.updateStudentDocumentMetadata(actor, documentId, newTitle, newClassification,
+                newExpiresAt, newDocumentTypeId, newDocumentTypeCode, newDocumentTypeName);
+
+        StudentDocument updated = persistence.findStudentDocumentById(actor, documentId);
+
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action("document.metadata_corrected")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(doc.id.toString())
+                .correlationId(actor.getCorrelationId())
+                .status("SUCCESS")
+                .severity("INFO")
+                .description("Registrar metadata correction: " + correctionNote)
+                .build();
+        logger.audit(audit);
+
+        intelligenceService.publishDocumentMetadataUpdated(actor, doc, updated, correctionNote);
+        return updated;
     }
 
     private void syncExpiryNotifications(Actor actor, int withinDays) {
