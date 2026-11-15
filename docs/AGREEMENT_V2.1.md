@@ -282,7 +282,7 @@ The workhorse stays as assigned until the owner changes it. Each change is recor
 
 | Task / period | Workhorse | Working branch | Task mode |
 |---|---|---|---|
-| Audit | Cursor |feature/java-backend-integration | implementation |
+| IMPLEMENT | Cursor |feature/java-backend-integration | implementation |
 
 Advisers (no code changes): ChatGPT (Luna), Claude.
 Other tools in use and their purpose: ______
