@@ -1426,7 +1426,9 @@ public class DocumentDomainServiceTest {
 
         DocumentVerificationRecord latest = service.getLatestVerification(studentTenantA, uploaded.id);
         assertNotNull(latest);
+        // Must be the APPROVE row even if reject/approve share the same Instant ms (tie-break fix).
         assertEquals("VALID", latest.result);
+        assertEquals("VERIFIED-STORY-011", latest.verificationCode);
     }
 
     @Test

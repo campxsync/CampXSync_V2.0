@@ -319,10 +319,15 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
         if (list == null || list.isEmpty()) {
             return null;
         }
+        // Prefer newest verifiedAt; on equal timestamps take the later-recorded entry (list order)
+        // so reject→approve in the same millisecond still returns APPROVE/VALID (EN-002 flake fix).
         DocumentDomainService.DocumentVerificationRecord latest = null;
         for (DocumentDomainService.DocumentVerificationRecord r : list) {
             if (r.tenantId.equals(actor.getTenantId())) {
-                if (latest == null || r.verifiedAt.isAfter(latest.verifiedAt)) {
+                if (latest == null
+                        || (r.verifiedAt != null && latest.verifiedAt != null
+                            && !r.verifiedAt.isBefore(latest.verifiedAt))
+                        || (r.verifiedAt != null && latest.verifiedAt == null)) {
                     latest = r;
                 }
             }

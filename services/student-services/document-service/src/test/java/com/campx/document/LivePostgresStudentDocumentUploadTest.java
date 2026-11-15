@@ -129,13 +129,29 @@ public class LivePostgresStudentDocumentUploadTest {
         }
         assertTrue("Uploaded document must appear in list with joined document type code", foundInList);
 
-        // 6. Verify Student Checklist Computation
+        // 6. Verify Student Checklist Computation (match this upload's document type;
+        // live DB may already have APPROVED docs → aggregate status VERIFIED is correct)
         List<StudentChecklistItem> checklist = service.getStudentChecklist(studentTenantA, studentId, "ADMISSION", null);
         assertNotNull("Checklist must not be null", checklist);
         assertTrue("Checklist must contain at least 1 item", checklist.size() >= 1);
-        StudentChecklistItem chkItem = checklist.get(0);
-        assertEquals("SUBMITTED", chkItem.status);
-        assertTrue("Checklist must include submitted document", chkItem.submittedDocuments.size() >= 1);
+        StudentChecklistItem chkItem = null;
+        for (StudentChecklistItem item : checklist) {
+            if (item.requirement != null && admissionRule.documentTypeId.equals(item.requirement.documentTypeId)) {
+                chkItem = item;
+                break;
+            }
+        }
+        assertNotNull("Checklist must include item for uploaded document type", chkItem);
+        assertTrue("Checklist status must be SUBMITTED or VERIFIED after upload",
+                "SUBMITTED".equals(chkItem.status) || "VERIFIED".equals(chkItem.status));
+        boolean uploadedInChecklist = false;
+        for (StudentDocument d : chkItem.submittedDocuments) {
+            if (uploadedDoc.id.equals(d.id)) {
+                uploadedInChecklist = true;
+                break;
+            }
+        }
+        assertTrue("Checklist must include the freshly uploaded document", uploadedInChecklist);
 
         // 7. Verify Validation Error: Invalid MIME Type
         UploadStudentDocumentRequest badMimeReq = new UploadStudentDocumentRequest();

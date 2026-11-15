@@ -898,7 +898,7 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
                 String sql = "SELECT id, tenant_id, document_id, entity_type, entity_id, verification_code, result, verified_at, created_at, created_by "
                         + "FROM doc.verifications "
                         + "WHERE tenant_id = ? AND document_id = ? "
-                        + "ORDER BY verified_at DESC LIMIT 1";
+                        + "ORDER BY verified_at DESC, created_at DESC, id DESC LIMIT 1";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setObject(1, actor.getTenantId());
                     ps.setObject(2, documentId);
