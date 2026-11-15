@@ -414,3 +414,25 @@ Uses existing `doc.documents` columns only (no DDL).
 
 ### Status
 CSV `STM-06-US-006` → `completed`. Queue batch end: no further same-service unblocked items.
+
+---
+
+## Entry 13 — Queue run: empty batch + CSV sync (2026-11-15)
+
+**Mode:** IMPLEMENT | **Branch:** `feature/java-backend-integration`
+
+### Preflight
+Known leftovers only (`classpath.txt`, `_csv_status_*.txt`, CSV scratch). No unexpected dirty files.
+
+### Selection
+No items eligible (all DONE, BLOCKED, DEFERRED, or partially completed with remaining work BLOCKED). No module suite re-run (nothing touched).
+
+### CSV sync (coordinator only)
+Updated `CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv` Implementation status / Notes to match NEXT_TASK:
+- completed: US-006, US-010, US-007 (hashes in notes)
+- partially completed + remaining BLOCKED notes: EN-002, EN-003, US-015, CROSS-EN-010
+- BLOCKED: CROSS-EN-014, STM-03-EN-007
+- DEFERRED: CROSS-EN-007, US-017
+
+### Owner decisions needed (unchanged)
+Phase B applies; IAM design note Path B/C; CROSS e2e harness; US-015 notification DDL; schedule CROSS-EN-014.
