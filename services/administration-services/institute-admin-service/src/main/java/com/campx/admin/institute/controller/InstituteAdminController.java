@@ -6,6 +6,8 @@ import com.campx.admin.institute.model.InstituteModels.*;
 import com.campx.admin.institute.model.InstituteModels.Calendar;
 import com.campx.admin.institute.model.OnboardCollegeRequest;
 import com.campx.admin.institute.model.OnboardCollegeResponse;
+import com.campx.admin.institute.service.DelegationAuthorizationDecision;
+import com.campx.admin.institute.service.DelegationAuthorizationService;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -51,6 +53,7 @@ public class InstituteAdminController implements HttpHandler {
     private final InstituteAdminDomainService domainService;
     private final UserProfileRepository userProfileRepository;
     private final RoleTemplateRepository roleTemplateRepository;
+    private final DelegationAuthorizationService delegationAuthorizationService;
     private final com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier;
 
     private static RoleTemplateRepository resolveDefaultRoleTemplateRepository() {
@@ -104,10 +107,26 @@ public class InstituteAdminController implements HttpHandler {
     public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
                                     RoleTemplateRepository roleTemplateRepository,
                                     com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier) {
+        this(domainService, userProfileRepository, roleTemplateRepository, gatewayHmacVerifier, null);
+    }
+
+    /**
+     * Full constructor including Path C delegation authorization service.
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
+                                    RoleTemplateRepository roleTemplateRepository,
+                                    com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier,
+                                    DelegationAuthorizationService delegationAuthorizationService) {
         this.domainService = domainService;
         this.userProfileRepository = userProfileRepository != null ? userProfileRepository : new UserProfileRepository();
         this.roleTemplateRepository = roleTemplateRepository != null ? roleTemplateRepository : resolveDefaultRoleTemplateRepository();
         this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier : new com.campx.admin.institute.security.GatewayHmacVerifier();
+        this.delegationAuthorizationService = delegationAuthorizationService != null
+                ? delegationAuthorizationService : new DelegationAuthorizationService();
+    }
+
+    public DelegationAuthorizationService getDelegationAuthorizationService() {
+        return delegationAuthorizationService;
     }
 
     /**
@@ -785,6 +804,13 @@ public class InstituteAdminController implements HttpHandler {
             if (path.equals("/api/v1/admin/audit/change-log") && "GET".equalsIgnoreCase(method)) {
                 flow.step("handleListChangeLogs");
                 handleListChangeLogs(exchange);
+                return;
+            }
+
+            // Path C — internal active-delegation check (M1) for STM A/R
+            if (path.equals(DelegationAuthorizationService.PATH) && "GET".equalsIgnoreCase(method)) {
+                flow.step("handleDelegationActiveCheck");
+                handleDelegationActiveCheck(exchange);
                 return;
             }
 
@@ -2640,6 +2666,32 @@ public class InstituteAdminController implements HttpHandler {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
+    }
+
+    /**
+     * GET /api/v1/admin/internal/delegations/active-check?userId=&permissionKey=
+     * Returns an explicit M1 allow/deny decision. Errors that prevent evaluation surface as 503 (fail closed upstream).
+     */
+    private void handleDelegationActiveCheck(HttpExchange exchange) throws IOException {
+        UserSecurityContext context = extractSecurityContext(exchange);
+        Map<String, String> query = parseQueryParams(exchange);
+        String subjectUserId = query.get("userId");
+        if (subjectUserId == null || subjectUserId.trim().isEmpty()) {
+            subjectUserId = query.get("userid");
+        }
+        String permissionKey = query.get("permissionKey");
+        if (permissionKey == null || permissionKey.trim().isEmpty()) {
+            permissionKey = query.get("permissionkey");
+        }
+        try {
+            DelegationAuthorizationDecision decision =
+                    delegationAuthorizationService.checkActive(context, subjectUserId, permissionKey);
+            sendJson(exchange, 200, decision.toJson());
+        } catch (RuntimeException e) {
+            logger.warn("[InstituteAdminService] Delegation active-check evaluation error: {}", e.getMessage());
+            sendError(exchange, 503, "Service Unavailable", "IAM_DELEGATION_CHECK_UNAVAILABLE",
+                    "IAM could not validate the delegation", exchange.getRequestURI().getPath());
+        }
     }
 
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {

@@ -7,6 +7,7 @@ import com.campx.document.persistence.DocumentPersistence;
 import com.campx.document.persistence.InMemoryDocumentPersistence;
 import com.campx.document.persistence.PostgresDocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
+import com.campx.document.security.DelegationPortFactory;
 import com.campx.document.security.GatewayHmacVerifier;
 import com.campx.document.security.SignedDownloadTokenService;
 import com.campx.document.storage.DocumentObjectStorage;
@@ -77,7 +78,8 @@ public class DocumentApplication {
                 intelligenceService,
                 new ControlledMalwareScanAdapter(),
                 new SignedDownloadTokenService(hmacSecret),
-                objectStorage
+                objectStorage,
+                DelegationPortFactory.fromEnvironment()
         );
         final DocumentController controller = new DocumentController(
                 domain,

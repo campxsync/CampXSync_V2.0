@@ -1,9 +1,9 @@
 # IAM Delegation Adapter — Design Note (D12a)
 
-**Status:** **BLOCKED at Path C infrastructure boundary** (architecture M1 + Path C **approved**; live adapter **not shippable** until the missing IAM check API is separately authorized and built).  
-**Date:** 2026-11-15 (updated same day after M1 + Path C owner approval + repo investigation)  
-**Owner decision:** D12a (`docs/project-control/PROGRESS.md`); M1 + Path C approved 15-11-2026 (Niranjan)  
-**Related:** D10, D12b–d; Phase A ports already shipped (`FakeDelegationPort` / `FailClosedDelegationPort` in STM-02..06)
+**Status:** **Path C Phase 2 implemented** (M1 + no cache + fail-closed). Live STM clients activate when `CAMPX_IAM_DELEGATION_BASE_URL` is set; otherwise FailClosed. R31 IAM seed apply remains separate.  
+**Date:** 2026-11-15 (Phase 2 implementation)  
+**Owner decision:** D12a; M1 + Path C approved 15-11-2026; Path C Phase 2 approved same day (Niranjan)  
+**Related:** D10, D12b–d; Phase A Fake/FailClosed retained for unit tests
 
 ---
 
@@ -226,9 +226,9 @@ Mirror / extend `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md` (prepare only):
 |---|---|
 | Design note / Path C / M1 / no cache / fail-closed | **Approved** 15-11-2026 |
 | R31 IAM seed apply (`R31_REGISTRAR_STAGING_SETUP.md`) | Still separate (not authorized here) |
-| **New IAM check HTTP contract + gateway route + STM client wiring** | **STOP — separate approval required** (see §14) |
+| **Path C Phase 2** (check API + gateway + STM `HttpIamDelegationPort`) | **Approved and implemented** 15-11-2026 |
 
-Keep `FailClosedDelegationPort` in live constructors until §14 is unblocked. Do not substitute Path B / M2 / M3. Do not invent a bypass.
+Live constructors use `DelegationPortFactory.fromEnvironment()`: Http client when `CAMPX_IAM_DELEGATION_BASE_URL` is set; else FailClosed. Do not substitute Path B / M2 / M3.
 
 ---
 
@@ -291,4 +291,15 @@ Therefore Path C **cannot** be completed using only existing contracts. Building
 
 > **Approve Path C Phase 2:** implement the internal active-delegation check API on `institute-admin-service`, register it on the API Gateway, and wire STM `HttpIamDelegationPort` clients (M1, no cache, fail closed). Confirm whether role lookup may use existing `iam.roles` reads already available inside institute-admin.
 
-Until that approval: live adapter remains **BLOCKED**; production stays on `FailClosedDelegationPort`.
+### 14.6 Phase 2 delivery (15-11-2026)
+
+| Component | Location |
+|---|---|
+| M1 check service | `institute-admin-service` `DelegationAuthorizationService` |
+| HTTP contract | `GET /api/v1/admin/internal/delegations/active-check?userId=&permissionKey=` |
+| Role lookup | `RoleCodeLookup` / `InMemoryRoleCodeLookup` / `PostgresRoleCodeLookup` (`iam.roles`) |
+| Gateway | `/api/v1/admin/internal/delegations` → `:8081` (longest-prefix) |
+| STM clients | `HttpIamDelegationPort` + `DelegationPortFactory` in STM-02..06 |
+| Env | `CAMPX_IAM_DELEGATION_BASE_URL` (e.g. `http://127.0.0.1:8081`) |
+
+**Still separate:** R31 / delegation seed apply; staging smoke with real rows; no DDL.

@@ -94,13 +94,20 @@ public class AdmissionsPermissionEvaluator {
     }
 
     /**
-     * Unit tests only: inject in-memory delegation grants.
+     * Runtime / unit-test wiring for Path C {@link DelegationPort}.
      */
-    public static void setDelegationPortForTests(DelegationPort port) {
+    public static void setDelegationPort(DelegationPort port) {
         delegationPort = port == null ? new FailClosedDelegationPort() : port;
     }
 
-  public static void resetDelegationPortForTests() {
+    /**
+     * Unit tests only: inject in-memory delegation grants.
+     */
+    public static void setDelegationPortForTests(DelegationPort port) {
+        setDelegationPort(port);
+    }
+
+    public static void resetDelegationPortForTests() {
         delegationPort = new FailClosedDelegationPort();
     }
 

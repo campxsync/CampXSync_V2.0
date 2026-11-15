@@ -3,6 +3,7 @@ package com.campx.enrollment;
 import com.campx.enrollment.config.DatabaseConfig;
 import com.campx.enrollment.config.DatabaseConnectionManager;
 import com.campx.enrollment.persistence.PostgresEnrollmentPersistence;
+import com.campx.enrollment.security.DelegationPortFactory;
 import com.campx.enrollment.security.GatewayHmacVerifier;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -33,13 +34,14 @@ public class EnrollmentApplication {
 
         if (dbConfig.isConfigured()) {
             connectionManager.initialize(dbConfig);
-            domain = new EnrollmentDomainService(Clock.systemUTC(), new PostgresEnrollmentPersistence(connectionManager));
+            domain = new EnrollmentDomainService(Clock.systemUTC(), new PostgresEnrollmentPersistence(connectionManager),
+                    null, DelegationPortFactory.fromEnvironment());
             logger.info("STM-03 enrolment service starting with PostgreSQL persistence");
         } else if (isDeployedEnvironment()) {
             throw new IllegalStateException(
                     "STM-03 refuses deployed start without CAMPX_DB_URL/CAMPX_DB_PASSWORD (or SUPABASE_JDBC_URL/SUPABASE_PASSWORD).");
         } else {
-            domain = new EnrollmentDomainService();
+            domain = new EnrollmentDomainService(Clock.systemUTC(), null, null, DelegationPortFactory.fromEnvironment());
             logger.warn("STM-03 enrolment service starting in local in-memory mode (no JDBC configured)");
         }
 

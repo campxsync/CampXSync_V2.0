@@ -3,6 +3,7 @@ package com.campx.guardian;
 import com.campx.guardian.config.DatabaseConfig;
 import com.campx.guardian.config.DatabaseConnectionManager;
 import com.campx.guardian.persistence.PostgresGuardianPersistence;
+import com.campx.guardian.security.DelegationPortFactory;
 import com.campx.guardian.security.GatewayHmacVerifier;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -35,12 +36,13 @@ public class GuardianApplication {
         GuardianDomainService domain;
         if (dbConfig.isConfigured()) {
             connectionManager.initialize(dbConfig);
-            domain = new GuardianDomainService(Clock.systemUTC(), new PostgresGuardianPersistence(connectionManager), null);
+            domain = new GuardianDomainService(Clock.systemUTC(), new PostgresGuardianPersistence(connectionManager), null,
+                    DelegationPortFactory.fromEnvironment());
             logger.info("STM-05 guardian service starting with PostgreSQL persistence");
         } else if (isDeployedEnvironment()) {
             throw new IllegalStateException("STM-05 refuses deployed start without a configured development database");
         } else {
-            domain = new GuardianDomainService();
+            domain = new GuardianDomainService(Clock.systemUTC(), null, null, DelegationPortFactory.fromEnvironment());
             logger.warn("STM-05 guardian service starting in local in-memory mode");
         }
         final GuardianController controller = new GuardianController(domain, new GatewayHmacVerifier(System.getenv("CAMPX_GATEWAY_HMAC_SECRET")));

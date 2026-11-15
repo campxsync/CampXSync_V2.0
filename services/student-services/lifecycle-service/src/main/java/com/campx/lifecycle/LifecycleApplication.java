@@ -3,6 +3,7 @@ package com.campx.lifecycle;
 import com.campx.lifecycle.config.DatabaseConfig;
 import com.campx.lifecycle.config.DatabaseConnectionManager;
 import com.campx.lifecycle.persistence.PostgresLifecyclePersistence;
+import com.campx.lifecycle.security.DelegationPortFactory;
 import com.campx.lifecycle.security.GatewayHmacVerifier;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -34,13 +35,14 @@ public class LifecycleApplication {
 
         if (dbConfig.isConfigured()) {
             connectionManager.initialize(dbConfig);
-            domain = new LifecycleDomainService(Clock.systemUTC(), new PostgresLifecyclePersistence(connectionManager));
+            domain = new LifecycleDomainService(Clock.systemUTC(), new PostgresLifecyclePersistence(connectionManager),
+                    null, DelegationPortFactory.fromEnvironment());
             logger.info("STM-04 lifecycle service starting with PostgreSQL persistence");
         } else if (isDeployedEnvironment()) {
             throw new IllegalStateException(
                     "STM-04 refuses deployed start without CAMPX_DB_URL/CAMPX_DB_PASSWORD (or SUPABASE_JDBC_URL/SUPABASE_PASSWORD).");
         } else {
-            domain = new LifecycleDomainService();
+            domain = new LifecycleDomainService(Clock.systemUTC(), null, null, DelegationPortFactory.fromEnvironment());
             logger.warn("STM-04 lifecycle service starting in local in-memory mode (no JDBC configured)");
         }
 

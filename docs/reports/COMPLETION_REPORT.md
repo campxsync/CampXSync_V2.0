@@ -500,3 +500,54 @@ None touched. No DDL. No staging/production writes. No push.
 
 ### Owner decision needed next
 **Approve Path C Phase 2** (exact ask in design note §14.5): institute-admin internal active-check API + gateway route + STM `HttpIamDelegationPort` wiring under M1 / no cache / fail closed.
+
+---
+
+## Entry 15 — IAM Path C Phase 2 implementation (2026-11-15)
+
+**Task ID:** IAM_DELEGATION_ADAPTER_PATH_C_PHASE2  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`
+
+### Scope completed
+- Institute-admin M1 `DelegationAuthorizationService` + `GET /api/v1/admin/internal/delegations/active-check`.
+- `RoleCodeLookup` (InMemory + Postgres `iam.roles`) — no STM cross-schema reads.
+- Gateway explicit route `/api/v1/admin/internal/delegations`.
+- `HttpIamDelegationPort` + `DelegationPortFactory` in admissions, enrollment, lifecycle, guardian, document.
+- Applications wire factory; unset `CAMPX_IAM_DELEGATION_BASE_URL` → FailClosed (no silent in-memory auth).
+- Fake/FailClosed preserved for unit tests. No cache. Fail closed on IAM errors.
+
+### Acceptance → code → test
+
+| Clause | Code | Test |
+|---|---|---|
+| Active valid R31 delegation | `DelegationAuthorizationService.checkActive` | `allowsActiveValidDelegation` / `httpAllowsActiveDelegation` |
+| Missing delegation | same | `deniesMissingDelegation` / `httpDeniesMissingDelegation` |
+| Expired / revoked | same | `deniesExpiredDelegation` / `deniesRevokedDelegation` |
+| Wrong tenant | same | `deniesWrongTenant` |
+| Unauthorized permission key | same | `deniesUnauthorizedPermissionKey` / HTTP |
+| IAM unavailable | `HttpIamDelegationPort` | `failClosedWhenIamUnavailable` / `failClosedWhenHostUnreachable` |
+| No cache | Http client | `noCacheEachCallHitsIam` |
+| Caller≠subject | service | `deniesCallerSubjectMismatch` |
+| Cross-service client | five `HttpIamDelegationPort` | per-service `HttpIamDelegationPortTest` |
+| Gateway route | `GatewayConfig` | `DelegationGatewayRouteTest` |
+| Campus / SoD / legacy | prior Phase A (unchanged) | existing R31/SoD suites |
+
+### Tests (§7A)
+
+| Module | Result |
+|---|---|
+| institute-admin-service (new tests) | DelegationAuthorizationServiceTest + DelegationActiveCheckHttpTest **PASS** |
+| institute-admin-service (full) | **497 run, 0 fail, 11 errors, 31 skipped** — errors are pre-existing Postgres college/provisioning integration (`InstituteNotFound` / platform-admin privilege), unrelated to Path C |
+| document-service | **exit 0** |
+| enrollment-service | **exit 0** |
+| lifecycle-service | **exit 0** |
+| guardian-service | **exit 0** |
+| admissions-service | **exit 0** |
+| api-gateway `DelegationGatewayRouteTest` | **exit 0** |
+
+### Database / infra
+No DDL. No seed apply. No push. No new dependencies.
+
+### Status
+CSV `STM-CROSS-EN-010` notes updated — Path C Phase 2 **partially completed** (live A/R still needs R31 seed + env URL). Design note §14.6.

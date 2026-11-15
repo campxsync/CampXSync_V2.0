@@ -5,6 +5,8 @@ import com.campx.admissions.config.DatabaseConnectionManager;
 import com.campx.admissions.controller.ApplicationController;
 import com.campx.admissions.repository.*;
 import com.campx.admissions.server.AdmissionsServer;
+import com.campx.admissions.security.AdmissionsPermissionEvaluator;
+import com.campx.admissions.security.DelegationPortFactory;
 import com.campx.admissions.service.AdmissionsEventPublisher;
 import com.campx.admissions.service.ApplicationDomainService;
 import com.campx.logger.CampXLogger;
@@ -95,6 +97,7 @@ public class AdmissionsApplication {
             }
 
             AdmissionsEventPublisher eventPublisher = new AdmissionsEventPublisher();
+            AdmissionsPermissionEvaluator.setDelegationPort(DelegationPortFactory.fromEnvironment());
 
             ApplicationDomainService domainService = new ApplicationDomainService(
                     appRepo, intakeRepo, ruleRepo, docRepo, reviewRepo, decisionRepo, offerRepo, handoverRepo, historyRepo, eventPublisher

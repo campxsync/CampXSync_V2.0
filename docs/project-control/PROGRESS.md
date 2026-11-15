@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (IAM M1+Path C approved; live adapter STOP at missing IAM check API)
+**Updated:** 2026-11-15 (IAM Path C Phase 2 implemented — check API + STM Http clients)
 
 ## Scoreboard (session)
 
@@ -13,7 +13,7 @@
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
-| IAM live delegation adapter | **BLOCKED (Path C Phase 2)** — M1+Path C+no-cache+fail-closed **approved**; no IAM HTTP check contract exists (`docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` §14) |
+| IAM live delegation adapter | **partially completed** — Path C Phase 2 API + gateway + five `HttpIamDelegationPort` clients shipped; activate via `CAMPX_IAM_DELEGATION_BASE_URL`; R31 seed apply still Phase B |
 | STM-06-EN-002 / EN-003 | **partially completed** (Phase B apply awaiting owner) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
@@ -68,7 +68,9 @@ D10 (decided 15-11-2026, Niranjan): Registrar is canonical role R31, scoped to t
 
 D12a (decided 15-11-2026, Niranjan): Delegation: wire STM approve/reject to the existing IAM delegations through a small port; fake in unit tests; fail-closed when no active delegation. If reading delegations needs a cross-schema read, a new service contract or new infrastructure: STOP and give a design note; do not build it.
 
-D12a-follow-on (decided 15-11-2026, Niranjan): **M1** mapping + **Path C** central IAM contract + **no cache** + authoritative check on every A/R + **fail closed**. Investigation: institute-admin has `DelegationRepository` only — **no** HTTP active-check API, domain wiring, or gateway route. Live `HttpIamDelegationPort` **STOP** pending separate approval to add that contract (§14 of design note). Path B / M2 / M3 not authorized.
+D12a-follow-on (decided 15-11-2026, Niranjan): **M1** mapping + **Path C** central IAM contract + **no cache** + authoritative check on every A/R + **fail closed**.
+
+D12a-Phase2 (decided 15-11-2026, Niranjan): implement institute-admin active-check API, gateway route, STM `HttpIamDelegationPort` (M1, no cache, fail closed). **Implemented** — `GET /api/v1/admin/internal/delegations/active-check`; role lookup via `iam.roles` inside institute-admin; STM factory uses `CAMPX_IAM_DELEGATION_BASE_URL`. Path B / M2 / M3 not authorized. R31 seed apply still separate.
 
 D12b (decided 15-11-2026, Niranjan): Campus: carry the assigned campus (IAM college_id) on the STM actor from gateway claims and enforce it for Registrar actions.
 
