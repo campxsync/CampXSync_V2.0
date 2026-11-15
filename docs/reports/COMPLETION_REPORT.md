@@ -340,3 +340,43 @@ None for this entry (docs-only + STOP). Prior green full-suite evidence remains 
 1. Keep / discard / authorize commit of the two dirty runbooks.  
 2. Approve or CHANGES on `IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` (Path + mapping).  
 3. Clear preflight → authorize queue resume (batch starts at **1e R31-SoD** or next unblocked).
+
+---
+
+## Entry 11 — Queue batch: R31-SoD + CROSS-EN-010 + US-010 + US-007 + US-015 (2026-11-15)
+
+**Mode:** IMPLEMENT | **Branch:** `feature/java-backend-integration`
+
+### Stories
+
+| ID | Status | Commit | §7A |
+|---|---|---|---|
+| R31-SoD (1e) | completed / tested | `dfc6788` | admissions 59; enrollment 106; lifecycle 49; guardian 66 (at SoD commit; later suites grew) |
+| STM-CROSS-EN-010 | partially completed | *(with docs commit)* | enrollment 108; lifecycle 51; guardian 75; document 115 — all exit 0 |
+| STM-06-US-010 | completed | `0b1f73d` | document-service 107 → later 115 |
+| STM-05-US-007 | completed | `4b2154b` | guardian-service 73 → later 75 |
+| STM-06-US-015 | partially completed | *(with US-015 code commit)* | document-service 115 / 0 fail |
+
+### Acceptance → code → test (summary)
+
+| Clause | Code | Test |
+|---|---|---|
+| Same actor cannot verify+approve (enrollment eligibility→status) | `EnrollmentDomainService.updateStatus` | `stm03R31SoD_sameActorCannotVerifyEligibilityThenApproveOrReject` |
+| Endorse≠decide (lifecycle) | `LifecycleDomainService.decideRequest` | `stm04R31SoD_sameActorCannotEndorseThenApprove` |
+| Verify≠grant (guardian) | `GuardianDomainService.grantAccess` | `stm05R31SoD_sameActorCannotVerifyThenGrantAccess` |
+| Review≠decide (admissions) | `AdmissionsPermissionEvaluator` + `ReviewAndDecisionService` | `stm02R31SoD_sameActorCannotReviewThenApprove` |
+| Student re-verification request | `DocumentDomainService.requestReverification` | `stm06Us010_*` |
+| Primary/secondary emergency contacts | `GuardianDomainService.designateEmergencyContactPriorities` | `stm05Us007_*` |
+| In-app expiry notifications | `DocumentDomainService.listExpiringDocuments` / notifications | `stm06Us015_*` |
+| CROSS tenant/role negatives (03..06) | named `stmCrossEn010_*` | coverage: `docs/reports/STM_CROSS_EN_010_STM03_06_COVERAGE.md` |
+
+### Gaps
+- CROSS: no unified multi-service e2e harness.
+- US-015: in-app notification list is process-local (not DB).
+- US-006 still BLOCKED (IAM seed / pilot Registrar).
+- Design note adapter still BLOCKED.
+
+### Owner decisions still needed
+- Approve IAM delegation design note (Path B/C + M1/M2/M3).
+- Phase B applies (EN-002 storage, R31 IAM seed).
+- Waive or seed for US-006; authorize CROSS e2e follow-up; push when ready.

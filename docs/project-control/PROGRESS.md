@@ -1,31 +1,21 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (IAM delegation design note created/BLOCKED; queue preflight STOP on unexpected dirty runbooks)
+**Updated:** 2026-11-15 (queue batch: R31-SoD, CROSS-EN-010 partial, US-010, US-007, US-015 partial)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-06-EN-002 regression | **tested** (full document-service suite green after Instant tie-break + live checklist harden) |
-| R31 Registrar Phase A | **implemented** / **tested** (STM-02..06; fake delegation; no live IAM apply) |
-| IAM live delegation adapter | **BLOCKED** — `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md` (D12a; Path B/C + mapping awaiting owner) |
-| STM-06-EN-002 / EN-003 | **partially completed** (Phase B storage/IAM apply awaiting owner) |
-| Queue batch (RUN THE QUEUE) | **STOP** — preflight: unexpected modified runbooks (see below) |
+| R31-SoD (1e) | **tested** (`dfc6788`) |
+| STM-CROSS-EN-010 | **partially completed** (STM-03..06 named negatives; no unified e2e harness) |
+| STM-06-US-010 | **tested** (`0b1f73d`) |
+| STM-05-US-007 | **tested** (`4b2154b`) |
+| STM-06-US-015 | **partially completed** (in-app only; notification store not DB-persisted) |
+| STM-06-US-006 | **BLOCKED** (pilot Registrar / IAM seed) |
+| IAM live delegation adapter | **BLOCKED** — design note awaiting Path B/C + mapping |
+| STM-06-EN-002 / EN-003 | **partially completed** (Phase B apply awaiting owner) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
-
-### Preflight dirty (2026-11-15) — beyond known leftovers
-
-Known leftovers (ignored): `classpath.txt`, `docs/reports/_csv_status_*.txt`, CSV scratch `.tmp` / `tmpcse61qy9.csv`.
-
-**Unexpected (STOP):**
-
-| Path | Notes |
-|---|---|
-| `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md` | Uncommitted edits: adapter BLOCKED language, legacy-flag non-bypass + expiry 2026-12-31, pre-apply gates |
-| `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md` | Uncommitted edits: security verification checklist, tenant-prefix/path/orphan gates, pre-apply authorization |
-
-Owner must confirm keep / discard / commit these before the queue may proceed.
 
 ## Evidence highlights
 
