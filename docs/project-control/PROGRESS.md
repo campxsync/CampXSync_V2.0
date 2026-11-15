@@ -1,17 +1,15 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (STM-06-EN-002 Phase A implemented/tested with fake storage; Phase B awaiting owner)
+**Updated:** 2026-11-15 (EN-002 regression fix + R31 Registrar Phase A implemented/tested; Phase B IAM seed not applied)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
-| STM-05-EN-002 | **completed** (demo 8/8) |
-| STM-06-US-012 | **completed** (demo 7/7) |
-| STM-06-US-013 | **completed** (demo 7/7) |
-| STM-06-EN-003 | **partially completed** (signed URL + validation/heuristic scan; no live AV; byte store was missing — see EN-002) |
-| STM-06-EN-002 | **partially completed** (Phase A: storage abstraction + fake tests **implemented** / **tested**; Phase B staging apply not done) |
+| STM-06-EN-002 regression | **tested** (full document-service suite green after Instant tie-break + live checklist harden) |
+| R31 Registrar Phase A | **implemented** / **tested** (STM-02..06; fake delegation; no live IAM apply) |
+| STM-06-EN-002 / EN-003 | **partially completed** (Phase B storage/IAM apply awaiting owner) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights
@@ -41,7 +39,7 @@
 **Date:** 15-11-2026  
 **Approved by:** Niranjan (product owner)
 
-D1. Registrar: APPROVED as a NEW canonical catalogue role (option A). Catalogue code to be assigned by the owner; do not invent one. Department staff act on Registrar functions by delegation from the HOD (R08). Labels that map to Registrar: "Registrar / Department Staff", "Registrar / delegated approver", "Authorized Registrar / verifier", and "Assigned verifier / Registrar" (limited to assigned documents). Status: DECIDED, NOT YET CREATED in the system. Creating the role is a separate IMPLEMENT task needing its own approval. Existing STM-03..06 behavior for the Registrar must be matched when the role is created.
+D1. Registrar: APPROVED as a NEW canonical catalogue role (option A). Catalogue code **R31** (D10). Department staff act on Registrar functions by delegation from the HOD (R08). Labels that map to Registrar: "Registrar / Department Staff", "Registrar / delegated approver", "Authorized Registrar / verifier", and "Assigned verifier / Registrar" (limited to assigned documents). Status: DECIDED; **Phase A service recognition implemented/tested**; IAM seed apply = Phase B (D12c).
 
 D2. "Assigned reviewer / approver": not a role. Resolved by assignment to existing roles (R08, R10, Registrar).
 
@@ -60,6 +58,18 @@ D8 (STM-RBAC-FLAG-004, decided 15-11-2026, Niranjan): The STM matrix stands. Fac
 D9 (STM-RBAC-FLAG-005, decided 15-11-2026, Niranjan): A Registrar may correct document metadata (audited, never on an already-verified document). No delete right (archive only). No widening of retention writes. STM-06-US-006 is unblocked by this decision but still depends on the Registrar role (D1), which is not yet created.
 
 D11 (STM-06-EN-002 Phase A resume, decided 15-11-2026, Niranjan): Config key names approved for document-service: CAMPX_SUPABASE_URL, CAMPX_SUPABASE_SERVICE_ROLE_KEY, CAMPX_STORAGE_BUCKET (default "student-documents"). The service-role key is server-side only in the document-service environment; never in frontend or public env, Git, logs, errors, or reports. JDK built-in HTTP only (HttpURLConnection on the JDK in use); no new dependency. Add optional contentBase64 to the existing JSON upload. Bytes are REQUIRED whenever storage is configured; metadata-only upload is allowed only for the in-memory/test profile. Validate: decoded size == sizeBytes; SHA-256 == checksumSha256; type on allowlist with a signature check against the declared mimeType; reuse existing limits (10 MB; application/pdf, image/jpeg, image/png, image/webp). Download streams through the service on the existing route after the signed-token check; do not issue Supabase signed URLs to clients. Bytes never in a relational table; no direct client-to-Supabase path. Malware scanning stays OUT OF SCOPE (needs a scanner = new tool); record it as an open gap. Phase A uses a fake storage client in tests; no Supabase connection or write.
+
+D10 (decided 15-11-2026, Niranjan): Registrar is canonical role R31, scoped to the assigned campus, separate from Academic Admin (inherits no Academic Admin/ACD/LMS rights), approvals by delegation only, no delete, same actor cannot verify and approve in one workflow. No permission outside the STM action-level table is granted; everything else fails closed.
+
+D12a (decided 15-11-2026, Niranjan): Delegation: wire STM approve/reject to the existing IAM delegations through a small port; fake in unit tests; fail-closed when no active delegation. If reading delegations needs a cross-schema read, a new service contract or new infrastructure: STOP and give a design note; do not build it.
+
+D12b (decided 15-11-2026, Niranjan): Campus: carry the assigned campus (IAM college_id) on the STM actor from gateway claims and enforce it for Registrar actions.
+
+D12c (decided 15-11-2026, Niranjan): IAM seed: prepare, do not apply, docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md (role template, seed, rollback).
+
+D12d (decided 15-11-2026, Niranjan): College Admin and Institution Admin stop being treated as Registrar in STM-02..STM-06, except where the matrix grants College Admin explicitly (STM-01 scoped V/U, STM-07 delegated trigger, STM-10 portal settings). Temporary staging-only deviation: flag CAMPX_STM_LEGACY_REGISTRAR_STANDIN, default OFF in code, set ON only in the staging environment, documented as TEMPORARY with expiry to be set by the owner (tie to first real college onboarding).
+
+D12e (decided 15-11-2026, Niranjan): From now on every task runs the FULL test suite of each module touched and reports every failure, including pre-existing ones.
 
 ### EN-002 / EN-003 partial reason
 

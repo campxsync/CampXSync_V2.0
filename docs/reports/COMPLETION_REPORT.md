@@ -270,3 +270,47 @@ None (no DDL; no Staging Storage apply; no live Supabase Storage write).
 
 ### Owner decision
 Awaiting `APPROVED STM-06-EN-002` / Phase B authorization. Local commits only; **no push**.
+
+---
+
+## Entry 9 — EN-002 regression fix + R31 Registrar Phase A (2026-11-15)
+
+**Task ID:** EN-002 REGRESSION + R31 REGISTRAR (PHASE A, REVISED)  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Owner decisions recorded:** D10, D12a–D12e (PROGRESS.md, 15-11-2026, Niranjan)
+
+### Part 1 — EN-002 regression
+- Full `DocumentDomainServiceTest` on HEAD initially green; parent worktree `94368d0` US-007 test also PASS.
+- Intermittent VALID/INVALID root cause: equal `verifiedAt` Instant ms in `findLatestVerification` preferred older REJECT.
+- Fix: InMemory tie-break (last equal-or-after wins); Postgres `ORDER BY verified_at DESC, created_at DESC, id DESC`; live checklist assertion hardened for prior APPROVED rows.
+- Full document-service module after fix: **102 run, 0 fail** (JDK 1.8.0_202).
+
+### Part 2 — R31 Registrar Phase A
+- `DelegationPort` + `FakeDelegationPort` + `FailClosedDelegationPort` + `LegacyRegistrarStandin` in document, enrollment, lifecycle, guardian, admissions.
+- Actor `collegeId` from `X-College-Id`; Registrar = `R31`|`REGISTRAR` unless legacy flag ON.
+- A/R fail-closed without delegation; campus required; document same-actor verify→approve without resubmit denied.
+- College Admin catalogue/config retained where matrix grants; Registrar no longer configures document types (D12d).
+- Runbook prepared (not applied): `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md`.
+- Queue: NEXT_TASK items **1c** (frontend Registrar mapping) and **1d** (R31 Phase B).
+
+### Tests (§7A) — full modules touched
+
+| Module | Exit | Result |
+|---|---:|---|
+| document-service | 0 | 102 run, 0 fail |
+| enrollment-service | 0 | 105 run, 0 fail |
+| lifecycle-service | 0 | 48 run, 0 fail |
+| guardian-service | 0 | 65 run, 0 fail |
+| admissions-service | 0 | 58 run, 0 fail |
+
+### Database
+None (no IAM seed apply; no Supabase write).
+
+### Deviations / STOP items
+- Live IAM delegation adapter not built (D12a fail-closed port only) — Phase B design note required for cross-schema read.
+- Frontend/BFF Registrar mapping out of scope (1c).
+- Legacy flag expiry date still to be set by owner at first real college onboarding.
+
+### Owner decision
+Awaiting Phase B authorization (R31 IAM seed + optional live delegation adapter). Local commits only; **no push**.
