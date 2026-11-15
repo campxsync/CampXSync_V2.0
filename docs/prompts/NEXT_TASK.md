@@ -1,20 +1,31 @@
 # Next Task
 
-**STATUS: QUEUE COMPLETE — awaiting owner approval / commit authorization.**
+**STATUS: OWNER QUEUE (2026-11-15).** Do not start an item until the owner says.
 
-## Completed this session (no commit/push)
+## Pickup queue (order)
 
-1. **STM-05-EN-002** — RLS and resource-scoped guardian access controls — PASS (demo 8/8)
-2. **STM-06-US-012** — Manage document access permissions — PASS (demo 7/7)
-3. **STM-06-US-013** — Manage document-sharing consent — PASS (demo 7/7)
-4. **STM-06-EN-003** — Secure upload/download, validation, malware scan, signed URL — PASS (demo 7/7)
+1. **STM-06-EN-002** — Phase A in progress / implemented with fake storage tests; **Phase B awaits owner approval** (staging bucket apply + live check).
+1b. **Frontend:** send file content on document upload (`file` input → `contentBase64`), required before any storage-backed pilot use.
+2. **STM-CROSS-EN-010** — scoped to STM-03..STM-06 (tenant-isolation, RBAC negative, integration tests).
+3. **STM-06-US-010** — Request document re-verification.
+4. **STM-05-US-007** — Designate primary and secondary emergency contacts.
+5. **STM-06-US-006** — Update document metadata (needs Registrar role per D1/D9).
+6. **STM-06-US-015** — Document-expiry notifications (**in-app only**).
+7. **STM-CROSS-EN-014** with **STM-03-EN-007** — docs/ops readiness pack.
 
-## On hold
+## Deferred (do not start)
 
-- **STM-CROSS-EN-007** — Kafka/event bus (not configured)
-- **STM-06-EN-002** — Supabase Storage bytes (separate from signed-URL gate)
-- Live AV endpoint for malware (`ControlledMalwareScanAdapter.liveEndpoint=false`)
+- STM-06-US-017 (External Verification Agency — D4 fail-closed)
+- STM-04-EN-004, STM-05-EN-004 (need STM-07/08/10)
+- STM-CROSS-EN-007 (Kafka)
+- STM-07..STM-10
+
+## Owner policy items still open (do not implement)
+
+- STM-RBAC-FLAG-001 role-code assignment for Registrar and remaining open labels
+- STM-RBAC-FLAG-002, -003, -006, -007
 
 ## Rules
 
-- **Do not commit or push until owner authorizes** (`APPROVED … COMMIT`).
+- No commit/push unless owner authorizes.
+- No Supabase Storage apply until Phase B approval.

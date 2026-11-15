@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-14 (P1/P2/EN-003 queue done; Kafka held; no commit until authorized)
+**Last current-state refresh:** 2026-11-15 (STM-06-EN-002 Phase A done with fake storage; Phase B + frontend 1b await owner)
 
 ---
 
@@ -10,8 +10,8 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — next assignment after US partials (PROPOSED: EN/CROSS).
-2. `docs/project-control/PROGRESS.md` — source of truth for status and open policy decisions.
+1. `docs/prompts/NEXT_TASK.md` — owner queue (EN-002 Phase B, frontend 1b, CROSS-EN-010, …).
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (D1–D11).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -19,16 +19,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — **do not commit/push until owner authorizes**.
-2. **Canonical backlog:** Priority queue done: STM-05-EN-002, STM-06-US-012/013, STM-06-EN-003 (demos PASS).
-3. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-4. **Next:** owner approval/commit for this queue; then yet-to-pickup (STM-06-EN-002 storage bytes, Kafka CROSS-EN-007, DDL FORCE gaps).
-5. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Remaining `X-User-*` call sites still to migrate; do not weaken auth.
-6. **H-2 gap:** platform `userCount`/`collegeCount` remain 0 under RLS (needs approved DDL).
-7. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`; both needed for student enrolment BFF (`X-Student-Record-Id` via `/students/me`).
-8. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
-9. **Live tenant provision:** requires exact phrase `GO PROVISION-TENANT` (script `--approve` or BFF header).
-10. **Demos:** headed `run_story_demo.mjs` required every story; latest `docs/demos/STM-RBAC-EN-001/`.
+1. **Branch:** `feature/java-backend-integration` — local commits only when authorized; **no push** unless owner says.
+2. **STM-06-EN-002 Phase A:** storage abstraction + `contentBase64` validation + service-streamed download; fake storage tests PASS; staging runbook prepared **not applied**.
+3. **CSV:** EN-002 and EN-003 marked `partially completed` (no prior byte store / content validation against real bytes; live AV still open gap).
+4. **Next (queue):** Phase B owner approval → frontend 1b `contentBase64` → CROSS-EN-010 (STM-03..06) → US-010 / US-007 / US-006 / US-015 → CROSS-EN-014.
+5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Decisions D8/D9/D11 recorded in PROGRESS.
+6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
+7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
+8. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`.
+9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope).
+10. **Demos:** headed `run_story_demo.mjs` required every story; EN-002 Phase A is unit-test + runbook only (no live Storage demo).
 
 ---
 

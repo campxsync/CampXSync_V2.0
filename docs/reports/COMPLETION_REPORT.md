@@ -228,3 +228,45 @@ Headed demos previously recorded for US-001…005; US-006…019 not re-demoed he
 - **STM-03 completed:** **19** (US-001…US-019)
 - **Remaining partially completed (all services):** **52**
 - **Yet to pickup:** **81**
+
+---
+
+## Entry 8 — STM-06-EN-002 Phase A (Storage abstraction + content validation) (2026-11-15)
+
+**Task ID:** STM-06-EN-002 (PHASE A)  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Owner decisions recorded:** D8, D9, D11 (PROGRESS.md, 15-11-2026, Niranjan)
+
+### Scope completed
+- Document object-storage abstraction: `DocumentObjectStorage`, `DocumentStorageConfig`, `FakeDocumentObjectStorage`, `SupabaseStorageHttpClient` (JDK `HttpURLConnection` only; no new deps).
+- Optional JSON upload field `contentBase64`; required when storage configured; metadata-only allowed for in-memory/test (unconfigured) profile.
+- Validation: decoded size == `sizeBytes`; SHA-256 == `checksumSha256`; MIME allowlist + magic-byte signature check. Reused existing limits: **10 MB**; `application/pdf`, `image/jpeg`, `image/png`, `image/webp`.
+- Download streams bytes on existing `GET /api/v1/documents/download` after signed-token check (`?mode=metadata` keeps JSON). No Supabase signed URLs to clients; bytes never in relational tables.
+- Staging runbook prepared (not applied): `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md`.
+- Service README updated with config keys and contract notes.
+- CSV: `STM-06-EN-002` and `STM-06-EN-003` → `partially completed` (only those two status cells; 220 rows / 23 columns verified).
+- Queue: `NEXT_TASK.md` item **1b** frontend `contentBase64` wiring.
+- Malware AV live scanner remains out of scope (open gap).
+
+### Database
+None (no DDL; no Staging Storage apply; no live Supabase Storage write).
+
+### Tests (§7A)
+
+| Command | Exit | Result |
+|---|---:|---|
+| `mvn test -pl services/student-services/document-service -Dtest=DocumentDomainServiceTest#stm06En002*` | 0 | EN-002 storage tests PASS (fake client; no live Supabase) |
+
+### Evidence paths
+- Runbook: `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md`
+- Service docs: `services/student-services/document-service/README.md`
+- Decisions / status: `docs/project-control/PROGRESS.md` (D8/D9/D11)
+
+### Deviations / STOP items
+- Phase B (apply staging bucket + live write check) **not started** — awaits owner.
+- Frontend does not yet send `contentBase64` (queue 1b); optional field does not break existing metadata-only proxies while storage remains unconfigured.
+- Signature checks implemented with JDK magic-byte inspection — **no new library**.
+
+### Owner decision
+Awaiting `APPROVED STM-06-EN-002` / Phase B authorization. Local commits only; **no push**.
