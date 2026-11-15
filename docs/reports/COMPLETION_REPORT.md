@@ -575,3 +575,41 @@ Separate for storage: `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`.
 
 ### Not done yet
 Phases 4–5 live pilot verification; Phase 6 storage apply.
+
+---
+
+## Entry 17 — R31 pilot write apply + Path C live allow (2026-11-15)
+
+**Task ID:** R31-PILOT-WRITE  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Owner approval:** `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`
+
+### Scope completed
+- Created/confirmed Auth user `c31a0000-…0031` (`REGISTRAR_PILOT_*` in `.env.audit`; password not logged).
+- Applied IAM: `user_profiles` ACTIVE, REGISTRAR `role_assignments` on campus `…0002`, ACTIVE 90-day `iam.delegations` `…0033`.
+- Fixed Path C evaluator: privileged `hasActiveRegistrarDelegation` (pool-role EXISTS join) after caller==subject — subject JWT cannot SELECT `iam.roles` under RLS.
+- Live Path C allow for STM-02..06.A; negatives: unauthorized key, caller/subject mismatch, non-delegatee.
+
+### Database read-back (Dev `azulbaxszsqxymqmlwfe` only)
+| Check | Result |
+|---|---|
+| Auth user | present, email confirmed |
+| Role assignment | REGISTRAR, campus `…0002`, active |
+| Delegation | ACTIVE, currently_active=true through ~2027-02-13 |
+| Storage buckets | **0** (unchanged; Phase 6 not authorized) |
+
+### Tests (§7A)
+
+| Command | Result |
+|---|---|
+| `LivePostgresDelegationActiveCheckTest` + unit/HTTP Path C tests | **PASS** (ALLOW STM-02..06.A) |
+| Full `institute-admin-service` suite | **536 run, 0 fail, 12 errors, 0 skipped** — errors pre-existing Postgres college/provisioning/api_client FK (unrelated to Path C) |
+
+### Not completed (explicit)
+- Full STM HTTP A/R via gateway: **BLOCKED** — host free RAM ~1.36 GB (<3 GB stack gate).
+- EN-002 storage bucket create: **BLOCKED** — needs `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`.
+- Frontend Registrar mapping / contentBase64: still queued.
+
+### Status
+**partially completed** — Auth/IAM/Path C service-layer live allow done; stack smoke + storage remain. CSV `STM-CROSS-EN-010` notes updated.

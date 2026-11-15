@@ -302,6 +302,13 @@ Therefore Path C **cannot** be completed using only existing contracts. Building
 | STM clients | `HttpIamDelegationPort` + `DelegationPortFactory` in STM-02..06 |
 | Env | `CAMPX_IAM_DELEGATION_BASE_URL` (e.g. `http://127.0.0.1:8081`) |
 
-**Still separate:** R31 / delegation seed apply; staging smoke with real rows; no DDL.
+### 14.7 Pilot activation + RLS-safe evaluator (15-11-2026)
 
-Pilot activation package (Dev write gate): `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md`.
+Owner: `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`.
+
+- Pilot Auth user + `iam.user_profiles` + REGISTRAR `role_assignments` + ACTIVE 90-day `iam.delegations` on Dev.
+- Path C evaluator uses privileged pool-role `DelegationRepository.hasActiveRegistrarDelegation` (EXISTS join `iam.delegations`↔`iam.roles` for `REGISTRAR`/`R31`) **after** HMAC identity + caller==subject match. Subject JWT cannot `SELECT iam.roles` under RLS (`adm09.view`), which previously fail-closed forever.
+- Live evidence: `LivePostgresDelegationActiveCheckTest` ALLOW for STM-02..06.A; deny unauthorized key / mismatch / non-delegatee.
+- Still separate: EN-002 storage bucket; full STM HTTP stack smoke when host RAM ≥3 GB; `CAMPX_IAM_DELEGATION_BASE_URL` on running services.
+
+Pilot package: `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md`.

@@ -1,25 +1,28 @@
 # Next Task
 
-**STATUS: OWNER WRITE GATE (2026-11-15).** R31 pilot activation package ready. No DB/Auth writes until approved phrase.
+**STATUS: R31 PILOT PARTIAL — storage / stack / frontend remain.** Path C live allow on Dev verified after write approval.
 
-## Immediate gate
+## Just completed (local)
 
-**Approve:** `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`  
-**Package:** `docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md`  
-**Verified target:** CampXSync-Architecture-Dev / `azulbaxszsqxymqmlwfe` only.
+- Owner: `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`
+- Auth + IAM pilot Registrar rows on Dev (`azulbaxszsqxymqmlwfe`)
+- Privileged `hasActiveRegistrarDelegation` join (RLS-safe Path C evaluator)
+- `LivePostgresDelegationActiveCheckTest` ALLOW for STM-02..06.A + negatives
 
-After approval: create Auth user → apply §3.B SQL → set `CAMPX_IAM_DELEGATION_BASE_URL` → live Path C verification across STM-02..06.
+## Immediate gates (owner)
 
-Separate: `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe` for private storage bucket (0 buckets today).
+1. **`APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`** — private `student-documents` bucket (still **0** buckets).
+2. Free ≥3 GB RAM → start stack + set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` → STM HTTP A/R smoke.
+3. Frontend queue: contentBase64 upload (1b) → Registrar role mapping (1c) after pilot login verified in UI.
 
 ## Pickup queue (order)
 
-0. **IAM Path C Phase 2** — **DONE** (`268c036`).
-0b. **R31 pilot activation** — **BLOCKED** at write gate (package ready).
+0. **IAM Path C Phase 2** — **DONE** (`268c036` + RLS join fix).
+0b. **R31 pilot activation** — **partially completed** (Auth/IAM/Path C live; stack smoke + storage pending).
 1. **STM-06-EN-002** — Phase A done; **BLOCKED** Phase B storage apply.
 1b. **Frontend:** `contentBase64` upload — **BLOCKED**.
-1c. **Frontend:** Registrar role mapping — **BLOCKED** (after R31 pilot user exists).
-1d. **R31 Phase B seed** — superseded by 0b activation package.
+1c. **Frontend:** Registrar role mapping — **BLOCKED** (pilot user exists; UI mapping next).
+1d. **R31 Phase B seed** — superseded by 0b.
 1e. **R31-SoD** — **DONE**.
 2. **STM-CROSS-EN-010** — partially completed; e2e harness **BLOCKED**.
 3–5. US-010 / US-007 / US-006 — **DONE**.

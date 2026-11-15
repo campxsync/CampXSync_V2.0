@@ -260,6 +260,37 @@ public class PostgresDelegationRepository implements DelegationRepository {
         });
     }
 
+    @Override
+    public boolean hasActiveRegistrarDelegation(UUID tenantId, UUID toUserId, long nowMillis) {
+        if (tenantId == null || toUserId == null) {
+            return false;
+        }
+        // Privileged server-side IAM read (pool role) after HTTP layer verified caller == subject.
+        // Subject JWT typically cannot SELECT iam.roles (adm09.view), which would fail-closed forever.
+        try (Connection conn = connectionManager.getConnection()) {
+            String sql = "SELECT 1 FROM iam.delegations d "
+                    + "JOIN iam.roles r ON r.id = d.role_id AND r.tenant_id = d.tenant_id AND r.deleted_at IS NULL "
+                    + "WHERE d.tenant_id = ? AND d.to_user_id = ? AND d.deleted_at IS NULL "
+                    + "AND upper(d.status) = 'ACTIVE' "
+                    + "AND d.valid_from <= ? AND d.valid_to > ? "
+                    + "AND upper(r.code) IN ('REGISTRAR', 'R31') "
+                    + "LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, tenantId);
+                ps.setObject(2, toUserId);
+                ps.setTimestamp(3, new Timestamp(nowMillis));
+                ps.setTimestamp(4, new Timestamp(nowMillis));
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        } catch (SQLException e) {
+            logger.warn("Active registrar delegation check failed tenant={} user={}: {}",
+                    tenantId, toUserId, e.getMessage());
+            throw new SecurityViolationException("IAM delegation evaluation unavailable");
+        }
+    }
+
     private Delegation mapRow(ResultSet rs) throws SQLException {
         Delegation d = new Delegation();
         d.setId(rs.getString("id"));

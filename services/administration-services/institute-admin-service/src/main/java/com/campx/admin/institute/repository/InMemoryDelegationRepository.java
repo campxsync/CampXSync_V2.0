@@ -15,6 +15,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class InMemoryDelegationRepository implements DelegationRepository {
 
     private final Map<String, Delegation> delegations = new ConcurrentHashMap<>();
+    /** roleId → catalogue code for Path C M1 in-memory checks */
+    private final Map<String, String> roleCodesById = new ConcurrentHashMap<>();
+
+    public void putRoleCode(String roleId, String code) {
+        if (roleId == null || code == null) {
+            return;
+        }
+        roleCodesById.put(roleId.trim(), code.trim().toUpperCase(Locale.ROOT));
+    }
 
     private void checkContext(UserSecurityContext context) {
         if (context == null || context.getTenantId() == null) {
@@ -153,5 +162,38 @@ public class InMemoryDelegationRepository implements DelegationRepository {
             existing.setUpdatedAt(System.currentTimeMillis());
             existing.setUpdatedBy(context.getUserId() != null ? context.getUserId().toString() : null);
         }
+    }
+
+    @Override
+    public boolean hasActiveRegistrarDelegation(UUID tenantId, UUID toUserId, long nowMillis) {
+        if (tenantId == null || toUserId == null) {
+            return false;
+        }
+        String tenantStr = tenantId.toString();
+        String toStr = toUserId.toString();
+        for (Delegation d : delegations.values()) {
+            if (d.getDeletedAt() != null) {
+                continue;
+            }
+            if (!tenantStr.equals(d.getTenantId()) || !toStr.equals(d.getToUserId())) {
+                continue;
+            }
+            String status = d.getStatus() == null ? "" : d.getStatus().trim().toUpperCase(Locale.ROOT);
+            if (!"ACTIVE".equals(status)) {
+                continue;
+            }
+            if (d.getValidFrom() > nowMillis || d.getValidTo() <= nowMillis) {
+                continue;
+            }
+            String roleId = d.getRoleId() == null ? "" : d.getRoleId().trim();
+            String code = roleCodesById.get(roleId);
+            if (code == null) {
+                code = roleId.toUpperCase(Locale.ROOT);
+            }
+            if ("R31".equals(code) || "REGISTRAR".equals(code)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

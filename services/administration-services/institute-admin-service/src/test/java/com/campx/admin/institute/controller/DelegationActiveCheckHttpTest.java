@@ -49,6 +49,7 @@ public class DelegationActiveCheckHttpTest {
             TEST_PORT = socket.getLocalPort();
         }
         repo = new InMemoryDelegationRepository();
+        repo.putRoleCode(ROLE_R31, "R31");
         roles = new InMemoryRoleCodeLookup();
         roles.put(ROLE_R31, "R31");
         authService = new DelegationAuthorizationService(repo, roles);

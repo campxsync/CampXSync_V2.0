@@ -1,6 +1,5 @@
 package com.campx.admin.institute.service;
 
-import com.campx.admin.institute.model.InstituteModels.Delegation;
 import com.campx.admin.institute.repository.DelegationRepository;
 import com.campx.admin.institute.repository.InMemoryDelegationRepository;
 import com.campx.admin.institute.repository.PostgresDelegationRepository;
@@ -14,10 +13,9 @@ import com.campx.logger.CampXLoggerFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Path C M1 — central IAM evaluation of active REGISTRAR/R31 role delegation for STM {@code *.A} keys.
@@ -35,11 +33,6 @@ public class DelegationAuthorizationService {
             "STM-04.LIFECYCLE.A",
             "STM-05.GUARDIAN.A",
             "STM-06.DOCUMENTS.A"
-    )));
-
-    private static final Set<String> REGISTRAR_ROLE_CODES = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
-            "R31",
-            "REGISTRAR"
     )));
 
     private final DelegationRepository delegationRepository;
@@ -127,54 +120,21 @@ public class DelegationAuthorizationService {
         }
 
         try {
-            List<Delegation> rows = delegationRepository.listDelegationsForUser(context, subject);
             long now = clock.nowMillis();
-            for (Delegation d : rows) {
-                if (!isActiveWindow(d, now)) {
-                    continue;
-                }
-                if (!subject.equals(d.getToUserId())) {
-                    continue; // only delegated-to rows authorize A/R
-                }
-                Optional<String> roleCode = roleCodeLookup.findCodeByRoleId(context, d.getRoleId());
-                if (!roleCode.isPresent()) {
-                    continue;
-                }
-                if (REGISTRAR_ROLE_CODES.contains(roleCode.get())) {
-                    logger.info("Delegation active-check ALLOWED tenant={} permissionKey={} reason=ACTIVE_R31_DELEGATION",
-                            tenantStr, key);
-                    return new DelegationAuthorizationDecision(true, "ACTIVE_R31_DELEGATION", key, subject, tenantStr);
-                }
+            UUID subjectUuid = UUID.fromString(subject);
+            if (delegationRepository.hasActiveRegistrarDelegation(context.getTenantId(), subjectUuid, now)) {
+                logger.info("Delegation active-check ALLOWED tenant={} permissionKey={} reason=ACTIVE_R31_DELEGATION",
+                        tenantStr, key);
+                return new DelegationAuthorizationDecision(true, "ACTIVE_R31_DELEGATION", key, subject, tenantStr);
             }
             return deny(key, subject, tenantStr, "NO_ACTIVE_REGISTRAR_DELEGATION");
+        } catch (IllegalArgumentException e) {
+            return deny(key, subject, tenantStr, "INVALID_SUBJECT_USER");
         } catch (RuntimeException e) {
             logger.warn("Delegation active-check failed closed tenant={} permissionKey={} err={}",
                     tenantStr, key, e.getMessage());
             return deny(key, subject, tenantStr, "IAM_EVALUATION_ERROR");
         }
-    }
-
-    private static boolean isActiveWindow(Delegation d, long now) {
-        if (d == null) {
-            return false;
-        }
-        if (d.getDeletedAt() != null) {
-            return false;
-        }
-        String status = d.getStatus() == null ? "" : d.getStatus().trim().toUpperCase(Locale.ROOT);
-        if ("REVOKED".equals(status) || "EXPIRED".equals(status)) {
-            return false;
-        }
-        if (!"ACTIVE".equals(status)) {
-            return false;
-        }
-        if (d.getValidFrom() > now) {
-            return false;
-        }
-        if (d.getValidTo() <= now) {
-            return false;
-        }
-        return true;
     }
 
     private static DelegationAuthorizationDecision deny(String key, String subject, String tenant, String reason) {

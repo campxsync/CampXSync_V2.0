@@ -5,6 +5,7 @@ import com.campx.admin.institute.security.UserSecurityContext;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repository interface for managing temporary authority delegations (Item 18: {@code iam.delegations}).
@@ -63,4 +64,16 @@ public interface DelegationRepository {
      * @param id      delegation UUID
      */
     void revokeDelegation(UserSecurityContext context, String id);
+
+    /**
+     * Path C M1 — authoritative check: active REGISTRAR/R31 role delegation to {@code toUserId}
+     * within the caller's tenant and validity window. Implementations may use a privileged
+     * server-side IAM read after the HTTP layer has already verified caller == subject.
+     *
+     * @param tenantId  tenant scope
+     * @param toUserId  delegatee
+     * @param nowMillis evaluation instant
+     * @return true only when an ACTIVE, non-deleted, in-window REGISTRAR/R31 delegation exists
+     */
+    boolean hasActiveRegistrarDelegation(UUID tenantId, UUID toUserId, long nowMillis);
 }

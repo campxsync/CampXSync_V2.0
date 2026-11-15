@@ -1,11 +1,12 @@
 # R31 Pilot Registrar Activation — Execution Package
 
-**Status:** READY FOR OWNER WRITE APPROVAL (Dev only)  
+**Status:** APPLIED ON DEV — Path C live allow verified (service layer); full STM stack smoke BLOCKED (RAM)  
 **Date:** 2026-11-15  
 **Branch:** `feature/java-backend-integration`  
-**IAM Path C:** `268c036`  
+**IAM Path C:** `268c036` + privileged `hasActiveRegistrarDelegation` join  
 **Target project:** `CampXSync-Architecture-Dev` / ref `azulbaxszsqxymqmlwfe`  
-**Production:** FORBIDDEN (`ekspahbsbwdpraaqfqui`)
+**Production:** FORBIDDEN (`ekspahbsbwdpraaqfqui`)  
+**Owner write approval:** `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`
 
 ---
 
@@ -28,8 +29,9 @@
 | College / campus | `a0000000-0000-0000-0000-000000000002` (DEV_TEST_COLLEGE) |
 | REGISTRAR role (`iam.roles`) | `a72bb0de-18ee-421c-b2db-2d89fdb0d773` (code `REGISTRAR`, college_id NULL = catalogue role) |
 | Role template | `REGISTRAR` / catalogue_id `R31` present |
-| Existing REGISTRAR `role_assignments` | **none** |
-| Active `iam.delegations` for pilot | **none** (table empty for this use) |
+| Existing REGISTRAR `role_assignments` | **applied** — pilot user on campus `…0002` |
+| Active `iam.delegations` for pilot | **applied** — id `…0033`, ACTIVE through ~2027-02-13 |
+| Pilot Auth user | `c31a0000-0000-4000-8000-000000000031` (`REGISTRAR_PILOT_EMAIL` in `.env.audit`) |
 | Delegator (College Admin) | `70a8ffae-b5ad-4c61-a401-16f220893df4` (`campxsync@gmail.com`) |
 | Storage buckets | **0** (EN-002 Phase B still required separately) |
 
@@ -218,6 +220,20 @@ Gateway must resolve identity so downstream receives:
 - `X-User-Role` = `REGISTRAR` or `R31`  
 - `X-Tenant-Id` = pilot tenant  
 - `X-College-Id` = pilot campus  
+
+---
+
+## 3.D Apply outcome (2026-11-15, post-approval)
+
+| Step | Result |
+|---|---|
+| Auth create | User `…0031` confirmed; credentials keyed as `REGISTRAR_PILOT_*` in `.env.audit` |
+| §3.B SQL | Profile + assignment + delegation present and currently_active |
+| Path C evaluator fix | `hasActiveRegistrarDelegation` privileged join (RLS-safe) |
+| Live allow | `LivePostgresDelegationActiveCheckTest` ALLOW for all five STM `*.A` keys |
+| Live deny | unauthorized key / caller≠subject / non-delegatee |
+| STM HTTP stack smoke | **not run** — free RAM ~1.36 GB |
+| Storage | still **0** buckets |
 
 ---
 

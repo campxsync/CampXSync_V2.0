@@ -33,6 +33,8 @@ public class DelegationAuthorizationServiceTest {
     @Before
     public void setUp() {
         repo = new InMemoryDelegationRepository();
+        repo.putRoleCode(ROLE_R31, "R31");
+        repo.putRoleCode(ROLE_FACULTY, "R10");
         roles = new InMemoryRoleCodeLookup();
         roles.put(ROLE_R31, "R31");
         roles.put(ROLE_FACULTY, "R10");
@@ -148,6 +150,7 @@ public class DelegationAuthorizationServiceTest {
 
     @Test
     public void allowsRegistrarCodeAlias() {
+        repo.putRoleCode(ROLE_R31, "REGISTRAR");
         roles.put(ROLE_R31, "REGISTRAR");
         activeR31();
         DelegationAuthorizationDecision d = service.checkActive(ctx, SUBJECT.toString(), "STM-06.DOCUMENTS.A");

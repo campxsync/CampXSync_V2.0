@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (R31 pilot activation package ready; STOP for Dev write approval)
+**Updated:** 2026-11-15 (R31 pilot Auth+IAM applied on Dev; Path C live allow verified)
 
 ## Scoreboard (session)
 
@@ -13,7 +13,7 @@
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
-| IAM live delegation adapter | **partially completed** — Path C Phase 2 shipped (`268c036`); pilot Registrar Auth/assignment/delegation **STOP** awaiting `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe` (`docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md`) |
+| IAM live delegation adapter | **partially completed** — Path C Phase 2 + privileged registrar join; pilot Auth+IAM applied on Dev after `APPROVED R31-PILOT-WRITE azulbaxszsqxymqmlwfe`; live Path C allow STM-02..06; full STM HTTP stack smoke **BLOCKED** (RAM ~1.36 GB free) |
 | STM-06-EN-002 / EN-003 | **partially completed** (Phase B apply awaiting owner) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 

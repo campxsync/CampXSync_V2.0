@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-15 (IAM Path C Phase 2 implemented; set CAMPX_IAM_DELEGATION_BASE_URL to activate)
+**Last current-state refresh:** 2026-11-15 (R31 pilot Auth+IAM on Dev; Path C live allow; set CAMPX_IAM_DELEGATION_BASE_URL when stack up)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — owner queue (R31 seed Phase B, EN-002 Phase B, frontend 1b, …).
+1. `docs/prompts/NEXT_TASK.md` — owner queue (EN-002 storage, stack Path C smoke, frontend 1b/1c, …).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (D1–D12a-Phase2).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -22,8 +22,8 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits only when authorized; **no push** unless owner says.
 2. **STM-06-EN-002 Phase A:** storage abstraction + `contentBase64` validation + service-streamed download; fake storage tests PASS; staging runbook prepared **not applied**.
 3. **CSV:** EN-002 and EN-003 marked `partially completed` (no prior byte store / content validation against real bytes; live AV still open gap).
-4. **Next (queue):** R31 seed Phase B → EN-002 Phase B → frontend 1b/1c → CROSS e2e / US-015 DDL as approved.
-5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C Phase 2 shipped; live A/R needs `CAMPX_IAM_DELEGATION_BASE_URL` + R31 seed.
+4. **Next (queue):** EN-002 Phase B storage (`APPROVED EN-002-STORAGE …`) → stack Path C smoke (≥3 GB free) → frontend 1b/1c → CROSS e2e / US-015 DDL as approved.
+5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C live allow verified against Dev IAM rows; STM HTTP A/R still needs running stack + `CAMPX_IAM_DELEGATION_BASE_URL`.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`.
