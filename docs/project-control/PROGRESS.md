@@ -1,18 +1,18 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (queue batch: R31-SoD, CROSS-EN-010 partial, US-010, US-007, US-015 partial)
+**Updated:** 2026-11-15 (queue: STM-06-US-006 DONE; CROSS e2e + US-015 DB persist BLOCKED)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
 | R31-SoD (1e) | **tested** (`dfc6788`) |
-| STM-CROSS-EN-010 | **partially completed** (STM-03..06 named negatives; no unified e2e harness) |
+| STM-CROSS-EN-010 | **partially completed** (`7a41325`); e2e harness **BLOCKED** |
 | STM-06-US-010 | **tested** (`0b1f73d`) |
 | STM-05-US-007 | **tested** (`4b2154b`) |
-| STM-06-US-015 | **partially completed** (in-app only; notification store not DB-persisted) |
-| STM-06-US-006 | **BLOCKED** (pilot Registrar / IAM seed) |
+| STM-06-US-006 | **tested** (`24473ff`) |
+| STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
 | IAM live delegation adapter | **BLOCKED** — design note awaiting Path B/C + mapping |
 | STM-06-EN-002 / EN-003 | **partially completed** (Phase B apply awaiting owner) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
@@ -60,7 +60,7 @@ D7. Named in the flag text: Academic Dean -> R07 Dean; Faculty / Advisor -> R10 
 
 D8 (STM-RBAC-FLAG-004, decided 15-11-2026, Niranjan): The STM matrix stands. Faculty/Advisor is view-only on STM-03. Enrolment exception approvals are by the Registrar when delegated. If an institution needs a different approval authority, it is handled later through change control with policy owner, scope, effective date and audit trail. No code or matrix change now.
 
-D9 (STM-RBAC-FLAG-005, decided 15-11-2026, Niranjan): A Registrar may correct document metadata (audited, never on an already-verified document). No delete right (archive only). No widening of retention writes. STM-06-US-006 is unblocked by this decision but still depends on the Registrar role (D1), which is not yet created.
+D9 (STM-RBAC-FLAG-005, decided 15-11-2026, Niranjan): A Registrar may correct document metadata (audited, never on an already-verified document). No delete right (archive only). No widening of retention writes. STM-06-US-006 is unblocked by this decision; R31 Phase A recognition is in place — **US-006 implemented/tested** (`24473ff`).
 
 D11 (STM-06-EN-002 Phase A resume, decided 15-11-2026, Niranjan): Config key names approved for document-service: CAMPX_SUPABASE_URL, CAMPX_SUPABASE_SERVICE_ROLE_KEY, CAMPX_STORAGE_BUCKET (default "student-documents"). The service-role key is server-side only in the document-service environment; never in frontend or public env, Git, logs, errors, or reports. JDK built-in HTTP only (HttpURLConnection on the JDK in use); no new dependency. Add optional contentBase64 to the existing JSON upload. Bytes are REQUIRED whenever storage is configured; metadata-only upload is allowed only for the in-memory/test profile. Validate: decoded size == sizeBytes; SHA-256 == checksumSha256; type on allowlist with a signature check against the declared mimeType; reuse existing limits (10 MB; application/pdf, image/jpeg, image/png, image/webp). Download streams through the service on the existing route after the signed-token check; do not issue Supabase signed URLs to clients. Bytes never in a relational table; no direct client-to-Supabase path. Malware scanning stays OUT OF SCOPE (needs a scanner = new tool); record it as an open gap. Phase A uses a fake storage client in tests; no Supabase connection or write.
 

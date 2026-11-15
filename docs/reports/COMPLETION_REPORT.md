@@ -371,12 +371,46 @@ None for this entry (docs-only + STOP). Prior green full-suite evidence remains 
 | CROSS tenant/role negatives (03..06) | named `stmCrossEn010_*` | coverage: `docs/reports/STM_CROSS_EN_010_STM03_06_COVERAGE.md` |
 
 ### Gaps
-- CROSS: no unified multi-service e2e harness.
-- US-015: in-app notification list is process-local (not DB).
-- US-006 still BLOCKED (IAM seed / pilot Registrar).
+- CROSS: no unified multi-service e2e harness (BLOCKED pending owner).
+- US-015: in-app notification list is process-local (not DB; DDL BLOCKED).
 - Design note adapter still BLOCKED.
 
 ### Owner decisions still needed
 - Approve IAM delegation design note (Path B/C + M1/M2/M3).
 - Phase B applies (EN-002 storage, R31 IAM seed).
-- Waive or seed for US-006; authorize CROSS e2e follow-up; push when ready.
+- Authorize CROSS e2e harness / US-015 notification DDL / CROSS-EN-014; push when ready.
+
+---
+
+## Entry 12 — Queue: STM-06-US-006 metadata correction (2026-11-15)
+
+**Mode:** IMPLEMENT | **Branch:** `feature/java-backend-integration`  
+**Commit:** `24473ff`
+
+### Selection
+- Preflight: known leftovers only.
+- Baseline `document-service` suite: **115 run, 0 fail**, exit 0.
+- CROSS-EN-010 remaining e2e → **BLOCKED** (new harness).
+- US-015 DB persist → **BLOCKED** (no table / DDL).
+- **STM-06-US-006** selected (document-service; D9 + R31 Phase A).
+
+### Acceptance → code → test
+
+| Clause | Code | Test |
+|---|---|---|
+| Registrar corrects metadata (title/classification/expires/type) | `DocumentDomainService.updateDocumentMetadata` | `stm06Us006_registrarUpdatesSubmittedDocumentMetadata` |
+| Works on REJECTED | same | `stm06Us006_registrarUpdatesRejectedDocumentClassification` |
+| Never on already-verified (APPROVED) | same → `DOCUMENT_ALREADY_VERIFIED` | `stm06Us006_deniesApprovedDocument` |
+| Audited correction note | audit `document.metadata_corrected` | success tests |
+| Student/faculty denied | campus/role gates | `stm06Us006_studentAndFacultyDenied` |
+| Cross-tenant / wrong campus | same | `stm06Us006_crossTenantAndWrongCampusDenied` |
+| Null actor / blank note / bad classification | same | `stm06Us006_nullActorBlankNoteInvalidClassification` |
+
+### Tests (§7A)
+`mvn test -pl services/student-services/document-service` → **exit 0**, **121 run, 0 fail** (JDK 1.8.0_202).
+
+### Database
+Uses existing `doc.documents` columns only (no DDL).
+
+### Status
+CSV `STM-06-US-006` → `completed`. Queue batch end: no further same-service unblocked items.

@@ -9,12 +9,12 @@
 1c. **Frontend:** Registrar role mapping (`resolve-role.ts`, `UserRole`, BFFs) and staging Registrar user. **BLOCKED** (needs R31 IAM seed Phase B).
 1d. **R31 Phase B:** apply `docs/runbooks/R31_REGISTRAR_STAGING_SETUP.md`. **BLOCKED** (awaits owner). Live delegation adapter **BLOCKED** pending `docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md`.
 1e. **R31-SoD** — **DONE** (`dfc6788`).
-2. **STM-CROSS-EN-010** — **partially completed** (`7a41325`; STM-03..06 named negatives + coverage ledger; unified multi-service e2e harness still open).
+2. **STM-CROSS-EN-010** — **partially completed** (`7a41325`); remaining unified multi-service e2e / penetration harness **BLOCKED** (needs owner approval — new harness / stack-wide e2e).
 3. **STM-06-US-010** — **DONE** (`0b1f73d`).
 4. **STM-05-US-007** — **DONE** (`4b2154b`).
-5. **STM-06-US-006** — Update document metadata. **BLOCKED** until pilot Registrar user exists or owner waives (IAM seed Phase B).
-6. **STM-06-US-015** — **partially completed** (`7a41325`; in-app expiry list + notifications; notifications not DB-persisted).
-7. **STM-CROSS-EN-014** with **STM-03-EN-007** — docs/ops readiness pack. **BLOCKED** until owner schedules (ops pack; next after clears above).
+5. **STM-06-US-006** — **DONE** (`24473ff`).
+6. **STM-06-US-015** — **partially completed** (`7a41325`); DB-persisted notifications **BLOCKED** (no notification table; DDL needs owner approval). In-app process-local list remains.
+7. **STM-CROSS-EN-014** with **STM-03-EN-007** — docs/ops readiness pack. **BLOCKED** until owner schedules.
 
 ## Deferred (do not start)
 
