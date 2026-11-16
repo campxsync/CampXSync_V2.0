@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (ops pack EN-014/EN-007 partial; CROSS-EN-010 31/31; US-015 completed)
+**Updated:** 2026-11-16 (RBAC FLAG reconcile D8/D9; ops pack EN-014/EN-007 partial; CROSS-EN-010 31/31; US-015 completed)
 
 ## Scoreboard (session)
 
@@ -32,8 +32,9 @@
 - No Kafka invent (CROSS-EN-007 held).
 - Malware: controlled content/heuristic scanner + fail-closed states DONE; live commercial AV deferred (new tool).
 - Scan outcomes via `doc.document_links`. US-015 notification DDL applied on Dev only.
-- Cross-tenant penetration suite still not run (authorized; queued after CROSS-EN-010 / readiness).
+- Cross-tenant penetration suite **run** — `CROSS_TENANT_PEN_2026-11-16.json` **34/34 PASS**, 0 vulns.
 - Master owner auth (2026-11-16): continue non-infra work without routine re-approval; no push unless separately authorized.
+- RBAC reconcile: FLAG-004/005 **completed** (D8/D9); FLAG-002/003/007 still open.
 
 ## Canonical files
 
@@ -87,9 +88,23 @@ D12e (decided 15-11-2026, Niranjan): From now on every task runs the FULL test s
 
 - STM-06-EN-002 and STM-06-EN-003 marked **partially completed** because before Phase A there was no byte store and no content validation against real bytes; EN-003 delivered HMAC signed URL + heuristic malware adapter (`liveEndpoint=false`) without Storage-backed bytes. Phase A adds the Storage abstraction and content validation with fake-backed tests; live Staging apply is Phase B.
 
+### RBAC policy flags — reconcile pass (16-11-2026)
+
+| Flag | Owner decision | CSV status |
+|---|---|---|
+| STM-RBAC-FLAG-004 | **D8** (15-11-2026) | `completed` — matrix stands; R10 V-only STM-03; R31 delegated exception approvals |
+| STM-RBAC-FLAG-005 | **D9** (15-11-2026) | `completed` — R31 metadata U (not verified); no delete; no retention widening |
+| STM-RBAC-FLAG-003 | **D3 partial** (consent owner R03 pilot only) | `yet to pickup` — guardian defaults / revocation suspension still open |
+| STM-RBAC-FLAG-002 | *(none)* | `yet to pickup` — CFG configure role per service unassigned |
+| STM-RBAC-FLAG-007 | D6/D12a related only (not full close) | `yet to pickup` — matrix policy-items table still open |
+
+Backlog cells updated in `CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv`; no Java RBAC code changes (consistent with D8 “no code change”).
+
 ### Open (not decided)
 
 - "Registrar / Admissions" in STM-01 and STM-02 is outside the decision table above; owner to confirm it also maps to Registrar.
 - Pickup order for remaining open stories: awaiting owner.
-- Policy items listed in the "Policy items requiring confirmation" table of `docs/architecture/Security/RBAC_Combined.docx`: awaiting owner.
+- Policy items listed in the "Policy items requiring confirmation" table of `docs/architecture/Security/RBAC_Combined.docx`: awaiting owner (**STM-RBAC-FLAG-007**).
+- **STM-RBAC-FLAG-002** — configure (CFG) role assignees per STM-04/06/07/09/10.
+- **STM-RBAC-FLAG-003** — guardian consent defaults and immediate suspension on revocation.
 - Live malware AV scanner for STM-06 (new tool) — open gap per D11.

@@ -26,7 +26,7 @@ Covers: gateway health; STM-03..06 listen/health; Supabase JWT personas; `GATEWA
 2. **STM-04** lacks an explicit unauthenticated negative in `LifecycleDomainServiceTest` (HTTP 401 covered by harness via gateway).
 3. **Live Postgres** suites require env JDBC; skipped locally when `campx.live.jdbc.url` is unset (documented in respective test classes).
 4. **STM-07..STM-10** not included in this slice.
-5. Full cross-tenant penetration matrix (broader IDOR) is a separate authorized follow-on.
+5. ~~Full cross-tenant penetration matrix~~ **2026-11-16:** `scripts/demo/run_cross_tenant_pen_test.mjs` + `run_cross_tenant_pen_stack.ps1` → `docs/reports/CROSS_TENANT_PEN_2026-11-16.json` (complements unit + `run_stm_cross_en_010_e2e.mjs`).
 
 ## Discovery
 

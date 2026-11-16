@@ -1134,3 +1134,36 @@ Continue with STM-CROSS-EN-014 / STM-03-EN-007 (non-infra). **No push.**
 
 ### Stop
 Continue with cross-tenant penetration suite + RBAC flag reconcile. **No push.**
+
+---
+
+## Entry 32 — Cross-tenant penetration suite (2026-11-16)
+
+**Status:** **completed** for STM-03..06 live IDOR matrix (0 vulns).  
+**Harness:** `scripts/demo/run_cross_tenant_pen_test.mjs` + `run_cross_tenant_pen_stack.ps1`  
+**Evidence:** `docs/reports/CROSS_TENANT_PEN_2026-11-16.json` — **34/34 PASS**  
+**No application fixes required.** No push.
+
+---
+
+## Entry 31 — RBAC FLAG-002/003/004/005/007 reconcile vs D8/D9 (2026-11-16)
+
+**Task ID:** RBAC_FLAG_RECONCILE  
+**Mode:** DOCUMENTATION (governance)  
+**Branch:** `feature/java-backend-integration`  
+**No push.**
+
+### Scope
+- Mapped STM-RBAC-FLAG-004/005 to owner decisions **D8/D9** (PROGRESS.md 15-11-2026).
+- Recorded partial alignment for FLAG-003 (**D3** consent owner R03 pilot only) and related-but-insufficient notes for FLAG-007 (**D6/D12a**).
+- Confirmed **no owner decision** for FLAG-002 (CFG roles).
+- Updated backlog CSV Implementation Notes, RBAC verdict/rationale, canonical codes (existing catalogue only), and status cells for FLAG-004/005 → `completed`.
+- PROGRESS.md reconcile table + open-items list; NEXT_TASK queue adjusted.
+
+### Database / tests
+None (docs/CSV only).
+
+### Still open (owner)
+- FLAG-002 configure-role assignees
+- FLAG-003 guardian defaults + revocation suspension
+- FLAG-007 matrix “Policy items requiring confirmation”

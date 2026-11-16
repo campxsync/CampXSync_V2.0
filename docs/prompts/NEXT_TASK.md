@@ -1,23 +1,23 @@
 # Next Task
 
-**STATUS: STM-CROSS-EN-014 / STM-03-EN-007 ops pack partially completed (2026-11-16).**
+**STATUS: Cross-tenant pen suite 34/34 + RBAC FLAG-004/005 reconciled (2026-11-16).**
 
 ## Just completed
 
-- Ops pack: validate_dev_env, check_stack STM ports, run_ops_readiness_regression (5/5)
-- STM-03 README + runbook + `stm03En007_*` (enrollment suite 116/0)
-- CROSS + STM-03 DEMO.md evidence
+- Cross-tenant harness: `run_cross_tenant_pen_test.mjs` / `run_cross_tenant_pen_stack.ps1` — **34/34 PASS**, 0 vulns
+- Evidence: `docs/reports/CROSS_TENANT_PEN_2026-11-16.json`
+- RBAC: FLAG-004→D8, FLAG-005→D9 marked **completed**; FLAG-002/003/007 remain open
 
 ## Remaining gaps / gates
 
 - **STM-06-EN-003 live commercial AV** — BLOCKED
 - **STM-CROSS-EN-007** — DEFERRED (Kafka)
-- CROSS-EN-014 / STM-03-EN-007 remain **partially completed** until STM-07..10 ops + full policy-ID DoD (explicit deferrals)
+- **FLAG-002 / FLAG-003 / FLAG-007** — awaiting owner (CFG assignees, guardian consent defaults, policy-items table)
 
 ## Pickup queue (order)
 
-1. Cross-tenant penetration suite + RBAC FLAG-002/003/004/005/007 reconcile (D8/D9) — **NEXT**
-2. Eligible STM-07..STM-10 stories (batch ≤4, same-service)
+1. Eligible **STM-07..STM-10** stories — **NEXT** (batch ≤4, same-service; respect dependencies)
+2. Continue non-infra backlog; keep AV/Kafka blocked
 
 ## Rules
 

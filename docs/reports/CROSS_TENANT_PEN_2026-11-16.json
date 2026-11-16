@@ -1,0 +1,231 @@
+{
+  "startedAt": "2026-11-16T08:46:00.688Z",
+  "task": "CROSS-TENANT-PEN-2026-11-16",
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "gatewayBase": "http://127.0.0.1:8080",
+  "complementsUnitTests": [
+    "EnrollmentDomainServiceTest.stmCrossEn010_* / crossTenant*",
+    "LifecycleDomainServiceTest.stmCrossEn010_*",
+    "GuardianDomainServiceTest.stm05En002_crossTenant*",
+    "DocumentDomainServiceTest.stm06En004_crossTenant*",
+    "scripts/demo/run_stm_cross_en_010_e2e.mjs (narrower gateway smoke)"
+  ],
+  "vulnerabilities": [],
+  "checks": [
+    {
+      "name": "supabase-ref-dev-only",
+      "category": "general",
+      "ok": true,
+      "detail": "azulbaxszsqxymqmlwfe enforced in obtainBearer"
+    },
+    {
+      "name": "stack-preflight",
+      "category": "general",
+      "ok": true,
+      "detail": "Gateway and STM listeners reachable"
+    },
+    {
+      "name": "gw-missing-auth-enrollment",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-missing-auth-lifecycle",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-missing-auth-guardian",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-missing-auth-documents",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-spoof-headers-no-bearer-denied",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "jwt-registrar-pilot",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "userIdMatch=true role=n/a"
+    },
+    {
+      "name": "gw-bearer-spoof-tenant-stripped",
+      "category": "gateway-auth",
+      "ok": true,
+      "detail": "baseline HTTP 401 n=0; spoofed HTTP 401 n=0"
+    },
+    {
+      "name": "gw-guardian-student-a-in-tenant-a",
+      "category": "gateway-read",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "probe-enrollment-terms-tenant-a",
+      "category": "probe",
+      "ok": true,
+      "detail": "HTTP 200 count=1"
+    },
+    {
+      "name": "probe-enrollment-list-tenant-a",
+      "category": "probe",
+      "ok": true,
+      "detail": "HTTP 200 enrolmentId=0e14cf2d-c06f-4c87-8652-d86d22230d86"
+    },
+    {
+      "name": "probe-lifecycle-requests-tenant-a",
+      "category": "probe",
+      "ok": true,
+      "detail": "HTTP 200 requestId=14a30ed3-4daf-4801-b1d2-345379465cfd"
+    },
+    {
+      "name": "probe-guardians-student-a",
+      "category": "probe",
+      "ok": true,
+      "detail": "HTTP 200 guardianId=none"
+    },
+    {
+      "name": "probe-documents-submissions-tenant-a",
+      "category": "probe",
+      "ok": true,
+      "detail": "HTTP 200 docId=5b802421-e3a6-42bc-9992-9693558f9b54"
+    },
+    {
+      "name": "loopback-enrollment-terms-tenant-b-empty",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "loopback-lifecycle-requests-tenant-b-empty",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "loopback-guardian-student-a-tenant-b-deny",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "loopback-documents-types-tenant-b-empty",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "loopback-lifecycle-status-student-a-tenant-b",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-enrollment-idor-get",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-enrollment-idor-history",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-lifecycle-request-idor",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-documents-audit-trail-idor",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-documents-submission-get-idor",
+      "category": "loopback-read",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-enrollment-status-mutation-tenant-b",
+      "category": "loopback-mutation",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "name": "loopback-lifecycle-decide-tenant-b",
+      "category": "loopback-mutation",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "name": "loopback-guardian-emergency-contact-tenant-b",
+      "category": "loopback-mutation",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-documents-upload-wrong-type-tenant",
+      "category": "loopback-mutation",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-documents-download-token-tenant-b",
+      "category": "loopback-download",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "loopback-documents-signed-url-issue-tenant-b",
+      "category": "loopback-download",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-documents-metadata-update-tenant-b",
+      "category": "loopback-mutation",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "loopback-documents-wrong-campus-mutation",
+      "category": "campus-boundary",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "gw-student-denied-doc-verifications",
+      "category": "gateway-rbac",
+      "ok": true,
+      "detail": "HTTP 403"
+    }
+  ],
+  "fixesApplied": [],
+  "stackAvailable": true,
+  "endedAt": "2026-11-16T08:46:30.349Z",
+  "summary": {
+    "total": 34,
+    "passed": 34,
+    "failed": 0,
+    "vulnerabilities": 0,
+    "failedNames": [],
+    "ok": true
+  }
+}
