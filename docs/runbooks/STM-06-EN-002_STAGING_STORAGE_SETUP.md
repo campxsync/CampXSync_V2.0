@@ -34,7 +34,7 @@ Create a **private** Storage bucket for student document bytes. Relational table
 - [x] Tenant-prefix list for tenant A does not leak tenant B paths; both smoke objects deleted after test.
 - [x] Path traversal rejection exists in `SupabaseStorageHttpClient.requirePath` (`..` and absolute paths).
 - [x] MIME type and 10 MB limits configured on bucket; service enforces same (`DocumentDomainService.MAX_FILE_SIZE_BYTES`).
-- [x] Upload/database failure orphan cleanup — API implemented (2026-11-16): `POST /api/v1/documents/storage/orphans/scan` (dry-run) and `…/cleanup` (`confirmExecute` required). Confirmed orphan = path under `tenants/{tenantId}/` not in `doc.documents` ∪ `doc.document_versions`. Cross-tenant/ambiguous/referenced retained. Unit tests PASS on fake storage; **live Dev Storage delete not executed** in implementation task (separate owner auth).
+- [x] Upload/database failure orphan cleanup — API implemented + **live Dev cleanup executed** (2026-11-16, owner-authorized): `POST …/orphans/cleanup` `confirmExecute=true` on `azulbaxszsqxymqmlwfe` / `student-documents`. Tenant A deleted 1 confirmed orphan, retained 1 referenced; cross-tenant denial PASS; evidence `docs/reports/STM06_EN002_LIVE_ORPHAN_CLEANUP_2026-11-16.json` (12/12).
 - [x] Verification report contains no service-role key, access token, or document contents.
 - [x] Malware scanning remains an explicit unresolved gap.
 
@@ -55,4 +55,4 @@ Create a **private** Storage bucket for student document bytes. Relational table
 
 - Live malware AV scanner (new tool).
 - Frontend `contentBase64` wiring (queue item 1b).
-- Live orphan cleanup execution against Dev Storage (API ready; requires separate owner authorization).
+- Live commercial malware AV (EN-003; separate gate).

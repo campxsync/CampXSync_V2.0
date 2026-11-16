@@ -1,0 +1,114 @@
+{
+  "at": "2026-11-16T08:07:46.763Z",
+  "task": "STM-06-EN-002-live-orphan-cleanup",
+  "projectRefExpected": "azulbaxszsqxymqmlwfe",
+  "project": {
+    "urlHost": "azulbaxszsqxymqmlwfe.supabase.co",
+    "urlLen": 40,
+    "keyLen": 219,
+    "bucket": "student-documents"
+  },
+  "docBase": "http://127.0.0.1:8098",
+  "checks": [
+    {
+      "name": "document-service-health",
+      "ok": true,
+      "detail": "HTTP 200 {\"status\":\"UP\",\"service\":\"document-service\",\"module\":\"STM-06\",\"correlationId\":\"b0c7ea1fc6eb463f8d80063e3f0531b0\"}"
+    },
+    {
+      "name": "project-ref-dev-only",
+      "ok": true,
+      "detail": "host=azulbaxszsqxymqmlwfe.supabase.co"
+    },
+    {
+      "name": "plant-orphan-tenant-a",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "plant-foreign-tenant-b",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "list-tenant-a-before",
+      "ok": true,
+      "detail": "HTTP 200 names=1"
+    },
+    {
+      "name": "cleanup-tenant-a-execute",
+      "ok": true,
+      "detail": "HTTP 200 status=COMPLETED deleted=1 scanned=2"
+    },
+    {
+      "name": "planted-orphan-deleted",
+      "ok": true,
+      "detail": "GET HTTP 400"
+    },
+    {
+      "name": "foreign-tenant-retained-after-a-cleanup",
+      "ok": true,
+      "detail": "GET HTTP 200"
+    },
+    {
+      "name": "cross-tenant-delete-denied",
+      "ok": true,
+      "detail": "HTTP 200 deleted=0 crossTenant=1"
+    },
+    {
+      "name": "cleanup-tenant-b-execute",
+      "ok": true,
+      "detail": "HTTP 200 deleted=1"
+    },
+    {
+      "name": "foreign-probe-cleaned-by-tenant-b",
+      "ok": true,
+      "detail": "GET HTTP 400"
+    },
+    {
+      "name": "idempotent-rerun-tenant-a",
+      "ok": true,
+      "detail": "HTTP 200 deleted=0 failed=0"
+    }
+  ],
+  "cleanupTenantA": {
+    "httpStatus": 200,
+    "dryRun": false,
+    "status": "COMPLETED",
+    "scannedCount": 2,
+    "confirmedOrphanCount": 1,
+    "referencedCount": 1,
+    "crossTenantCount": 0,
+    "ambiguousCount": 0,
+    "deletedCount": 1,
+    "deleteFailedCount": 0,
+    "candidateClassCounts": {
+      "CLEAN": 0,
+      "CONFIRMED_ORPHAN": 1,
+      "REFERENCED": 1,
+      "CROSS_TENANT": 0,
+      "AMBIGUOUS": 0,
+      "DELETED": 1,
+      "RETAIN": 1,
+      "other": 0
+    }
+  },
+  "cleanupTenantB": {
+    "httpStatus": 200,
+    "status": "COMPLETED",
+    "scannedCount": 1,
+    "confirmedOrphanCount": 1,
+    "referencedCount": 0,
+    "deletedCount": 1,
+    "deleteFailedCount": 0
+  },
+  "plantedOrphanPath": null,
+  "note": "No secrets, tokens, or object byte contents recorded.",
+  "plantedOrphanPathLen": 155,
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "failedNames": []
+  }
+}

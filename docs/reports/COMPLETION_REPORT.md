@@ -997,3 +997,41 @@ Live commercial antivirus engine / Docker / paid external scanner. Requires expl
 
 ### Stop
 Await owner `APPROVED EN-003-LIVE-AV <tool>` or next queue pickup. **No push.**
+
+---
+
+## Entry 27 — STM-06-EN-002 live Dev orphan cleanup (2026-11-16)
+
+**Task ID:** STM-06-EN-002 (live orphan cleanup)  
+**Owner authorization:** execute live Dev orphan cleanup on `azulbaxszsqxymqmlwfe` (includes actual Storage deletes).  
+**Status:** **DONE**. Local commit only; **no push**. EN-003 live AV remains BLOCKED.
+
+### Preflight
+- Project: `CampXSync-Architecture-Dev` / `azulbaxszsqxymqmlwfe` / ACTIVE_HEALTHY
+- document-service restarted with storage configured `bucket=student-documents` (service-role not logged)
+
+### Execution
+- API: `POST /api/v1/documents/storage/orphans/cleanup` with `confirmExecute=true` (College Admin)
+- Revalidation: storage paths vs `doc.documents` ∪ `doc.document_versions` inside domain service before delete
+- Planted confirmed orphan under tenant A + foreign object under tenant B for isolation proof
+
+### Results
+
+| Metric | Tenant A | Tenant B |
+|---|---|---|
+| Objects examined (scannedCount) | 2 | 1 |
+| Confirmed orphans deleted | 1 | 1 |
+| Referenced retained | 1 | 0 |
+| Cross-tenant retained / denied | foreign retained after A; A-path delete by B → deleted=0 crossTenant=1 | — |
+| Delete failures | 0 | 0 |
+| Idempotent re-run | deleted=0 failed=0 | — |
+
+### Evidence / tests
+- Evidence: `docs/reports/STM06_EN002_LIVE_ORPHAN_CLEANUP_2026-11-16.json` — **12/12 PASS**
+- Runner: `node scripts/demo/run_en002_live_orphan_cleanup.mjs`
+
+### CSV
+EN-002 remains **completed** (live cleanup note appended). EN-003 unchanged (**partially completed**, live AV blocked).
+
+### Stop
+Await next owner pickup. **No push.** EN-003 live AV still blocked.
