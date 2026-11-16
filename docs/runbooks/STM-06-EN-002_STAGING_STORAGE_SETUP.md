@@ -1,8 +1,9 @@
 # STM-06-EN-002 — Staging Supabase Storage setup (Phase B applied on Dev)
 
-**Status:** PHASE B PARTIAL — private bucket + deny policies applied on Dev; service-role live put/get still blocked until `CAMPX_SUPABASE_SERVICE_ROLE_KEY` is set locally  
+**Status:** PHASE B LIVE PASS on Dev — private bucket + deny policies + service-role put/get/list/delete verified; document-service storage configured  
 **Date prepared:** 2026-11-15  
 **Date applied (bucket/policies):** 2026-11-15  
+**Date live verified:** 2026-11-16 (`CONTINUE EN-002-STORAGE-LIVE`)  
 **Owner approval:** `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`  
 **Target:** Development Supabase project only (`azulbaxszsqxymqmlwfe`). Production forbidden.
 
@@ -29,8 +30,8 @@ Create a **private** Storage bucket for student document bytes. Relational table
 
 - [x] Bucket is private; anonymous upload/download/delete denied (HTTP 400). List returns empty `[]` (no object leakage).
 - [x] Authenticated client-side direct Storage upload/download denied; list empty.
-- [ ] Server-side document-service access succeeds with configured service-role secret — **BLOCKED**: key not available in agent environment.
-- [ ] Tenant-prefix isolation upload/download/delete via document-service — blocked on service-role key.
+- [x] Server-side service-role put/get succeeds (2026-11-16 live smoke 11/11). Document-service restart logged `object storage configured bucket=student-documents` (key not logged).
+- [x] Tenant-prefix list for tenant A does not leak tenant B paths; both smoke objects deleted after test.
 - [x] Path traversal rejection exists in `SupabaseStorageHttpClient.requirePath` (`..` and absolute paths).
 - [x] MIME type and 10 MB limits configured on bucket; service enforces same (`DocumentDomainService.MAX_FILE_SIZE_BYTES`).
 - [ ] Upload/database failure orphan cleanup — **gap**: `DocumentObjectStorage` has put/get only (no delete). Residual reconciliation: with service-role, list `tenants/{tenantId}/…` prefixes and delete orphan paths; log correlation id; never log keys/bytes.

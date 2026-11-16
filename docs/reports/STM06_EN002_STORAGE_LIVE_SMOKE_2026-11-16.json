@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-16T04:28:02.197723+00:00",
+  "at": "2026-11-16T04:31:49.468543+00:00",
   "projectRefExpected": "azulbaxszsqxymqmlwfe",
   "bucket": "student-documents",
   "urlHostMatchesDev": true,
@@ -12,7 +12,7 @@
     {
       "name": "env-key-present",
       "ok": true,
-      "detail": "key_len=237"
+      "detail": "key_len=219"
     },
     {
       "name": "env-bucket",
@@ -25,53 +25,46 @@
       "detail": "must target azulbaxszsqxymqmlwfe only"
     },
     {
+      "name": "jwt-sig-len-typical",
+      "ok": true,
+      "detail": "sig_len=43"
+    },
+    {
       "name": "service-role-put-tenant-a",
-      "ok": false,
-      "detail": "HTTP 400 {\"statusCode\":\"403\",\"error\":\"Unauthorized\",\"message\":\"Failed to base64url decode the signature\",\"code\":\"AccessDenied\"}"
+      "ok": true,
+      "detail": "HTTP 200 ok"
     },
     {
       "name": "service-role-get-tenant-a",
-      "ok": false,
-      "detail": "HTTP 400 bytes=98 sha_match=False {\"statusCode\":\"404\",\"error\":\"Bucket not found\",\"message\":\"Bucket not found\",\"code\":\"NoSuchBucket\"}"
+      "ok": true,
+      "detail": "HTTP 200 bytes=68 sha_match=True"
     },
     {
       "name": "service-role-put-tenant-b",
-      "ok": false,
-      "detail": "HTTP 400 {\"statusCode\":\"403\",\"error\":\"Unauthorized\",\"message\":\"Failed to base64url decode the signature\",\"code\":\"AccessDenied\"}"
+      "ok": true,
+      "detail": "HTTP 200 ok"
     },
     {
       "name": "tenant-prefix-list-a-no-b-leak",
-      "ok": false,
-      "detail": "HTTP 400 names=0 leak_b=False"
+      "ok": true,
+      "detail": "HTTP 200 names=1 leak_b=False"
     },
     {
       "name": "cleanup-delete-tenant-a",
-      "ok": false,
-      "detail": "HTTP 400"
+      "ok": true,
+      "detail": "HTTP 200"
     },
     {
       "name": "cleanup-delete-tenant-b",
-      "ok": false,
-      "detail": "HTTP 400"
-    },
-    {
-      "name": "storage-api-odd-path-observed",
       "ok": true,
-      "detail": "HTTP 400 (service requirePath is DoD)"
+      "detail": "HTTP 200"
     }
   ],
   "summary": {
     "total": 11,
-    "passed": 5,
-    "failed": 6,
-    "failedNames": [
-      "service-role-put-tenant-a",
-      "service-role-get-tenant-a",
-      "service-role-put-tenant-b",
-      "tenant-prefix-list-a-no-b-leak",
-      "cleanup-delete-tenant-a",
-      "cleanup-delete-tenant-b"
-    ]
+    "passed": 11,
+    "failed": 0,
+    "failedNames": []
   },
   "note": "No secrets, tokens, or object byte contents recorded."
 }

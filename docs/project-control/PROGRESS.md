@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (Queue run STOP — 0 eligible stories; EN-002 live path still needs service-role key)
+**Updated:** 2026-11-16 (EN-002 live Storage smoke 11/11 PASS; document-service storage configured)
 
 ## Scoreboard (session)
 
@@ -14,7 +14,7 @@
 | STM-06-US-006 | **tested** (`24473ff`) |
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
 | IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS** (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); storage / frontend remain |
-| STM-06-EN-002 / EN-003 | **partially completed** — Phase B bucket/policies on Dev; deny 8/8; live put/get **BLOCKED** until `CAMPX_SUPABASE_SERVICE_ROLE_KEY` set in `.env.audit` |
+| STM-06-EN-002 / EN-003 | **partially completed** — Phase B live PASS (put/get/list/delete 11/11; doc-service storage configured); orphan API + malware AV + frontend remain |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights

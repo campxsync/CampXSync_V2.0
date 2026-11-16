@@ -778,3 +778,50 @@ Evidence: `docs/reports/STM06_EN002_STORAGE_LIVE_SMOKE_2026-11-16.json` (no secr
 
 ### Status
 **BLOCKED** — owner must re-copy full Dev `service_role` key into `.env.audit`, then `CONTINUE EN-002-STORAGE-LIVE`. No document-service restart performed (would fail closed / misconfigure on bad key).
+
+---
+
+## Entry 22 — CONTINUE EN-002-STORAGE-LIVE PASS (2026-11-16)
+
+**Task ID:** STM-06-EN-002  
+**Mode:** VERIFY  
+**Branch:** `feature/java-backend-integration`  
+**Owner:** `CONTINUE EN-002-STORAGE-LIVE` (full service-role JWT re-copied locally)
+
+### Pre-checks
+| Check | Result |
+|---|---|
+| MCP projects | Only Dev `azulbaxszsqxymqmlwfe` |
+| Bucket | Existing `student-documents` only (`bucket_count=1`); no duplicate |
+| JWT shape | `sig_len=43`, `role=service_role`, `ref=azulbaxszsqxymqmlwfe` (token not logged) |
+
+### Live Storage smoke (§7A)
+**11/11 PASS** — `docs/reports/STM06_EN002_STORAGE_LIVE_SMOKE_2026-11-16.json`
+
+| Check | Result |
+|---|---|
+| service-role put tenant A | HTTP 200 (application/pdf) |
+| service-role get tenant A | HTTP 200; SHA-256 match |
+| service-role put tenant B | HTTP 200 |
+| list prefix tenant A | no tenant-B leak |
+| cleanup delete A/B | HTTP 200 |
+
+### Document-service
+- Started with `.env.audit` storage env (presence/length only logged)
+- Log: `STM-06 object storage configured bucket=student-documents (service-role present; value not logged)`
+- Health HTTP 200; process stopped cleanly afterward
+
+### Acceptance → evidence
+
+| Clause | Evidence |
+|---|---|
+| Private Dev bucket for bytes | Existing bucket read-back; no duplicate create |
+| Server-side only access | service-role put/get PASS; prior anon/auth deny 8/8 |
+| Tenant path prefix | list A no B leak; paths under `tenants/{tenantId}/students/...` |
+| Service config | document-service configured log line |
+
+### Remaining gaps
+Orphan delete API; live malware AV; frontend contentBase64 / Registrar mapping.
+
+### Status
+CSV `STM-06-EN-002` remains **partially completed** (Phase B live path PASS; residual gaps above).
