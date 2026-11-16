@@ -50,10 +50,10 @@ public class StudentAuditAndRateLimitTest {
         staffId = UUID.randomUUID();
         studentUserId = UUID.randomUUID();
 
-        tenantContext = UserSecurityContext.fromHeaders(staffId.toString(), tenantId.toString(), collegeId.toString(), "college_admin");
+        tenantContext = UserSecurityContext.fromHeaders(staffId.toString(), tenantId.toString(), collegeId.toString(), "system_admin");
         staffContext = tenantContext;
         studentContext = UserSecurityContext.fromHeaders(studentUserId.toString(), tenantId.toString(), collegeId.toString(), "student");
-        crossTenantContext = UserSecurityContext.fromHeaders(UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), "college_admin");
+        crossTenantContext = UserSecurityContext.fromHeaders(UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), "system_admin");
 
         StudentDomainService.RepositoryBundle bundle = StudentDomainService.createInMemoryBundle();
         this.auditRepo = (InMemoryAuditLogRepository) bundle.auditLogRepository;

@@ -6,6 +6,7 @@ import com.campx.student.model.*;
 import com.campx.student.repository.InMemoryGuardianshipRepository;
 import com.campx.student.repository.InMemoryPersonRepository;
 import com.campx.student.repository.InMemoryStudentRepository;
+import com.campx.student.security.FakeDelegationPort;
 import com.campx.student.security.UserSecurityContext;
 import com.campx.student.service.StudentDomainService;
 import org.junit.Before;
@@ -16,45 +17,69 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 /**
- * STM-07-US-001 / US-002 / US-004 / US-010 / US-013 account provisioning tests.
+ * STM-07-US-001 / US-002 / US-004 / US-010 / US-013 + Path C STM-07.ACCOUNT.A hardening.
  */
 public class Stm07AccountProvisioningTest {
 
+    private InMemoryPersonRepository personRepo;
+    private InMemoryStudentRepository studentRepo;
+    private InMemoryGuardianshipRepository guardianshipRepo;
+    private FakeDelegationPort delegations;
     private StudentDomainService service;
     private UUID tenantId;
     private UUID collegeId;
-    private UserSecurityContext staffContext;
+    private UserSecurityContext iamOperator;
     private UserSecurityContext studentContext;
     private UserSecurityContext guardianContext;
+    private UserSecurityContext facultyContext;
     private UUID studentUserId;
     private StudentProfileResponse student;
 
     @Before
     public void setUp() {
-        InMemoryPersonRepository personRepo = new InMemoryPersonRepository();
-        InMemoryStudentRepository studentRepo = new InMemoryStudentRepository(personRepo);
-        InMemoryGuardianshipRepository guardianshipRepo = new InMemoryGuardianshipRepository();
-        service = new StudentDomainService(studentRepo, personRepo, guardianshipRepo);
+        personRepo = new InMemoryPersonRepository();
+        studentRepo = new InMemoryStudentRepository(personRepo);
+        guardianshipRepo = new InMemoryGuardianshipRepository();
+        delegations = new FakeDelegationPort();
+        service = new StudentDomainService(
+                studentRepo, personRepo, guardianshipRepo,
+                new com.campx.student.repository.InMemoryCorrectionRequestRepository(),
+                new com.campx.student.repository.InMemoryStudentVerificationRepository(),
+                new com.campx.student.repository.InMemoryPersonIdentifierRepository(),
+                new com.campx.student.repository.InMemoryStudentDocumentRepository(),
+                new com.campx.student.repository.InMemoryStudentAddressRepository(),
+                new com.campx.student.service.StudentEventPublisher.InMemory(),
+                new com.campx.student.repository.InMemoryAuditLogRepository(),
+                delegations);
 
         tenantId = UUID.randomUUID();
         collegeId = UUID.randomUUID();
-        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "system_admin", false);
+        iamOperator = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "system_admin", false);
         studentUserId = UUID.randomUUID();
         studentContext = new UserSecurityContext(studentUserId, tenantId, collegeId, null, "student", false);
         guardianContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "guardian", false);
+        facultyContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "faculty", false);
 
         EnrollStudentRequest req = new EnrollStudentRequest();
         req.setFirstName("Asha");
         req.setLastName("Rao");
         req.setPrimaryEmail("asha.rao@institution.edu");
         req.setCollegeId(collegeId);
-        student = service.enrollStudent(staffContext, req);
+        student = service.enrollStudent(iamOperator, req);
+    }
+
+    private UserSecurityContext registrar() {
+        return new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "registrar", false);
+    }
+
+    private UserSecurityContext collegeAdmin() {
+        return new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "college_admin", false);
     }
 
     @Test
     public void stm07Us002_eligibleActiveStudentPasses() {
         ProvisioningEligibilityResult result =
-                service.evaluateProvisioningEligibility(staffContext, student.getId(), studentUserId);
+                service.evaluateProvisioningEligibility(iamOperator, student.getId(), studentUserId);
         assertTrue(result.isEligible());
         assertTrue(result.getFailures().isEmpty());
         assertEquals("NONE", result.getLinkStatus());
@@ -65,10 +90,10 @@ public class Stm07AccountProvisioningTest {
         UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
         status.setStatus(StudentStatus.SUSPENDED);
         status.setReason("Conduct");
-        service.transitionLifecycle(staffContext, student.getId(), status);
+        service.transitionLifecycle(iamOperator, student.getId(), status);
 
         ProvisioningEligibilityResult result =
-                service.evaluateProvisioningEligibility(staffContext, student.getId(), studentUserId);
+                service.evaluateProvisioningEligibility(iamOperator, student.getId(), studentUserId);
         assertFalse(result.isEligible());
         assertTrue(result.getFailures().contains("STUDENT_NOT_ACTIVE"));
     }
@@ -80,10 +105,10 @@ public class Stm07AccountProvisioningTest {
 
     @Test
     public void stm07Us001_linkRequiresEligibilityAndPersistsStatus() {
-        StudentProfileResponse linked = service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        StudentProfileResponse linked = service.linkIamAccount(iamOperator, student.getId(), studentUserId);
         assertEquals(studentUserId, linked.getIamUserId());
 
-        AccountLinkStatusResponse status = service.getAccountLinkStatus(staffContext, student.getId());
+        AccountLinkStatusResponse status = service.getAccountLinkStatus(iamOperator, student.getId());
         assertEquals("ACTIVE", status.getLinkStatus());
         assertEquals(studentUserId, status.getLinkedIamUserId());
         assertTrue(status.isPortalAccessActive());
@@ -91,27 +116,27 @@ public class Stm07AccountProvisioningTest {
 
     @Test(expected = StudentValidationException.class)
     public void stm07Us001_cannotLinkOtherUserWhenAlreadyLinked() {
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
-        service.linkIamAccount(staffContext, student.getId(), UUID.randomUUID());
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.linkIamAccount(iamOperator, student.getId(), UUID.randomUUID());
     }
 
     @Test(expected = StudentValidationException.class)
     public void stm07Us001_cannotLinkIamUserAlreadyUsedElsewhere() {
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
 
         EnrollStudentRequest req2 = new EnrollStudentRequest();
         req2.setFirstName("Other");
         req2.setLastName("Student");
         req2.setPrimaryEmail("other.student@institution.edu");
         req2.setCollegeId(collegeId);
-        StudentProfileResponse other = service.enrollStudent(staffContext, req2);
+        StudentProfileResponse other = service.enrollStudent(iamOperator, req2);
 
-        service.linkIamAccount(staffContext, other.getId(), studentUserId);
+        service.linkIamAccount(iamOperator, other.getId(), studentUserId);
     }
 
     @Test
     public void stm07Us013_studentCanViewOwnLinkStatus() {
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
         AccountLinkStatusResponse status = service.getAccountLinkStatus(studentContext, student.getId());
         assertEquals("ACTIVE", status.getLinkStatus());
         assertTrue(status.isPortalAccessActive());
@@ -119,7 +144,7 @@ public class Stm07AccountProvisioningTest {
 
     @Test(expected = StudentSecurityViolationException.class)
     public void stm07Us013_studentCannotViewOtherLinkStatus() {
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
         UserSecurityContext otherStudent =
                 new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "student", false);
         service.getAccountLinkStatus(otherStudent, student.getId());
@@ -127,15 +152,15 @@ public class Stm07AccountProvisioningTest {
 
     @Test
     public void stm07Us004_provisioningAllowedWhenEligible() {
-        service.requestAccountProvisioning(staffContext, student.getId());
-        AccountLinkStatusResponse status = service.getAccountLinkStatus(staffContext, student.getId());
+        service.requestAccountProvisioning(iamOperator, student.getId());
+        AccountLinkStatusResponse status = service.getAccountLinkStatus(iamOperator, student.getId());
         assertEquals(1L, status.getProvisioningRequestCount());
     }
 
     @Test(expected = StudentValidationException.class)
     public void stm07Us004_provisioningDeniedWhenAlreadyLinked() {
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
-        service.requestAccountProvisioning(staffContext, student.getId());
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.requestAccountProvisioning(iamOperator, student.getId());
     }
 
     @Test(expected = StudentSecurityViolationException.class)
@@ -148,17 +173,76 @@ public class Stm07AccountProvisioningTest {
         service.requestAccountProvisioning(guardianContext, student.getId());
     }
 
+    @Test(expected = StudentSecurityViolationException.class)
+    public void stm07Hardening_facultyDeniedLink() {
+        service.linkIamAccount(facultyContext, student.getId(), studentUserId);
+    }
+
+    @Test
+    public void stm07Hardening_iamOperatorAllowedWithoutDelegation() {
+        StudentProfileResponse linked = service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        assertEquals(studentUserId, linked.getIamUserId());
+    }
+
+    @Test
+    public void stm07Hardening_registrarAllowedWithDelegation() {
+        UserSecurityContext registrar = registrar();
+        delegations.grant(tenantId, registrar.getUserId(), StudentDomainService.DELEGATION_ACCOUNT_KEY);
+        StudentProfileResponse linked = service.linkIamAccount(registrar, student.getId(), studentUserId);
+        assertEquals(studentUserId, linked.getIamUserId());
+    }
+
+    @Test(expected = StudentSecurityViolationException.class)
+    public void stm07Hardening_registrarDeniedWithoutDelegation() {
+        service.linkIamAccount(registrar(), student.getId(), studentUserId);
+    }
+
+    @Test
+    public void stm07Hardening_collegeAdminAllowedWithDelegation() {
+        UserSecurityContext admin = collegeAdmin();
+        delegations.grant(tenantId, admin.getUserId(), StudentDomainService.DELEGATION_ACCOUNT_KEY);
+        StudentProfileResponse linked = service.linkIamAccount(admin, student.getId(), studentUserId);
+        assertEquals(studentUserId, linked.getIamUserId());
+    }
+
+    @Test(expected = StudentSecurityViolationException.class)
+    public void stm07Hardening_collegeAdminDeniedWithoutDelegation() {
+        service.linkIamAccount(collegeAdmin(), student.getId(), studentUserId);
+    }
+
     @Test
     public void stm07Us010_suspendRevokesActiveLink() {
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
         UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
         status.setStatus(StudentStatus.SUSPENDED);
         status.setReason("Access review");
-        StudentProfileResponse after = service.transitionLifecycle(staffContext, student.getId(), status);
+        StudentProfileResponse after = service.transitionLifecycle(iamOperator, student.getId(), status);
         assertNull(after.getIamUserId());
-        AccountLinkStatusResponse link = service.getAccountLinkStatus(staffContext, student.getId());
+        AccountLinkStatusResponse link = service.getAccountLinkStatus(iamOperator, student.getId());
         assertEquals("NONE", link.getLinkStatus());
         assertFalse(link.isPortalAccessActive());
+    }
+
+    @Test
+    public void stm07Us010_detainedRevokesActiveLink() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
+        status.setStatus(StudentStatus.DETAINED);
+        status.setReason("Academic hold");
+        StudentProfileResponse after = service.transitionLifecycle(iamOperator, student.getId(), status);
+        assertNull(after.getIamUserId());
+        assertEquals("NONE", service.getAccountLinkStatus(iamOperator, student.getId()).getLinkStatus());
+    }
+
+    @Test
+    public void stm07Us010_withdrawnRevokesActiveLink() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
+        status.setStatus(StudentStatus.WITHDRAWN);
+        status.setReason("Left programme");
+        StudentProfileResponse after = service.transitionLifecycle(iamOperator, student.getId(), status);
+        assertNull(after.getIamUserId());
+        assertEquals("NONE", service.getAccountLinkStatus(iamOperator, student.getId()).getLinkStatus());
     }
 
     @Test

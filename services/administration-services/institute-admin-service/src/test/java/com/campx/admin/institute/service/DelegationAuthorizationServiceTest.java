@@ -69,6 +69,14 @@ public class DelegationAuthorizationServiceTest {
     }
 
     @Test
+    public void allowsStm07AccountKeyWithActiveDelegation() {
+        activeR31();
+        DelegationAuthorizationDecision d = service.checkActive(ctx, SUBJECT.toString(), "STM-07.ACCOUNT.A");
+        assertTrue(d.isAllowed());
+        assertEquals("ACTIVE_R31_DELEGATION", d.getReason());
+    }
+
+    @Test
     public void deniesMissingDelegation() {
         DelegationAuthorizationDecision d = service.checkActive(ctx, SUBJECT.toString(), "STM-06.DOCUMENTS.A");
         assertFalse(d.isAllowed());

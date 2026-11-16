@@ -41,6 +41,7 @@ public class StudentVerificationWorkflowTest {
         tenantId = UUID.randomUUID();
         collegeId = UUID.randomUUID();
         staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "verifier", false);
+        UserSecurityContext iamOperatorContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "system_admin", false);
 
         UUID studentUserId = UUID.randomUUID();
         studentContext = new UserSecurityContext(studentUserId, tenantId, collegeId, null, "student", false);
@@ -51,7 +52,7 @@ public class StudentVerificationWorkflowTest {
         req.setPrimaryEmail("meera.nair@institution.edu");
         req.setCollegeId(collegeId);
         student = service.enrollStudent(staffContext, req);
-        service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        service.linkIamAccount(iamOperatorContext, student.getId(), studentUserId);
     }
 
     @Test

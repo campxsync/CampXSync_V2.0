@@ -59,7 +59,8 @@ public class LivePostgresDelegationActiveCheckTest {
                 "STM-03.ENROLMENT.A",
                 "STM-04.LIFECYCLE.A",
                 "STM-05.GUARDIAN.A",
-                "STM-06.DOCUMENTS.A"
+                "STM-06.DOCUMENTS.A",
+                "STM-07.ACCOUNT.A"
         };
         for (String key : keys) {
             DelegationAuthorizationDecision d = service.checkActive(ctx, PILOT.toString(), key);

@@ -37,7 +37,7 @@ public class StudentSelfServiceSecurityTest {
 
         tenantId = UUID.randomUUID();
         collegeId = UUID.randomUUID();
-        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "college_admin", false);
+        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "system_admin", false);
     }
 
     @Test
@@ -108,7 +108,7 @@ public class StudentSelfServiceSecurityTest {
         // Staff in different tenant attempts access
         UUID otherTenantId = UUID.randomUUID();
         UserSecurityContext otherStaffContext = new UserSecurityContext(
-                UUID.randomUUID(), otherTenantId, UUID.randomUUID(), null, "college_admin", false
+                UUID.randomUUID(), otherTenantId, UUID.randomUUID(), null, "system_admin", false
         );
 
         // Inaccessible record does not reveal existence (fails closed)

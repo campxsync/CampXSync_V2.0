@@ -8,6 +8,9 @@ import com.campx.student.config.DatabaseConnectionManager;
 import com.campx.student.exception.*;
 import com.campx.student.model.*;
 import com.campx.student.repository.*;
+import com.campx.student.security.DelegationPort;
+import com.campx.student.security.DelegationPortFactory;
+import com.campx.student.security.FailClosedDelegationPort;
 import com.campx.student.security.UserSecurityContext;
 import com.campx.platform.audit.AuditChangeLog;
 import com.campx.platform.audit.AuditLogRepository;
@@ -36,6 +39,8 @@ public class StudentDomainService {
     private static final String SERVICE_NAME = "student-service";
     private static final String AGGREGATE_TYPE = "STUDENT";
     private static final String SCHEMA_VERSION = "1.0.0";
+    /** Path C M1 key for STM-07 Registrar / College Admin delegated account actions. */
+    public static final String DELEGATION_ACCOUNT_KEY = "STM-07.ACCOUNT.A";
 
     // Allowed MIME types for uploaded document references
     private static final Set<String> ALLOWED_DOC_MIMES = new HashSet<>(Arrays.asList(
@@ -55,6 +60,7 @@ public class StudentDomainService {
     private final StudentAddressRepository addressRepository;
     private final StudentEventPublisher eventPublisher;
     private final AuditLogRepository auditRepository;
+    private final DelegationPort delegationPort;
     private final ObjectMapper objectMapper;
 
     // In-memory idempotency store: key = tenantId + ":" + idempotencyKey, value = StudentProfileResponse
@@ -112,13 +118,18 @@ public class StudentDomainService {
     }
 
     public StudentDomainService() {
-        this(resolveDefaultRepositories());
+        this(resolveDefaultRepositories(), DelegationPortFactory.fromEnvironment());
     }
 
     public StudentDomainService(RepositoryBundle bundle) {
+        this(bundle, new FailClosedDelegationPort());
+    }
+
+    public StudentDomainService(RepositoryBundle bundle, DelegationPort delegationPort) {
         this(bundle.studentRepository, bundle.personRepository, bundle.guardianshipRepository,
                 bundle.correctionRequestRepository, bundle.verificationRepository, bundle.identifierRepository,
-                bundle.documentRepository, bundle.addressRepository, bundle.eventPublisher, bundle.auditLogRepository);
+                bundle.documentRepository, bundle.addressRepository, bundle.eventPublisher, bundle.auditLogRepository,
+                delegationPort);
     }
 
     public StudentDomainService(StudentRepository studentRepository,
@@ -173,6 +184,23 @@ public class StudentDomainService {
                                 StudentAddressRepository addressRepository,
                                 StudentEventPublisher eventPublisher,
                                 AuditLogRepository auditRepository) {
+        this(studentRepository, personRepository, guardianshipRepository,
+                correctionRequestRepository, verificationRepository, identifierRepository,
+                documentRepository, addressRepository, eventPublisher, auditRepository,
+                new FailClosedDelegationPort());
+    }
+
+    public StudentDomainService(StudentRepository studentRepository,
+                                PersonRepository personRepository,
+                                GuardianshipRepository guardianshipRepository,
+                                CorrectionRequestRepository correctionRequestRepository,
+                                StudentVerificationRepository verificationRepository,
+                                PersonIdentifierRepository identifierRepository,
+                                StudentDocumentRepository documentRepository,
+                                StudentAddressRepository addressRepository,
+                                StudentEventPublisher eventPublisher,
+                                AuditLogRepository auditRepository,
+                                DelegationPort delegationPort) {
         if (studentRepository == null) throw new IllegalArgumentException("studentRepository cannot be null");
         if (personRepository == null) throw new IllegalArgumentException("personRepository cannot be null");
         if (guardianshipRepository == null) throw new IllegalArgumentException("guardianshipRepository cannot be null");
@@ -194,6 +222,7 @@ public class StudentDomainService {
         this.addressRepository = addressRepository != null ? addressRepository : new InMemoryStudentAddressRepository();
         this.eventPublisher = eventPublisher != null ? eventPublisher : new StudentEventPublisher.InMemory();
         this.auditRepository = auditRepository != null ? auditRepository : new InMemoryAuditLogRepository();
+        this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -1153,12 +1182,10 @@ public class StudentDomainService {
         assertTenantContext(context);
         if (studentId == null) throw new StudentValidationException("studentId cannot be null");
 
+        assertCanManageAccountProvisioning(context);
         StudentEntity student = studentRepository.findById(context, studentId)
                 .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
         enforceReadAccess(context, student);
-        if (isStudentRole(context)) {
-            throw new StudentSecurityViolationException("Students cannot evaluate provisioning eligibility.");
-        }
 
         ProvisioningEligibilityResult result = new ProvisioningEligibilityResult();
         result.setStudentId(student.getId());
@@ -1570,20 +1597,42 @@ public class StudentDomainService {
     }
 
     /**
-     * STM-07 staff gate: students/guardians cannot link or request provisioning.
-     * IAM operator (D6: R02/R03) and institutional staff (incl. registrar/college admin/verifier) may.
+     * STM-07 account manage gate: IAM operator (D6 R02/R03) allowed;
+     * College Admin / Registrar (R31) only when Path C {@link #DELEGATION_ACCOUNT_KEY} passes;
+     * all other roles denied (faculty, student, guardian, verifier, etc.).
      */
     private void assertCanManageAccountProvisioning(UserSecurityContext context) {
-        if (isStudentRole(context)) {
-            throw new StudentSecurityViolationException("Students cannot manage account provisioning.");
-        }
-        String role = context.getRole() != null ? context.getRole().toLowerCase() : "";
-        if (role.contains("guardian") || role.contains("parent") || role.equals("r26")) {
-            throw new StudentSecurityViolationException("Guardians cannot manage student IAM provisioning.");
-        }
-        if (role.trim().isEmpty()) {
+        if (context == null || context.getRole() == null || context.getRole().trim().isEmpty()) {
             throw new StudentSecurityViolationException("Missing role for account provisioning.");
         }
+        if (isIamOperator(context)) {
+            return;
+        }
+        if (isRegistrarOrCollegeAdmin(context)) {
+            if (context.getUserId() == null || context.getTenantId() == null
+                    || !delegationPort.hasActiveDelegation(
+                    context.getTenantId(), context.getUserId(), DELEGATION_ACCOUNT_KEY)) {
+                throw new StudentSecurityViolationException(
+                        "Approve/trigger STM-07 account actions requires an active IAM delegation for "
+                                + DELEGATION_ACCOUNT_KEY);
+            }
+            return;
+        }
+        throw new StudentSecurityViolationException(
+                "Role is not authorised to manage student account provisioning.");
+    }
+
+    /** D6: human IAM operator = System Admin (R02) or Institution Admin (R03). */
+    private boolean isIamOperator(UserSecurityContext context) {
+        String r = context.getRole() == null ? "" : context.getRole().trim().toLowerCase();
+        return r.equals("system_admin") || r.equals("r02")
+                || r.equals("institution_admin") || r.equals("r03");
+    }
+
+    private boolean isRegistrarOrCollegeAdmin(UserSecurityContext context) {
+        String r = context.getRole() == null ? "" : context.getRole().trim().toLowerCase();
+        return r.equals("registrar") || r.equals("r31")
+                || r.equals("college_admin") || r.equals("college-admin");
     }
 
     private boolean isOwnProfile(UserSecurityContext context, StudentEntity student) {

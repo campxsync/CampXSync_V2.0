@@ -38,7 +38,7 @@ public class StudentGuardianAndConsentTest {
 
         tenantId = UUID.randomUUID();
         collegeId = UUID.randomUUID();
-        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "college_admin", false);
+        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "system_admin", false);
 
         UUID studentUserId = UUID.randomUUID();
         studentContext = new UserSecurityContext(studentUserId, tenantId, collegeId, null, "student", false);

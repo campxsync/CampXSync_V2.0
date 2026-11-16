@@ -40,7 +40,7 @@ public class StudentCorrectionWorkflowTest {
 
         tenantId = UUID.randomUUID();
         collegeId = UUID.randomUUID();
-        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "registrar", false);
+        staffContext = new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "system_admin", false);
 
         studentUserId = UUID.randomUUID();
         studentContext = new UserSecurityContext(studentUserId, tenantId, collegeId, null, "student", false);
