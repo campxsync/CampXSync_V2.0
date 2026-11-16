@@ -4,6 +4,15 @@
 **Target Environment:** Local Stack with Dev Supabase Project `azulbaxszsqxymqmlwfe` (Mumbai AWS `ap-south-1`, pooler at `aws-0-ap-south-1.pooler.supabase.com:6543`)  
 **Branch:** `feature/java-backend-integration` (`ef6e7dbed9dfde7cd492c5b7768542ce958d3a62`)  
 **Audit Date:** 2026-11-11  
+**Ops pack refresh:** 2026-11-16 — for STM-03..06 readiness use `docs/runbooks/STM_CROSS_OPS_READINESS.md` and `scripts/dev/run_ops_readiness_regression.ps1` (do not require the full 18-service matrix below).
+
+### Minimal STM ops stack (2026-11-16)
+
+| Command | Purpose |
+| :--- | :--- |
+| `node scripts/dev/validate_dev_env.mjs` | Dev ref guard + required env presence |
+| `powershell -ExecutionPolicy Bypass -File scripts/demo/run_cross_en_010_stack.ps1` | IAM + gateway + STM-03..06 + E2E |
+| `powershell -ExecutionPolicy Bypass -File scripts/dev/check_stack.ps1` | Listen/health map (401-on-health = up for HMAC STM services) |
 
 ---
 

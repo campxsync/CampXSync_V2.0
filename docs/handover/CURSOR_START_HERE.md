@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-16 (CROSS-EN-010 E2E 31/31; next CROSS-EN-014 / STM-03-EN-007)
+**Last current-state refresh:** 2026-11-16 (ops pack partial; next cross-tenant suite + RBAC flags)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — owner queue (CROSS-EN-014 / STM-03-EN-007 next; live AV / Kafka still gated).
+1. `docs/prompts/NEXT_TASK.md` — owner queue (cross-tenant + RBAC flags next; live AV / Kafka still gated).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (D1–D12a-Phase2).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -20,9 +20,9 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **STM-06-EN-002:** **completed** — includes live Dev orphan cleanup on `azulbaxszsqxymqmlwfe` (12/12 evidence).
-3. **STM-06-US-015:** **completed** — `doc.document_expiry_notifications` applied on Dev; Java persistence wired; suite 139/0.
-4. **STM-CROSS-EN-010:** **completed** — `run_stm_cross_en_010_e2e.mjs` 31/31; next CROSS-EN-014 / STM-03-EN-007 readiness.
+2. **STM-06-EN-002 / US-015 / CROSS-EN-010:** **completed** (orphan cleanup; notification DDL; E2E 31/31).
+3. **STM-CROSS-EN-014 / STM-03-EN-007:** **partially completed** — ops pack for STM-03..06; STM-07..10 deferred.
+4. **Next (queue):** cross-tenant penetration suite + RBAC FLAG reconcile (D8/D9); then eligible STM-07+.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C HTTP stack smoke passed (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` when STM services run.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.

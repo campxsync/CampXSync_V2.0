@@ -1,14 +1,16 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (CROSS-EN-010 E2E 31/31; US-015 completed; EN-003 live AV still gated)
+**Updated:** 2026-11-16 (ops pack EN-014/EN-007 partial; CROSS-EN-010 31/31; US-015 completed)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
 | R31-SoD (1e) | **tested** (`dfc6788`) |
-| STM-CROSS-EN-010 | **completed** — Gateway Bearer E2E harness 31/31 (`STM_CROSS_EN_010_E2E_2026-11-16.json`) |
+| STM-CROSS-EN-010 | **completed** — Gateway Bearer E2E harness 31/31 (`138e8d9`) |
+| STM-CROSS-EN-014 | **partially completed** — STM-03..06 ops pack + regression 5/5 (STM-07..10 deferred) |
+| STM-03-EN-007 | **partially completed** — README/runbook/`stm03En007_*` (enrollment 116/0) |
 | STM-06-US-010 | **tested** (`0b1f73d`) |
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |

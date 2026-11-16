@@ -1113,3 +1113,24 @@ Implementation status → **completed**
 
 ### Stop
 Continue with STM-CROSS-EN-014 / STM-03-EN-007 (non-infra). **No push.**
+
+---
+
+## Entry 30 — STM-CROSS-EN-014 + STM-03-EN-007 ops readiness pack (2026-11-16)
+
+**Status:** **partially completed** (STM-03..06 ops pack delivered; STM-07..10 / full policy-ID DoD deferred).  
+**No push.**
+
+### Delivered
+- `docs/runbooks/STM_CROSS_OPS_READINESS.md`, `STM-03-EN-007_ENROLLMENT_OPS.md`
+- `services/student-services/enrollment-service/README.md`
+- `scripts/dev/validate_dev_env.mjs` (9/9), `run_ops_readiness_regression.ps1` (5/5)
+- `check_stack.ps1` extended for IAM + STM-02..06 (401-as-up)
+- `stm03En007_*` tests; enrollment-service suite **116/0**
+- Demos: `docs/demos/STM-03-EN-007/DEMO.md`, `docs/demos/STM-CROSS-EN-014/DEMO.md`
+
+### Explicit remainders
+- Kafka, live AV, production, STM-07..10 ops rollout, exhaustive policy-ID matrix checklist
+
+### Stop
+Continue with cross-tenant penetration suite + RBAC flag reconcile. **No push.**

@@ -1394,6 +1394,34 @@ public class EnrollmentDomainServiceTest {
         assertEquals("REJECTED", rejected.status);
     }
 
+    // --- STM-03-EN-007 technical documentation / operational readiness ---
+
+    @Test
+    public void stm03En007_statusChangeWritesOperationalHistory() {
+        EnrollmentDomainService.Enrolment enrolment = enrolledCore();
+        EnrollmentDomainService.Enrolment suspended = service.updateStatus(registrar, enrolment.id, "SUSPENDED");
+        assertEquals("SUSPENDED", suspended.status);
+        List<Map<String, String>> history = service.listHistory(registrar, enrolment.id);
+        assertTrue(history.size() >= 1);
+        Map<String, String> last = history.get(history.size() - 1);
+        assertEquals("SUSPENDED", last.get("status"));
+        assertEquals("status", last.get("action"));
+    }
+
+    @Test
+    public void stm03En007_crossTenantHistoryReadinessDeny() {
+        EnrollmentDomainService.Enrolment enrolment = enrolledCore();
+        service.updateStatus(registrar, enrolment.id, "SUSPENDED");
+        assertTrue(service.listHistory(registrar, enrolment.id).size() >= 1);
+        Actor outsider = new Actor(otherTenant, UUID.randomUUID(), "REGISTRAR", "corr-en007");
+        try {
+            service.listHistory(outsider, enrolment.id);
+            fail("cross-tenant history must fail closed for ops readiness");
+        } catch (EnrollmentException ex) {
+            assertEquals(404, ex.getStatus());
+        }
+    }
+
     // --- STM-CROSS-EN-010 discoverability (STM-03) ---
 
     @Test

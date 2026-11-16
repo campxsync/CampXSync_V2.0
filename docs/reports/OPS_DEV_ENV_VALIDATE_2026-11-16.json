@@ -1,0 +1,58 @@
+{
+  "at": "2026-11-16T08:38:58.454Z",
+  "task": "ops-dev-env-validate",
+  "projectRefExpected": "azulbaxszsqxymqmlwfe",
+  "checks": [
+    {
+      "name": "supabase-url-present",
+      "ok": true,
+      "detail": "url present (value not logged)"
+    },
+    {
+      "name": "supabase-dev-ref",
+      "ok": true,
+      "detail": "contains azulbaxszsqxymqmlwfe"
+    },
+    {
+      "name": "supabase-not-production-or-legacy",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "env-present-CAMPX_INTERNAL_SECRET",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "name": "env-present-STUDENT1_EMAIL",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "name": "env-present-STUDENT1_PW",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "name": "env-present-REGISTRAR_PILOT_EMAIL",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "name": "env-present-REGISTRAR_PILOT_PW",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "name": "env-present-NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "ok": true,
+      "detail": "present"
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "ok": true
+  }
+}
