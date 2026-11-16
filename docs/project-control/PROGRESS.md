@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (RBAC FLAG reconcile D8/D9; ops pack EN-014/EN-007 partial; CROSS-EN-010 31/31; US-015 completed)
+**Updated:** 2026-11-16 (STM-07-EN-001 completed; coordinator stop per owner)
 
 ## Scoreboard (session)
 
@@ -9,15 +9,19 @@
 |---|---|
 | R31-SoD (1e) | **tested** (`dfc6788`) |
 | STM-CROSS-EN-010 | **completed** — Gateway Bearer E2E harness 31/31 (`138e8d9`) |
-| STM-CROSS-EN-014 | **partially completed** — STM-03..06 ops pack + regression 5/5 (STM-07..10 deferred) |
+| STM-CROSS-EN-014 | **partially completed** — STM-03..06 ops pack + regression 5/5 |
 | STM-03-EN-007 | **partially completed** — README/runbook/`stm03En007_*` (enrollment 116/0) |
 | STM-06-US-010 | **tested** (`0b1f73d`) |
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |
-| STM-06-US-015 | **completed** — `doc.document_expiry_notifications` on Dev + persistence (`5fd1f8a`, suite 139/0) |
-| IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
-| STM-06-EN-002 | **completed** — live Storage + 1b/1c + orphan API + **live Dev orphan cleanup** (`azulbaxszsqxymqmlwfe`, 12/12) |
-| STM-06-EN-003 | **partially completed** — fail-closed lifecycle + content heuristic DONE; live commercial AV gated (D11 / new tool) |
+| STM-06-US-015 | **completed** — `doc.document_expiry_notifications` (`5fd1f8a`, suite 139/0) |
+| Cross-tenant pen | **completed** — 34/34 (`5cfe378`) |
+| RBAC FLAG-004/005 | **completed** (D8/D9); FLAG-002/003/007 open |
+| STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests; student-service 113/0 |
+| STM-07-US-001 | **partially completed** — durable link via existing `linkIamAccount` |
+| IAM live delegation adapter | **partially completed** — Path C smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
+| STM-06-EN-002 | **completed** — live Storage + orphan cleanup (12/12) |
+| STM-06-EN-003 | **partially completed** — controlled scanner DONE; live commercial AV gated |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights

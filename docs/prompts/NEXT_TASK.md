@@ -1,23 +1,27 @@
 # Next Task
 
-**STATUS: Cross-tenant pen suite 34/34 + RBAC FLAG-004/005 reconciled (2026-11-16).**
+**STATUS: STM-07-EN-001 completed (2026-11-16). Coordinator stopped per owner.**
 
 ## Just completed
 
-- Cross-tenant harness: `run_cross_tenant_pen_test.mjs` / `run_cross_tenant_pen_stack.ps1` — **34/34 PASS**, 0 vulns
-- Evidence: `docs/reports/CROSS_TENANT_PEN_2026-11-16.json`
-- RBAC: FLAG-004→D8, FLAG-005→D9 marked **completed**; FLAG-002/003/007 remain open
+- Dev DDL: `stu.student_iam_links` + `stu.account_provisioning_requests` on `azulbaxszsqxymqmlwfe`
+- Persistence wired in existing `student-service` (no new microservice)
+- student-service suite **113/0**
+- Evidence: `docs/reports/STM07_EN001_IAM_LINK_DDL_2026-11-16.json`
+- STM-07-US-001 marked **partially completed** (durable link path; eligibility/portal follow-ons open)
 
 ## Remaining gaps / gates
 
 - **STM-06-EN-003 live commercial AV** — BLOCKED
 - **STM-CROSS-EN-007** — DEFERRED (Kafka)
-- **FLAG-002 / FLAG-003 / FLAG-007** — awaiting owner (CFG assignees, guardian consent defaults, policy-items table)
+- **FLAG-002 / FLAG-003 / FLAG-007** — awaiting owner
+- **STM-08 / STM-09** — BLOCKED (new services/schema)
+- **STM-07-US-002+** — yet to pickup after EN-001
 
-## Pickup queue (order)
+## Pickup queue (when resumed)
 
-1. Eligible **STM-07..STM-10** stories — **NEXT** (batch ≤4, same-service; respect dependencies)
-2. Continue non-infra backlog; keep AV/Kafka blocked
+1. STM-07-US-001 closure gaps (eligibility) then US-002.. in `student-service`
+2. STM-10-EN-001 preferences (existing institute-admin path) where independent
 
 ## Rules
 

@@ -31,4 +31,15 @@ public interface StudentRepository {
     long countByTenant(UserSecurityContext context);
 
     void delete(UserSecurityContext context, UUID id);
+
+    /**
+     * Persists an account-provisioning request row (STM-07-EN-001).
+     * Returns the new request id.
+     */
+    UUID saveProvisioningRequest(UserSecurityContext context, UUID studentId, UUID requestedIamUserId);
+
+    /**
+     * Counts non-deleted provisioning requests for a student (STM-07-EN-001 readiness).
+     */
+    long countProvisioningRequests(UserSecurityContext context, UUID studentId);
 }

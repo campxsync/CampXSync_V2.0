@@ -187,14 +187,19 @@ public class PostgresStudentRepositoryTest {
         assertNotNull(opt);
 
         boolean foundSelect = false;
+        boolean foundIamLinkLookup = false;
         for (String sql : executedSqls) {
             if (sql.contains("FROM stu.students WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL")) {
                 foundSelect = true;
             }
+            if (sql.contains("FROM stu.student_iam_links")) {
+                foundIamLinkLookup = true;
+            }
         }
         assertTrue("SELECT must include id and tenant_id filters", foundSelect);
-        assertEquals(studentId, lastParameters.get(1));
-        assertEquals(TENANT_ID, lastParameters.get(2));
+        assertTrue("findById must load STM-07 IAM link metadata", foundIamLinkLookup);
+        // IAM-link lookup binds (tenant_id, student_id from mapped row); tenant isolation must remain.
+        assertTrue(lastParameters.containsValue(TENANT_ID));
     }
 
     @Test

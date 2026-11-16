@@ -155,6 +155,11 @@ public class PostgresStudentRepository implements StudentRepository {
                 }
             }
 
+            // 4. STM-07-EN-001 durable IAM linkage metadata
+            if (saved.getIamUserId() != null) {
+                upsertIamLink(conn, context, saved.getId(), saved.getIamUserId());
+            }
+
             return saved;
         });
     }
@@ -175,7 +180,9 @@ public class PostgresStudentRepository implements StudentRepository {
                 ps.setObject(2, context.getTenantId());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return Optional.of(mapResultSet(rs));
+                        StudentEntity entity = mapResultSet(rs);
+                        entity.setIamUserId(loadActiveIamUserId(conn, context.getTenantId(), entity.getId()));
+                        return Optional.of(entity);
                     }
                 }
             }
@@ -253,8 +260,28 @@ public class PostgresStudentRepository implements StudentRepository {
         assertContext(context);
         if (iamUserId == null) return Optional.empty();
 
-        // Looks up student linked via iam.user_profiles.person_id -> stu.students.person_id
+        // Prefers durable STM-07 link table; falls back to person_id ↔ iam.user_profiles join.
         return context.executeInTransaction(connectionManager, conn -> {
+            String linkSql = "SELECT s.id, s.tenant_id, s.person_id, s.college_id, s.program_id, s.enrollment_no, " +
+                    "s.admission_no, s.admission_date, s.admission_academic_year_id, s.status, " +
+                    "s.created_at, s.updated_at, s.created_by, s.updated_by, s.row_version, s.deleted_at, " +
+                    "l.iam_user_id AS linked_iam_user_id " +
+                    "FROM stu.student_iam_links l " +
+                    "JOIN stu.students s ON s.tenant_id = l.tenant_id AND s.id = l.student_id AND s.deleted_at IS NULL " +
+                    "WHERE l.tenant_id = ? AND l.iam_user_id = ? AND l.deleted_at IS NULL AND l.link_status = 'ACTIVE' " +
+                    "LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(linkSql)) {
+                ps.setObject(1, context.getTenantId());
+                ps.setObject(2, iamUserId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        StudentEntity entity = mapResultSet(rs);
+                        entity.setIamUserId((UUID) rs.getObject("linked_iam_user_id"));
+                        return Optional.of(entity);
+                    }
+                }
+            }
+
             String sql = "SELECT s.id, s.tenant_id, s.person_id, s.college_id, s.program_id, s.enrollment_no, " +
                     "s.admission_no, s.admission_date, s.admission_academic_year_id, s.status, " +
                     "s.created_at, s.updated_at, s.created_by, s.updated_by, s.row_version, s.deleted_at " +
@@ -267,7 +294,9 @@ public class PostgresStudentRepository implements StudentRepository {
                 ps.setObject(2, iamUserId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return Optional.of(mapResultSet(rs));
+                        StudentEntity entity = mapResultSet(rs);
+                        entity.setIamUserId(iamUserId);
+                        return Optional.of(entity);
                     }
                 }
             }
@@ -400,6 +429,52 @@ public class PostgresStudentRepository implements StudentRepository {
     }
 
     @Override
+    public UUID saveProvisioningRequest(UserSecurityContext context, UUID studentId, UUID requestedIamUserId) {
+        assertContext(context);
+        if (studentId == null) {
+            throw new IllegalArgumentException("studentId cannot be null");
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            UUID requestId = UUID.randomUUID();
+            String sql = "INSERT INTO stu.account_provisioning_requests "
+                    + "(id, tenant_id, student_id, requested_iam_user_id, request_status, requested_at, "
+                    + "created_at, updated_at, created_by, row_version) "
+                    + "VALUES (?, ?, ?, ?, 'REQUESTED', now(), now(), now(), ?, 1)";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, requestId);
+                ps.setObject(2, context.getTenantId());
+                ps.setObject(3, studentId);
+                ps.setObject(4, requestedIamUserId);
+                ps.setObject(5, context.getUserId());
+                ps.executeUpdate();
+            }
+            return requestId;
+        });
+    }
+
+    @Override
+    public long countProvisioningRequests(UserSecurityContext context, UUID studentId) {
+        assertContext(context);
+        if (studentId == null) {
+            return 0L;
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            String sql = "SELECT count(*) FROM stu.account_provisioning_requests "
+                    + "WHERE tenant_id = ? AND student_id = ? AND deleted_at IS NULL";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, context.getTenantId());
+                ps.setObject(2, studentId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong(1);
+                    }
+                }
+            }
+            return 0L;
+        });
+    }
+
+    @Override
     public void delete(UserSecurityContext context, UUID id) {
         assertContext(context);
         if (id == null) return;
@@ -464,6 +539,64 @@ public class PostgresStudentRepository implements StudentRepository {
 
             return null;
         });
+    }
+
+    private void upsertIamLink(Connection conn, UserSecurityContext context, UUID studentId, UUID iamUserId)
+            throws SQLException {
+        String revokeSql = "UPDATE stu.student_iam_links SET link_status = 'REVOKED', deleted_at = now(), "
+                + "updated_at = now(), updated_by = ?, row_version = row_version + 1 "
+                + "WHERE tenant_id = ? AND student_id = ? AND deleted_at IS NULL AND link_status = 'ACTIVE' "
+                + "AND iam_user_id <> ?";
+        try (PreparedStatement ps = conn.prepareStatement(revokeSql)) {
+            ps.setObject(1, context.getUserId());
+            ps.setObject(2, context.getTenantId());
+            ps.setObject(3, studentId);
+            ps.setObject(4, iamUserId);
+            ps.executeUpdate();
+        }
+
+        String existsSql = "SELECT 1 FROM stu.student_iam_links WHERE tenant_id = ? AND student_id = ? "
+                + "AND iam_user_id = ? AND deleted_at IS NULL AND link_status = 'ACTIVE' LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(existsSql)) {
+            ps.setObject(1, context.getTenantId());
+            ps.setObject(2, studentId);
+            ps.setObject(3, iamUserId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return;
+                }
+            }
+        }
+
+        String insertSql = "INSERT INTO stu.student_iam_links "
+                + "(id, tenant_id, student_id, iam_user_id, link_status, linked_at, linked_by, "
+                + "created_at, updated_at, created_by, row_version) "
+                + "VALUES (?, ?, ?, ?, 'ACTIVE', now(), ?, now(), now(), ?, 1)";
+        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+            ps.setObject(1, UUID.randomUUID());
+            ps.setObject(2, context.getTenantId());
+            ps.setObject(3, studentId);
+            ps.setObject(4, iamUserId);
+            ps.setObject(5, context.getUserId());
+            ps.setObject(6, context.getUserId());
+            ps.executeUpdate();
+        }
+    }
+
+    private UUID loadActiveIamUserId(Connection conn, UUID tenantId, UUID studentId) throws SQLException {
+        String sql = "SELECT iam_user_id FROM stu.student_iam_links "
+                + "WHERE tenant_id = ? AND student_id = ? AND deleted_at IS NULL AND link_status = 'ACTIVE' "
+                + "ORDER BY linked_at DESC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, tenantId);
+            ps.setObject(2, studentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return (UUID) rs.getObject("iam_user_id");
+                }
+            }
+        }
+        return null;
     }
 
     private StudentEntity insertStudent(Connection conn, UserSecurityContext context, StudentEntity student) throws SQLException {

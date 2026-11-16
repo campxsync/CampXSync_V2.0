@@ -21,6 +21,7 @@ public class InMemoryStudentRepository implements StudentRepository {
 
     // Key: tenantId + ":" + studentId
     private final Map<String, StudentEntity> store = new ConcurrentHashMap<>();
+    private final Map<String, List<UUID>> provisioningByStudent = new ConcurrentHashMap<>();
     private final PersonRepository personRepository;
 
     public InMemoryStudentRepository() {
@@ -203,6 +204,27 @@ public class InMemoryStudentRepository implements StudentRepository {
             entity.setDeletedAt(OffsetDateTime.now());
             entity.setUpdatedBy(context.getUserId());
         }
+    }
+
+    @Override
+    public UUID saveProvisioningRequest(UserSecurityContext context, UUID studentId, UUID requestedIamUserId) {
+        if (studentId == null) {
+            throw new IllegalArgumentException("studentId cannot be null");
+        }
+        UUID requestId = UUID.randomUUID();
+        String k = key(context.getTenantId(), studentId);
+        provisioningByStudent.computeIfAbsent(k, ignored -> Collections.synchronizedList(new ArrayList<UUID>()))
+                .add(requestId);
+        return requestId;
+    }
+
+    @Override
+    public long countProvisioningRequests(UserSecurityContext context, UUID studentId) {
+        if (studentId == null) {
+            return 0L;
+        }
+        List<UUID> list = provisioningByStudent.get(key(context.getTenantId(), studentId));
+        return list == null ? 0L : list.size();
     }
 
     private String encodeCursor(String val) {

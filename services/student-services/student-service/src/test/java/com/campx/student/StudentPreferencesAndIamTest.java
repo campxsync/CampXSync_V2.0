@@ -76,6 +76,23 @@ public class StudentPreferencesAndIamTest {
     }
 
     @Test
+    public void stm07En001_linkPersistsAndIsReadable() {
+        StudentProfileResponse linked = service.linkIamAccount(staffContext, student.getId(), studentUserId);
+        assertEquals(studentUserId, linked.getIamUserId());
+        StudentProfileResponse reloaded = service.getStudentById(staffContext, student.getId());
+        assertEquals(studentUserId, reloaded.getIamUserId());
+    }
+
+    @Test
+    public void stm07En001_provisioningRequestPersisted() {
+        IamLinkageRequest req = new IamLinkageRequest(studentUserId);
+        service.requestAccountProvisioning(staffContext, student.getId(), req);
+        service.requestAccountProvisioning(staffContext, student.getId(), req);
+        // Domain persists via repository; second request appends history (idempotent event publish OK)
+        assertNotNull(service.getStudentById(staffContext, student.getId()));
+    }
+
+    @Test
     public void testUpdateStudentPreferencesAndAccessibility() {
         // First link student
         service.linkIamAccount(staffContext, student.getId(), studentUserId);

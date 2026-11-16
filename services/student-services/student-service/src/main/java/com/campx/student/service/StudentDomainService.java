@@ -1135,16 +1135,23 @@ public class StudentDomainService {
     }
 
     public void requestAccountProvisioning(UserSecurityContext context, UUID studentId) {
+        requestAccountProvisioning(context, studentId, null);
+    }
+
+    public void requestAccountProvisioning(UserSecurityContext context, UUID studentId, IamLinkageRequest req) {
         assertTenantContext(context);
         StudentEntity student = studentRepository.findById(context, studentId)
                 .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
 
+        UUID requestedIamUserId = req != null ? req.getIamUserId() : null;
+        UUID requestId = studentRepository.saveProvisioningRequest(context, studentId, requestedIamUserId);
+
         publishOutboxEvent(context, student.getId(), "student.provisioning.requested.v1", String.format(
-                "{\"studentId\":\"%s\",\"enrollmentNo\":\"%s\",\"tenantId\":\"%s\"}",
-                student.getId(), student.getEnrollmentNo(), context.getTenantId()
+                "{\"studentId\":\"%s\",\"enrollmentNo\":\"%s\",\"tenantId\":\"%s\",\"requestId\":\"%s\"}",
+                student.getId(), student.getEnrollmentNo(), context.getTenantId(), requestId
         ));
 
-        logger.info("Requested IAM provisioning for student [{}]", studentId);
+        logger.info("Requested IAM provisioning for student [{}] requestId={}", studentId, requestId);
     }
 
     // =========================================================================
@@ -1210,10 +1217,6 @@ public class StudentDomainService {
 
     public StudentProfileResponse linkIamAccount(UserSecurityContext context, UUID studentId, UUID iamUserId) {
         return linkIamAccount(context, studentId, new IamLinkageRequest(iamUserId));
-    }
-
-    public void requestAccountProvisioning(UserSecurityContext context, UUID studentId, IamLinkageRequest req) {
-        requestAccountProvisioning(context, studentId);
     }
 
     public StudentProfileResponse linkGuardian(UserSecurityContext context, UUID studentId, EnrollStudentRequest.GuardianRequest gReq) {

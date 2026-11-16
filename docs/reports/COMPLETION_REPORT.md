@@ -1137,6 +1137,32 @@ Continue with cross-tenant penetration suite + RBAC flag reconcile. **No push.**
 
 ---
 
+## Entry 33 — STM-07-EN-001 IAM link + provisioning metadata (2026-11-16)
+
+**Status:** **completed**. Hosted in existing `student-service` (no new microservice).  
+**Owner stop:** coordinator halted after this story per owner instruction.
+
+### Implementation
+- Migration: `database/migrations/20261116000200_create_stu_iam_link_and_provisioning.sql` applied on Dev
+- Tables: `stu.student_iam_links`, `stu.account_provisioning_requests` (FORCE RLS)
+- `PostgresStudentRepository` upsert/load link; `saveProvisioningRequest`
+- Domain: `linkIamAccount` / `requestAccountProvisioning` persist metadata
+
+### Tests
+- `mvn test -pl services/student-services/student-service` → **113 run, 0 fail**
+
+### Evidence
+- `docs/reports/STM07_EN001_IAM_LINK_DDL_2026-11-16.json`
+
+### CSV
+- STM-07-EN-001 → **completed**
+- STM-07-US-001 → **partially completed**
+
+### Stop
+**Stopped per owner.** No push.
+
+---
+
 ## Entry 32 — Cross-tenant penetration suite (2026-11-16)
 
 **Status:** **completed** for STM-03..06 live IDOR matrix (0 vulns).  

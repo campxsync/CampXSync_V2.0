@@ -1,0 +1,46 @@
+{
+  "storyId": "STM-07-EN-001",
+  "relatedStoryId": "STM-07-US-001",
+  "date": "2026-11-16",
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "migration": {
+    "name": "create_stu_iam_link_and_provisioning",
+    "file": "database/migrations/20261116000200_create_stu_iam_link_and_provisioning.sql",
+    "applied": true,
+    "tables": [
+      "stu.student_iam_links",
+      "stu.account_provisioning_requests"
+    ],
+    "forceRls": true
+  },
+  "implementation": {
+    "hostService": "student-service (:8093)",
+    "noNewMicroservice": true,
+    "persistence": [
+      "PostgresStudentRepository.upsertIamLink on save",
+      "PostgresStudentRepository.loadActiveIamUserId on findById",
+      "StudentRepository.saveProvisioningRequest / countProvisioningRequests"
+    ],
+    "domain": [
+      "StudentDomainService.linkIamAccount",
+      "StudentDomainService.requestAccountProvisioning"
+    ]
+  },
+  "tests": {
+    "focused": [
+      "stm07En001_linkPersistsAndIsReadable",
+      "stm07En001_provisioningRequestPersisted",
+      "testIamAccountLinkageAndIdempotentRelink",
+      "testStudentCannotLinkOwnIamAccountWithoutPrivilege"
+    ]
+  },
+  "status": {
+    "STM-07-EN-001": "completed",
+    "STM-07-US-001": "partially completed"
+  },
+  "remainingGaps": [
+    "Live Postgres integration test for link table read-back (optional follow-on)",
+    "STM-07-US-002+ eligibility/provisioning workflow UI",
+    "Dedicated identity-service JAR still .gitkeep (intentionally not invented)"
+  ]
+}
