@@ -5,6 +5,8 @@ import com.campx.document.persistence.DocumentPersistence;
 import com.campx.document.security.ControlledMalwareScanAdapter;
 import com.campx.document.security.DelegationPort;
 import com.campx.document.security.FailClosedDelegationPort;
+import com.campx.document.security.MalwareScanException;
+import com.campx.document.security.MalwareScanPort;
 import com.campx.document.security.SignedDownloadTokenService;
 import com.campx.document.storage.DocumentObjectStorage;
 import com.campx.document.storage.DocumentStorageConfig;
@@ -30,6 +32,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Domain service for Student Document Management (STM-06).
@@ -63,14 +67,26 @@ public class DocumentDomainService {
     public static final String NOTIFICATION_DOCUMENT_EXPIRING = "DOCUMENT_EXPIRING";
     public static final int DEFAULT_EXPIRY_WINDOW_DAYS = 30;
 
+    /** STM-06-EN-003 malware lifecycle states (document_links.relation). */
+    public static final String SCAN_PENDING = "PENDING_SCAN";
+    public static final String SCAN_SCANNING = "SCANNING";
+    public static final String SCAN_CLEAN = "CLEAN";
+    public static final String SCAN_INFECTED = "INFECTED";
+    public static final String SCAN_FAILED = "SCAN_FAILED";
+    /** Legacy CLEAN marker retained for already-persisted rows. */
+    public static final String SCAN_CLEAN_LEGACY = "MALWARE_SCAN_PASSED";
+    public static final String SCAN_INFECTED_LEGACY = "MALWARE_SCAN_QUARANTINED";
+
     private final DocumentPersistence persistence;
     private final DocumentIntelligenceService intelligenceService;
-    private final ControlledMalwareScanAdapter malwareScanAdapter;
+    private final MalwareScanPort malwareScanAdapter;
     private final SignedDownloadTokenService signedDownloadTokenService;
     private final DocumentObjectStorage objectStorage;
     private final DelegationPort delegationPort;
     private final List<DocumentExpiryNotification> documentExpiryNotifications =
             Collections.synchronizedList(new ArrayList<DocumentExpiryNotification>());
+    private final ConcurrentHashMap<UUID, Object> scanLocks = new ConcurrentHashMap<UUID, Object>();
+    private final AtomicLong scanEventClock = new AtomicLong();
 
     public DocumentDomainService(DocumentPersistence persistence, DocumentIntelligenceService intelligenceService) {
         this(persistence, intelligenceService, new ControlledMalwareScanAdapter(),
@@ -1180,13 +1196,6 @@ public class DocumentDomainService {
             }
         }
 
-        ControlledMalwareScanAdapter.ScanResult scan =
-                malwareScanAdapter.scan(fileName, mimeType, checksum, req.sizeBytes);
-        if (!scan.clean) {
-            throw new DocumentException(422, "MALWARE_DETECTED",
-                    "Upload quarantined by malware scan (liveEndpoint=" + scan.liveEndpoint + ")");
-        }
-
         UUID docId = UUID.randomUUID();
         UUID versionId = UUID.randomUUID();
         UUID linkId = UUID.randomUUID();
@@ -1198,6 +1207,7 @@ public class DocumentDomainService {
             checksum = "sha256:simulated-" + docId;
         }
 
+        // 1) Store bytes first (trusted server-side path) when present
         if (contentBytes != null) {
             try {
                 objectStorage.putObject(storageBucket, storagePath, contentBytes, mimeType);
@@ -1261,19 +1271,21 @@ public class DocumentDomainService {
                 actor.getUserId()
         );
 
+        // 2) Register document as pending scan
         persistence.saveStudentDocument(actor, doc, version, link);
+        recordScanState(actor, docId, SCAN_PENDING, "document.malware_scan_pending");
 
-        DocumentLink scanLink = new DocumentLink(
-                UUID.randomUUID(),
-                actor.getTenantId(),
-                docId,
-                "SECURITY_SCAN",
-                actor.getUserId(),
-                "MALWARE_SCAN_PASSED",
-                now,
-                actor.getUserId()
-        );
-        persistence.saveDocumentLink(actor, scanLink);
+        // 3–5) Scan actual content through server-side adapter; record tenant-scoped result
+        String finalScan = executeMalwareScanLifecycle(actor, docId, fileName, mimeType, checksum,
+                req.sizeBytes, contentBytes);
+        if (SCAN_INFECTED.equals(finalScan)) {
+            throw new DocumentException(422, "MALWARE_DETECTED",
+                    "Upload quarantined by malware scan; document retained as INFECTED");
+        }
+        if (SCAN_FAILED.equals(finalScan)) {
+            throw new DocumentException(503, "SCAN_FAILED",
+                    "Malware scan failed or scanner unavailable; document is not eligible for use");
+        }
 
         AuditEvent audit = AuditEvent.builder()
                 .action("document.uploaded")
@@ -1286,7 +1298,7 @@ public class DocumentDomainService {
                 .status("SUCCESS")
                 .severity("INFO")
                 .description("Student document uploaded: docId=" + docId + ", docType=" + dt.code
-                        + ", owner=" + targetStudentId + ", malwareScan=" + scan.verdict)
+                        + ", owner=" + targetStudentId + ", malwareScan=" + finalScan)
                 .build();
         logger.audit(audit);
 
@@ -1625,6 +1637,8 @@ public class DocumentDomainService {
             throw new DocumentException(404, "DOCUMENT_NOT_FOUND", "Document not found: " + documentId);
         }
         requireCampusMatch(actor, doc.collegeId);
+        // Fail-closed: Registrar cannot approve/reject until malware scan is CLEAN
+        requireScanClean(actor, documentId);
 
         if ("APPROVE".equals(rawDecision)) {
             DocumentVerificationRecord priorByActor = persistence.findLatestVerificationByDocumentId(actor, documentId);
@@ -1760,12 +1774,6 @@ public class DocumentDomainService {
             }
         }
 
-        ControlledMalwareScanAdapter.ScanResult rescan =
-                malwareScanAdapter.scan(resubmitName, secureMime, req.checksumSha256, req.sizeBytes);
-        if (!rescan.clean) {
-            throw new DocumentException(422, "MALWARE_DETECTED",
-                    "Resubmission quarantined by malware scan (liveEndpoint=" + rescan.liveEndpoint + ")");
-        }
         if (req.checksumSha256 == null || req.checksumSha256.trim().isEmpty()) {
             throw new DocumentException(422, "MISSING_CHECKSUM", "File SHA-256 checksum is required");
         }
@@ -1807,6 +1815,17 @@ public class DocumentDomainService {
 
         try {
             persistence.resubmitStudentDocument(actor, existing.id, newVersion, req.mimeType.trim());
+            recordScanState(actor, existing.id, SCAN_PENDING, "document.malware_scan_pending");
+            String rescanStatus = executeMalwareScanLifecycle(actor, existing.id, resubmitName, secureMime,
+                    req.checksumSha256.trim(), req.sizeBytes, contentBytes);
+            if (SCAN_INFECTED.equals(rescanStatus)) {
+                throw new DocumentException(422, "MALWARE_DETECTED",
+                        "Resubmission quarantined by malware scan; document retained as INFECTED");
+            }
+            if (SCAN_FAILED.equals(rescanStatus)) {
+                throw new DocumentException(503, "SCAN_FAILED",
+                        "Malware scan failed or scanner unavailable; document is not eligible for use");
+            }
 
             StudentDocument updated = persistence.findStudentDocumentById(actor, existing.id);
             logger.info("Resubmitted student document: docId={} version={} status=SUBMITTED",
@@ -2517,10 +2536,8 @@ public class DocumentDomainService {
     public SignedDownloadUrl issueSignedDownloadUrl(Actor actor, UUID documentId) {
         requireCaller(actor);
         StudentDocument doc = requireDocumentReadable(actor, documentId);
+        requireScanClean(actor, documentId);
         String scanStatus = latestScanStatus(actor, documentId);
-        if ("MALWARE_SCAN_QUARANTINED".equals(scanStatus)) {
-            throw new DocumentException(403, "DOCUMENT_QUARANTINED", "Quarantined documents cannot be downloaded");
-        }
         long exp = Instant.now().getEpochSecond() + SIGNED_URL_TTL_SECONDS;
         String token = signedDownloadTokenService.issue(doc.id, actor.getTenantId(), actor.getUserId(), exp);
         Instant expiresAt = Instant.ofEpochSecond(exp);
@@ -2546,6 +2563,7 @@ public class DocumentDomainService {
         requireCaller(actor);
         SignedDownloadTokenService.ParsedToken parsed = parseSignedToken(actor, token);
         StudentDocument doc = requireDocumentReadable(actor, parsed.documentId);
+        requireScanClean(actor, parsed.documentId);
         String scanStatus = latestScanStatus(actor, parsed.documentId);
         String downloadPath = "/api/v1/documents/download?token=" + token;
         return new SignedDownloadUrl(doc.id, doc.storageBucket, doc.storagePath, doc.mimeType, doc.sizeBytes,
@@ -2555,12 +2573,13 @@ public class DocumentDomainService {
 
     /**
      * STM-06-EN-002: After signed-token check, stream object bytes through the service.
-     * Does not issue Supabase signed URLs to clients.
+     * Does not issue Supabase signed URLs to clients. Fail-closed unless malware scan is CLEAN.
      */
     public DocumentDownloadPayload downloadDocumentBytes(Actor actor, String token) {
         requireCaller(actor);
         SignedDownloadTokenService.ParsedToken parsed = parseSignedToken(actor, token);
         StudentDocument doc = requireDocumentReadable(actor, parsed.documentId);
+        requireScanClean(actor, parsed.documentId);
         if (!objectStorage.isConfigured()) {
             throw new DocumentException(503, "STORAGE_NOT_CONFIGURED",
                     "Object storage is not configured; bytes cannot be downloaded in this profile");
@@ -2611,19 +2630,186 @@ public class DocumentDomainService {
         List<DocumentLink> all = persistence.listDocumentLinks(actor, documentId);
         List<DocumentLink> scans = new ArrayList<DocumentLink>();
         for (DocumentLink link : all) {
-            if ("MALWARE_SCAN_PASSED".equals(link.relation) || "MALWARE_SCAN_QUARANTINED".equals(link.relation)) {
+            if (isScanRelation(link.relation)) {
                 scans.add(link);
             }
         }
         return scans;
     }
 
-    private String latestScanStatus(Actor actor, UUID documentId) {
-        List<DocumentLink> scans = listSecurityScans(actor, documentId);
-        if (scans.isEmpty()) {
-            return "SCAN_PENDING";
+    /**
+     * Idempotent scan trigger for an already-registered document (duplicate-safe).
+     * Concurrent SCANNING transitions are rejected with 409.
+     */
+    public String requestMalwareScan(Actor actor, UUID documentId) {
+        requireCaller(actor);
+        if (!(actor.isCollegeAdmin() || actor.isRegistrar())) {
+            throw new DocumentException(403, "FORBIDDEN", "Only College Admin or Registrar may request a malware rescan");
         }
-        return scans.get(scans.size() - 1).relation;
+        StudentDocument doc = requireDocumentReadable(actor, documentId);
+        String current = latestScanStatus(actor, documentId);
+        if (isScanCleanStatus(current)) {
+            return current;
+        }
+        if (SCAN_SCANNING.equals(current)) {
+            throw new DocumentException(409, "SCAN_IN_PROGRESS", "Malware scan already in progress for this document");
+        }
+        byte[] bytes = null;
+        if (objectStorage.isConfigured() && doc.storagePath != null) {
+            try {
+                bytes = objectStorage.getObject(doc.storageBucket, doc.storagePath);
+            } catch (DocumentStorageException e) {
+                recordScanState(actor, documentId, SCAN_FAILED, "document.malware_scan_failed");
+                throw new DocumentException(503, "STORAGE_UNAVAILABLE",
+                        "Could not load object bytes for malware scan");
+            }
+        }
+        recordScanState(actor, documentId, SCAN_PENDING, "document.malware_scan_pending");
+        return executeMalwareScanLifecycle(actor, documentId, extractFileName(doc.storagePath),
+                doc.mimeType, doc.checksumSha256, doc.sizeBytes, bytes);
+    }
+
+    private String executeMalwareScanLifecycle(Actor actor, UUID documentId, String fileName, String mimeType,
+                                               String checksum, long sizeBytes, byte[] contentBytes) {
+        Object lock = scanLocks.computeIfAbsent(documentId, new java.util.function.Function<UUID, Object>() {
+            @Override
+            public Object apply(UUID id) {
+                return new Object();
+            }
+        });
+        synchronized (lock) {
+            try {
+                String current = latestScanStatusInternal(actor, documentId);
+                if (SCAN_SCANNING.equals(current)) {
+                    throw new DocumentException(409, "SCAN_IN_PROGRESS",
+                            "Malware scan already in progress for this document");
+                }
+                if (isScanCleanStatus(current) && !SCAN_PENDING.equals(current)) {
+                    // Duplicate request after CLEAN: idempotent no-op
+                    return current;
+                }
+                recordScanState(actor, documentId, SCAN_SCANNING, "document.malware_scan_started");
+                try {
+                    ControlledMalwareScanAdapter.ScanResult result =
+                            malwareScanAdapter.scan(fileName, mimeType, checksum, sizeBytes, contentBytes);
+                    if (result == null || result.verdict == null || result.verdict.trim().isEmpty()) {
+                        recordScanState(actor, documentId, SCAN_FAILED, "document.malware_scan_failed");
+                        return SCAN_FAILED;
+                    }
+                    if (result.clean && "CLEAN".equalsIgnoreCase(result.verdict.trim())) {
+                        recordScanState(actor, documentId, SCAN_CLEAN, "document.malware_scan_completed");
+                        return SCAN_CLEAN;
+                    }
+                    recordScanState(actor, documentId, SCAN_INFECTED, "document.malware_scan_completed");
+                    return SCAN_INFECTED;
+                } catch (MalwareScanException e) {
+                    recordScanState(actor, documentId, SCAN_FAILED, "document.malware_scan_failed");
+                    logger.warn("Malware scan failed code={} docId={}", e.getCode(), documentId);
+                    return SCAN_FAILED;
+                }
+            } finally {
+                scanLocks.remove(documentId, lock);
+            }
+        }
+    }
+
+    private void recordScanState(Actor actor, UUID documentId, String state, String auditAction) {
+        // Monotonic nanos so PENDING → SCANNING → terminal remain ordered when wall-clock is equal
+        Instant now = Instant.now().plusNanos(scanEventClock.incrementAndGet());
+        DocumentLink scanLink = new DocumentLink(
+                UUID.randomUUID(),
+                actor.getTenantId(),
+                documentId,
+                "SECURITY_SCAN",
+                actor.getUserId(),
+                state,
+                now,
+                actor.getUserId()
+        );
+        persistence.saveDocumentLink(actor, scanLink);
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action(auditAction)
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STUDENT_DOCUMENT")
+                .resourceId(documentId.toString())
+                .correlationId(actor.getCorrelationId())
+                .status(state)
+                .severity(SCAN_FAILED.equals(state) || SCAN_INFECTED.equals(state) ? "WARN" : "INFO")
+                .description("malwareScanState=" + state)
+                .build();
+        logger.audit(audit);
+    }
+
+    private void requireScanClean(Actor actor, UUID documentId) {
+        String status = latestScanStatus(actor, documentId);
+        if (isScanCleanStatus(status)) {
+            return;
+        }
+        if (SCAN_INFECTED.equals(status) || SCAN_INFECTED_LEGACY.equals(status)) {
+            throw new DocumentException(403, "DOCUMENT_QUARANTINED",
+                    "Infected/quarantined documents cannot be retrieved or approved");
+        }
+        if (SCAN_PENDING.equals(status) || SCAN_SCANNING.equals(status)) {
+            throw new DocumentException(403, "DOCUMENT_SCAN_PENDING",
+                    "Document is not eligible until malware scan completes (state=" + status + ")");
+        }
+        if (SCAN_FAILED.equals(status)) {
+            throw new DocumentException(403, "DOCUMENT_SCAN_FAILED",
+                    "Document malware scan failed; not treated as CLEAN");
+        }
+        throw new DocumentException(403, "DOCUMENT_SCAN_PENDING",
+                "Document is not eligible until malware scan is CLEAN (state=" + status + ")");
+    }
+
+    static boolean isScanCleanStatus(String status) {
+        return SCAN_CLEAN.equals(status) || SCAN_CLEAN_LEGACY.equals(status);
+    }
+
+    static boolean isScanRelation(String relation) {
+        return SCAN_PENDING.equals(relation)
+                || SCAN_SCANNING.equals(relation)
+                || SCAN_CLEAN.equals(relation)
+                || SCAN_INFECTED.equals(relation)
+                || SCAN_FAILED.equals(relation)
+                || SCAN_CLEAN_LEGACY.equals(relation)
+                || SCAN_INFECTED_LEGACY.equals(relation);
+    }
+
+    private String latestScanStatus(Actor actor, UUID documentId) {
+        return latestScanStatusInternal(actor, documentId);
+    }
+
+    private String latestScanStatusInternal(Actor actor, UUID documentId) {
+        List<DocumentLink> all = persistence.listDocumentLinks(actor, documentId);
+        DocumentLink newest = null;
+        for (DocumentLink link : all) {
+            if (link == null || !isScanRelation(link.relation)) {
+                continue;
+            }
+            if (newest == null) {
+                newest = link;
+                continue;
+            }
+            if (link.createdAt != null && newest.createdAt != null
+                    && link.createdAt.isAfter(newest.createdAt)) {
+                newest = link;
+            } else if (link.createdAt != null && newest.createdAt != null
+                    && link.createdAt.equals(newest.createdAt)) {
+                // Prefer the first row when list is newest-first (postgres/in-memory)
+                // already captured; keep newest
+            }
+        }
+        return newest == null ? SCAN_PENDING : newest.relation;
+    }
+
+    private static String extractFileName(String storagePath) {
+        if (storagePath == null || storagePath.trim().isEmpty()) {
+            return "document";
+        }
+        int idx = storagePath.lastIndexOf('/');
+        return idx >= 0 && idx < storagePath.length() - 1 ? storagePath.substring(idx + 1) : storagePath;
     }
 
     private String validateSecureUpload(String mimeType, Long sizeBytes, String fileName) {

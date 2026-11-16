@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (STM-06-EN-002 orphan deletion API DONE; EN-002 completed; EN-003 malware AV remains)
+**Updated:** 2026-11-16 (STM-06-EN-003 controlled malware lifecycle + fail-closed DONE; live AV still gated)
 
 ## Scoreboard (session)
 
@@ -15,7 +15,7 @@
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
 | IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
 | STM-06-EN-002 | **completed** — live Storage + frontend 1b/1c + orphan scan/cleanup API (fake tests; no live Storage delete this task) |
-| STM-06-EN-003 | **partially completed** — signed URL + heuristic malware; live AV open (D11) |
+| STM-06-EN-003 | **partially completed** — fail-closed lifecycle + content heuristic DONE; live commercial AV gated (D11 / new tool) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights
@@ -28,7 +28,7 @@
 ## Caveats
 
 - No Kafka invent (CROSS-EN-007 held).
-- Malware AV live endpoint deferred (heuristic + EICAR gate only).
+- Malware: controlled content/heuristic scanner + fail-closed states DONE; live commercial AV deferred (new tool).
 - No unapproved DDL; scan outcomes via `doc.document_links`.
 - Cross-tenant penetration suite still not run.
 - **Awaiting owner `APPROVED …` / `APPROVED … COMMIT`.**

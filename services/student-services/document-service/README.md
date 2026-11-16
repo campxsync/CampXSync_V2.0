@@ -42,7 +42,7 @@ When URL + service-role key are absent, the service runs in **metadata-only** pr
 
 ## Open gaps
 
-- Live malware scanner: OUT OF SCOPE (would require a new tool). Heuristic `ControlledMalwareScanAdapter` remains (`liveEndpoint=false`).
+- Malware: controlled lifecycle (`PENDING_SCAN`→`SCANNING`→`CLEAN`/`INFECTED`/`SCAN_FAILED`) via `MalwareScanPort` / `ControlledMalwareScanAdapter` (content EICAR + fail-closed). Live commercial AV: OUT OF SCOPE until owner-approved new tool (`liveEndpoint=false`).
 - Staging bucket/policies: prepared in `docs/runbooks/STM-06-EN-002_STAGING_STORAGE_SETUP.md` — not applied until Phase B approval.
 - Live IAM delegation adapter (cross-schema): fail-closed until Phase B / owner design.
 

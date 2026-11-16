@@ -1805,12 +1805,12 @@ public class DocumentDomainServiceTest {
         assertNotNull(uploaded.storagePath);
 
         List<DocumentDomainService.DocumentLink> scans = service.listSecurityScans(studentTenantA, uploaded.id);
-        assertTrue(scans.stream().anyMatch(s -> "MALWARE_SCAN_PASSED".equals(s.relation)));
+        assertTrue(scans.stream().anyMatch(s -> DocumentDomainService.SCAN_CLEAN.equals(s.relation)));
 
         DocumentDomainService.SignedDownloadUrl signed =
                 service.issueSignedDownloadUrl(studentTenantA, uploaded.id);
         assertNotNull(signed.token);
-        assertEquals("MALWARE_SCAN_PASSED", signed.scanStatus);
+        assertEquals(DocumentDomainService.SCAN_CLEAN, signed.scanStatus);
         assertFalse(signed.malwareLiveEndpoint);
         assertTrue(signed.downloadPath.contains("/api/v1/documents/download"));
 
@@ -1821,7 +1821,7 @@ public class DocumentDomainServiceTest {
     }
 
     @Test
-    public void stm06En003_malwareMarkerIsQuarantinedBeforePersist() {
+    public void stm06En003_malwareMarkerIsQuarantinedAndFailClosed() {
         ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
         dtReq.code = "DOC-EN003-MAL-" + UUID.randomUUID().toString().substring(0, 8);
         dtReq.name = "Malware Gate Doc";
@@ -1839,6 +1839,18 @@ public class DocumentDomainServiceTest {
         } catch (DocumentException e) {
             assertEquals(422, e.getStatusCode());
             assertEquals("MALWARE_DETECTED", e.getCode());
+        }
+        List<StudentDocument> docs = service.listStudentDocuments(studentTenantA, studentTenantA.getUserId(), null);
+        assertFalse(docs.isEmpty());
+        StudentDocument infected = docs.get(0);
+        assertEquals(DocumentDomainService.SCAN_INFECTED,
+                service.listSecurityScans(studentTenantA, infected.id).get(0).relation);
+        try {
+            service.issueSignedDownloadUrl(studentTenantA, infected.id);
+            fail("Infected document must not issue download URL");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+            assertEquals("DOCUMENT_QUARANTINED", e.getCode());
         }
     }
 
@@ -1873,6 +1885,224 @@ public class DocumentDomainServiceTest {
             fail("MIME/extension mismatch must be rejected");
         } catch (DocumentException e) {
             assertEquals("MIME_EXTENSION_MISMATCH", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En003_contentBytesCleanAndInfectedAndFailClosedStates() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        ControlledMalwareScanAdapter adapter = new ControlledMalwareScanAdapter();
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, adapter,
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-BYTES-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Content Scan Doc";
+        DocumentType type = storageService.configureDocumentType(adminTenantA, dtReq);
+
+        byte[] pdf = ("%PDF-1.4 clean").getBytes(StandardCharsets.US_ASCII);
+        UploadStudentDocumentRequest clean = new UploadStudentDocumentRequest();
+        clean.documentTypeId = type.id;
+        clean.title = "Clean Bytes";
+        clean.mimeType = "application/pdf";
+        clean.sizeBytes = (long) pdf.length;
+        clean.fileName = "clean_bytes.pdf";
+        clean.checksumSha256 = sha256Hex(pdf);
+        clean.contentBase64 = Base64.getEncoder().encodeToString(pdf);
+        StudentDocument uploaded = storageService.uploadStudentDocument(studentTenantA, clean);
+        assertEquals(DocumentDomainService.SCAN_CLEAN,
+                storageService.listSecurityScans(studentTenantA, uploaded.id).get(0).relation);
+        assertNotNull(storageService.issueSignedDownloadUrl(studentTenantA, uploaded.id).token);
+
+        // PDF magic so MIME signature passes; EICAR payload in content for byte-level detection
+        byte[] eicar = ("%PDF-1.4\n" + ControlledMalwareScanAdapter.EICAR_TEST_STRING)
+                .getBytes(StandardCharsets.US_ASCII);
+        UploadStudentDocumentRequest infected = new UploadStudentDocumentRequest();
+        infected.documentTypeId = type.id;
+        infected.title = "Infected Bytes";
+        infected.mimeType = "application/pdf";
+        infected.sizeBytes = (long) eicar.length;
+        infected.fileName = "innocent.pdf";
+        infected.checksumSha256 = sha256Hex(eicar);
+        infected.contentBase64 = Base64.getEncoder().encodeToString(eicar);
+        try {
+            storageService.uploadStudentDocument(studentTenantA, infected);
+            fail("EICAR content must be INFECTED");
+        } catch (DocumentException e) {
+            assertEquals("MALWARE_DETECTED", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En003_pendingScanningFailedDenyRetrievalAndApproval() throws Exception {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-GATE-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Scan Gate Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Pending Doc";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 128L;
+        up.fileName = "pending.pdf";
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        assertEquals(DocumentDomainService.SCAN_CLEAN,
+                service.listSecurityScans(studentTenantA, uploaded.id).get(0).relation);
+
+        // Force non-CLEAN terminal/intermediate states via scan links (newest wins)
+        persistence.saveDocumentLink(studentTenantA, new DocumentDomainService.DocumentLink(
+                UUID.randomUUID(), tenantA, uploaded.id, "SECURITY_SCAN", studentTenantA.getUserId(),
+                DocumentDomainService.SCAN_PENDING, Instant.now().plusSeconds(10), studentTenantA.getUserId()));
+        try {
+            service.issueSignedDownloadUrl(studentTenantA, uploaded.id);
+            fail("PENDING_SCAN must deny retrieval");
+        } catch (DocumentException e) {
+            assertEquals("DOCUMENT_SCAN_PENDING", e.getCode());
+        }
+
+        persistence.saveDocumentLink(studentTenantA, new DocumentDomainService.DocumentLink(
+                UUID.randomUUID(), tenantA, uploaded.id, "SECURITY_SCAN", studentTenantA.getUserId(),
+                DocumentDomainService.SCAN_SCANNING, Instant.now().plusSeconds(20), studentTenantA.getUserId()));
+        try {
+            service.issueSignedDownloadUrl(studentTenantA, uploaded.id);
+            fail("SCANNING must deny retrieval");
+        } catch (DocumentException e) {
+            assertEquals("DOCUMENT_SCAN_PENDING", e.getCode());
+        }
+
+        persistence.saveDocumentLink(studentTenantA, new DocumentDomainService.DocumentLink(
+                UUID.randomUUID(), tenantA, uploaded.id, "SECURITY_SCAN", studentTenantA.getUserId(),
+                DocumentDomainService.SCAN_FAILED, Instant.now().plusSeconds(30), studentTenantA.getUserId()));
+        try {
+            service.issueSignedDownloadUrl(studentTenantA, uploaded.id);
+            fail("SCAN_FAILED must deny retrieval");
+        } catch (DocumentException e) {
+            assertEquals("DOCUMENT_SCAN_FAILED", e.getCode());
+        }
+        try {
+            VerificationDecisionRequest approve = new VerificationDecisionRequest();
+            approve.decision = "APPROVE";
+            service.verifyDocument(registrarTenantA, uploaded.id, approve);
+            fail("Registrar must not approve until CLEAN");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+    }
+
+    @Test
+    public void stm06En003_scannerUnavailableTimeoutMalformedNeverClean() throws Exception {
+        ControlledMalwareScanAdapter adapter = new ControlledMalwareScanAdapter();
+        DocumentDomainService scanService = new DocumentDomainService(
+                persistence, intelligenceService, adapter,
+                new SignedDownloadTokenService("test-secret"),
+                new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, false), delegations);
+
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-UNAV-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Unavailable Scan Doc";
+        DocumentType type = scanService.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Will Fail Scan";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 64L;
+        up.fileName = "fail_scan.pdf";
+
+        adapter.setForcedOutcome(ControlledMalwareScanAdapter.ForcedOutcome.UNAVAILABLE);
+        try {
+            scanService.uploadStudentDocument(studentTenantA, up);
+            fail("Unavailable scanner must not upload as CLEAN");
+        } catch (DocumentException e) {
+            assertEquals("SCAN_FAILED", e.getCode());
+        }
+        List<StudentDocument> docs = scanService.listStudentDocuments(studentTenantA, studentTenantA.getUserId(), null);
+        assertEquals(DocumentDomainService.SCAN_FAILED,
+                scanService.listSecurityScans(studentTenantA, docs.get(0).id).get(0).relation);
+
+        adapter.setForcedOutcome(ControlledMalwareScanAdapter.ForcedOutcome.TIMEOUT);
+        up.fileName = "timeout_scan.pdf";
+        up.title = "Timeout Scan";
+        try {
+            scanService.uploadStudentDocument(studentTenantA, up);
+            fail("Timeout must not be CLEAN");
+        } catch (DocumentException e) {
+            assertEquals("SCAN_FAILED", e.getCode());
+        }
+
+        adapter.setForcedOutcome(ControlledMalwareScanAdapter.ForcedOutcome.MALFORMED);
+        up.fileName = "malformed_scan.pdf";
+        up.title = "Malformed Scan";
+        try {
+            scanService.uploadStudentDocument(studentTenantA, up);
+            fail("Malformed scanner response must not be CLEAN");
+        } catch (DocumentException e) {
+            assertEquals("SCAN_FAILED", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En003_duplicateScanIdempotentAndConcurrentScanningDenied() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-DUP-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Dup Scan Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Dup Scan";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 96L;
+        up.fileName = "dup.pdf";
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        assertEquals(DocumentDomainService.SCAN_CLEAN, service.requestMalwareScan(adminTenantA, uploaded.id));
+
+        persistence.saveDocumentLink(adminTenantA, new DocumentDomainService.DocumentLink(
+                UUID.randomUUID(), tenantA, uploaded.id, "SECURITY_SCAN", adminTenantA.getUserId(),
+                DocumentDomainService.SCAN_SCANNING, Instant.now().plusSeconds(60), adminTenantA.getUserId()));
+        try {
+            service.requestMalwareScan(adminTenantA, uploaded.id);
+            fail("Concurrent SCANNING must be rejected");
+        } catch (DocumentException e) {
+            assertEquals(409, e.getStatusCode());
+            assertEquals("SCAN_IN_PROGRESS", e.getCode());
+        }
+
+        try {
+            service.requestMalwareScan(studentTenantA, uploaded.id);
+            fail("Student must not request rescan");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+    }
+
+    @Test
+    public void stm06En003_crossTenantScanAccessDenied() {
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-EN003-XT-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "XT Scan Doc";
+        DocumentType type = service.configureDocumentType(adminTenantA, dtReq);
+
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Tenant A Doc";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = 80L;
+        up.fileName = "xta.pdf";
+        StudentDocument uploaded = service.uploadStudentDocument(studentTenantA, up);
+        try {
+            service.issueSignedDownloadUrl(adminTenantB, uploaded.id);
+            fail("Cross-tenant download must fail");
+        } catch (DocumentException e) {
+            assertTrue(e.getStatusCode() == 403 || e.getStatusCode() == 404);
+        }
+        try {
+            service.requestMalwareScan(adminTenantB, uploaded.id);
+            fail("Cross-tenant rescan must fail");
+        } catch (DocumentException e) {
+            assertTrue(e.getStatusCode() == 403 || e.getStatusCode() == 404);
         }
     }
 

@@ -954,3 +954,46 @@ Primary backlog CSV promoted after lock cleared (2026-11-16).
 
 ### Stop
 Await `APPROVED STM-06-EN-002` / push authorization. **No push.**
+
+---
+
+## Entry 26 — STM-06-EN-003 malware scanning lifecycle (controlled) (2026-11-16)
+
+**Task ID:** STM-06-EN-003  
+**Status:** **partially completed** — authorized controlled scanner + fail-closed lifecycle DONE; **live commercial AV STOPPED** (new tool / D11 / Agreement §4). Local commit only; **no push**.
+
+### What shipped (authorized infrastructure)
+- `MalwareScanPort` + `MalwareScanException` boundary (replaceable; testable).
+- `ControlledMalwareScanAdapter`: content-byte EICAR evaluation; forced UNAVAILABLE/TIMEOUT/MALFORMED never return CLEAN; `liveEndpoint=false`.
+- Upload/resubmit lifecycle: store bytes → register `PENDING_SCAN` → `SCANNING` → `CLEAN` | `INFECTED` | `SCAN_FAILED`.
+- Fail-closed `requireScanClean` on signed URL, byte download, and Registrar verify/approve.
+- Concurrent scan lock (409 `SCAN_IN_PROGRESS`); duplicate CLEAN rescan idempotent.
+- Infected uploads retained as INFECTED + 422 `MALWARE_DETECTED` (no normal access).
+
+### Gate (not implemented)
+Live commercial antivirus engine / Docker / paid external scanner. Requires explicit owner approval (`APPROVED EN-003-LIVE-AV <tool>`). Do not claim mock/heuristic tests prove a production AV engine.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `mvn test -pl services/student-services/document-service` | **138/138 PASS** |
+
+### Acceptance → implementation → test
+
+| Clause | Location | Test |
+|---|---|---|
+| CLEAN scan | `executeMalwareScanLifecycle` → `CLEAN` | `stm06En003_cleanUploadRecordsMalwareScanPassedAndIssuesSignedUrl`, `stm06En003_contentBytesCleanAndInfectedAndFailClosedStates` |
+| INFECTED rejection | content/filename → `INFECTED` + fail-closed | `stm06En003_malwareMarkerIsQuarantinedAndFailClosed`, content-bytes test |
+| PENDING/SCANNING/FAILED deny retrieval | `requireScanClean` | `stm06En003_pendingScanningFailedDenyRetrievalAndApproval` |
+| Scanner unavailable/timeout/malformed | forced outcomes → `SCAN_FAILED` | `stm06En003_scannerUnavailableTimeoutMalformedNeverClean` |
+| Cross-tenant denial | tenant scope | `stm06En003_crossTenantScanAccessDenied` |
+| Duplicate / concurrent | `requestMalwareScan` | `stm06En003_duplicateScanIdempotentAndConcurrentScanningDenied` |
+| Registrar blocked until CLEAN | `verifyDocument` + `requireScanClean` | `stm06En003_pendingScanningFailedDenyRetrievalAndApproval` |
+| Upload/download regression | existing EN-002/EN-003 tests | suite 138/138 |
+
+### CSV
+`STM-06-EN-003` remains **partially completed** (live AV gated).
+
+### Stop
+Await owner `APPROVED EN-003-LIVE-AV <tool>` or next queue pickup. **No push.**

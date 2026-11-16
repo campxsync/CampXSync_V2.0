@@ -1,28 +1,27 @@
 # Next Task
 
-**STATUS: STM-06-EN-002 orphan deletion API DONE (2026-11-16).** Storage enabler complete (bucket + live path + frontend 1b/1c + orphan API). Live malware AV remains on EN-003.
+**STATUS: STM-06-EN-003 malware lifecycle (controlled scanner) DONE (2026-11-16).** Fail-closed scan states enforced. Live commercial AV remains gated (new tool / D11).
 
 ## Just completed
 
-- Orphan identification + cleanup API (College Admin; dry-run default; `confirmExecute` required to delete)
-- Confirmed orphan = object under `tenants/{tenantId}/` not referenced by `doc.documents` or `doc.document_versions` (any status)
-- Cross-tenant / ambiguous / referenced paths retained; deletes idempotent; partial failure reported
-- Fake-storage unit tests; **no live Dev/prod Storage delete** in this task
-- Verification: `mvn test -pl services/student-services/document-service` → **133/133 PASS**
+- Malware lifecycle: `PENDING_SCAN` → `SCANNING` → `CLEAN` | `INFECTED` | `SCAN_FAILED`
+- Content-byte EICAR evaluation via existing `ControlledMalwareScanAdapter` (`liveEndpoint=false`)
+- Fail-closed: signed URL, download, Registrar verify blocked unless `CLEAN`
+- Scanner unavailable/timeout/malformed → `SCAN_FAILED` (never CLEAN)
+- Duplicate rescan idempotent; concurrent `SCANNING` → 409
+- Verification: full document-service suite (see COMPLETION_REPORT)
 
-## Remaining gaps
+## Remaining gaps / gates
 
-- Live malware AV still open (STM-06-EN-003 / D11)
-- Blocked queue items unchanged (CROSS-EN-010 harness, US-015 DDL, …)
+- **Live commercial AV engine** — STOP: requires owner approval for a new tool/service (Agreement 4 / D11). Interface ready: `MalwareScanPort`.
+- Blocked queue: CROSS-EN-010 harness, US-015 DDL, …
 
 ## Pickup queue (order)
 
 0. IAM Path C / R31 pilot — **DONE**.
-1. **STM-06-EN-002** — **completed** (live Storage + 1b + 1c + orphan API).
-1b. **Frontend:** `contentBase64` upload — **DONE**.
-1c. **Frontend:** Registrar role mapping — **DONE**.
-2. **STM-06-EN-003** — **partially completed** (signed URL + heuristic scan; live AV open).
-3. **STM-CROSS-EN-010** e2e — **BLOCKED** (harness approval).
+1. **STM-06-EN-002** — **completed**.
+2. **STM-06-EN-003** — **partially completed** (controlled/heuristic + fail-closed DONE; live AV gated).
+3. **STM-CROSS-EN-010** e2e — **BLOCKED**.
 6. **STM-06-US-015** — **BLOCKED** (notification DDL).
 7. **STM-CROSS-EN-014** / **STM-03-EN-007** — **BLOCKED**.
 
@@ -31,4 +30,4 @@
 - No push unless owner authorizes.
 - No production access.
 - Never print service-role keys.
-- Live orphan cleanup against Dev Storage requires separate owner authorization.
+- Do not add ClamAV/Docker/paid AV without explicit owner approval.
