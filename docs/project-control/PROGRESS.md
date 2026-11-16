@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (EN-002 live Storage smoke 11/11 PASS; document-service storage configured)
+**Updated:** 2026-11-16 (Frontend 1b contentBase64 upload DONE; EN-002 still partially completed)
 
 ## Scoreboard (session)
 
@@ -14,7 +14,7 @@
 | STM-06-US-006 | **tested** (`24473ff`) |
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
 | IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS** (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); storage / frontend remain |
-| STM-06-EN-002 / EN-003 | **partially completed** — Phase B live PASS (put/get/list/delete 11/11; doc-service storage configured); orphan API + malware AV + frontend remain |
+| STM-06-EN-002 / EN-003 | **partially completed** — Phase B live PASS + frontend 1b contentBase64 DONE (smoke 13/13); orphan API + malware AV + Registrar mapping (1c) remain |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights

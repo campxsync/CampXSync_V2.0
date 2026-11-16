@@ -821,7 +821,45 @@ Evidence: `docs/reports/STM06_EN002_STORAGE_LIVE_SMOKE_2026-11-16.json` (no secr
 | Service config | document-service configured log line |
 
 ### Remaining gaps
-Orphan delete API; live malware AV; frontend contentBase64 / Registrar mapping.
+Orphan delete API; live malware AV; frontend Registrar mapping (1c). Frontend contentBase64 (1b) closed in Entry 23.
 
 ### Status
 CSV `STM-06-EN-002` remains **partially completed** (Phase B live path PASS; residual gaps above).
+
+---
+
+## Entry 23 — Frontend 1b contentBase64 upload integration (2026-11-16)
+
+**Task ID:** FRONTEND-1B / STM-06-EN-002 (frontend content path)  
+**Status:** **DONE** (integrated verification PASS). Local commit only; **no push**. Scope did **not** include Registrar mapping (1c).
+
+### What shipped
+- Student desk (`/student/documents`): file input → `prepareDocumentFile` (MIME allowlist, 10 MB, SHA-256, `contentBase64`) for upload and resubmit.
+- BFF `POST /api/student/documents` and both resubmit routes: `guardDocumentUploadPayload` rejects missing bytes, unsupported MIME, oversize, size mismatch, client `storagePath`, credential fields; forwards only safe JSON to Gateway (Bearer JWT; no service-role).
+- Java `ResubmitDocumentRequest.contentBase64`: required when storage configured; checksum/MIME magic validation; server-built `tenants/{tenantId}/…` path + `putObject`.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `cd frontend; npx tsc --noEmit` | 0 errors |
+| `node --experimental-strip-types scripts/verify_document_upload_guard.mjs` | 11/11 PASS |
+| `mvn test -pl services/student-services/document-service` | 128/128 PASS |
+| Live HMAC→document-service→Storage smoke | **13/13 PASS** |
+| Evidence | `docs/reports/STM06_FRONTEND_1B_CONTENTBASE64_SMOKE_2026-11-16.json` |
+
+### Acceptance → evidence
+
+| Clause | Evidence |
+|---|---|
+| UI → Gateway → Java → Storage | Live upload 201 + tenant path; storage configured log |
+| Invalid file / MIME / size | Smoke rejects + BFF guard 11/11 |
+| Tenant isolation | Cross-tenant audit 404; path prefix under tenant A |
+| No service-role on frontend | Static scan PASS; BFF strips credential fields |
+| Failure handling | CONTENT_REQUIRED / MIME / FILE_TOO_LARGE / MIME_SIGNATURE_MISMATCH |
+
+### CSV
+`STM-06-EN-002` / `STM-06-EN-003` remain **partially completed** (orphan delete API + live malware AV + Registrar 1c still open). Frontend contentBase64 gap closed.
+
+### Stop
+Await owner: next is **1c Registrar mapping** (product-blocked) or another authorized pickup. **No push.**

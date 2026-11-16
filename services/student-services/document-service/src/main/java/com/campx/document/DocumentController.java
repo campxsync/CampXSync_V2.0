@@ -347,6 +347,7 @@ public class DocumentController {
                 }
                 req.checksumSha256 = text(json, "checksumSha256");
                 req.changeNote = text(json, "changeNote");
+                req.contentBase64 = text(json, "contentBase64");
 
                 StudentDocument resubmitted = domain.resubmitStudentDocument(actor, documentId, req);
                 return json(200, studentDocumentNode(resubmitted), correlationId);

@@ -651,6 +651,8 @@ public class DocumentDomainService {
         public String fileName;
         public String checksumSha256;
         public String changeNote;
+        /** Required when object storage is configured (same contract as initial upload). */
+        public String contentBase64;
     }
 
     /**
@@ -1741,6 +1743,22 @@ public class DocumentDomainService {
         String secureMime = validateSecureUpload(req.mimeType, req.sizeBytes, req.fileName);
         req.mimeType = secureMime;
         String resubmitName = sanitizeFileName(req.fileName, secureMime);
+        req.fileName = resubmitName;
+
+        UploadStudentDocumentRequest contentProbe = new UploadStudentDocumentRequest();
+        contentProbe.contentBase64 = req.contentBase64;
+        contentProbe.sizeBytes = req.sizeBytes;
+        byte[] contentBytes = decodeAndValidateContent(contentProbe, secureMime);
+        if (contentBytes != null) {
+            String computed = sha256Hex(contentBytes);
+            if (req.checksumSha256 == null || req.checksumSha256.trim().isEmpty()) {
+                req.checksumSha256 = computed;
+            } else if (!normalizeChecksum(req.checksumSha256).equals(computed)) {
+                throw new DocumentException(422, "CHECKSUM_MISMATCH",
+                        "Declared checksumSha256 does not match decoded content");
+            }
+        }
+
         ControlledMalwareScanAdapter.ScanResult rescan =
                 malwareScanAdapter.scan(resubmitName, secureMime, req.checksumSha256, req.sizeBytes);
         if (!rescan.clean) {
@@ -1755,10 +1773,17 @@ public class DocumentDomainService {
         }
 
         int nextVersion = existing.currentVersionNo + 1;
-        String storagePath = req.storagePath;
-        if (storagePath == null || storagePath.trim().isEmpty()) {
-            String safeFileName = req.fileName != null ? req.fileName.replaceAll("[^a-zA-Z0-9._-]", "_") : "document.pdf";
-            storagePath = "tenants/" + actor.getTenantId() + "/docs/students/" + existing.ownerId + "/v" + nextVersion + "_" + safeFileName;
+        // Always construct server-side path (ignore client storagePath for Storage-backed bytes)
+        String storageBucket = objectStorage.getDefaultBucket();
+        String storagePath = "tenants/" + actor.getTenantId() + "/students/" + existing.ownerId
+                + "/" + existing.id + "/v" + nextVersion + "-" + resubmitName;
+
+        if (contentBytes != null) {
+            try {
+                objectStorage.putObject(storageBucket, storagePath, contentBytes, secureMime);
+            } catch (DocumentStorageException e) {
+                throw new DocumentException(503, e.getCode(), "Object storage put failed: " + e.getMessage());
+            }
         }
 
         DocumentVersion newVersion = new DocumentVersion(

@@ -2043,6 +2043,64 @@ public class DocumentDomainServiceTest {
         }
     }
 
+    @Test
+    public void stm06Frontend1b_resubmitWithConfiguredStorageRequiresContentAndPutsObject() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-1B-RESUB-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Resubmit Storage Doc";
+        DocumentType type = storageService.configureDocumentType(adminTenantA, dtReq);
+
+        byte[] pdfV1 = ("%PDF-1.4 v1").getBytes(StandardCharsets.US_ASCII);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Blurry Scan";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = (long) pdfV1.length;
+        up.fileName = "scan_v1.pdf";
+        up.checksumSha256 = sha256Hex(pdfV1);
+        up.contentBase64 = Base64.getEncoder().encodeToString(pdfV1);
+        StudentDocument uploaded = storageService.uploadStudentDocument(studentTenantA, up);
+        assertEquals(1, storage.objectCount());
+
+        VerificationDecisionRequest reject = new VerificationDecisionRequest();
+        reject.decision = "REJECT";
+        reject.rejectionReason = "Scan is blurry and unreadable";
+        storageService.verifyDocument(registrarTenantA, uploaded.id, reject);
+
+        ResubmitDocumentRequest missingBytes = new ResubmitDocumentRequest();
+        missingBytes.fileName = "scan_v2.pdf";
+        missingBytes.mimeType = "application/pdf";
+        missingBytes.sizeBytes = 12L;
+        missingBytes.checksumSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        missingBytes.changeNote = "Re-scanned at higher resolution";
+        try {
+            storageService.resubmitStudentDocument(studentTenantA, uploaded.id, missingBytes);
+            fail("Configured storage must require contentBase64 on resubmit");
+        } catch (DocumentException e) {
+            assertEquals("CONTENT_REQUIRED", e.getCode());
+        }
+
+        byte[] pdfV2 = ("%PDF-1.4 v2-hd").getBytes(StandardCharsets.US_ASCII);
+        ResubmitDocumentRequest ok = new ResubmitDocumentRequest();
+        ok.fileName = "scan_v2.pdf";
+        ok.mimeType = "application/pdf";
+        ok.sizeBytes = (long) pdfV2.length;
+        ok.checksumSha256 = sha256Hex(pdfV2);
+        ok.contentBase64 = Base64.getEncoder().encodeToString(pdfV2);
+        ok.changeNote = "Re-scanned at higher resolution";
+        StudentDocument resubmitted = storageService.resubmitStudentDocument(studentTenantA, uploaded.id, ok);
+        assertEquals(2, resubmitted.currentVersionNo);
+        assertEquals("SUBMITTED", resubmitted.status);
+        assertEquals(2, storage.objectCount());
+        assertTrue(resubmitted.storagePath.contains("/v2-"));
+        assertTrue(resubmitted.storagePath.startsWith("tenants/" + tenantA + "/"));
+    }
+
     // --- R31 Registrar Phase A (D10 / D12a-d) ---
 
     @Test

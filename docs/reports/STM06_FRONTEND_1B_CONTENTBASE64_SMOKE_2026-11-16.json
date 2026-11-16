@@ -1,0 +1,78 @@
+{
+  "at": "2026-11-16T04:53:27.184Z",
+  "task": "frontend-1b-contentBase64",
+  "docBase": "http://127.0.0.1:8098",
+  "checks": [
+    {
+      "name": "document-service-health",
+      "ok": true,
+      "detail": "HTTP 200 {\"status\":\"UP\",\"service\":\"document-service\",\"module\":\"STM-06\",\"correlationId\":\"b6b513e22bdb45219655db6873e279ba\"}"
+    },
+    {
+      "name": "storage-env-present-in-smoke-process",
+      "ok": true,
+      "detail": "url+key present (values not logged)"
+    },
+    {
+      "name": "admin-configure-document-type",
+      "ok": true,
+      "detail": "HTTP 201 id=d4921466-d4e1-4f85-86b2-62bab00c4571"
+    },
+    {
+      "name": "reject-missing-contentBase64",
+      "ok": true,
+      "detail": "HTTP 422 code=CONTENT_REQUIRED"
+    },
+    {
+      "name": "reject-unsupported-mime",
+      "ok": true,
+      "detail": "HTTP 422 code=UNSUPPORTED_MIME_TYPE"
+    },
+    {
+      "name": "reject-file-too-large",
+      "ok": true,
+      "detail": "HTTP 422 code=FILE_TOO_LARGE"
+    },
+    {
+      "name": "reject-mime-signature-mismatch",
+      "ok": true,
+      "detail": "HTTP 422 code=MIME_SIGNATURE_MISMATCH"
+    },
+    {
+      "name": "upload-contentBase64-success",
+      "ok": true,
+      "detail": "HTTP 201 id=0b45bef0-4952-4912-8fc2-c3ec7d831be9 path=present"
+    },
+    {
+      "name": "storage-path-tenant-prefixed",
+      "ok": true,
+      "detail": "prefix ok (tenants/a0000000-0000-0000-0000-000000000001/students/…)"
+    },
+    {
+      "name": "cross-tenant-audit-denied",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "owner-list-includes-upload",
+      "ok": true,
+      "detail": "HTTP 200 found=true"
+    },
+    {
+      "name": "frontend-no-service-role-credential",
+      "ok": true,
+      "detail": "clean + contentBase64 wired"
+    },
+    {
+      "name": "bff-guard-module-present",
+      "ok": true,
+      "detail": "upload-payload-guard.ts"
+    }
+  ],
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "ok": true
+  }
+}

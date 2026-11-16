@@ -21,6 +21,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { prepareDocumentFile, formatUploadBytes } from '@/lib/documents/file-upload';
 
 interface StageRequirement {
   id: string;
@@ -117,9 +118,13 @@ export default function StudentDocumentsPage() {
   const [targetDocTypeId, setTargetDocTypeId] = useState<string>('');
   const [docTitle, setDocTitle] = useState('');
   const [changeNote, setChangeNote] = useState('');
-  const [fileName, setFileName] = useState('student_document.pdf');
+  const [fileName, setFileName] = useState('');
   const [mimeType, setMimeType] = useState('application/pdf');
-  const [fileSizeBytes, setFileSizeBytes] = useState<number>(1048576); // ~1MB default
+  const [fileSizeBytes, setFileSizeBytes] = useState<number>(0);
+  const [checksumSha256, setChecksumSha256] = useState('');
+  const [contentBase64, setContentBase64] = useState('');
+  const [selectedFileLabel, setSelectedFileLabel] = useState<string | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
 
   // Field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -129,7 +134,11 @@ export default function StudentDocumentsPage() {
   const [selectedDocForResubmit, setSelectedDocForResubmit] = useState<SubmittedDocument | null>(null);
   const [resubmitFileName, setResubmitFileName] = useState('corrected_document.pdf');
   const [resubmitMimeType, setResubmitMimeType] = useState('application/pdf');
-  const [resubmitSizeBytes, setResubmitSizeBytes] = useState<number>(2097152); // ~2MB default
+  const [resubmitSizeBytes, setResubmitSizeBytes] = useState<number>(0);
+  const [resubmitChecksum, setResubmitChecksum] = useState('');
+  const [resubmitContentBase64, setResubmitContentBase64] = useState('');
+  const [resubmitFileLabel, setResubmitFileLabel] = useState<string | null>(null);
+  const [resubmitFileBusy, setResubmitFileBusy] = useState(false);
   const [resubmitChangeNote, setResubmitChangeNote] = useState('');
   const [isResubmitting, setIsResubmitting] = useState(false);
   const [consentDocId, setConsentDocId] = useState('');
@@ -149,9 +158,43 @@ export default function StudentDocumentsPage() {
         ? `${doc.title.toLowerCase().replace(/[^a-z0-9]/g, '_')}_v${(doc.currentVersionNo || 1) + 1}.pdf`
         : 'corrected_document.pdf'
     );
+    setResubmitMimeType('application/pdf');
+    setResubmitSizeBytes(0);
+    setResubmitChecksum('');
+    setResubmitContentBase64('');
+    setResubmitFileLabel(null);
     setResubmitError(null);
     setResubmitRefId(null);
     setIsResubmitModalOpen(true);
+  }
+
+  async function onResubmitFileChosen(file: File | null) {
+    if (!file) {
+      setResubmitContentBase64('');
+      setResubmitChecksum('');
+      setResubmitSizeBytes(0);
+      setResubmitFileLabel(null);
+      return;
+    }
+    setResubmitFileBusy(true);
+    setResubmitError(null);
+    try {
+      const prepared = await prepareDocumentFile(file);
+      setResubmitFileName(prepared.fileName);
+      setResubmitMimeType(prepared.mimeType);
+      setResubmitSizeBytes(prepared.sizeBytes);
+      setResubmitChecksum(prepared.checksumSha256);
+      setResubmitContentBase64(prepared.contentBase64);
+      setResubmitFileLabel(`${prepared.fileName} · ${formatUploadBytes(prepared.sizeBytes)}`);
+    } catch (err: unknown) {
+      setResubmitContentBase64('');
+      setResubmitChecksum('');
+      setResubmitSizeBytes(0);
+      setResubmitFileLabel(null);
+      setResubmitError(err instanceof Error ? err.message : 'Unable to read file');
+    } finally {
+      setResubmitFileBusy(false);
+    }
   }
 
   async function handleSubmitResubmission(e: React.FormEvent) {
@@ -160,6 +203,10 @@ export default function StudentDocumentsPage() {
 
     if (!resubmitChangeNote.trim() || resubmitChangeNote.trim().length < 3) {
       setResubmitError('Please provide a detailed note explaining what was corrected (at least 3 characters).');
+      return;
+    }
+    if (!resubmitContentBase64 || !resubmitChecksum || resubmitSizeBytes <= 0) {
+      setResubmitError('Please choose a corrected PDF or image file before resubmitting.');
       return;
     }
 
@@ -176,7 +223,8 @@ export default function StudentDocumentsPage() {
           fileName: resubmitFileName,
           mimeType: resubmitMimeType,
           sizeBytes: resubmitSizeBytes,
-          checksumSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          checksumSha256: resubmitChecksum,
+          contentBase64: resubmitContentBase64,
           changeNote: resubmitChangeNote.trim(),
         }),
       });
@@ -285,17 +333,60 @@ export default function StudentDocumentsPage() {
     if (item) {
       setTargetReqId(item.requirement.id);
       setTargetDocTypeId(item.requirement.documentTypeId);
-      setDocTitle(`DEMO-STM-06-US-003: ${item.requirement.documentTypeName}`);
+      setDocTitle(`${item.requirement.documentTypeName}`);
     } else {
       setTargetReqId('');
       setTargetDocTypeId(checklist[0]?.requirement?.documentTypeId || '');
-      setDocTitle('DEMO-STM-06-US-003: Student Document');
+      setDocTitle('Student Document');
     }
     setChangeNote('Mandatory submission for ' + selectedStage);
-    setFileName('student_record.pdf');
+    setFileName('');
     setMimeType('application/pdf');
-    setFileSizeBytes(1048576);
+    setFileSizeBytes(0);
+    setChecksumSha256('');
+    setContentBase64('');
+    setSelectedFileLabel(null);
     setIsUploadModalOpen(true);
+  }
+
+  async function onUploadFileChosen(file: File | null) {
+    if (!file) {
+      setContentBase64('');
+      setChecksumSha256('');
+      setFileSizeBytes(0);
+      setFileName('');
+      setSelectedFileLabel(null);
+      return;
+    }
+    setFileBusy(true);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.file;
+      delete next.mimeType;
+      delete next.fileSizeBytes;
+      return next;
+    });
+    try {
+      const prepared = await prepareDocumentFile(file);
+      setFileName(prepared.fileName);
+      setMimeType(prepared.mimeType);
+      setFileSizeBytes(prepared.sizeBytes);
+      setChecksumSha256(prepared.checksumSha256);
+      setContentBase64(prepared.contentBase64);
+      setSelectedFileLabel(`${prepared.fileName} · ${formatUploadBytes(prepared.sizeBytes)}`);
+    } catch (err: unknown) {
+      setContentBase64('');
+      setChecksumSha256('');
+      setFileSizeBytes(0);
+      setFileName('');
+      setSelectedFileLabel(null);
+      setFieldErrors((prev) => ({
+        ...prev,
+        file: err instanceof Error ? err.message : 'Unable to read file',
+      }));
+    } finally {
+      setFileBusy(false);
+    }
   }
 
   function validateForm(): boolean {
@@ -308,6 +399,10 @@ export default function StudentDocumentsPage() {
 
     if (!targetDocTypeId) {
       errors.targetDocTypeId = 'Document type is required';
+    }
+
+    if (!contentBase64 || !checksumSha256 || fileSizeBytes <= 0) {
+      errors.file = 'Please choose a PDF or image file to upload';
     }
 
     if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
@@ -339,6 +434,8 @@ export default function StudentDocumentsPage() {
         sizeBytes: fileSizeBytes,
         fileName,
         changeNote,
+        checksumSha256,
+        contentBase64,
       };
 
       const res = await fetch('/api/student/documents', {
@@ -975,60 +1072,44 @@ export default function StudentDocumentsPage() {
                 )}
               </div>
 
-              {/* MIME Type & Simulated Size */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    File Format
-                  </label>
-                  <select
-                    id="modal-select-mime"
-                    value={mimeType}
-                    onChange={(e) => setMimeType(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-[#1F6FEB] focus:outline-none"
-                  >
-                    <option value="application/pdf">PDF Document (.pdf)</option>
-                    <option value="image/png">PNG Image (.png)</option>
-                    <option value="image/jpeg">JPEG Image (.jpg)</option>
-                    <option value="image/webp">WEBP Image (.webp)</option>
-                    <option value="application/x-dosexec">Binary Exe (Invalid)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    File Size
-                  </label>
-                  <select
-                    id="modal-select-size"
-                    value={fileSizeBytes}
-                    onChange={(e) => setFileSizeBytes(Number(e.target.value))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-[#1F6FEB] focus:outline-none"
-                  >
-                    <option value={512000}>500 KB (Normal)</option>
-                    <option value={2097152}>2 MB (Standard)</option>
-                    <option value={8388608}>8 MB (Large)</option>
-                    <option value={15728640}>15 MB (Over Limit &gt; 10MB)</option>
-                  </select>
-                  {fieldErrors.fileSizeBytes && (
-                    <p className="mt-1 text-xs text-red-600 font-medium" id="err-field-size">
-                      {fieldErrors.fileSizeBytes}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* File Name */}
+              {/* Real file bytes → contentBase64 (never service-role; BFF → Gateway → document-service) */}
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1">
-                  File Name
+                  Document File * (PDF, JPEG, PNG, WEBP · max 10 MB)
                 </label>
                 <input
-                  id="modal-input-filename"
-                  type="text"
-                  value={fileName}
-                  onChange={(e) => setFileName(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-[#1F6FEB] focus:outline-none font-mono text-xs"
+                  id="modal-input-file"
+                  data-testid="student-document-file-input"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
+                  onChange={(e) => onUploadFileChosen(e.target.files?.[0] || null)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs"
                 />
+                {fileBusy && (
+                  <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Reading file…
+                  </p>
+                )}
+                {selectedFileLabel && (
+                  <p data-testid="student-document-file-meta" className="mt-1 text-xs font-mono text-slate-600">
+                    {selectedFileLabel} · {mimeType}
+                  </p>
+                )}
+                {fieldErrors.file && (
+                  <p className="mt-1 text-xs text-red-600 font-medium" id="err-field-file">
+                    {fieldErrors.file}
+                  </p>
+                )}
+                {fieldErrors.mimeType && (
+                  <p className="mt-1 text-xs text-red-600 font-medium" id="err-field-mime">
+                    {fieldErrors.mimeType}
+                  </p>
+                )}
+                {fieldErrors.fileSizeBytes && (
+                  <p className="mt-1 text-xs text-red-600 font-medium" id="err-field-size">
+                    {fieldErrors.fileSizeBytes}
+                  </p>
+                )}
               </div>
 
               {/* Notes */}
@@ -1144,54 +1225,29 @@ export default function StudentDocumentsPage() {
                 </p>
               </div>
 
-              {/* Corrected File Name */}
+              {/* Corrected file bytes */}
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1">
-                  Updated File (PDF or Image)
+                  Corrected File * (PDF, JPEG, PNG, WEBP · max 10 MB)
                 </label>
                 <input
-                  id="resubmit-file-name"
-                  type="text"
-                  required
-                  value={resubmitFileName}
-                  onChange={(e) => setResubmitFileName(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-[#1F6FEB] focus:outline-none font-mono text-xs"
+                  id="resubmit-file-input"
+                  data-testid="student-document-resubmit-file-input"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
+                  onChange={(e) => onResubmitFileChosen(e.target.files?.[0] || null)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs"
                 />
-              </div>
-
-              {/* File Format / Simulated Select */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    Format
-                  </label>
-                  <select
-                    id="resubmit-mime-type"
-                    value={resubmitMimeType}
-                    onChange={(e) => setResubmitMimeType(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-800 focus:border-[#1F6FEB] focus:outline-none"
-                  >
-                    <option value="application/pdf">PDF (application/pdf)</option>
-                    <option value="image/jpeg">JPEG (image/jpeg)</option>
-                    <option value="image/png">PNG (image/png)</option>
-                    <option value="image/webp">WebP (image/webp)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">
-                    File Size
-                  </label>
-                  <select
-                    id="resubmit-file-size"
-                    value={resubmitSizeBytes}
-                    onChange={(e) => setResubmitSizeBytes(Number(e.target.value))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-800 focus:border-[#1F6FEB] focus:outline-none"
-                  >
-                    <option value={1048576}>1.0 MB</option>
-                    <option value={2097152}>2.0 MB</option>
-                    <option value={4194304}>4.0 MB</option>
-                  </select>
-                </div>
+                {resubmitFileBusy && (
+                  <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Reading file…
+                  </p>
+                )}
+                {resubmitFileLabel && (
+                  <p data-testid="student-document-resubmit-file-meta" className="mt-1 text-xs font-mono text-slate-600">
+                    {resubmitFileLabel} · {resubmitMimeType}
+                  </p>
+                )}
               </div>
 
               {/* Mandatory Change Note */}

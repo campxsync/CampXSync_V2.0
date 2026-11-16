@@ -4,6 +4,7 @@ import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 import { apiError, extractTraceId } from '@/lib/errors/api-error';
 import { appLogger } from '@/lib/logging/logger';
+import { guardDocumentUploadPayload } from '@/lib/documents/upload-payload-guard';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
 
@@ -25,7 +26,7 @@ export async function POST(
   }
 
   const role = resolution.session.role?.toUpperCase() || 'STUDENT';
-  let bodyJson: any;
+  let bodyJson: Record<string, unknown>;
   try {
     bodyJson = await req.json();
   } catch {
@@ -36,8 +37,6 @@ export async function POST(
     });
   }
 
-  const { fileName, mimeType, sizeBytes, checksumSha256, changeNote, storagePath } = bodyJson || {};
-
   if (!documentId) {
     return apiError(req, {
       status: 422,
@@ -46,11 +45,21 @@ export async function POST(
     });
   }
 
-  if (!changeNote || changeNote.trim().length < 3) {
+  const changeNote = typeof bodyJson.changeNote === 'string' ? bodyJson.changeNote : '';
+  if (!changeNote.trim() || changeNote.trim().length < 3) {
     return apiError(req, {
       status: 422,
       code: 'INVALID_CHANGE_NOTE',
       message: 'Change note explaining the resubmission corrections must be at least 3 characters',
+    });
+  }
+
+  const guard = guardDocumentUploadPayload(bodyJson);
+  if (!guard.ok) {
+    return apiError(req, {
+      status: guard.status,
+      code: guard.code,
+      message: guard.message,
     });
   }
 
@@ -64,15 +73,17 @@ export async function POST(
     documentId,
     userId: resolution.session.userId,
     userRole: role,
+    sizeBytes: guard.sizeBytes,
+    mimeType: guard.mimeType,
   });
 
   const payloadStr = JSON.stringify({
-    fileName,
-    mimeType: mimeType || 'application/pdf',
-    sizeBytes: sizeBytes || 1024,
-    checksumSha256: checksumSha256 || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    fileName: bodyJson.fileName,
+    mimeType: guard.mimeType,
+    sizeBytes: guard.sizeBytes,
+    checksumSha256: bodyJson.checksumSha256,
+    contentBase64: bodyJson.contentBase64,
     changeNote: changeNote.trim(),
-    storagePath,
   });
 
   try {
@@ -92,8 +103,9 @@ export async function POST(
         'X-Correlation-Id': traceId,
       },
     });
-  } catch (err: any) {
-    appLogger.error('Failed to connect to gateway for document resubmission', { traceId, error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'gateway unreachable';
+    appLogger.error('Failed to connect to gateway for document resubmission', { traceId, error: message });
     return apiError(req, {
       status: 503,
       code: 'GATEWAY_UNAVAILABLE',
@@ -101,4 +113,3 @@ export async function POST(
     });
   }
 }
-
