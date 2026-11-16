@@ -1,35 +1,38 @@
 # Next Task
 
-**STATUS: EN-002 Phase B PARTIAL.** Private bucket applied on Dev; service-role live path blocked on missing key.
+**STATUS: QUEUE RUN STOP (2026-11-16).** Batch size 4 — **0 eligible** implementable stories. All remaining queue items DONE, BLOCKED, DEFERRED, or partial with unmet Needs.
 
-## Just completed
+## Preflight (this run)
 
-- Owner: `APPROVED EN-002-STORAGE azulbaxszsqxymqmlwfe`
-- Created private `student-documents` bucket (10MB, MIME allowlist) on `azulbaxszsqxymqmlwfe`
-- Restrictive deny policies for `anon` + `authenticated`
-- Deny verification **8/8 PASS** (`docs/reports/STM06_EN002_STORAGE_APPLY_VERIFY_2026-11-15.json`)
-- document-service suite **127/0/0/0**
-- Non-secret keys in `.env.audit`; **service-role key not set in agent env**
+- Branch: `feature/java-backend-integration` @ `6ab99c9`
+- `git status`: **known leftovers only** — `classpath.txt` (root + service copies), `docs/reports/_csv_status_*.txt`, CSV scratch (`*.tmp`, `tmpcse61qy9.csv`). No unexpected tracked diffs.
+- Owner decisions read from `PROGRESS.md` (D1–D12e).
+- Modules touched this run: **none** (no story selected) → no new full-suite required.
+
+## Selection walk (queue order)
+
+| # | Item | Decision | Reason |
+|---|---|---|---|
+| 0 | IAM Path C Phase 2 | DONE | `268c036` + RLS join `5406419` |
+| 0b | R31 pilot activation | DONE (activation) / residual in EN-002 | Auth/IAM/Path C + stack smoke done (`5406419`, smoke evidence) |
+| 1 | STM-06-EN-002 live path | **BLOCKED** | `CAMPX_SUPABASE_SERVICE_ROLE_KEY` EMPTY in `.env.audit` / process env. Bucket+deny policies already applied (`6ab99c9`). Needs key + `CONTINUE EN-002-STORAGE-LIVE`. |
+| 1b | Frontend contentBase64 | **BLOCKED** | Depends on EN-002 live storage path / product wiring decision. |
+| 1c | Frontend Registrar mapping | **BLOCKED** | Pilot user exists; UI role mapping not authorized as next implementable story without product pickup. |
+| 1d | R31 Phase B seed | superseded | Replaced by 0b |
+| 1e | R31-SoD | DONE | `dfc6788` |
+| 2 | STM-CROSS-EN-010 e2e | **BLOCKED** | Multi-service e2e/penetration harness awaiting owner approval. |
+| 3–5 | US-010 / US-007 / US-006 | DONE | prior commits |
+| 6 | STM-06-US-015 | **BLOCKED** | Notification DDL / DB notifications require owner-approved DDL. |
+| 7 | STM-CROSS-EN-014 / STM-03-EN-007 | **BLOCKED** | Scheduled / operational readiness hold. |
+
+**Batch selected:** none (same-service batch of up to 4 impossible — zero unblocked items).  
+**Parallel subagents:** not used (nothing eligible; unsafe/empty).
 
 ## Immediate owner actions
 
-1. Set `CAMPX_SUPABASE_SERVICE_ROLE_KEY` in gitignored `.env.audit` from Dev Dashboard → Settings → API (**do not paste into chat**).
-2. Reply `CONTINUE EN-002-STORAGE-LIVE` after the key is set — agent will restart document-service and run put/get + tenant-prefix smoke (Dev only).
-3. Frontend queue: contentBase64 upload (1b) → Registrar role mapping (1c).
-
-## Pickup queue (order)
-
-0. **IAM Path C Phase 2** — **DONE**.
-0b. **R31 pilot activation** — **partially completed** (Auth/IAM/Path C + stack smoke done).
-1. **STM-06-EN-002** — **partially completed** (Phase B bucket/policies done; live service-role path **BLOCKED** on missing key).
-1b. **Frontend:** `contentBase64` upload — **BLOCKED** (wait EN-002 live path / product decision).
-1c. **Frontend:** Registrar role mapping — **BLOCKED**.
-1d. **R31 Phase B seed** — superseded by 0b.
-1e. **R31-SoD** — **DONE**.
-2. **STM-CROSS-EN-010** — partially completed; e2e harness **BLOCKED**.
-3–5. US-010 / US-007 / US-006 — **DONE**.
-6. **STM-06-US-015** — partially completed; notification DDL **BLOCKED**.
-7. **STM-CROSS-EN-014** / **STM-03-EN-007** — **BLOCKED** until scheduled.
+1. Set `CAMPX_SUPABASE_SERVICE_ROLE_KEY` in gitignored `.env.audit` (Dev Dashboard → Settings → API). **Do not paste into chat.**
+2. Reply `CONTINUE EN-002-STORAGE-LIVE` to finish EN-002 live put/get + document-service restart smoke.
+3. Authorize next pickup (frontend 1b/1c, US-015 DDL, or CROSS e2e) explicitly if those should leave BLOCKED.
 
 ## Rules
 

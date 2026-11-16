@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-15 (EN-002 private `student-documents` bucket on Dev; set service-role key for live put/get)
+**Last current-state refresh:** 2026-11-16 (Queue STOP — 0 eligible; set CAMPX_SUPABASE_SERVICE_ROLE_KEY then CONTINUE EN-002-STORAGE-LIVE)
 
 ---
 

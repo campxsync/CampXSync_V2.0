@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-15 (EN-002 private bucket applied on Dev; service-role live path pending)
+**Updated:** 2026-11-16 (Queue run STOP — 0 eligible stories; EN-002 live path still needs service-role key)
 
 ## Scoreboard (session)
 
