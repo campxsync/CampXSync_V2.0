@@ -752,3 +752,29 @@ N/A this run (no module touched). Last known document-service: **127 run, 0 fail
 
 ### CSV
 Updated Implementation Notes for EN-002 / EN-003 / US-015 / CROSS-EN-010 with 2026-11-16 queue BLOCKED reasons. Status values unchanged (`partially completed` where applicable).
+
+---
+
+## Entry 21 — CONTINUE EN-002-STORAGE-LIVE STOP (truncated service-role JWT) (2026-11-16)
+
+**Task ID:** STM-06-EN-002  
+**Mode:** VERIFY  
+**Owner:** `CONTINUE EN-002-STORAGE-LIVE` after local `.env.audit` key configure
+
+### Pre-checks (PASS)
+| Check | Result |
+|---|---|
+| MCP project | Only **CampXSync-Architecture-Dev** / `azulbaxszsqxymqmlwfe` |
+| Bucket | Existing `student-documents` only — `public=false`, 10MB, MIME allowlist; **no duplicate created** |
+| Deny policies | `student_documents_anon_deny` / `student_documents_authenticated_deny` present |
+| Env URL/bucket | Point at Dev; bucket name `student-documents` |
+
+### Live Storage API (FAIL)
+Service-role put/get/list/delete against Dev Storage all **HTTP 400/403** with `Failed to base64url decode the signature` / `AccessDenied`.
+
+JWT claim inspection (token not logged): `role=service_role`, `ref=azulbaxszsqxymqmlwfe`, but signature length **61** (typical HS256 base64url ≈ **43**) → **truncated/corrupted paste**. Whitespace was stripped once; failure persisted.
+
+Evidence: `docs/reports/STM06_EN002_STORAGE_LIVE_SMOKE_2026-11-16.json` (no secrets).
+
+### Status
+**BLOCKED** — owner must re-copy full Dev `service_role` key into `.env.audit`, then `CONTINUE EN-002-STORAGE-LIVE`. No document-service restart performed (would fail closed / misconfigure on bad key).

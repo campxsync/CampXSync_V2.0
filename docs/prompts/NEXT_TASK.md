@@ -1,5 +1,20 @@
 # Next Task
 
+**STATUS: EN-002 LIVE STOP (2026-11-16).** Service-role JWT in `.env.audit` targets Dev correctly but signature is truncated — Storage API returns `AccessDenied` / failed signature decode.
+
+## Immediate owner action
+
+1. Re-copy the **full** `service_role` secret from Dev Dashboard → Settings → API for project `azulbaxszsqxymqmlwfe` into gitignored `.env.audit` as `CAMPX_SUPABASE_SERVICE_ROLE_KEY=...` (single line, no spaces/newlines).
+2. Do **not** paste the key into chat.
+3. Reply `CONTINUE EN-002-STORAGE-LIVE` again.
+
+Evidence (no secrets): `docs/reports/STM06_EN002_STORAGE_LIVE_SMOKE_2026-11-16.json`  
+Diagnosis: `claim_role=service_role`, `claim_ref=azulbaxszsqxymqmlwfe`, but `sig_len=61` (typical HS256 ≈43) → truncated paste.
+
+---
+
+**Prior STATUS note retained below for queue context.**
+
 **STATUS: QUEUE RUN STOP (2026-11-16).** Batch size 4 — **0 eligible** implementable stories. All remaining queue items DONE, BLOCKED, DEFERRED, or partial with unmet Needs.
 
 ## Preflight (this run)
