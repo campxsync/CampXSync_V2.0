@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (STM-07 batch 2 authorized; owner decisions D1–D3 recorded below)
+**Updated:** 2026-11-16 (STM-07 batch 2 completed: US-008/009, EN-002, EN-004; browser demo committed)
 
 ## Owner decisions – STM-07 batch 2 (16-11-2026)
 
@@ -28,13 +28,15 @@
 | Cross-tenant pen | **completed** — 34/34 (`5cfe378`) |
 | RBAC FLAG-004/005 | **completed** (D8/D9); FLAG-002/003/007 open |
 | STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests |
-| STM-07-US-001 | **completed** — eligibility + link-status (student-service 127/0) |
+| STM-07-US-001 | **partially completed** — verificationStatus=VERIFIED gate still UNCOVERED |
 | STM-07-US-002 | **completed** — provisioning eligibility API |
 | STM-07-US-004 | **completed** — eligibility-gated provisioning request |
 | STM-07-US-010 | **completed** — lifecycle revoke of IAM link |
 | STM-07-US-013 | **completed** — student link-status portal strip |
 | STM-07-US-008 | **completed** — assign R25 via IAM (`2675dea`) |
 | STM-07-US-009 | **completed** — revoke R25 via IAM (`2675dea`) |
+| STM-07-EN-002 | **completed** — existing IAM integration guards (`57dc0ff`) |
+| STM-07-EN-004 | **completed** — idempotent provisioning + FAILED retry (`bf8cf6d`) |
 | STM-08 / STM-09 | **BLOCKED** — new service gate (design notes created) |
 | IAM live delegation adapter | **partially completed** — Path C smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
 | STM-06-EN-002 | **completed** — live Storage + orphan cleanup (12/12) |
