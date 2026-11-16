@@ -1193,3 +1193,60 @@ None (docs/CSV only).
 - FLAG-002 configure-role assignees
 - FLAG-003 guardian defaults + revocation suspension
 - FLAG-007 matrix “Policy items requiring confirmation”
+## Entry 34 — STM-07 queue batch (US-001/002/004/010/013) (2026-11-16)
+
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Host service:** existing `student-service` (:8093) — same pattern as STM-07-EN-001 (no new microservice).  
+**Baseline:** student-service **113/0** before changes.  
+**No push.**
+
+### Stories completed
+
+| ID | Status | Host | Why existing service |
+|---|---|---|---|
+| STM-07-US-001 | completed | student-service | IAM link already owned here; eligibility + link-status close remaining gaps |
+| STM-07-US-002 | completed | student-service | Eligibility evaluation is domain logic on stu.students / student_iam_links |
+| STM-07-US-004 | completed | student-service | Provisioning requests already in stu.account_provisioning_requests |
+| STM-07-US-010 | completed | student-service | Lifecycle transitions already in StudentDomainService |
+| STM-07-US-013 | completed | student-service | Self-read of link-status on same aggregate |
+
+### Acceptance → code → tests
+
+| Criterion | Code | Test |
+|---|---|---|
+| Link only when eligible | `StudentDomainService.linkIamAccount` | `stm07Us001_linkRequiresEligibilityAndPersistsStatus` |
+| Deny duplicate other-user link | eligibility `ALREADY_LINKED_OTHER_USER` | `stm07Us001_cannotLinkOtherUserWhenAlreadyLinked` |
+| Deny IAM user used elsewhere | `IAM_USER_LINKED_ELSEWHERE` | `stm07Us001_cannotLinkIamUserAlreadyUsedElsewhere` |
+| Validate eligibility (staff) | `evaluateProvisioningEligibility` | `stm07Us002_eligibleActiveStudentPasses` / `_suspendedStudentNotEligible` |
+| Student denied eligibility | same | `stm07Us002_studentDeniedEligibilityCheck` |
+| Tenant isolation | findById under other tenant | `stm07Us002_wrongTenantIsolation` |
+| Initiate provisioning when eligible | `requestAccountProvisioning` | `stm07Us004_provisioningAllowedWhenEligible` |
+| Deny provision if linked / student / guardian | same | `stm07Us004_provisioningDeniedWhenAlreadyLinked` / `_studentCannotProvision` / `_guardianCannotProvision` |
+| Suspend revokes access | `revokeAccessForLifecycleEvent` | `stm07Us010_suspendRevokesActiveLink` |
+| Student views own link status | `getAccountLinkStatus` + portal strip | `stm07Us013_studentCanViewOwnLinkStatus` / `_studentCannotViewOtherLinkStatus` |
+
+### Tests (§7A)
+
+| Command | Result |
+|---|---|
+| `mvn test -pl services/student-services/student-service` | **127 run, 0 fail, 0 error** |
+| `cd frontend; npx tsc --noEmit` | **0 errors** |
+
+### Design notes / BLOCKED
+
+- `docs/design/STM-08_ACADEMIC_HISTORY_DESIGN_NOTE.md` (new)
+- `docs/design/STM-09_SERVICE_REQUESTS_DESIGN_NOTE.md` (new)
+- STM-07-US-008 / US-009 BLOCKED (IAM role assign/revoke API)
+- STM-07-EN-003 BLOCKED (FLAG-002)
+- STM-08 / STM-09 entire service BLOCKED (new service gate)
+- FLAG-002/003/007 BLOCKED (owner infrastructure decision pending)
+
+### CSV / governance
+
+Backlog Implementation status cells updated for completed + blocked rows above.
+
+### Stop
+
+End of batch (size 4 + US-013 filled after US-008/009 blocked). **No push.**
+

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-16 (STM-07-EN-001 done; coordinator stopped per owner)
+**Last current-state refresh:** 2026-11-16 (STM-07 US-001/002/004/010/013 done; US-008/009 + STM-08/09 blocked)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — owner queue (STM-07-US-001 closure / US-002+ when resumed; live AV / Kafka still gated).
+1. `docs/prompts/NEXT_TASK.md` — next: STM-07-EN-002+ unblocked items; STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (D1–D12a-Phase2).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -22,7 +22,7 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **STM-06-EN-002 / US-015 / CROSS-EN-010 / cross-tenant pen:** **completed**.
 3. **STM-CROSS-EN-014 / STM-03-EN-007:** **partially completed** — ops pack for STM-03..06.
-4. **STM-07-EN-001:** **completed** (`stu.student_iam_links` + provisioning requests); **STM-07-US-001** partial.
+4. **STM-07-EN-001:** **completed**. **STM-07-US-001/002/004/010/013:** **completed** in `student-service` (127/0). **US-008/009** BLOCKED (IAM role API). **STM-08/09** BLOCKED (design notes).
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C HTTP stack smoke passed (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` when STM services run.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.

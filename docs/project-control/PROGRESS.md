@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (STM-07-EN-001 completed; coordinator stop per owner)
+**Updated:** 2026-11-16 (STM-07 US-001/002/004/010/013 batch completed; US-008/009 + STM-08/09 blocked)
 
 ## Scoreboard (session)
 
@@ -17,8 +17,14 @@
 | STM-06-US-015 | **completed** — `doc.document_expiry_notifications` (`5fd1f8a`, suite 139/0) |
 | Cross-tenant pen | **completed** — 34/34 (`5cfe378`) |
 | RBAC FLAG-004/005 | **completed** (D8/D9); FLAG-002/003/007 open |
-| STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests; student-service 113/0 |
-| STM-07-US-001 | **partially completed** — durable link via existing `linkIamAccount` |
+| STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests |
+| STM-07-US-001 | **completed** — eligibility + link-status (student-service 127/0) |
+| STM-07-US-002 | **completed** — provisioning eligibility API |
+| STM-07-US-004 | **completed** — eligibility-gated provisioning request |
+| STM-07-US-010 | **completed** — lifecycle revoke of IAM link |
+| STM-07-US-013 | **completed** — student link-status portal strip |
+| STM-07-US-008/009 | **BLOCKED** — IAM role assign/revoke API needed |
+| STM-08 / STM-09 | **BLOCKED** — new service gate (design notes created) |
 | IAM live delegation adapter | **partially completed** — Path C smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
 | STM-06-EN-002 | **completed** — live Storage + orphan cleanup (12/12) |
 | STM-06-EN-003 | **partially completed** — controlled scanner DONE; live commercial AV gated |

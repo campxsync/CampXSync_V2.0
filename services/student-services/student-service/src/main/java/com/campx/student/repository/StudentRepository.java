@@ -42,4 +42,9 @@ public interface StudentRepository {
      * Counts non-deleted provisioning requests for a student (STM-07-EN-001 readiness).
      */
     long countProvisioningRequests(UserSecurityContext context, UUID studentId);
+
+    /**
+     * Soft-revokes all ACTIVE IAM links for a student (STM-07-US-010).
+     */
+    void revokeActiveIamLinks(UserSecurityContext context, UUID studentId);
 }

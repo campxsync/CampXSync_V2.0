@@ -165,6 +165,31 @@ public class PostgresStudentRepository implements StudentRepository {
     }
 
     @Override
+    public void revokeActiveIamLinks(UserSecurityContext context, UUID studentId) {
+        assertContext(context);
+        if (studentId == null) {
+            return;
+        }
+        context.executeInTransaction(connectionManager, conn -> {
+            revokeActiveIamLinksOnConnection(conn, context, studentId);
+            return null;
+        });
+    }
+
+    private void revokeActiveIamLinksOnConnection(Connection conn, UserSecurityContext context, UUID studentId)
+            throws SQLException {
+        String revokeSql = "UPDATE stu.student_iam_links SET link_status = 'REVOKED', deleted_at = now(), "
+                + "updated_at = now(), updated_by = ?, row_version = row_version + 1 "
+                + "WHERE tenant_id = ? AND student_id = ? AND deleted_at IS NULL AND link_status = 'ACTIVE'";
+        try (PreparedStatement ps = conn.prepareStatement(revokeSql)) {
+            ps.setObject(1, context.getUserId());
+            ps.setObject(2, context.getTenantId());
+            ps.setObject(3, studentId);
+            ps.executeUpdate();
+        }
+    }
+
+    @Override
     public Optional<StudentEntity> findById(UserSecurityContext context, UUID id) {
         assertContext(context);
         if (id == null) return Optional.empty();

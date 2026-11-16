@@ -195,6 +195,10 @@ public class StudentController implements HttpHandler {
                     return linkIamAccount(headers, studentId, body);
                 } else if ("provision-iam".equals(sub) && "POST".equals(method)) {
                     return requestAccountProvisioning(headers, studentId);
+                } else if ("provisioning-eligibility".equals(sub) && "GET".equals(method)) {
+                    return evaluateProvisioningEligibility(headers, studentId, queryParams);
+                } else if ("link-status".equals(sub) && "GET".equals(method)) {
+                    return getAccountLinkStatus(headers, studentId);
                 }
             }
         }
@@ -688,7 +692,7 @@ public class StudentController implements HttpHandler {
     }
 
     /**
-     * Handles requesting IAM account provisioning (STM01-US-024).
+     * Handles requesting IAM account provisioning (STM01-US-024 / STM-07-US-004).
      */
     public HttpResponse requestAccountProvisioning(Map<String, String> headers, String idParam) {
         try {
@@ -700,10 +704,65 @@ public class StudentController implements HttpHandler {
             return HttpResponse.badRequest("Invalid student UUID format");
         } catch (StudentNotFoundException e) {
             return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
         } catch (StudentSecurityViolationException e) {
             return HttpResponse.forbidden(e.getMessage());
         } catch (Exception e) {
             logger.error("Unhandled error in requestAccountProvisioning: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-US-002 — validate provisioning / link eligibility.
+     */
+    public HttpResponse evaluateProvisioningEligibility(Map<String, String> headers, String idParam,
+                                                        Map<String, String> queryParams) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID studentId = UUID.fromString(idParam);
+            UUID proposedIamUserId = null;
+            if (queryParams != null && queryParams.get("iamUserId") != null
+                    && !queryParams.get("iamUserId").trim().isEmpty()) {
+                proposedIamUserId = UUID.fromString(queryParams.get("iamUserId").trim());
+            }
+            ProvisioningEligibilityResult result =
+                    studentDomainService.evaluateProvisioningEligibility(context, studentId, proposedIamUserId);
+            return HttpResponse.ok(objectMapper.writeValueAsString(result));
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in evaluateProvisioningEligibility: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-US-001 / US-013 — account-link status.
+     */
+    public HttpResponse getAccountLinkStatus(Map<String, String> headers, String idParam) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID studentId = UUID.fromString(idParam);
+            AccountLinkStatusResponse response = studentDomainService.getAccountLinkStatus(context, studentId);
+            return HttpResponse.ok(objectMapper.writeValueAsString(response));
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid student UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in getAccountLinkStatus: {}", e.getMessage(), e);
             return HttpResponse.internalServerError(e.getMessage());
         }
     }

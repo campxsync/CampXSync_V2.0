@@ -531,6 +531,46 @@ paths:
         '202':
           description: IAM provisioning requested
 
+  /api/v1/students/{id}/provisioning-eligibility:
+    get:
+      summary: Validate IAM link / provisioning eligibility (STM-07-US-002)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: iamUserId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      responses:
+        '200':
+          description: Eligibility result with failure codes
+
+  /api/v1/students/{id}/link-status:
+    get:
+      summary: View account-link status (STM-07-US-001 / US-013)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/X-Tenant-Id'
+        - $ref: '#/components/parameters/X-User-Role'
+        - $ref: '#/components/parameters/X-Correlation-Id'
+      responses:
+        '200':
+          description: Link status payload
+
   /api/v1/students/{id}/history:
     get:
       summary: View Profile Change History

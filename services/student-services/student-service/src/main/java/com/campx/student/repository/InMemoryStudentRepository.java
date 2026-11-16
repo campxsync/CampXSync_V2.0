@@ -227,6 +227,18 @@ public class InMemoryStudentRepository implements StudentRepository {
         return list == null ? 0L : list.size();
     }
 
+    @Override
+    public void revokeActiveIamLinks(UserSecurityContext context, UUID studentId) {
+        if (studentId == null) {
+            return;
+        }
+        StudentEntity entity = store.get(key(context.getTenantId(), studentId));
+        if (entity != null) {
+            entity.setIamUserId(null);
+            entity.setUpdatedBy(context.getUserId());
+        }
+    }
+
     private String encodeCursor(String val) {
         if (val == null) return null;
         return Base64.getUrlEncoder().encodeToString(val.getBytes(StandardCharsets.UTF_8));

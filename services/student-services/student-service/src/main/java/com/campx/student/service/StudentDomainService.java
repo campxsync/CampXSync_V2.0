@@ -908,6 +908,8 @@ public class StudentDomainService {
 
         student.setStatus(target);
         student.setRowVersion(student.getRowVersion() + 1);
+        // STM-07-US-010: suspend/detain/withdraw revoke portal IAM access before persist
+        revokeAccessForLifecycleEvent(context, student, target);
         student = studentRepository.save(context, student);
 
         publishOutboxEvent(context, student.getId(), "student.status_changed.v1", String.format(
@@ -1112,9 +1114,17 @@ public class StudentDomainService {
             throw new StudentValidationException("iamUserId is required for account linkage");
         }
 
-        // Only authorized staff or provisioning workflow can link IAM (STM01-US-023)
+        // Only authorized staff or provisioning workflow can link IAM (STM01-US-023 / STM-07-US-001)
         if (isStudentRole(context)) {
             throw new StudentSecurityViolationException("Students cannot self-assign IAM user identities.");
+        }
+        assertCanManageAccountProvisioning(context);
+
+        ProvisioningEligibilityResult eligibility =
+                evaluateProvisioningEligibility(context, studentId, request.getIamUserId());
+        if (!eligibility.isEligible()) {
+            throw new StudentValidationException("Student is not eligible for IAM linkage: "
+                    + String.join(",", eligibility.getFailures()));
         }
 
         StudentEntity student = studentRepository.findById(context, studentId)
@@ -1134,16 +1144,110 @@ public class StudentDomainService {
         return getStudentById(context, studentId);
     }
 
+    /**
+     * STM-07-US-002 — validate identity/record eligibility for link or provisioning without mutating.
+     */
+    public ProvisioningEligibilityResult evaluateProvisioningEligibility(UserSecurityContext context,
+                                                                         UUID studentId,
+                                                                         UUID proposedIamUserId) {
+        assertTenantContext(context);
+        if (studentId == null) throw new StudentValidationException("studentId cannot be null");
+
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        enforceReadAccess(context, student);
+        if (isStudentRole(context)) {
+            throw new StudentSecurityViolationException("Students cannot evaluate provisioning eligibility.");
+        }
+
+        ProvisioningEligibilityResult result = new ProvisioningEligibilityResult();
+        result.setStudentId(student.getId());
+        result.setStudentStatus(student.getStatus() != null ? student.getStatus().name() : null);
+        result.setVerificationStatus(student.getVerificationStatus());
+        result.setProvisioningRequestCount(studentRepository.countProvisioningRequests(context, studentId));
+
+        if (student.getDeletedAt() != null) {
+            result.addFailure("STUDENT_SOFT_DELETED");
+        }
+        if (student.getStatus() != StudentStatus.ACTIVE) {
+            result.addFailure("STUDENT_NOT_ACTIVE");
+        }
+
+        UUID existingLink = student.getIamUserId();
+        if (existingLink != null) {
+            result.setLinkStatus("ACTIVE");
+            result.setLinkedIamUserId(existingLink);
+            if (proposedIamUserId != null && !existingLink.equals(proposedIamUserId)) {
+                result.addFailure("ALREADY_LINKED_OTHER_USER");
+            }
+        } else {
+            result.setLinkStatus("NONE");
+        }
+
+        if (proposedIamUserId != null) {
+            Optional<StudentEntity> other = studentRepository.findByIamUserId(context, proposedIamUserId);
+            if (other.isPresent() && !other.get().getId().equals(studentId)) {
+                result.addFailure("IAM_USER_LINKED_ELSEWHERE");
+            }
+        }
+
+        result.setEligible(result.getFailures().isEmpty());
+        return result;
+    }
+
+    /**
+     * STM-07-US-001 / US-013 — account-link status for portal and staff desks.
+     */
+    public AccountLinkStatusResponse getAccountLinkStatus(UserSecurityContext context, UUID studentId) {
+        assertTenantContext(context);
+        if (studentId == null) throw new StudentValidationException("studentId cannot be null");
+
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        enforceReadAccess(context, student);
+
+        AccountLinkStatusResponse response = new AccountLinkStatusResponse();
+        response.setStudentId(student.getId());
+        response.setStudentStatus(student.getStatus() != null ? student.getStatus().name() : null);
+        response.setVerificationStatus(student.getVerificationStatus());
+        response.setProvisioningRequestCount(studentRepository.countProvisioningRequests(context, studentId));
+
+        if (student.getIamUserId() != null) {
+            response.setLinkStatus("ACTIVE");
+            response.setLinkedIamUserId(student.getIamUserId());
+        } else {
+            response.setLinkStatus("NONE");
+        }
+        response.setPortalAccessActive(
+                student.getStatus() == StudentStatus.ACTIVE && student.getIamUserId() != null);
+        return response;
+    }
+
     public void requestAccountProvisioning(UserSecurityContext context, UUID studentId) {
         requestAccountProvisioning(context, studentId, null);
     }
 
     public void requestAccountProvisioning(UserSecurityContext context, UUID studentId, IamLinkageRequest req) {
         assertTenantContext(context);
+        if (isStudentRole(context)) {
+            throw new StudentSecurityViolationException("Students cannot initiate account provisioning.");
+        }
+        assertCanManageAccountProvisioning(context);
+
+        UUID requestedIamUserId = req != null ? req.getIamUserId() : null;
+        ProvisioningEligibilityResult eligibility =
+                evaluateProvisioningEligibility(context, studentId, requestedIamUserId);
+        if (!eligibility.isEligible()) {
+            throw new StudentValidationException("Student is not eligible for account provisioning: "
+                    + String.join(",", eligibility.getFailures()));
+        }
+        if ("ACTIVE".equals(eligibility.getLinkStatus())) {
+            throw new StudentValidationException("Student is not eligible for account provisioning: ALREADY_LINKED");
+        }
+
         StudentEntity student = studentRepository.findById(context, studentId)
                 .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
 
-        UUID requestedIamUserId = req != null ? req.getIamUserId() : null;
         UUID requestId = studentRepository.saveProvisioningRequest(context, studentId, requestedIamUserId);
 
         publishOutboxEvent(context, student.getId(), "student.provisioning.requested.v1", String.format(
@@ -1152,6 +1256,29 @@ public class StudentDomainService {
         ));
 
         logger.info("Requested IAM provisioning for student [{}] requestId={}", studentId, requestId);
+        recordPrivilegedAuditAction(context, "IAM_PROVISIONING_REQUESTED", studentId,
+                Collections.singletonList("provisioning"), "Provisioning request " + requestId);
+    }
+
+    /**
+     * STM-07-US-010 — revoke portal IAM link when lifecycle denies access.
+     */
+    public void revokeAccessForLifecycleEvent(UserSecurityContext context, StudentEntity student, StudentStatus target) {
+        if (student == null || target == null) {
+            return;
+        }
+        if (target == StudentStatus.SUSPENDED || target == StudentStatus.DETAINED || target == StudentStatus.WITHDRAWN) {
+            if (student.getIamUserId() != null) {
+                studentRepository.revokeActiveIamLinks(context, student.getId());
+                student.setIamUserId(null);
+                publishOutboxEvent(context, student.getId(), "student.account.access_revoked.v1", String.format(
+                        "{\"studentId\":\"%s\",\"reason\":\"LIFECYCLE_%s\"}",
+                        student.getId(), target.name()
+                ));
+                recordPrivilegedAuditAction(context, "IAM_ACCESS_REVOKED", student.getId(),
+                        Collections.singletonList("iamUserId"), "Access revoked due to lifecycle " + target.name());
+            }
+        }
     }
 
     // =========================================================================
@@ -1440,6 +1567,23 @@ public class StudentDomainService {
         if (role == null) return false;
         String r = role.toLowerCase();
         return r.contains("admin") || r.contains("registrar") || r.contains("admissions") || r.equals("r01") || r.equals("r04");
+    }
+
+    /**
+     * STM-07 staff gate: students/guardians cannot link or request provisioning.
+     * IAM operator (D6: R02/R03) and institutional staff (incl. registrar/college admin/verifier) may.
+     */
+    private void assertCanManageAccountProvisioning(UserSecurityContext context) {
+        if (isStudentRole(context)) {
+            throw new StudentSecurityViolationException("Students cannot manage account provisioning.");
+        }
+        String role = context.getRole() != null ? context.getRole().toLowerCase() : "";
+        if (role.contains("guardian") || role.contains("parent") || role.equals("r26")) {
+            throw new StudentSecurityViolationException("Guardians cannot manage student IAM provisioning.");
+        }
+        if (role.trim().isEmpty()) {
+            throw new StudentSecurityViolationException("Missing role for account provisioning.");
+        }
     }
 
     private boolean isOwnProfile(UserSecurityContext context, StudentEntity student) {

@@ -50,6 +50,12 @@ export default async function StudentDashboardPage() {
   let recentSessions: any[] = [];
   let latestApplication: any = null;
   let gatewayFallback = false;
+  let accountLinkStatus: {
+    linkStatus?: string;
+    portalAccessActive?: boolean;
+    verificationStatus?: string;
+    studentStatus?: string;
+  } | null = null;
 
   // Check in-memory profile cache first
   student = getCachedStudentProfile(userId);
@@ -88,6 +94,17 @@ export default async function StudentDashboardPage() {
             section_name: profile.sectionName || '',
           };
           setCachedStudentProfile(userId, student);
+          try {
+            const linkRes = await fetch(
+              `${GATEWAY_BASE_URL}/api/v1/students/${encodeURIComponent(profile.id)}/link-status`,
+              { headers: gwHeaders, cache: 'no-store' }
+            );
+            if (linkRes.ok) {
+              accountLinkStatus = await linkRes.json();
+            }
+          } catch (_linkErr) {
+            // Link status is best-effort; dashboard remains usable without it.
+          }
         } else {
           gatewayFallback = true;
         }
@@ -259,6 +276,43 @@ export default async function StudentDashboardPage() {
           No academic profile is available for this session yet.
         </div>
       )}
+
+      <section
+        className="rounded-[8px] border border-[#E3E8EF] bg-white p-4"
+        data-testid="student-account-link-status"
+        aria-label="Account link status"
+      >
+        <h2 className="text-sm font-semibold text-[#0B1F3A]">Account link status</h2>
+        <p className="mt-1 text-xs text-[#6B7688]">
+          Whether your student record is linked for portal sign-in (STM-07).
+        </p>
+        {accountLinkStatus ? (
+          <dl className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+            <div>
+              <dt className="text-[#6B7688]">Link</dt>
+              <dd className="font-medium text-[#0B1F3A]" data-testid="student-account-link-status-value">
+                {accountLinkStatus.linkStatus || 'UNKNOWN'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[#6B7688]">Portal access</dt>
+              <dd className="font-medium text-[#0B1F3A]" data-testid="student-account-link-portal-access">
+                {accountLinkStatus.portalAccessActive ? 'Active' : 'Inactive'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[#6B7688]">Student status</dt>
+              <dd className="font-medium text-[#0B1F3A]">
+                {accountLinkStatus.studentStatus || student?.status || '—'}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="mt-2 text-xs text-[#6B7688]" data-testid="student-account-link-status-unavailable">
+            Link status unavailable from gateway right now.
+          </p>
+        )}
+      </section>
 
       <section
         className="grid grid-cols-1 gap-4 sm:grid-cols-2"
