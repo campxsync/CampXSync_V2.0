@@ -12,7 +12,14 @@ export default async function CollegeAdminDashboardPage() {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
 
-  if (!resolution.success || resolution.session.role !== 'college_admin') {
+  if (!resolution.success) {
+    redirect('/access-denied?reason=forbidden');
+  }
+  // Registrar (R31) uses STM desks, not the College Admin analytics dashboard (D12d).
+  if (resolution.session.role === 'registrar') {
+    redirect('/college/lifecycle');
+  }
+  if (resolution.session.role !== 'college_admin') {
     redirect('/access-denied?reason=forbidden');
   }
 

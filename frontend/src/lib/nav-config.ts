@@ -43,6 +43,13 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Attendance', href: '/college/attendance', icon: ClipboardCheck },
     { title: 'Audit Log', href: '/college/audit', icon: History },
   ],
+  /** R31 Registrar — STM operational desks only; no Academic/College Admin inheritance (D10/D12d). */
+  registrar: [
+    { title: 'Lifecycle Desk', href: '/college/lifecycle', icon: GraduationCap },
+    { title: 'Course Registration Desk', href: '/college/enrollment', icon: BookOpen },
+    { title: 'Document Verification', href: '/college/documents', icon: FileText },
+    { title: 'Guardians', href: '/college/guardians', icon: Users },
+  ],
   faculty: [
     { title: 'Today', href: '/faculty', icon: Clock },
     { title: 'Take Attendance', href: '/faculty/attendance', icon: ClipboardCheck },

@@ -31,6 +31,7 @@ export interface UserPreferences {
   dashboardWidgets: RoleDashboardConfig;
   roles?: {
     college_admin?: RoleDashboardConfig;
+    registrar?: RoleDashboardConfig;
     faculty?: RoleDashboardConfig;
     platform_admin?: RoleDashboardConfig;
     student?: RoleDashboardConfig;
@@ -40,6 +41,10 @@ export interface UserPreferences {
 export const ROLE_DEFAULT_WIDGETS: Record<string, RoleDashboardConfig> = {
   college_admin: {
     order: ['kpis', 'trends', 'batches', 'shortage', 'missed', 'recent'],
+    hidden: [],
+  },
+  registrar: {
+    order: ['lifecycle', 'documents', 'enrollment'],
     hidden: [],
   },
   faculty: {
@@ -73,6 +78,7 @@ export const PRODUCT_DEFAULTS: UserPreferences = {
   dashboardWidgets: ROLE_DEFAULT_WIDGETS.college_admin,
   roles: {
     college_admin: ROLE_DEFAULT_WIDGETS.college_admin,
+    registrar: ROLE_DEFAULT_WIDGETS.registrar,
     faculty: ROLE_DEFAULT_WIDGETS.faculty,
     platform_admin: ROLE_DEFAULT_WIDGETS.platform_admin,
     student: ROLE_DEFAULT_WIDGETS.student,
@@ -94,6 +100,7 @@ const ALLOWED_WIDGETS = [
   'profile',
   'courses',
   'documents',
+  'enrollment',
   'notifications',
 ];
 
@@ -165,7 +172,7 @@ export function sanitizePreferences(
   const activeDashboardWidgets = sanitizeWidgetConfig(obj.dashboardWidgets, roleFallback);
 
   const rolesObj: Record<string, RoleDashboardConfig> = {};
-  for (const roleKey of ['college_admin', 'faculty', 'platform_admin']) {
+  for (const roleKey of ['college_admin', 'registrar', 'faculty', 'platform_admin']) {
     const rFallback = ROLE_DEFAULT_WIDGETS[roleKey];
     const incoming = obj.roles?.[roleKey as keyof typeof obj.roles] || (roleKey === currentRole ? activeDashboardWidgets : undefined);
     rolesObj[roleKey] = sanitizeWidgetConfig(incoming, rFallback);

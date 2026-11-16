@@ -859,7 +859,47 @@ CSV `STM-06-EN-002` remains **partially completed** (Phase B live path PASS; res
 | Failure handling | CONTENT_REQUIRED / MIME / FILE_TOO_LARGE / MIME_SIGNATURE_MISMATCH |
 
 ### CSV
-`STM-06-EN-002` / `STM-06-EN-003` remain **partially completed** (orphan delete API + live malware AV + Registrar 1c still open). Frontend contentBase64 gap closed.
+`STM-06-EN-002` / `STM-06-EN-003` remain **partially completed** (orphan delete API + live malware AV). Frontend contentBase64 gap closed in Entry 23; Registrar mapping closed in Entry 24.
 
 ### Stop
-Await owner: next is **1c Registrar mapping** (product-blocked) or another authorized pickup. **No push.**
+Await owner: next was **1c** — completed in Entry 24. **No push.**
+
+---
+
+## Entry 24 — Frontend 1c Registrar (R31) role mapping (2026-11-16)
+
+**Task ID:** FRONTEND-1C  
+**Status:** **DONE** (integrated routing verification PASS). Local commit only; **no push**. No production / no DB writes.
+
+### What shipped
+- Distinct UI role `registrar` for IAM codes `REGISTRAR` / `R31` (never folded into `college_admin` / Academic Admin).
+- `role-policy.ts`: STM desk allowlist (lifecycle, enrollment, documents, guardians); admin-only surfaces denied.
+- Middleware redirects `/` and `/college` → `/college/lifecycle`; denies `/college/departments` etc.
+- Nav badge “Registrar (R31)”; test-session persona via `REGISTRAR_PILOT_*`.
+- Operational BFF gates accept registrar; document types/requirements and org/admin BFFs remain College Admin only.
+- Gateway Channel-A stays Bearer JWT (no spoofed College Admin role for Registrar).
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `cd frontend; npx tsc --noEmit` | 0 errors |
+| `node --experimental-strip-types scripts/verify_registrar_role_policy.mjs` | 7/7 PASS |
+| `node scripts/verify_role_routing.mjs` | **50/50 PASS** |
+| Evidence | `docs/reports/STM06_FRONTEND_1C_REGISTRAR_MAPPING_2026-11-16.json` |
+
+### Acceptance → evidence
+
+| Clause | Evidence |
+|---|---|
+| Registrar mapping | resolve-role + middleware + nav |
+| Path C / no admin inheritance | departments/admissions denied; hint=`REGISTRAR` |
+| Tenant/campus | assignment `college_id` retained on session |
+| Backend not bypassed | BFF still JWT→Gateway; no X-User-Role spoof |
+| Other roles unchanged | student/faculty/college_admin/platform rows PASS in 50/50 |
+
+### CSV
+`STM-06-EN-002` / `STM-06-EN-003` remain **partially completed** (orphan delete + live malware). Frontend 1c noted in Implementation Notes.
+
+### Stop
+Await owner pickup for remaining EN-002 gaps or blocked queue items. **No push.**

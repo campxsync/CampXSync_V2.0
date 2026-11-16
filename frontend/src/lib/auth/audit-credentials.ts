@@ -1,11 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 
-export type AuditPersona = 'platform_admin' | 'college_admin' | 'faculty' | 'student';
+export type AuditPersona = 'platform_admin' | 'college_admin' | 'registrar' | 'faculty' | 'student';
 
 const PERSONA_ENV: Record<AuditPersona, { emailKey: string; passwordKey: string }> = {
   platform_admin: { emailKey: 'PLATFORM_ADMIN_EMAIL', passwordKey: 'PLATFORM_ADMIN_PW' },
   college_admin: { emailKey: 'COLLEGE_ADMIN_EMAIL', passwordKey: 'COLLEGE_ADMIN_PW' },
+  registrar: { emailKey: 'REGISTRAR_PILOT_EMAIL', passwordKey: 'REGISTRAR_PILOT_PW' },
   faculty: { emailKey: 'FACULTY_EMAIL', passwordKey: 'FACULTY_PW' },
   student: { emailKey: 'STUDENT1_EMAIL', passwordKey: 'STUDENT1_PW' },
 };

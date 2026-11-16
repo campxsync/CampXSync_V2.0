@@ -2,23 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
+import { canAccessCollegeOperationalBff, gatewayActorRoleHint } from '@/lib/auth/role-policy';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
-
-function staffRole(sessionRole?: string | null) {
-  if (sessionRole === 'platform_admin') {
-    return 'INSTITUTION_ADMIN';
-  }
-  return 'COLLEGE_ADMIN';
-}
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
-  if (!resolution.success || (resolution.session.role !== 'college_admin' && resolution.session.role !== 'platform_admin')) {
+  if (!resolution.success || !canAccessCollegeOperationalBff(resolution.session.role)) {
     return NextResponse.json({ title: 'Forbidden', status: 403 }, { status: 403 });
   }
-  const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
+  const headers = await getGatewayHeaders(
+    req,
+    supabase,
+    resolution.session,
+    gatewayActorRoleHint(resolution.session.role)
+  );
   const view = req.nextUrl.searchParams.get('view') || 'terms';
   const path = view === 'enrolments' ? '/api/v1/enrollment/enrolments' : '/api/v1/enrollment/terms';
   const res = await fetch(`${GATEWAY_BASE_URL}${path}`, { method: 'GET', headers, cache: 'no-store' });
@@ -29,12 +28,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
-  if (!resolution.success || (resolution.session.role !== 'college_admin' && resolution.session.role !== 'platform_admin')) {
+  if (!resolution.success || !canAccessCollegeOperationalBff(resolution.session.role)) {
     return NextResponse.json({ title: 'Forbidden', status: 403 }, { status: 403 });
   }
   const payload = await req.json();
   const action = String(payload?.action || '');
-  const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
+  const headers = await getGatewayHeaders(
+    req,
+    supabase,
+    resolution.session,
+    gatewayActorRoleHint(resolution.session.role)
+  );
   let path = '';
   let body: Record<string, unknown> = {};
   if (action === 'term') {

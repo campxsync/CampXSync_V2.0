@@ -11,13 +11,18 @@ async function getRoleCookie(role) {
     body: JSON.stringify({ role }),
   });
   if (!res.ok) {
-    throw new Error(`Failed to get session for role: ${role}`);
+    const body = await res.text();
+    throw new Error(`Failed to get session for role: ${role} HTTP ${res.status} ${body.slice(0, 200)}`);
   }
-  const setCookie = res.headers.get('set-cookie');
-  if (!setCookie) {
+  // Node fetch: prefer getSetCookie() so JWT + campx_test_session both travel to middleware
+  const rawList =
+    typeof res.headers.getSetCookie === 'function'
+      ? res.headers.getSetCookie()
+      : [res.headers.get('set-cookie')].filter(Boolean);
+  if (!rawList.length) {
     throw new Error(`No set-cookie returned for role: ${role}`);
   }
-  return setCookie.split(';')[0];
+  return rawList.map((c) => c.split(';')[0].trim()).join('; ');
 }
 
 async function testRoute(cookie, path) {
@@ -39,8 +44,19 @@ async function testRoute(cookie, path) {
 async function main() {
   console.log('=== CAMPXSYNC V4 PHASE 3 — GATE B ROLE ROUTING VERIFICATION ===\n');
 
-  const roles = ['platform_admin', 'college_admin', 'faculty', 'student'];
-  const routes = ['/', '/platform', '/college', '/faculty', '/student', '/student/address', '/student/corrections', '/student/documents'];
+  const roles = ['platform_admin', 'college_admin', 'registrar', 'faculty', 'student'];
+  const routes = [
+    '/',
+    '/platform',
+    '/college',
+    '/college/lifecycle',
+    '/college/departments',
+    '/faculty',
+    '/student',
+    '/student/address',
+    '/student/corrections',
+    '/student/documents',
+  ];
 
   // Expected outcomes:
   // For unauthenticated:
@@ -66,6 +82,8 @@ async function main() {
       '/': { type: 'redirect', to: '/platform' },
       '/platform': { type: 'allow', status: 200 },
       '/college': { type: 'forbidden' },
+      '/college/lifecycle': { type: 'forbidden' },
+      '/college/departments': { type: 'forbidden' },
       '/faculty': { type: 'forbidden' },
       '/student': { type: 'forbidden' },
       '/student/address': { type: 'forbidden' },
@@ -76,7 +94,21 @@ async function main() {
       '/': { type: 'redirect', to: '/college' },
       '/platform': { type: 'forbidden' },
       '/college': { type: 'allow', status: 200 },
+      '/college/lifecycle': { type: 'allow', status: 200 },
+      '/college/departments': { type: 'allow', status: 200 },
       '/faculty': { type: 'allow', status: 200 },
+      '/student': { type: 'forbidden' },
+      '/student/address': { type: 'forbidden' },
+      '/student/corrections': { type: 'forbidden' },
+      '/student/documents': { type: 'forbidden' },
+    },
+    registrar: {
+      '/': { type: 'redirect', to: '/college/lifecycle' },
+      '/platform': { type: 'forbidden' },
+      '/college': { type: 'redirect', to: '/college/lifecycle' },
+      '/college/lifecycle': { type: 'allow', status: 200 },
+      '/college/departments': { type: 'forbidden' },
+      '/faculty': { type: 'forbidden' },
       '/student': { type: 'forbidden' },
       '/student/address': { type: 'forbidden' },
       '/student/corrections': { type: 'forbidden' },
@@ -86,6 +118,8 @@ async function main() {
       '/': { type: 'redirect', to: '/faculty' },
       '/platform': { type: 'forbidden' },
       '/college': { type: 'forbidden' },
+      '/college/lifecycle': { type: 'forbidden' },
+      '/college/departments': { type: 'forbidden' },
       '/faculty': { type: 'allow', status: 200 },
       '/student': { type: 'forbidden' },
       '/student/address': { type: 'forbidden' },
@@ -96,6 +130,8 @@ async function main() {
       '/': { type: 'redirect', to: '/student' },
       '/platform': { type: 'forbidden' },
       '/college': { type: 'forbidden' },
+      '/college/lifecycle': { type: 'forbidden' },
+      '/college/departments': { type: 'forbidden' },
       '/faculty': { type: 'forbidden' },
       '/student': { type: 'allow', status: 200 },
       '/student/address': { type: 'allow', status: 200 },
@@ -139,6 +175,8 @@ async function main() {
   const noProfileCookie = 'campx_test_session=' + encodeURIComponent(JSON.stringify({
     id: '00000000-0000-0000-0000-000000000000',
     email: 'noprofile.user@demo.campxsync.test',
+    no_profile: true,
+    app_metadata: { no_profile: true, role: 'COLLEGE_ADMIN' },
   }));
   const noProfileRes = await testRoute(noProfileCookie, '/college');
   const noProfilePass = (noProfileRes.status === 307 || noProfileRes.status === 302) &&

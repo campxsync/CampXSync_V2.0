@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-16 (Frontend 1b contentBase64 DONE 13/13; next: 1c Registrar mapping BLOCKED or owner pickup)
+**Last current-state refresh:** 2026-11-16 (Frontend 1c Registrar R31 mapping DONE 50/50 routing; next: owner pickup)
 
 ---
 
@@ -22,7 +22,7 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits only when authorized; **no push** unless owner says.
 2. **STM-06-EN-002 Phase A:** storage abstraction + `contentBase64` validation + service-streamed download; fake storage tests PASS; staging runbook prepared **not applied**.
 3. **CSV:** EN-002 and EN-003 marked `partially completed` (no prior byte store / content validation against real bytes; live AV still open gap).
-4. **Next (queue):** Registrar mapping (1c, BLOCKED) → CROSS e2e / US-015 DDL as approved. Frontend 1b contentBase64 DONE; EN-002 live storage verified on Dev.
+4. **Next (queue):** CROSS e2e / US-015 DDL as approved. Frontend 1b contentBase64 + 1c Registrar mapping DONE; EN-002 live storage verified on Dev.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C HTTP stack smoke passed (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` when STM services run.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.

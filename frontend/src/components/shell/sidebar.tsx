@@ -42,6 +42,8 @@ export function Sidebar({
         return Building;
       case 'college_admin':
         return ShieldCheck;
+      case 'registrar':
+        return ShieldCheck;
       case 'faculty':
         return CalendarCheck2;
       case 'student':

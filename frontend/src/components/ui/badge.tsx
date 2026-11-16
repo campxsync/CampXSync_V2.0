@@ -23,7 +23,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: LifecycleState | string;
   label?: string;
   variant?: 'default' | 'role' | 'outline';
-  roleType?: 'platform' | 'college' | 'faculty' | 'student';
+  roleType?: 'platform' | 'college' | 'registrar' | 'faculty' | 'student';
 }
 
 export function Badge({
@@ -60,6 +60,7 @@ export function Badge({
   const roleStyles = {
     platform: 'bg-[#0B1F3A] text-white border-transparent',
     college: 'bg-[#1D4ED8] text-white border-transparent',
+    registrar: 'bg-[#4338CA] text-white border-transparent',
     faculty: 'bg-[#0F766E] text-white border-transparent',
     student: 'bg-[#475569] text-white border-transparent',
   };

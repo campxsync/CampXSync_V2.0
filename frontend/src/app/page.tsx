@@ -22,6 +22,8 @@ export default async function HomePage() {
       redirect('/platform');
     case 'college_admin':
       redirect('/college');
+    case 'registrar':
+      redirect('/college/lifecycle');
     case 'faculty':
       redirect('/faculty');
     case 'student':

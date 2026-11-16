@@ -4,15 +4,9 @@ import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 import { apiError, extractTraceId } from '@/lib/errors/api-error';
 import { appLogger } from '@/lib/logging/logger';
+import { canAccessCollegeOperationalBff, gatewayActorRoleHint } from '@/lib/auth/role-policy';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
-
-function staffRole(sessionRole?: string | null) {
-  if (sessionRole === 'platform_admin') {
-    return 'INSTITUTION_ADMIN';
-  }
-  return 'COLLEGE_ADMIN';
-}
 
 export async function GET(req: NextRequest) {
   const traceId = extractTraceId(req);
@@ -27,15 +21,15 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  if (resolution.session.role !== 'college_admin' && resolution.session.role !== 'platform_admin') {
+  if (!canAccessCollegeOperationalBff(resolution.session.role)) {
     return apiError(req, {
       status: 403,
       code: 'FORBIDDEN',
-      message: 'College Admin or Institutional Officer role required to view verification queue',
+      message: 'Registrar or College Admin role required to view verification queue',
     });
   }
 
-  const role = staffRole(resolution.session.role);
+  const role = gatewayActorRoleHint(resolution.session.role);
   const headers = await getGatewayHeaders(req, supabase, resolution.session, role);
   headers['X-Trace-Id'] = traceId;
   headers['X-Correlation-Id'] = traceId;
@@ -87,11 +81,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  if (resolution.session.role !== 'college_admin' && resolution.session.role !== 'platform_admin') {
+  if (!canAccessCollegeOperationalBff(resolution.session.role)) {
     return apiError(req, {
       status: 403,
       code: 'FORBIDDEN',
-      message: 'College Admin or Institutional Officer role required to verify documents',
+      message: 'Registrar or College Admin role required to verify documents',
     });
   }
 
@@ -129,7 +123,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const role = staffRole(resolution.session.role);
+  const role = gatewayActorRoleHint(resolution.session.role);
   const payloadStr = JSON.stringify({
     decision: bodyJson.decision,
     verificationCode: bodyJson.verificationCode,

@@ -4,12 +4,14 @@ import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 import { query } from '@/lib/db';
 import { verifySupabaseJwtLocally, extractAccessTokenFromCookies } from '@/lib/auth/jwt-verifier';
 
-export type UserRole = 'platform_admin' | 'college_admin' | 'faculty' | 'student';
+export type UserRole = 'platform_admin' | 'college_admin' | 'registrar' | 'faculty' | 'student';
 
 export interface ResolvedUserSession {
   userId: string;
   email: string;
   role: UserRole;
+  /** IAM catalogue code that won the UI mapping (e.g. REGISTRAR, COLLEGE_ADMIN). */
+  iamRoleCode?: string | null;
   tenantId: string | null;
   tenantName: string | null;
   tenantStatus: string | null;
@@ -225,23 +227,31 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
     if (!profile || profile.deleted_at !== null) {
       // Only in gated test session mode: allow mock session with test cookie
       if (isTestUser && isTestSessionAllowed() && user.app_metadata?.role && user.app_metadata?.tenant_id) {
-        const rawRole = String(user.app_metadata.role).toLowerCase();
-        const effectiveRole: UserRole = rawRole.includes('admin')
-          ? 'college_admin'
-          : rawRole.includes('faculty')
-            ? 'faculty'
-            : 'student';
+        const rawRole = String(user.app_metadata.role || '').toUpperCase();
+        let effectiveRole: UserRole = 'student';
+        let iamRoleCode: string | null = rawRole || null;
+        if (rawRole === 'REGISTRAR' || rawRole === 'R31') {
+          effectiveRole = 'registrar';
+          iamRoleCode = 'REGISTRAR';
+        } else if (rawRole.includes('ADMIN') && rawRole !== 'SUPER_ADMIN') {
+          effectiveRole = 'college_admin';
+        } else if (rawRole.includes('FACULTY') || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') {
+          effectiveRole = 'faculty';
+        }
 
         let tenantName = 'Institutional Workspace';
-        let collegeId: string | null = null;
+        let collegeId: string | null =
+          typeof user.app_metadata.college_id === 'string' ? user.app_metadata.college_id : null;
         try {
           const tRes = await query('SELECT name FROM core.tenants WHERE id = $1 AND deleted_at IS NULL LIMIT 1', [user.app_metadata.tenant_id]);
           if (tRes.rows.length > 0) {
             tenantName = tRes.rows[0].name;
           }
-          const cRes = await query('SELECT id FROM core.colleges WHERE tenant_id = $1 AND deleted_at IS NULL LIMIT 1', [user.app_metadata.tenant_id]);
-          if (cRes.rows.length > 0) {
-            collegeId = cRes.rows[0].id;
+          if (!collegeId) {
+            const cRes = await query('SELECT id FROM core.colleges WHERE tenant_id = $1 AND deleted_at IS NULL LIMIT 1', [user.app_metadata.tenant_id]);
+            if (cRes.rows.length > 0) {
+              collegeId = cRes.rows[0].id;
+            }
           }
         } catch { }
 
@@ -251,6 +261,7 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
             userId,
             email: userEmail,
             role: effectiveRole,
+            iamRoleCode,
             tenantId: user.app_metadata.tenant_id,
             tenantName,
             tenantStatus: 'ACTIVE',
@@ -315,8 +326,10 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       return { success: false, reason: 'inactive_membership' };
     }
 
-    // Extract highest role code
+    // Extract highest role code. Priority: college_admin > registrar > faculty > student.
+    // REGISTRAR/R31 is a distinct UI bucket (D10/D12d) — never fold into college_admin.
     let resolvedRole: UserRole | null = null;
+    let matchedIamRoleCode: string | null = null;
     let matchedCollegeId: string | null = null;
     let matchedDeptId: string | null = null;
 
@@ -335,7 +348,18 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
         code === 'ACADEMIC_ADMIN'
       ) {
         resolvedRole = 'college_admin';
+        matchedIamRoleCode = code;
         break;
+      } else if (code === 'REGISTRAR' || code === 'R31') {
+        // college_admin already broke above; only upgrade student/faculty → registrar
+        if (!resolvedRole || resolvedRole === 'student' || resolvedRole === 'faculty') {
+          resolvedRole = 'registrar';
+          matchedIamRoleCode = 'REGISTRAR';
+          // Prefer campus-scoped registrar assignment college_id
+          if (assign.college_id) {
+            matchedCollegeId = assign.college_id;
+          }
+        }
       } else if (
         code === 'FACULTY' ||
         code === 'HOD' ||
@@ -343,10 +367,14 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
         code === 'TEACHER' ||
         code === 'SECTION_COORDINATOR'
       ) {
-        resolvedRole = 'faculty';
+        if (!resolvedRole || resolvedRole === 'student') {
+          resolvedRole = 'faculty';
+          matchedIamRoleCode = code;
+        }
       } else if (code === 'STUDENT') {
         if (!resolvedRole) {
           resolvedRole = 'student';
+          matchedIamRoleCode = code;
         }
       }
     }
@@ -373,6 +401,7 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
         userId,
         email: userEmail,
         role: resolvedRole,
+        iamRoleCode: matchedIamRoleCode,
         tenantId,
         tenantName,
         tenantStatus: tenant?.status || 'ACTIVE',

@@ -3,13 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
 import { getGatewayHeaders } from '@/app/api/student/admissions/gateway-auth';
 import { apiError, extractTraceId } from '@/lib/errors/api-error';
+import { canAccessCollegeOperationalBff, gatewayActorRoleHint } from '@/lib/auth/role-policy';
 
 const GATEWAY_BASE_URL = process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:8080';
-
-function staffRole(sessionRole?: string | null) {
-  if (sessionRole === 'platform_admin') return 'INSTITUTION_ADMIN';
-  return 'COLLEGE_ADMIN';
-}
 
 export async function GET(req: NextRequest) {
   const traceId = extractTraceId(req);
@@ -18,11 +14,19 @@ export async function GET(req: NextRequest) {
   if (!resolution.success) {
     return apiError(req, { status: 401, code: 'UNAUTHORIZED', message: 'Authentication required' });
   }
+  if (!canAccessCollegeOperationalBff(resolution.session.role)) {
+    return apiError(req, { status: 403, code: 'FORBIDDEN', message: 'Registrar or College Admin role required' });
+  }
   const documentId = req.nextUrl.searchParams.get('documentId');
   if (!documentId) {
     return apiError(req, { status: 422, code: 'DOCUMENT_ID_REQUIRED', message: 'documentId is required' });
   }
-  const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
+  const headers = await getGatewayHeaders(
+    req,
+    supabase,
+    resolution.session,
+    gatewayActorRoleHint(resolution.session.role)
+  );
   headers['X-Trace-Id'] = traceId;
   const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/documents/${encodeURIComponent(documentId)}/access-grants`, {
     headers,
@@ -42,12 +46,20 @@ export async function POST(req: NextRequest) {
   if (!resolution.success) {
     return apiError(req, { status: 401, code: 'UNAUTHORIZED', message: 'Authentication required' });
   }
+  if (!canAccessCollegeOperationalBff(resolution.session.role)) {
+    return apiError(req, { status: 403, code: 'FORBIDDEN', message: 'Registrar or College Admin role required' });
+  }
   const payload = await req.json();
   const documentId = String(payload?.documentId || '');
   if (!documentId) {
     return apiError(req, { status: 422, code: 'DOCUMENT_ID_REQUIRED', message: 'documentId is required' });
   }
-  const headers = await getGatewayHeaders(req, supabase, resolution.session, staffRole(resolution.session.role));
+  const headers = await getGatewayHeaders(
+    req,
+    supabase,
+    resolution.session,
+    gatewayActorRoleHint(resolution.session.role)
+  );
   headers['Content-Type'] = 'application/json';
   headers['X-Trace-Id'] = traceId;
   const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/documents/${encodeURIComponent(documentId)}/access-grants`, {

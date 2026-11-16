@@ -17,6 +17,20 @@ function buildLegacySession(role: string, authUserId?: string, email?: string) {
       },
     };
   }
+  if (role === 'registrar') {
+    return {
+      id: authUserId || 'c31a0000-0000-4000-8000-000000000031',
+      email: email || 'registrar.pilot.campx@gmail.com',
+      app_metadata: {
+        tenant_id: 'a0000000-0000-0000-0000-000000000001',
+        college_id: 'a0000000-0000-0000-0000-000000000002',
+        role: 'REGISTRAR',
+      },
+      user_metadata: {
+        full_name: 'CampX Registrar Pilot (R31)',
+      },
+    };
+  }
   if (role === 'faculty') {
     return {
       id: authUserId || '11111111-9e05-0000-0000-000000000001',
@@ -106,7 +120,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { role } = await req.json();
-    const persona = (role === 'platform_admin' || role === 'college_admin' || role === 'faculty' || role === 'student'
+    const persona = (role === 'platform_admin' ||
+    role === 'college_admin' ||
+    role === 'registrar' ||
+    role === 'faculty' ||
+    role === 'student'
       ? role
       : null) as AuditPersona | null;
     if (!persona) {
@@ -120,7 +138,9 @@ export async function POST(req: NextRequest) {
           ? '/faculty/advisees'
           : persona === 'student'
             ? '/student'
-            : '/college';
+            : persona === 'registrar'
+              ? '/college/lifecycle'
+              : '/college';
 
     const res = NextResponse.json({ success: true, redirectTo });
     const jwt = await establishJwtSession(req, res, persona);
@@ -152,8 +172,14 @@ export async function GET(req: NextRequest) {
     }
 
     const role = req.nextUrl.searchParams.get('role') || 'college_admin';
-    const returnTo = req.nextUrl.searchParams.get('returnTo') || '/college/documents';
-    const persona = (role === 'platform_admin' || role === 'college_admin' || role === 'faculty' || role === 'student'
+    const returnTo =
+      req.nextUrl.searchParams.get('returnTo') ||
+      (role === 'registrar' ? '/college/lifecycle' : '/college/documents');
+    const persona = (role === 'platform_admin' ||
+    role === 'college_admin' ||
+    role === 'registrar' ||
+    role === 'faculty' ||
+    role === 'student'
       ? role
       : null) as AuditPersona | null;
     if (!persona) {

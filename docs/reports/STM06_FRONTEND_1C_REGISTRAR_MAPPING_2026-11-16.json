@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-16T05:00:00+00:00",
+  "task": "frontend-1c-registrar-role-mapping",
+  "branch": "feature/java-backend-integration",
+  "checks": [
+    { "name": "tsc-noEmit", "ok": true, "detail": "0 errors" },
+    { "name": "verify_registrar_role_policy", "ok": true, "detail": "7/7 PASS" },
+    { "name": "verify_role_routing", "ok": true, "detail": "50/50 PASS including registrar allow/deny + unchanged student/faculty/admin" },
+    { "name": "registrar-lifecycle-allow", "ok": true, "detail": "GET /college/lifecycle => 200" },
+    { "name": "registrar-departments-deny", "ok": true, "detail": "GET /college/departments => 307 access-denied" },
+    { "name": "registrar-not-mapped-to-college-admin", "ok": true, "detail": "distinct UserRole registrar; gatewayActorRoleHint=REGISTRAR" },
+    { "name": "no-db-writes", "ok": true, "detail": "frontend mapping only; no production; no push" }
+  ],
+  "summary": { "total": 7, "passed": 7, "failed": 0, "ok": true }
+}

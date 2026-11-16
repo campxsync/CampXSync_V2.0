@@ -129,8 +129,21 @@ export async function middleware(request: NextRequest) {
 
   const isPlatformUser = rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
   const isCollegeAdminUser = (rawRole === 'COLLEGE_ADMIN' || rawRole === 'INSTITUTION_ADMIN' || rawRole === 'TENANT_ADMIN' || rawRole === 'ADMIN') && !isPlatformUser;
+  const isRegistrarUser = (rawRole === 'REGISTRAR' || rawRole === 'R31') && !isPlatformUser && !isCollegeAdminUser;
   const isFacultyUser = (rawRole === 'FACULTY' || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') && !isPlatformUser;
   const isStudentUser = rawRole === 'STUDENT' && !isPlatformUser;
+
+  const registrarAllowedCollegePrefixes = [
+    '/college/lifecycle',
+    '/college/enrollment',
+    '/college/documents',
+    '/college/guardians',
+  ];
+  const registrarCanAccessCollegePath = (path: string) => {
+    // Exact /college dashboard is College Admin only — bounce Registrar to lifecycle desk.
+    if (path === '/college' || path === '/college/') return false;
+    return registrarAllowedCollegePrefixes.some((p) => path === p || path.startsWith(`${p}/`));
+  };
 
   // Enforce inactive membership guard
   const isInactive = user.membership_status === 'INACTIVE' || user.status === 'INACTIVE' || user.app_metadata?.membership_status === 'INACTIVE';
@@ -197,6 +210,9 @@ export async function middleware(request: NextRequest) {
       if (isCollegeAdminUser) {
         return NextResponse.redirect(new URL('/college', request.url));
       }
+      if (isRegistrarUser) {
+        return NextResponse.redirect(new URL('/college/lifecycle', request.url));
+      }
       if (isFacultyUser) {
         return NextResponse.redirect(new URL('/faculty', request.url));
       }
@@ -214,7 +230,13 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith('/college')) {
-      if (!isCollegeAdminUser && !(isFacultyUser && pathname.startsWith('/college/admissions/applications'))) {
+      if (isRegistrarUser && (pathname === '/college' || pathname === '/college/')) {
+        return NextResponse.redirect(new URL('/college/lifecycle', request.url));
+      }
+      const facultyAdmissionsException =
+        isFacultyUser && pathname.startsWith('/college/admissions/applications');
+      const registrarOk = isRegistrarUser && registrarCanAccessCollegePath(pathname);
+      if (!isCollegeAdminUser && !facultyAdmissionsException && !registrarOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
     }

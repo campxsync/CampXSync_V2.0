@@ -60,6 +60,8 @@ export function Topbar({
         return <Badge variant="role" roleType="platform">Platform Admin</Badge>;
       case 'college_admin':
         return <Badge variant="role" roleType="college">College Admin</Badge>;
+      case 'registrar':
+        return <Badge variant="role" roleType="registrar">Registrar (R31)</Badge>;
       case 'faculty':
         return <Badge variant="role" roleType="faculty">Faculty</Badge>;
       case 'student':
