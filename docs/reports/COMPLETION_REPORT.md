@@ -944,16 +944,13 @@ Confirmed orphan = Storage object under `tenants/{callerTenantId}/` whose path i
 | Upload/download regression | existing EN-002 tests | `stm06En002_configuredStorageRequiresContentAndStoresBytes` et al. |
 
 ### CSV
-Intended: `STM-06-EN-002` → **completed**; `STM-06-EN-003` remains **partially completed** (live malware AV).  
-**Gate:** primary backlog CSV was locked by another process (`EBUSY` / Win32 32). Updated rows staged at  
-`docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.EN002_ORPHAN_UPDATE.csv`  
-— close the lock on the primary CSV and replace it with the staged file (or re-apply status cells).
+`STM-06-EN-002` → **completed**. `STM-06-EN-003` remains **partially completed** (live malware AV).  
+Primary backlog CSV promoted after lock cleared (2026-11-16).
 
 ### Remaining limitations
 - Live orphan cleanup against Dev Storage not exercised (needs separate owner auth).
 - Live malware AV still open (EN-003).
 - No frontend BFF for orphan desk in this task (API-only).
-- Primary backlog CSV not overwritten in-place (file lock).
 
 ### Stop
-Await `APPROVED STM-06-EN-002` / push authorization; close CSV lock and promote staged update. **No push.**
+Await `APPROVED STM-06-EN-002` / push authorization. **No push.**
