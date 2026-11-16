@@ -1250,3 +1250,49 @@ Backlog Implementation status cells updated for completed + blocked rows above.
 
 End of batch (size 4 + US-013 filled after US-008/009 blocked). **No push.**
 
+## Entry 35 — STM-07 batch 2 pair US-008/009 (2026-11-16)
+
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Owner decisions:** STM-07-B2-D1 (R01/R02/R03), B2-D2 (R25 while linked+ACTIVE; revoke on SUSPENDED/DETAINED/WITHDRAWN; not GRADUATED/ALUMNI), B2-D3 (IAM endpoint on existing institute-admin; student-service port).  
+**Hosts:** `institute-admin-service` (:8081, owns `iam.*`) + `student-service` (:8093).  
+**Preflight:** student-service full suite green; institute-admin 11 pre-existing Postgres college/provisioning errors (unchanged). Dev project `azulbaxszsqxymqmlwfe` confirmed.  
+**No push.**
+
+### Stories
+
+| ID | Plain name | Status | Notes |
+|---|---|---|---|
+| STM-07-US-008 | Assign approved student role R25 | completed | IAM assign endpoint + student-service port; linked+ACTIVE only; no self-assign; Path B banned |
+| STM-07-US-009 | Revoke student role R25 | completed | IAM revoke endpoint + student-service port; lifecycle also best-effort revokes R25 |
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| IAM operator includes R01 | `StudentDomainService.isIamOperator` | `stm07Us008_platformAdminR01CanAssign` |
+| Assign R25 only via existing IAM | `StudentRoleAssignmentService.assignStudentRole` + `HttpIamStudentRolePort` | `stm07Us008_assignsR25StudentRole` / `stm07Us008_assignsR25WhenLinkedAndActive` |
+| Reject non-R25 role | same | `stm07Us008_rejectsNonStudentRole` / `httpDeniesNonStudentRole` |
+| No self-assignment | IAM + student-service gates | `stm07Us008_rejectsSelfAssignment` |
+| Linked + ACTIVE required | `assignApprovedStudentRole` | `stm07Us008_requiresLinkBeforeAssign` / `_requiresActiveStatus` |
+| Faculty/student denied | account manage gate | `stm07Us008_facultyDeniedAssign` / `_studentDeniedAssign` |
+| Revoke R25 via IAM | `revokeStudentRole` + `revokeApprovedStudentRole` | `stm07Us009_revokesStudentRole` / `stm07Us009_revokesR25` |
+| Faculty denied revoke | same | `stm07Us009_facultyDeniedRevoke` |
+| Suspend revokes link + R25 | `revokeAccessForLifecycleEvent` | `stm07Us010_suspendRevokesActiveLink` |
+| GRADUATED does not auto-revoke | B2-D2 | `stm07Us010_graduatedDoesNotAutoRevoke` |
+| Audit role changes | `StudentRoleAssignmentService.LoggingAuditSink` | `stm07Us008_assignsR25StudentRole` (auditActions) |
+
+### Tests (§7A)
+
+| Command | Result |
+|---|---|
+| `mvn test -pl services/administration-services/institute-admin-service -Dtest=StudentRoleAssignmentServiceTest,StudentRoleAssignmentHttpTest` | **8/0** |
+| `mvn test -pl services/student-services/student-service -Dtest=Stm07AccountProvisioningTest` | **31/0** |
+| `mvn test -pl services/student-services/student-service` | **144/0** |
+
+### Gaps / notes
+
+- Catalogue code for R25 is `STUDENT` in `iam.roles` (no schema change).
+- `identity-service` remains scaffold-only; IAM work landed on `institute-admin-service` (existing `iam.*` owner), per B2-D3.
+- No new tables. `iam.role_assignments` already RLS-enabled (not FORCE; no DDL applied).
+

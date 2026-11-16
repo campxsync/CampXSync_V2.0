@@ -1,41 +1,39 @@
 # Next Task
 
-**STATUS: STM-07 batch (US-001/002/004/010/013) completed 2026-11-16. Batch stop.**
+**STATUS: STM-07 batch 2 IN PROGRESS (2026-11-16). Owner decisions STM-07-B2-D1..D3 recorded in PROGRESS.md.**
 
-## Just completed (this batch — host: `student-service`)
+## Preflight (this batch)
 
-| ID | Status | Notes |
+- Branch: `feature/java-backend-integration`
+- Untracked leftovers only: `classpath.txt`, `_csv_status_*.txt` (known; no STOP)
+- Dev project confirmed: `azulbaxszsqxymqmlwfe`
+- student-service suite: green on first full run; intermittent live `LiveStudentRuntimeSecurityTest` PgBouncer "prepared statement already exists" (pre-existing flaky)
+- institute-admin-service: **499 run, 0 fail, 11 errors, 32 skipped** — pre-existing Postgres college/provisioning integration (`InstituteNotFound` / platform-admin privilege); documented in COMPLETION_REPORT Path C entries
+
+## Batch 2 selection (max 4)
+
+| # | ID | Plan |
 |---|---|---|
-| STM-07-US-001 | DONE | Eligibility on `linkIamAccount` + `GET link-status` + portal strip |
-| STM-07-US-002 | DONE | `evaluateProvisioningEligibility` + `GET .../provisioning-eligibility` |
-| STM-07-US-004 | DONE | Eligibility-gated `requestAccountProvisioning` |
-| STM-07-US-010 | DONE | Lifecycle SUSPENDED/DETAINED/WITHDRAWN revokes IAM link |
-| STM-07-US-013 | DONE | Student self-view link-status (API + BFF + dashboard) |
-
-Commit hash: `7ace09f`  
-student-service suite: **127/0**
+| 1–2 | STM-07-US-008 + US-009 | Pair (D3): IAM R25 assign/revoke on institute-admin + student-service port |
+| 3 | STM-07-EN-002 | Existing IAM integration hardening (no duplicate auth/role system) |
+| 4 | STM-07-EN-004 | Idempotent provisioning / retries / reconciliation (P0 next) |
 
 ## BLOCKED (do not implement)
 
 | ID | Reason |
 |---|---|
-| STM-07-US-008 | Assign approved student roles — needs IAM role API; no duplicate role system (EN-002); owner question: which existing IAM contract assigns R25? |
-| STM-07-US-009 | Revoke student roles — same IAM role API dependency as US-008 |
-| STM-07-EN-003 | Tenant role mapping — FLAG-002 / owner infrastructure decision pending |
-| STM-08-* | New service gate — `docs/design/STM-08_ACADEMIC_HISTORY_DESIGN_NOTE.md` |
-| STM-09-* | New service gate — `docs/design/STM-09_SERVICE_REQUESTS_DESIGN_NOTE.md` |
+| STM-07-US-007 | Account activation notifications need event bus (CROSS-EN-007 / Kafka hold) |
+| STM-07-US-011 | Tenant role mappings depend on FLAG-002 |
+| STM-07-US-014 | Student self-request: "if enabled" setting not defined — ask owner exact setting key/default |
+| STM-07-EN-003 | FLAG-002 / owner infrastructure decision pending |
 | STM-06-EN-003 live AV | owner infrastructure decision pending |
 | STM-CROSS-EN-007 | DEFERRED (Kafka) |
 | FLAG-002 / FLAG-003 / FLAG-007 | owner infrastructure decision pending |
-
-## Pickup queue (next batch when authorized)
-
-1. STM-07-EN-002 (IAM integration hardening in student-service) then remaining unblocked STM-07 P0/P1
-2. STM-10-EN-001 preferences (institute-admin path) if independent and unblocked
-3. Unblock STM-08/09 only after owner approves new services
+| STM-08-* / STM-09-* | New service gate (design notes only) |
 
 ## Rules
 
 - No push unless owner authorizes.
 - No production access.
 - Never print service-role keys.
+- One commit per story; browser demo commit separate at batch end.

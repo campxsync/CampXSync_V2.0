@@ -1,7 +1,17 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (STM-07 US-001/002/004/010/013 batch completed; US-008/009 + STM-08/09 blocked)
+**Updated:** 2026-11-16 (STM-07 batch 2 authorized; owner decisions D1–D3 recorded below)
+
+## Owner decisions – STM-07 batch 2 (16-11-2026)
+
+**Approved by:** Niranjan (product owner). Final; do not re-ask.
+
+| ID | Decision |
+|---|---|
+| **STM-07-B2-D1** | "IAM operator" for STM-07 = roles **R01, R02, R03**. Update student-service role check to include **R01**. |
+| **STM-07-B2-D2** | Provisioning mapping: student role **R25** applies while the student is linked and **ACTIVE**. Access is revoked on **SUSPENDED**, **DETAINED** and **WITHDRAWN**. **GRADUATED** and **ALUMNI** are **NOT** revoked automatically. Closes matrix item "student-status-to-IAM-role mapping and suspension/deprovisioning triggers". |
+| **STM-07-B2-D3** | US-008/009 **UNBLOCKED**. Add a role assign/revoke endpoint inside the **existing IAM service** (institute-admin-service owns `iam.*`; identity-service remains scaffold-only), limited to role **R25**, tenant-scoped, audited, no self-assignment, only for a student linked and **ACTIVE**. student-service calls via port/adapter; **never** writes `iam` schema directly (Path B banned). Explicit exception to same-service selection: US-008/009 may span IAM + student-service. STOP if no IAM code under `services/` or if a new table/schema beyond existing role-assignment tables is required. |
 
 ## Scoreboard (session)
 

@@ -9,6 +9,7 @@ import com.campx.admin.institute.model.OnboardCollegeResponse;
 import com.campx.admin.institute.service.DelegationAuthorizationDecision;
 import com.campx.admin.institute.service.DelegationAuthorizationService;
 import com.campx.admin.institute.service.InstituteAdminDomainService;
+import com.campx.admin.institute.service.StudentRoleAssignmentService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
@@ -54,6 +55,7 @@ public class InstituteAdminController implements HttpHandler {
     private final UserProfileRepository userProfileRepository;
     private final RoleTemplateRepository roleTemplateRepository;
     private final DelegationAuthorizationService delegationAuthorizationService;
+    private final StudentRoleAssignmentService studentRoleAssignmentService;
     private final com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier;
 
     private static RoleTemplateRepository resolveDefaultRoleTemplateRepository() {
@@ -117,16 +119,34 @@ public class InstituteAdminController implements HttpHandler {
                                     RoleTemplateRepository roleTemplateRepository,
                                     com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier,
                                     DelegationAuthorizationService delegationAuthorizationService) {
+        this(domainService, userProfileRepository, roleTemplateRepository, gatewayHmacVerifier,
+                delegationAuthorizationService, null);
+    }
+
+    /**
+     * Full constructor including STM-07 student role assign/revoke service.
+     */
+    public InstituteAdminController(InstituteAdminDomainService domainService, UserProfileRepository userProfileRepository,
+                                    RoleTemplateRepository roleTemplateRepository,
+                                    com.campx.admin.institute.security.GatewayHmacVerifier gatewayHmacVerifier,
+                                    DelegationAuthorizationService delegationAuthorizationService,
+                                    StudentRoleAssignmentService studentRoleAssignmentService) {
         this.domainService = domainService;
         this.userProfileRepository = userProfileRepository != null ? userProfileRepository : new UserProfileRepository();
         this.roleTemplateRepository = roleTemplateRepository != null ? roleTemplateRepository : resolveDefaultRoleTemplateRepository();
         this.gatewayHmacVerifier = gatewayHmacVerifier != null ? gatewayHmacVerifier : new com.campx.admin.institute.security.GatewayHmacVerifier();
         this.delegationAuthorizationService = delegationAuthorizationService != null
                 ? delegationAuthorizationService : new DelegationAuthorizationService();
+        this.studentRoleAssignmentService = studentRoleAssignmentService != null
+                ? studentRoleAssignmentService : new StudentRoleAssignmentService();
     }
 
     public DelegationAuthorizationService getDelegationAuthorizationService() {
         return delegationAuthorizationService;
+    }
+
+    public StudentRoleAssignmentService getStudentRoleAssignmentService() {
+        return studentRoleAssignmentService;
     }
 
     /**
@@ -811,6 +831,18 @@ public class InstituteAdminController implements HttpHandler {
             if (path.equals(DelegationAuthorizationService.PATH) && "GET".equalsIgnoreCase(method)) {
                 flow.step("handleDelegationActiveCheck");
                 handleDelegationActiveCheck(exchange);
+                return;
+            }
+
+            // STM-07-US-008/009 — internal R25 student role assign/revoke
+            if (path.equals(StudentRoleAssignmentService.ASSIGN_PATH) && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleStudentRoleAssign");
+                handleStudentRoleAssign(exchange);
+                return;
+            }
+            if (path.equals(StudentRoleAssignmentService.REVOKE_PATH) && "POST".equalsIgnoreCase(method)) {
+                flow.step("handleStudentRoleRevoke");
+                handleStudentRoleRevoke(exchange);
                 return;
             }
 
@@ -2692,6 +2724,35 @@ public class InstituteAdminController implements HttpHandler {
             sendError(exchange, 503, "Service Unavailable", "IAM_DELEGATION_CHECK_UNAVAILABLE",
                     "IAM could not validate the delegation", exchange.getRequestURI().getPath());
         }
+    }
+
+    /**
+     * POST /api/v1/admin/internal/roles/student-assign
+     * Body: {@code {"userId":"...","roleCode":"R25","collegeId":"..."}}
+     */
+    private void handleStudentRoleAssign(HttpExchange exchange) throws IOException {
+        UserSecurityContext context = extractSecurityContext(exchange);
+        String body = readBody(exchange);
+        String userId = extract(body, "userId", null);
+        String roleCode = extract(body, "roleCode", "R25");
+        String collegeId = extract(body, "collegeId", null);
+        StudentRoleAssignmentService.RoleChangeResult result =
+                studentRoleAssignmentService.assignStudentRole(context, userId, roleCode, collegeId);
+        sendJson(exchange, 200, result.toJson());
+    }
+
+    /**
+     * POST /api/v1/admin/internal/roles/student-revoke
+     * Body: {@code {"userId":"...","roleCode":"R25"}}
+     */
+    private void handleStudentRoleRevoke(HttpExchange exchange) throws IOException {
+        UserSecurityContext context = extractSecurityContext(exchange);
+        String body = readBody(exchange);
+        String userId = extract(body, "userId", null);
+        String roleCode = extract(body, "roleCode", "R25");
+        StudentRoleAssignmentService.RoleChangeResult result =
+                studentRoleAssignmentService.revokeStudentRole(context, userId, roleCode);
+        sendJson(exchange, 200, result.toJson());
     }
 
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {

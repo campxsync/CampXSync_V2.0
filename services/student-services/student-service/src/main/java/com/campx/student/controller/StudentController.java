@@ -199,6 +199,10 @@ public class StudentController implements HttpHandler {
                     return evaluateProvisioningEligibility(headers, studentId, queryParams);
                 } else if ("link-status".equals(sub) && "GET".equals(method)) {
                     return getAccountLinkStatus(headers, studentId);
+                } else if ("assign-student-role".equals(sub) && "POST".equals(method)) {
+                    return assignApprovedStudentRole(headers, studentId);
+                } else if ("revoke-student-role".equals(sub) && "POST".equals(method)) {
+                    return revokeApprovedStudentRole(headers, studentId);
                 }
             }
         }
@@ -763,6 +767,52 @@ public class StudentController implements HttpHandler {
             return HttpResponse.forbidden(e.getMessage());
         } catch (Exception e) {
             logger.error("Unhandled error in getAccountLinkStatus: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-US-008 — assign approved student role R25 via IAM.
+     */
+    public HttpResponse assignApprovedStudentRole(Map<String, String> headers, String idParam) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID studentId = UUID.fromString(idParam);
+            studentDomainService.assignApprovedStudentRole(context, studentId);
+            return HttpResponse.ok("{\"success\":true,\"roleCode\":\"R25\",\"status\":\"ASSIGNED\"}");
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid student UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in assignApprovedStudentRole: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-US-009 — revoke student role R25 via IAM.
+     */
+    public HttpResponse revokeApprovedStudentRole(Map<String, String> headers, String idParam) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID studentId = UUID.fromString(idParam);
+            studentDomainService.revokeApprovedStudentRole(context, studentId);
+            return HttpResponse.ok("{\"success\":true,\"roleCode\":\"R25\",\"status\":\"REVOKED\"}");
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid student UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in revokeApprovedStudentRole: {}", e.getMessage(), e);
             return HttpResponse.internalServerError(e.getMessage());
         }
     }

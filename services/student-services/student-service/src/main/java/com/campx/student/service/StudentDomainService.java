@@ -11,6 +11,9 @@ import com.campx.student.repository.*;
 import com.campx.student.security.DelegationPort;
 import com.campx.student.security.DelegationPortFactory;
 import com.campx.student.security.FailClosedDelegationPort;
+import com.campx.student.security.FailClosedIamStudentRolePort;
+import com.campx.student.security.IamStudentRolePort;
+import com.campx.student.security.IamStudentRolePortFactory;
 import com.campx.student.security.UserSecurityContext;
 import com.campx.platform.audit.AuditChangeLog;
 import com.campx.platform.audit.AuditLogRepository;
@@ -61,6 +64,7 @@ public class StudentDomainService {
     private final StudentEventPublisher eventPublisher;
     private final AuditLogRepository auditRepository;
     private final DelegationPort delegationPort;
+    private final IamStudentRolePort iamStudentRolePort;
     private final ObjectMapper objectMapper;
 
     // In-memory idempotency store: key = tenantId + ":" + idempotencyKey, value = StudentProfileResponse
@@ -118,18 +122,24 @@ public class StudentDomainService {
     }
 
     public StudentDomainService() {
-        this(resolveDefaultRepositories(), DelegationPortFactory.fromEnvironment());
+        this(resolveDefaultRepositories(), DelegationPortFactory.fromEnvironment(),
+                IamStudentRolePortFactory.fromEnvironment());
     }
 
     public StudentDomainService(RepositoryBundle bundle) {
-        this(bundle, new FailClosedDelegationPort());
+        this(bundle, new FailClosedDelegationPort(), new FailClosedIamStudentRolePort());
     }
 
     public StudentDomainService(RepositoryBundle bundle, DelegationPort delegationPort) {
+        this(bundle, delegationPort, new FailClosedIamStudentRolePort());
+    }
+
+    public StudentDomainService(RepositoryBundle bundle, DelegationPort delegationPort,
+                                IamStudentRolePort iamStudentRolePort) {
         this(bundle.studentRepository, bundle.personRepository, bundle.guardianshipRepository,
                 bundle.correctionRequestRepository, bundle.verificationRepository, bundle.identifierRepository,
                 bundle.documentRepository, bundle.addressRepository, bundle.eventPublisher, bundle.auditLogRepository,
-                delegationPort);
+                delegationPort, iamStudentRolePort);
     }
 
     public StudentDomainService(StudentRepository studentRepository,
@@ -201,6 +211,24 @@ public class StudentDomainService {
                                 StudentEventPublisher eventPublisher,
                                 AuditLogRepository auditRepository,
                                 DelegationPort delegationPort) {
+        this(studentRepository, personRepository, guardianshipRepository,
+                correctionRequestRepository, verificationRepository, identifierRepository,
+                documentRepository, addressRepository, eventPublisher, auditRepository,
+                delegationPort, new FailClosedIamStudentRolePort());
+    }
+
+    public StudentDomainService(StudentRepository studentRepository,
+                                PersonRepository personRepository,
+                                GuardianshipRepository guardianshipRepository,
+                                CorrectionRequestRepository correctionRequestRepository,
+                                StudentVerificationRepository verificationRepository,
+                                PersonIdentifierRepository identifierRepository,
+                                StudentDocumentRepository documentRepository,
+                                StudentAddressRepository addressRepository,
+                                StudentEventPublisher eventPublisher,
+                                AuditLogRepository auditRepository,
+                                DelegationPort delegationPort,
+                                IamStudentRolePort iamStudentRolePort) {
         if (studentRepository == null) throw new IllegalArgumentException("studentRepository cannot be null");
         if (personRepository == null) throw new IllegalArgumentException("personRepository cannot be null");
         if (guardianshipRepository == null) throw new IllegalArgumentException("guardianshipRepository cannot be null");
@@ -223,6 +251,7 @@ public class StudentDomainService {
         this.eventPublisher = eventPublisher != null ? eventPublisher : new StudentEventPublisher.InMemory();
         this.auditRepository = auditRepository != null ? auditRepository : new InMemoryAuditLogRepository();
         this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
+        this.iamStudentRolePort = iamStudentRolePort == null ? new FailClosedIamStudentRolePort() : iamStudentRolePort;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -1288,7 +1317,67 @@ public class StudentDomainService {
     }
 
     /**
-     * STM-07-US-010 — revoke portal IAM link when lifecycle denies access.
+     * STM-07-US-008 — assign approved student role R25 via existing IAM (linked + ACTIVE only).
+     */
+    public void assignApprovedStudentRole(UserSecurityContext context, UUID studentId) {
+        assertTenantContext(context);
+        assertCanManageAccountProvisioning(context);
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        if (student.getIamUserId() == null) {
+            throw new StudentValidationException("Student must be linked to an IAM identity before role assignment");
+        }
+        if (student.getStatus() != StudentStatus.ACTIVE) {
+            throw new StudentValidationException("Student must be ACTIVE to receive student role R25");
+        }
+        if (context.getUserId() != null && context.getUserId().equals(student.getIamUserId())) {
+            throw new StudentSecurityViolationException("Self-assignment of student role is not allowed");
+        }
+        boolean ok = iamStudentRolePort.assignStudentRole(
+                context.getTenantId(), context.getUserId(), student.getIamUserId(), student.getCollegeId());
+        if (!ok) {
+            throw new StudentValidationException("IAM refused student role assignment for R25");
+        }
+        publishOutboxEvent(context, student.getId(), "student.role.assigned.v1", String.format(
+                "{\"studentId\":\"%s\",\"iamUserId\":\"%s\",\"roleCode\":\"R25\"}",
+                student.getId(), student.getIamUserId()
+        ));
+        recordPrivilegedAuditAction(context, "STUDENT_ROLE_ASSIGNED", student.getId(),
+                Collections.singletonList("roleCode"), "Assigned R25 via IAM");
+        logger.info("Assigned student role R25 for student [{}] iamUser={}", studentId, student.getIamUserId());
+    }
+
+    /**
+     * STM-07-US-009 — revoke student role R25 via existing IAM.
+     */
+    public void revokeApprovedStudentRole(UserSecurityContext context, UUID studentId) {
+        assertTenantContext(context);
+        assertCanManageAccountProvisioning(context);
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        if (student.getIamUserId() == null) {
+            throw new StudentValidationException("Student has no linked IAM identity to revoke role from");
+        }
+        if (context.getUserId() != null && context.getUserId().equals(student.getIamUserId())) {
+            throw new StudentSecurityViolationException("Self-revocation of student role is not allowed");
+        }
+        boolean ok = iamStudentRolePort.revokeStudentRole(
+                context.getTenantId(), context.getUserId(), student.getIamUserId());
+        if (!ok) {
+            throw new StudentValidationException("IAM refused student role revoke for R25");
+        }
+        publishOutboxEvent(context, student.getId(), "student.role.revoked.v1", String.format(
+                "{\"studentId\":\"%s\",\"iamUserId\":\"%s\",\"roleCode\":\"R25\"}",
+                student.getId(), student.getIamUserId()
+        ));
+        recordPrivilegedAuditAction(context, "STUDENT_ROLE_REVOKED", student.getId(),
+                Collections.singletonList("roleCode"), "Revoked R25 via IAM");
+        logger.info("Revoked student role R25 for student [{}] iamUser={}", studentId, student.getIamUserId());
+    }
+
+    /**
+     * STM-07-US-010 + B2-D2 — revoke portal IAM link and R25 when lifecycle denies access.
+     * Revokes on SUSPENDED / DETAINED / WITHDRAWN only; GRADUATED / ALUMNI are not revoked automatically.
      */
     public void revokeAccessForLifecycleEvent(UserSecurityContext context, StudentEntity student, StudentStatus target) {
         if (student == null || target == null) {
@@ -1296,6 +1385,12 @@ public class StudentDomainService {
         }
         if (target == StudentStatus.SUSPENDED || target == StudentStatus.DETAINED || target == StudentStatus.WITHDRAWN) {
             if (student.getIamUserId() != null) {
+                UUID linkedUser = student.getIamUserId();
+                // Best-effort IAM R25 revoke (US-009 path); link revoke still proceeds.
+                if (context != null && context.getUserId() != null && context.getTenantId() != null
+                        && !context.getUserId().equals(linkedUser)) {
+                    iamStudentRolePort.revokeStudentRole(context.getTenantId(), context.getUserId(), linkedUser);
+                }
                 studentRepository.revokeActiveIamLinks(context, student.getId());
                 student.setIamUserId(null);
                 publishOutboxEvent(context, student.getId(), "student.account.access_revoked.v1", String.format(
@@ -1597,7 +1692,7 @@ public class StudentDomainService {
     }
 
     /**
-     * STM-07 account manage gate: IAM operator (D6 R02/R03) allowed;
+     * STM-07 account manage gate: IAM operator (B2-D1 R01/R02/R03) allowed;
      * College Admin / Registrar (R31) only when Path C {@link #DELEGATION_ACCOUNT_KEY} passes;
      * all other roles denied (faculty, student, guardian, verifier, etc.).
      */
@@ -1622,10 +1717,11 @@ public class StudentDomainService {
                 "Role is not authorised to manage student account provisioning.");
     }
 
-    /** D6: human IAM operator = System Admin (R02) or Institution Admin (R03). */
+    /** STM-07-B2-D1: IAM operator = Platform Admin (R01), System Admin (R02), or Institution Admin (R03). */
     private boolean isIamOperator(UserSecurityContext context) {
         String r = context.getRole() == null ? "" : context.getRole().trim().toLowerCase();
-        return r.equals("system_admin") || r.equals("r02")
+        return r.equals("platform_admin") || r.equals("r01")
+                || r.equals("system_admin") || r.equals("r02")
                 || r.equals("institution_admin") || r.equals("r03");
     }
 

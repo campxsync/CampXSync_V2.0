@@ -7,6 +7,7 @@ import com.campx.student.repository.InMemoryGuardianshipRepository;
 import com.campx.student.repository.InMemoryPersonRepository;
 import com.campx.student.repository.InMemoryStudentRepository;
 import com.campx.student.security.FakeDelegationPort;
+import com.campx.student.security.FakeIamStudentRolePort;
 import com.campx.student.security.UserSecurityContext;
 import com.campx.student.service.StudentDomainService;
 import org.junit.Before;
@@ -17,7 +18,7 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 /**
- * STM-07-US-001 / US-002 / US-004 / US-010 / US-013 + Path C STM-07.ACCOUNT.A hardening.
+ * STM-07-US-001 / US-002 / US-004 / US-008 / US-009 / US-010 / US-013 + Path C STM-07.ACCOUNT.A hardening.
  */
 public class Stm07AccountProvisioningTest {
 
@@ -25,6 +26,7 @@ public class Stm07AccountProvisioningTest {
     private InMemoryStudentRepository studentRepo;
     private InMemoryGuardianshipRepository guardianshipRepo;
     private FakeDelegationPort delegations;
+    private FakeIamStudentRolePort rolePort;
     private StudentDomainService service;
     private UUID tenantId;
     private UUID collegeId;
@@ -41,6 +43,7 @@ public class Stm07AccountProvisioningTest {
         studentRepo = new InMemoryStudentRepository(personRepo);
         guardianshipRepo = new InMemoryGuardianshipRepository();
         delegations = new FakeDelegationPort();
+        rolePort = new FakeIamStudentRolePort();
         service = new StudentDomainService(
                 studentRepo, personRepo, guardianshipRepo,
                 new com.campx.student.repository.InMemoryCorrectionRequestRepository(),
@@ -50,7 +53,8 @@ public class Stm07AccountProvisioningTest {
                 new com.campx.student.repository.InMemoryStudentAddressRepository(),
                 new com.campx.student.service.StudentEventPublisher.InMemory(),
                 new com.campx.student.repository.InMemoryAuditLogRepository(),
-                delegations);
+                delegations,
+                rolePort);
 
         tenantId = UUID.randomUUID();
         collegeId = UUID.randomUUID();
@@ -211,16 +215,89 @@ public class Stm07AccountProvisioningTest {
     }
 
     @Test
+    public void stm07Us008_assignsR25WhenLinkedAndActive() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(iamOperator, student.getId());
+        assertTrue(rolePort.hasAssignment(tenantId, studentUserId));
+    }
+
+    @Test
+    public void stm07Us008_platformAdminR01CanAssign() {
+        UserSecurityContext platformAdmin =
+                new UserSecurityContext(UUID.randomUUID(), tenantId, collegeId, null, "r01", false);
+        service.linkIamAccount(platformAdmin, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(platformAdmin, student.getId());
+        assertTrue(rolePort.hasAssignment(tenantId, studentUserId));
+    }
+
+    @Test(expected = StudentValidationException.class)
+    public void stm07Us008_requiresLinkBeforeAssign() {
+        service.assignApprovedStudentRole(iamOperator, student.getId());
+    }
+
+    @Test(expected = StudentValidationException.class)
+    public void stm07Us008_requiresActiveStatus() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
+        status.setStatus(StudentStatus.GRADUATED);
+        status.setReason("Completed");
+        service.transitionLifecycle(iamOperator, student.getId(), status);
+        // D2: GRADUATED keeps the link but R25 may only be assigned while ACTIVE
+        service.assignApprovedStudentRole(iamOperator, student.getId());
+    }
+
+    @Test(expected = StudentSecurityViolationException.class)
+    public void stm07Us008_facultyDeniedAssign() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(facultyContext, student.getId());
+    }
+
+    @Test(expected = StudentSecurityViolationException.class)
+    public void stm07Us008_studentDeniedAssign() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(studentContext, student.getId());
+    }
+
+    @Test
+    public void stm07Us009_revokesR25() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(iamOperator, student.getId());
+        service.revokeApprovedStudentRole(iamOperator, student.getId());
+        assertFalse(rolePort.hasAssignment(tenantId, studentUserId));
+    }
+
+    @Test(expected = StudentSecurityViolationException.class)
+    public void stm07Us009_facultyDeniedRevoke() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(iamOperator, student.getId());
+        service.revokeApprovedStudentRole(facultyContext, student.getId());
+    }
+
+    @Test
     public void stm07Us010_suspendRevokesActiveLink() {
         service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(iamOperator, student.getId());
         UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
         status.setStatus(StudentStatus.SUSPENDED);
         status.setReason("Access review");
         StudentProfileResponse after = service.transitionLifecycle(iamOperator, student.getId(), status);
         assertNull(after.getIamUserId());
+        assertFalse(rolePort.hasAssignment(tenantId, studentUserId));
         AccountLinkStatusResponse link = service.getAccountLinkStatus(iamOperator, student.getId());
         assertEquals("NONE", link.getLinkStatus());
         assertFalse(link.isPortalAccessActive());
+    }
+
+    @Test
+    public void stm07Us010_graduatedDoesNotAutoRevoke() {
+        service.linkIamAccount(iamOperator, student.getId(), studentUserId);
+        service.assignApprovedStudentRole(iamOperator, student.getId());
+        UpdateStudentStatusRequest status = new UpdateStudentStatusRequest();
+        status.setStatus(StudentStatus.GRADUATED);
+        status.setReason("Completed programme");
+        StudentProfileResponse after = service.transitionLifecycle(iamOperator, student.getId(), status);
+        assertEquals(studentUserId, after.getIamUserId());
+        assertTrue(rolePort.hasAssignment(tenantId, studentUserId));
     }
 
     @Test
