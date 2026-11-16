@@ -389,7 +389,7 @@ async function main() {
   }
 
   // --- Path C IAM active-check for STM keys ---
-  for (const key of ['STM-03.ENROLMENT.A', 'STM-04.LIFECYCLE.A', 'STM-05.GUARDIAN.A', 'STM-06.DOCUMENTS.A']) {
+  for (const key of ['STM-03.ENROLMENT.A', 'STM-04.LIFECYCLE.A', 'STM-05.GUARDIAN.A', 'STM-06.DOCUMENTS.A', 'STM-07.ACCOUNT.A']) {
     try {
       const r = await activeCheck(PILOT, key, PILOT);
       const allowed = r.json && r.json.allowed === true;

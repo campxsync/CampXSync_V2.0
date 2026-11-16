@@ -27,6 +27,7 @@ const STM_KEYS = [
   'STM-04.LIFECYCLE.A',
   'STM-05.GUARDIAN.A',
   'STM-06.DOCUMENTS.A',
+  'STM-07.ACCOUNT.A',
 ];
 
 const SERVICES = [
@@ -188,12 +189,12 @@ async function main() {
     });
   }
 
-  // Invalid: non-delegatee
+  // Invalid: non-delegatee (STM-07.ACCOUNT.A — same Path C deny as other allowlisted *.A keys)
   {
     const r = await activeCheck({
       base: IAM_BASE,
       userId: OTHER,
-      permissionKey: 'STM-06.DOCUMENTS.A',
+      permissionKey: 'STM-07.ACCOUNT.A',
       callerId: OTHER,
       role: 'STUDENT',
       secret,
@@ -201,7 +202,7 @@ async function main() {
     const denied =
       r.status === 200 && r.json && r.json.allowed === false && r.json.reason === 'NO_ACTIVE_REGISTRAR_DELEGATION';
     results.checks.push({
-      name: 'pathc-deny-no-delegation',
+      name: 'pathc-deny-no-delegation-STM-07.ACCOUNT.A',
       ...passFail(denied, `HTTP ${r.status} body=${r.text}`),
     });
   }

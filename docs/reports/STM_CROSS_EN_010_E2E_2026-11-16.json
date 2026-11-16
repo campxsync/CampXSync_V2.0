@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-16T08:33:07.915Z",
+  "startedAt": "2026-11-16T12:57:36.729Z",
   "task": "STM-CROSS-EN-010-e2e",
   "gatewayBase": "http://127.0.0.1:8080",
   "iamBase": "http://127.0.0.1:8081",
@@ -53,22 +53,22 @@
     {
       "name": "gateway-missing-auth-enrollment",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794817990020,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794833859642,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-missing-auth-lifecycle",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794817990026,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794833859647,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-missing-auth-guardians",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794817990031,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794833859651,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-missing-auth-documents",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794817990037,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794833859657,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-rejects-spoofed-identity-headers",
@@ -123,7 +123,7 @@
     {
       "name": "gw-student-denied-verifications",
       "ok": true,
-      "detail": "HTTP 403 {\"timestamp\":1794817995361,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"REGISTRAR_FORBIDDEN\",\"errorCode\""
+      "detail": "HTTP 403 {\"timestamp\":1794833862811,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"REGISTRAR_FORBIDDEN\",\"errorCode\""
     },
     {
       "name": "gw-faculty-denied-expiry-notifications",
@@ -156,15 +156,20 @@
       "detail": "HTTP 200"
     },
     {
+      "name": "pathc-allow-STM-07.ACCOUNT.A",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
       "name": "service-failure-detection-probe",
       "ok": true,
       "detail": "connection failure detected: fetch failed"
     }
   ],
-  "endedAt": "2026-11-16T08:33:19.316Z",
+  "endedAt": "2026-11-16T12:57:45.458Z",
   "summary": {
-    "total": 31,
-    "passed": 31,
+    "total": 32,
+    "passed": 32,
     "failed": 0,
     "failedNames": [],
     "ok": true

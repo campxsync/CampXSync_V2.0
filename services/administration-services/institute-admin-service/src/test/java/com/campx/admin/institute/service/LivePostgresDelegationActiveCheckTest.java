@@ -90,7 +90,7 @@ public class LivePostgresDelegationActiveCheckTest {
     public void liveDeniesStudentWithoutDelegation() {
         Assume.assumeTrue(ready);
         UserSecurityContext ctx = new UserSecurityContext(OTHER_USER, TENANT);
-        DelegationAuthorizationDecision d = service.checkActive(ctx, OTHER_USER.toString(), "STM-06.DOCUMENTS.A");
+        DelegationAuthorizationDecision d = service.checkActive(ctx, OTHER_USER.toString(), "STM-07.ACCOUNT.A");
         assertFalse(d.isAllowed());
         assertEquals("NO_ACTIVE_REGISTRAR_DELEGATION", d.getReason());
     }

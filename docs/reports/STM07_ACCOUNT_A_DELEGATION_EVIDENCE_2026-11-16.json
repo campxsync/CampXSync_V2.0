@@ -1,0 +1,104 @@
+{
+  "story": "STM-07.ACCOUNT.A Path C M1 grant verification",
+  "date": "2026-11-16",
+  "projectRefConfirmed": "azulbaxszsqxymqmlwfe",
+  "projectName": "CampXSync-Architecture-Dev",
+  "projectConfirmations": [
+    "CAMPX_SUPABASE_URL host = azulbaxszsqxymqmlwfe.supabase.co",
+    "Supabase MCP list_projects id/ref = azulbaxszsqxymqmlwfe",
+    "execute_sql project_id = azulbaxszsqxymqmlwfe"
+  ],
+  "productionAccessed": false,
+  "model": {
+    "name": "M1",
+    "description": "One ACTIVE iam.delegations row of role REGISTRAR/R31 to the pilot Registrar authorizes every allowlisted STM *.A permission key. There are no per-key grant rows in the database for STM-03.ENROLMENT.A, STM-04.LIFECYCLE.A, STM-05.GUARDIAN.A, or STM-06.DOCUMENTS.A.",
+    "sources": [
+      "docs/runbooks/R31_PILOT_REGISTRAR_ACTIVATION.md",
+      "DelegationAuthorizationService.hasActiveRegistrarDelegation + STM_APPROVAL_KEYS allowlist",
+      "docs/design/IAM_DELEGATION_ADAPTER_DESIGN_NOTE.md M1"
+    ]
+  },
+  "existingGrantPattern": {
+    "delegationId": "c31a0000-0000-4000-8000-000000000033",
+    "tenantId": "a0000000-0000-0000-0000-000000000001",
+    "fromUserId": "70a8ffae-b5ad-4c61-a401-16f220893df4",
+    "toUserId": "c31a0000-0000-4000-8000-000000000031",
+    "roleId": "a72bb0de-18ee-421c-b2db-2d89fdb0d773",
+    "roleCode": "REGISTRAR",
+    "status": "ACTIVE",
+    "validFrom": "2026-11-15 13:26:56.937487+00",
+    "validTo": "2027-02-13 13:26:56.937487+00",
+    "deletedAt": null,
+    "reason": "Pilot R31 activation — STM A/R Path C M1",
+    "coversKeysViaAllowlist": [
+      "STM-02.ADMISSIONS.A",
+      "STM-03.ENROLMENT.A",
+      "STM-04.LIFECYCLE.A",
+      "STM-05.GUARDIAN.A",
+      "STM-06.DOCUMENTS.A",
+      "STM-07.ACCOUNT.A"
+    ]
+  },
+  "before": {
+    "queriedAt": "2026-11-16T12:45:00+00:00",
+    "sql": "SELECT id, tenant_id, from_user_id, to_user_id, role_id, status, valid_from, valid_to, deleted_at, reason FROM iam.delegations WHERE id = 'c31a0000-0000-4000-8000-000000000033'::uuid",
+    "rows": [
+      {
+        "id": "c31a0000-0000-4000-8000-000000000033",
+        "tenant_id": "a0000000-0000-0000-0000-000000000001",
+        "from_user_id": "70a8ffae-b5ad-4c61-a401-16f220893df4",
+        "to_user_id": "c31a0000-0000-4000-8000-000000000031",
+        "role_id": "a72bb0de-18ee-421c-b2db-2d89fdb0d773",
+        "status": "ACTIVE",
+        "valid_from": "2026-11-15 13:26:56.937487+00",
+        "valid_to": "2027-02-13 13:26:56.937487+00",
+        "deleted_at": null,
+        "reason": "Pilot R31 activation — STM A/R Path C M1"
+      }
+    ],
+    "allowlistContainedStm07AccountA": true,
+    "note": "Allowlist entry added in commit 1608f0c; DB row from R31 pilot apply 2026-11-15"
+  },
+  "actionTaken": "NONE — STM-07.ACCOUNT.A already covered by existing M1 REGISTRAR delegation + allowlist. No new accounts, emails, passwords, or auth data. No new iam.delegations row invented.",
+  "after": {
+    "queriedAt": "2026-11-16T12:45:00+00:00",
+    "dbWritePerformed": false,
+    "rows": [
+      {
+        "id": "c31a0000-0000-4000-8000-000000000033",
+        "tenant_id": "a0000000-0000-0000-0000-000000000001",
+        "from_user_id": "70a8ffae-b5ad-4c61-a401-16f220893df4",
+        "to_user_id": "c31a0000-0000-4000-8000-000000000031",
+        "role_id": "a72bb0de-18ee-421c-b2db-2d89fdb0d773",
+        "status": "ACTIVE",
+        "valid_from": "2026-11-15 13:26:56.937487+00",
+        "valid_to": "2027-02-13 13:26:56.937487+00",
+        "deleted_at": null,
+        "reason": "Pilot R31 activation — STM A/R Path C M1"
+      }
+    ],
+    "identicalToBefore": true
+  },
+  "pathCLiveProof": {
+    "tooling": "Existing DelegationAuthorizationService.checkActive via LivePostgres/Path C pooler JDBC (same service as LivePostgresDelegationActiveCheckTest)",
+    "projectRefInUsername": "postgres.azulbaxszsqxymqmlwfe",
+    "delegated": {
+      "userId": "c31a0000-0000-4000-8000-000000000031",
+      "permissionKey": "STM-07.ACCOUNT.A",
+      "allowed": true,
+      "reason": "ACTIVE_R31_DELEGATION"
+    },
+    "nonDelegated": {
+      "userId": "81dd67d3-1d5f-4d8e-8061-a6764861f924",
+      "permissionKey": "STM-07.ACCOUNT.A",
+      "allowed": false,
+      "reason": "NO_ACTIVE_REGISTRAR_DELEGATION"
+    }
+  },
+  "repoArtifactsUpdated": [
+    "scripts/demo/smoke_path_c_http.mjs (STM-07.ACCOUNT.A in STM_KEYS + deny check)",
+    "scripts/demo/run_stm_cross_en_010_e2e.mjs (add STM-07.ACCOUNT.A to pathc-allow loop)",
+    "docs/runbooks/STM07_ACCOUNT_A_M1_GRANT_NOTE.md",
+    "LivePostgresDelegationActiveCheckTest#liveDeniesStudentWithoutDelegation uses STM-07.ACCOUNT.A"
+  ]
+}
