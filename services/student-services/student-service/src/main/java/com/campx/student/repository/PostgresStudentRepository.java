@@ -500,6 +500,131 @@ public class PostgresStudentRepository implements StudentRepository {
     }
 
     @Override
+    public Optional<com.campx.student.model.ProvisioningRequestRecord> findOpenProvisioningRequest(
+            UserSecurityContext context, UUID studentId) {
+        assertContext(context);
+        if (studentId == null) {
+            return Optional.empty();
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            String sql = "SELECT id, student_id, requested_iam_user_id, request_status, failure_reason, "
+                    + "requested_at, completed_at FROM stu.account_provisioning_requests "
+                    + "WHERE tenant_id = ? AND student_id = ? AND deleted_at IS NULL "
+                    + "AND request_status = 'REQUESTED' ORDER BY requested_at DESC LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, context.getTenantId());
+                ps.setObject(2, studentId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(mapProvisioningRequest(rs));
+                    }
+                }
+            }
+            return Optional.empty();
+        });
+    }
+
+    @Override
+    public Optional<com.campx.student.model.ProvisioningRequestRecord> findProvisioningRequestById(
+            UserSecurityContext context, UUID requestId) {
+        assertContext(context);
+        if (requestId == null) {
+            return Optional.empty();
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            String sql = "SELECT id, student_id, requested_iam_user_id, request_status, failure_reason, "
+                    + "requested_at, completed_at FROM stu.account_provisioning_requests "
+                    + "WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, context.getTenantId());
+                ps.setObject(2, requestId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(mapProvisioningRequest(rs));
+                    }
+                }
+            }
+            return Optional.empty();
+        });
+    }
+
+    @Override
+    public java.util.List<com.campx.student.model.ProvisioningRequestRecord> listProvisioningRequests(
+            UserSecurityContext context, UUID studentId) {
+        assertContext(context);
+        if (studentId == null) {
+            return java.util.Collections.emptyList();
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            java.util.List<com.campx.student.model.ProvisioningRequestRecord> list =
+                    new java.util.ArrayList<com.campx.student.model.ProvisioningRequestRecord>();
+            String sql = "SELECT id, student_id, requested_iam_user_id, request_status, failure_reason, "
+                    + "requested_at, completed_at FROM stu.account_provisioning_requests "
+                    + "WHERE tenant_id = ? AND student_id = ? AND deleted_at IS NULL "
+                    + "ORDER BY requested_at DESC";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, context.getTenantId());
+                ps.setObject(2, studentId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(mapProvisioningRequest(rs));
+                    }
+                }
+            }
+            return list;
+        });
+    }
+
+    @Override
+    public void updateProvisioningRequestStatus(UserSecurityContext context, UUID requestId, String status,
+                                                String failureReason) {
+        assertContext(context);
+        if (requestId == null || status == null) {
+            return;
+        }
+        context.executeInTransaction(connectionManager, conn -> {
+            String sql = "UPDATE stu.account_provisioning_requests SET request_status = ?, failure_reason = ?, "
+                    + "completed_at = CASE WHEN ? IN ('FAILED','COMPLETED') THEN now() "
+                    + "WHEN ? = 'REQUESTED' THEN NULL ELSE completed_at END, "
+                    + "requested_at = CASE WHEN ? = 'REQUESTED' THEN now() ELSE requested_at END, "
+                    + "updated_at = now(), updated_by = ?, row_version = row_version + 1 "
+                    + "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, status);
+                ps.setString(2, failureReason);
+                ps.setString(3, status);
+                ps.setString(4, status);
+                ps.setString(5, status);
+                ps.setObject(6, context.getUserId());
+                ps.setObject(7, requestId);
+                ps.setObject(8, context.getTenantId());
+                ps.executeUpdate();
+            }
+            return null;
+        });
+    }
+
+    private static com.campx.student.model.ProvisioningRequestRecord mapProvisioningRequest(ResultSet rs)
+            throws java.sql.SQLException {
+        com.campx.student.model.ProvisioningRequestRecord row =
+                new com.campx.student.model.ProvisioningRequestRecord();
+        row.setId((UUID) rs.getObject("id"));
+        row.setStudentId((UUID) rs.getObject("student_id"));
+        row.setRequestedIamUserId((UUID) rs.getObject("requested_iam_user_id"));
+        row.setRequestStatus(rs.getString("request_status"));
+        row.setFailureReason(rs.getString("failure_reason"));
+        java.sql.Timestamp requestedAt = rs.getTimestamp("requested_at");
+        if (requestedAt != null) {
+            row.setRequestedAt(requestedAt.toInstant().atOffset(java.time.ZoneOffset.UTC));
+        }
+        java.sql.Timestamp completedAt = rs.getTimestamp("completed_at");
+        if (completedAt != null) {
+            row.setCompletedAt(completedAt.toInstant().atOffset(java.time.ZoneOffset.UTC));
+        }
+        return row;
+    }
+
+    @Override
     public void delete(UserSecurityContext context, UUID id) {
         assertContext(context);
         if (id == null) return;

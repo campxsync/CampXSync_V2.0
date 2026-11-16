@@ -203,6 +203,10 @@ public class StudentController implements HttpHandler {
                     return assignApprovedStudentRole(headers, studentId);
                 } else if ("revoke-student-role".equals(sub) && "POST".equals(method)) {
                     return revokeApprovedStudentRole(headers, studentId);
+                } else if ("provisioning-requests".equals(sub) && "GET".equals(method)) {
+                    return listProvisioningRequests(headers, studentId);
+                } else if ("retry-provisioning".equals(sub) && "POST".equals(method)) {
+                    return retryFailedProvisioning(headers, studentId, body);
                 }
             }
         }
@@ -813,6 +817,62 @@ public class StudentController implements HttpHandler {
             return HttpResponse.forbidden(e.getMessage());
         } catch (Exception e) {
             logger.error("Unhandled error in revokeApprovedStudentRole: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-EN-004 — list provisioning requests for a student.
+     */
+    public HttpResponse listProvisioningRequests(Map<String, String> headers, String idParam) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID studentId = UUID.fromString(idParam);
+            return HttpResponse.ok(objectMapper.writeValueAsString(
+                    studentDomainService.listProvisioningRequests(context, studentId)));
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid student UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in listProvisioningRequests: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-EN-004 / US-005 — retry a FAILED provisioning request.
+     * Body: {@code {"requestId":"..."}}
+     */
+    public HttpResponse retryFailedProvisioning(Map<String, String> headers, String idParam, String body) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID studentId = UUID.fromString(idParam);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> payload = body == null || body.trim().isEmpty()
+                    ? Collections.<String, Object>emptyMap()
+                    : objectMapper.readValue(body, Map.class);
+            Object requestIdRaw = payload.get("requestId");
+            if (requestIdRaw == null || requestIdRaw.toString().trim().isEmpty()) {
+                return HttpResponse.badRequest("requestId is required");
+            }
+            ProvisioningRequestRecord row = studentDomainService.retryFailedProvisioningRequest(
+                    context, studentId, UUID.fromString(requestIdRaw.toString().trim()));
+            return HttpResponse.ok(objectMapper.writeValueAsString(row));
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in retryFailedProvisioning: {}", e.getMessage(), e);
             return HttpResponse.internalServerError(e.getMessage());
         }
     }

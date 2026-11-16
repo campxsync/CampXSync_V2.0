@@ -1304,16 +1304,101 @@ public class StudentDomainService {
         StudentEntity student = studentRepository.findById(context, studentId)
                 .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
 
-        UUID requestId = studentRepository.saveProvisioningRequest(context, studentId, requestedIamUserId);
+        // STM-07-EN-004 — idempotent: reuse open REQUESTED row instead of inserting duplicates
+        Optional<ProvisioningRequestRecord> open =
+                studentRepository.findOpenProvisioningRequest(context, studentId);
+        UUID requestId;
+        boolean replayed = false;
+        if (open.isPresent()) {
+            requestId = open.get().getId();
+            replayed = true;
+        } else {
+            requestId = studentRepository.saveProvisioningRequest(context, studentId, requestedIamUserId);
+        }
 
-        publishOutboxEvent(context, student.getId(), "student.provisioning.requested.v1", String.format(
-                "{\"studentId\":\"%s\",\"enrollmentNo\":\"%s\",\"tenantId\":\"%s\",\"requestId\":\"%s\"}",
-                student.getId(), student.getEnrollmentNo(), context.getTenantId(), requestId
+        if (!replayed) {
+            publishOutboxEvent(context, student.getId(), "student.provisioning.requested.v1", String.format(
+                    "{\"studentId\":\"%s\",\"enrollmentNo\":\"%s\",\"tenantId\":\"%s\",\"requestId\":\"%s\"}",
+                    student.getId(), student.getEnrollmentNo(), context.getTenantId(), requestId
+            ));
+            recordPrivilegedAuditAction(context, "IAM_PROVISIONING_REQUESTED", studentId,
+                    Collections.singletonList("provisioning"), "Provisioning request " + requestId);
+        }
+
+        logger.info("Requested IAM provisioning for student [{}] requestId={} replayed={}",
+                studentId, requestId, replayed);
+    }
+
+    /**
+     * STM-07-EN-004 / US-005 — retry a FAILED provisioning request (re-opens as REQUESTED).
+     */
+    public ProvisioningRequestRecord retryFailedProvisioningRequest(UserSecurityContext context,
+                                                                    UUID studentId,
+                                                                    UUID requestId) {
+        assertTenantContext(context);
+        assertCanManageAccountProvisioning(context);
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        ProvisioningRequestRecord row = studentRepository.findProvisioningRequestById(context, requestId)
+                .orElseThrow(() -> new StudentNotFoundException("Provisioning request not found: " + requestId));
+        if (!studentId.equals(row.getStudentId())) {
+            throw new StudentSecurityViolationException("Provisioning request does not belong to this student.");
+        }
+        if (!"FAILED".equalsIgnoreCase(row.getRequestStatus())) {
+            throw new StudentValidationException("Only FAILED provisioning requests can be retried");
+        }
+        if (student.getIamUserId() != null) {
+            throw new StudentValidationException("Student is already linked; retry is not allowed");
+        }
+        studentRepository.updateProvisioningRequestStatus(context, requestId, "REQUESTED", null);
+        publishOutboxEvent(context, student.getId(), "student.provisioning.retry.v1", String.format(
+                "{\"studentId\":\"%s\",\"requestId\":\"%s\"}", student.getId(), requestId
         ));
+        recordPrivilegedAuditAction(context, "IAM_PROVISIONING_RETRY", studentId,
+                Collections.singletonList("provisioning"), "Retry provisioning request " + requestId);
+        return studentRepository.findProvisioningRequestById(context, requestId)
+                .orElseThrow(() -> new StudentNotFoundException("Provisioning request not found after retry"));
+    }
 
-        logger.info("Requested IAM provisioning for student [{}] requestId={}", studentId, requestId);
-        recordPrivilegedAuditAction(context, "IAM_PROVISIONING_REQUESTED", studentId,
-                Collections.singletonList("provisioning"), "Provisioning request " + requestId);
+    /**
+     * STM-07-EN-004 — mark provisioning FAILED for reconciliation (IAM operator path).
+     */
+    public void markProvisioningFailed(UserSecurityContext context, UUID studentId, UUID requestId, String reason) {
+        assertTenantContext(context);
+        assertCanManageAccountProvisioning(context);
+        ProvisioningRequestRecord row = studentRepository.findProvisioningRequestById(context, requestId)
+                .orElseThrow(() -> new StudentNotFoundException("Provisioning request not found: " + requestId));
+        if (!studentId.equals(row.getStudentId())) {
+            throw new StudentSecurityViolationException("Provisioning request does not belong to this student.");
+        }
+        studentRepository.updateProvisioningRequestStatus(context, requestId, "FAILED",
+                reason == null ? "UNSPECIFIED" : reason);
+        recordPrivilegedAuditAction(context, "IAM_PROVISIONING_FAILED", studentId,
+                Collections.singletonList("provisioning"), "Marked failed: " + reason);
+    }
+
+    /**
+     * STM-07-EN-004 — mark provisioning COMPLETED after successful IAM link reconciliation.
+     */
+    public void markProvisioningCompleted(UserSecurityContext context, UUID studentId, UUID requestId) {
+        assertTenantContext(context);
+        assertCanManageAccountProvisioning(context);
+        ProvisioningRequestRecord row = studentRepository.findProvisioningRequestById(context, requestId)
+                .orElseThrow(() -> new StudentNotFoundException("Provisioning request not found: " + requestId));
+        if (!studentId.equals(row.getStudentId())) {
+            throw new StudentSecurityViolationException("Provisioning request does not belong to this student.");
+        }
+        studentRepository.updateProvisioningRequestStatus(context, requestId, "COMPLETED", null);
+        recordPrivilegedAuditAction(context, "IAM_PROVISIONING_COMPLETED", studentId,
+                Collections.singletonList("provisioning"), "Marked completed " + requestId);
+    }
+
+    public List<ProvisioningRequestRecord> listProvisioningRequests(UserSecurityContext context, UUID studentId) {
+        assertTenantContext(context);
+        assertCanManageAccountProvisioning(context);
+        studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        return studentRepository.listProvisioningRequests(context, studentId);
     }
 
     /**

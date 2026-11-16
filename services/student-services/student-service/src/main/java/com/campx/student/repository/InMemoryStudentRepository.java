@@ -2,6 +2,7 @@ package com.campx.student.repository;
 
 import com.campx.student.model.CursorPagedResult;
 import com.campx.student.model.PersonEntity;
+import com.campx.student.model.ProvisioningRequestRecord;
 import com.campx.student.model.StudentEntity;
 import com.campx.student.model.StudentRosterItem;
 import com.campx.student.model.StudentRosterQuery;
@@ -21,7 +22,8 @@ public class InMemoryStudentRepository implements StudentRepository {
 
     // Key: tenantId + ":" + studentId
     private final Map<String, StudentEntity> store = new ConcurrentHashMap<>();
-    private final Map<String, List<UUID>> provisioningByStudent = new ConcurrentHashMap<>();
+    /** Key: tenantId + ":" + requestId */
+    private final Map<String, ProvisioningRequestRecord> provisioningById = new ConcurrentHashMap<>();
     private final PersonRepository personRepository;
 
     public InMemoryStudentRepository() {
@@ -212,19 +214,86 @@ public class InMemoryStudentRepository implements StudentRepository {
             throw new IllegalArgumentException("studentId cannot be null");
         }
         UUID requestId = UUID.randomUUID();
-        String k = key(context.getTenantId(), studentId);
-        provisioningByStudent.computeIfAbsent(k, ignored -> Collections.synchronizedList(new ArrayList<UUID>()))
-                .add(requestId);
+        ProvisioningRequestRecord row = new ProvisioningRequestRecord();
+        row.setId(requestId);
+        row.setStudentId(studentId);
+        row.setRequestedIamUserId(requestedIamUserId);
+        row.setRequestStatus("REQUESTED");
+        row.setRequestedAt(OffsetDateTime.now());
+        provisioningById.put(key(context.getTenantId(), requestId), row);
         return requestId;
     }
 
     @Override
     public long countProvisioningRequests(UserSecurityContext context, UUID studentId) {
-        if (studentId == null) {
-            return 0L;
+        return listProvisioningRequests(context, studentId).size();
+    }
+
+    @Override
+    public Optional<ProvisioningRequestRecord> findOpenProvisioningRequest(UserSecurityContext context, UUID studentId) {
+        for (ProvisioningRequestRecord row : listProvisioningRequests(context, studentId)) {
+            if ("REQUESTED".equalsIgnoreCase(row.getRequestStatus())) {
+                return Optional.of(row);
+            }
         }
-        List<UUID> list = provisioningByStudent.get(key(context.getTenantId(), studentId));
-        return list == null ? 0L : list.size();
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<ProvisioningRequestRecord> findProvisioningRequestById(UserSecurityContext context, UUID requestId) {
+        if (requestId == null || context == null || context.getTenantId() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(provisioningById.get(key(context.getTenantId(), requestId)));
+    }
+
+    @Override
+    public List<ProvisioningRequestRecord> listProvisioningRequests(UserSecurityContext context, UUID studentId) {
+        if (studentId == null || context == null || context.getTenantId() == null) {
+            return Collections.emptyList();
+        }
+        List<ProvisioningRequestRecord> list = new ArrayList<ProvisioningRequestRecord>();
+        for (Map.Entry<String, ProvisioningRequestRecord> e : provisioningById.entrySet()) {
+            if (!e.getKey().startsWith(context.getTenantId().toString() + ":")) {
+                continue;
+            }
+            ProvisioningRequestRecord row = e.getValue();
+            if (studentId.equals(row.getStudentId())) {
+                list.add(row);
+            }
+        }
+        list.sort(new Comparator<ProvisioningRequestRecord>() {
+            @Override
+            public int compare(ProvisioningRequestRecord a, ProvisioningRequestRecord b) {
+                OffsetDateTime at = a.getRequestedAt();
+                OffsetDateTime bt = b.getRequestedAt();
+                if (at == null && bt == null) return 0;
+                if (at == null) return 1;
+                if (bt == null) return -1;
+                return bt.compareTo(at);
+            }
+        });
+        return list;
+    }
+
+    @Override
+    public void updateProvisioningRequestStatus(UserSecurityContext context, UUID requestId, String status,
+                                                String failureReason) {
+        Optional<ProvisioningRequestRecord> opt = findProvisioningRequestById(context, requestId);
+        if (!opt.isPresent()) {
+            return;
+        }
+        ProvisioningRequestRecord row = opt.get();
+        row.setRequestStatus(status);
+        row.setFailureReason(failureReason);
+        if ("COMPLETED".equalsIgnoreCase(status) || "FAILED".equalsIgnoreCase(status)) {
+            row.setCompletedAt(OffsetDateTime.now());
+        }
+        if ("REQUESTED".equalsIgnoreCase(status)) {
+            row.setCompletedAt(null);
+            row.setFailureReason(null);
+            row.setRequestedAt(OffsetDateTime.now());
+        }
     }
 
     @Override
