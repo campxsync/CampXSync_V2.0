@@ -1295,4 +1295,49 @@ End of batch (size 4 + US-013 filled after US-008/009 blocked). **No push.**
 - Catalogue code for R25 is `STUDENT` in `iam.roles` (no schema change).
 - `identity-service` remains scaffold-only; IAM work landed on `institute-admin-service` (existing `iam.*` owner), per B2-D3.
 - No new tables. `iam.role_assignments` already RLS-enabled (not FORCE; no DDL applied).
+- Commit: `2675dea` (pair commit for US-008 + US-009 per D3).
 
+### US-001 reconcile
+
+| Clause | Status |
+|---|---|
+| Link eligible student to IAM identity | covered |
+| Staff RBAC + Path C delegation | covered |
+| Duplicate / already-linked guards | covered |
+| verificationStatus=VERIFIED eligibility gate | **UNCOVERED** → US-001 marked **partially completed** |
+
+
+## Entry 36 — STM-07-EN-002 existing IAM integration (2026-11-16)
+
+**Host:** student-service. **No push.**
+**Status:** completed
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| No local credential/password APIs | `StudentDomainService` method scan | `stm07En002_domainServiceHasNoLocalCredentialOrRoleApis` |
+| No local role-assignment store | field scan + `iamStudentRolePort` | `stm07En002_noLocalRoleAssignmentFieldOnDomainService` |
+| Role changes via IAM port only | `assignApprovedStudentRole` | `stm07En002_roleAssignGoesThroughIamPortOnly` |
+| Fail closed without IAM | `FailClosedIamStudentRolePort` | `stm07En002_failClosedWhenIamPortUnavailable` |
+
+### Tests
+`mvn test -pl services/student-services/student-service -Dtest=Stm07En002IamIntegrationGuardTest` → **4/0**
+
+## Entry 37 — STM-07-EN-004 idempotent provisioning recovery (2026-11-16)
+
+**Host:** student-service. **No push.**
+**Status:** completed
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Idempotent open REQUESTED reuse | `requestAccountProvisioning` | `stm07En004_idempotentProvisioningDoesNotDuplicateOpenRequest` |
+| Retry FAILED → REQUESTED | `retryFailedProvisioningRequest` | `stm07En004_retryFailedRequestReopensRequested` |
+| Reject retry of non-FAILED | same | `stm07En004_cannotRetryNonFailedRequest` |
+| Mark COMPLETED reconciliation | `markProvisioningCompleted` | `stm07En004_markCompletedForReconciliation` |
+| Faculty denied retry | account gate | `stm07En004_facultyDeniedRetry` |
+
+### Tests
+`mvn test -pl services/student-services/student-service -Dtest=Stm07En004ProvisioningRecoveryTest` → **5/0**
