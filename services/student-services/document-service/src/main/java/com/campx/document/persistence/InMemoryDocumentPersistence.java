@@ -31,6 +31,8 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
     private final Map<UUID, List<DocumentDomainService.DocumentLink>> linkStorage = new ConcurrentHashMap<UUID, List<DocumentDomainService.DocumentLink>>();
     private final Map<UUID, List<DocumentDomainService.DocumentVerificationRecord>> verifStorage = new ConcurrentHashMap<UUID, List<DocumentDomainService.DocumentVerificationRecord>>();
     private final Map<UUID, List<DocumentDomainService.DocumentAccessLog>> accessStorage = new ConcurrentHashMap<UUID, List<DocumentDomainService.DocumentAccessLog>>();
+    private final Map<UUID, DocumentDomainService.DocumentExpiryNotification> notificationStorage =
+            new ConcurrentHashMap<UUID, DocumentDomainService.DocumentExpiryNotification>();
 
     @Override
     public void saveDocumentType(Actor actor, DocumentType type) {
@@ -613,6 +615,74 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
             }
         }
         return paths;
+    }
+
+    @Override
+    public List<DocumentDomainService.DocumentExpiryNotification> listExpiryNotifications(Actor actor) {
+        List<DocumentDomainService.DocumentExpiryNotification> result =
+                new ArrayList<DocumentDomainService.DocumentExpiryNotification>();
+        for (DocumentDomainService.DocumentExpiryNotification notification : notificationStorage.values()) {
+            if (notification.tenantId.equals(actor.getTenantId())
+                    && notification.userId.equals(actor.getUserId())) {
+                result.add(notification);
+            }
+        }
+        Collections.sort(result, new Comparator<DocumentDomainService.DocumentExpiryNotification>() {
+            @Override
+            public int compare(DocumentDomainService.DocumentExpiryNotification o1,
+                               DocumentDomainService.DocumentExpiryNotification o2) {
+                return o2.createdAt.compareTo(o1.createdAt);
+            }
+        });
+        return result;
+    }
+
+    @Override
+    public void upsertExpiryNotification(Actor actor, DocumentDomainService.DocumentExpiryNotification notification) {
+        if (notification == null || actor == null) {
+            return;
+        }
+        for (DocumentDomainService.DocumentExpiryNotification existing : notificationStorage.values()) {
+            if (existing.tenantId.equals(notification.tenantId)
+                    && existing.userId.equals(notification.userId)
+                    && existing.documentId.equals(notification.documentId)
+                    && existing.type.equals(notification.type)) {
+                return;
+            }
+        }
+        notificationStorage.put(notification.id, notification);
+    }
+
+    @Override
+    public DocumentDomainService.DocumentExpiryNotification findExpiryNotificationById(Actor actor, UUID notificationId) {
+        DocumentDomainService.DocumentExpiryNotification existing = notificationStorage.get(notificationId);
+        if (existing == null) {
+            return null;
+        }
+        if (!existing.tenantId.equals(actor.getTenantId()) || !existing.userId.equals(actor.getUserId())) {
+            return null;
+        }
+        return existing;
+    }
+
+    @Override
+    public DocumentDomainService.DocumentExpiryNotification markExpiryNotificationRead(Actor actor, UUID notificationId) {
+        DocumentDomainService.DocumentExpiryNotification existing = findExpiryNotificationById(actor, notificationId);
+        if (existing == null) {
+            return null;
+        }
+        DocumentDomainService.DocumentExpiryNotification marked =
+                new DocumentDomainService.DocumentExpiryNotification(
+                        existing.id,
+                        existing.tenantId,
+                        existing.userId,
+                        existing.type,
+                        existing.documentId,
+                        existing.expiresAt,
+                        true,
+                        existing.createdAt);
+        notificationStorage.put(marked.id, marked);
+        return marked;
     }
 }
 

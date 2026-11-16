@@ -1,18 +1,18 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (EN-002 live Dev orphan cleanup DONE 12/12; EN-003 live AV still gated)
+**Updated:** 2026-11-16 (STM-06-US-015 notification DDL + persistence completed; EN-003 live AV still gated)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
 | R31-SoD (1e) | **tested** (`dfc6788`) |
-| STM-CROSS-EN-010 | **partially completed** (`7a41325`); e2e harness **BLOCKED** |
+| STM-CROSS-EN-010 | **partially completed** (`7a41325`); e2e harness **NEXT** |
 | STM-06-US-010 | **tested** (`0b1f73d`) |
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |
-| STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
+| STM-06-US-015 | **completed** — `doc.document_expiry_notifications` on Dev + persistence (suite 139/0) |
 | IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
 | STM-06-EN-002 | **completed** — live Storage + 1b/1c + orphan API + **live Dev orphan cleanup** (`azulbaxszsqxymqmlwfe`, 12/12) |
 | STM-06-EN-003 | **partially completed** — fail-closed lifecycle + content heuristic DONE; live commercial AV gated (D11 / new tool) |
@@ -29,9 +29,9 @@
 
 - No Kafka invent (CROSS-EN-007 held).
 - Malware: controlled content/heuristic scanner + fail-closed states DONE; live commercial AV deferred (new tool).
-- No unapproved DDL; scan outcomes via `doc.document_links`.
-- Cross-tenant penetration suite still not run.
-- **Awaiting owner `APPROVED …` / `APPROVED … COMMIT`.**
+- Scan outcomes via `doc.document_links`. US-015 notification DDL applied on Dev only.
+- Cross-tenant penetration suite still not run (authorized; queued after CROSS-EN-010 / readiness).
+- Master owner auth (2026-11-16): continue non-infra work without routine re-approval; no push unless separately authorized.
 
 ## Canonical files
 

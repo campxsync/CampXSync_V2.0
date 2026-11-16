@@ -2720,6 +2720,25 @@ public class DocumentDomainServiceTest {
         }
     }
 
+    @Test
+    public void stm06Us015_duplicateNotificationNotCreated() {
+        Instant soon = Instant.now().plus(9, ChronoUnit.DAYS);
+        StudentDocument doc = uploadExpiringDocument("DOC-EXP-DUP", soon, campusA);
+        service.listExpiringDocuments(registrarTenantA, 30);
+        service.listInAppNotifications(registrarTenantA);
+        service.listExpiringDocuments(registrarTenantA, 30);
+        List<DocumentDomainService.DocumentExpiryNotification> notifications =
+                service.listInAppNotifications(registrarTenantA);
+        int matches = 0;
+        for (DocumentDomainService.DocumentExpiryNotification n : notifications) {
+            if (doc.id.equals(n.documentId)
+                    && DocumentDomainService.NOTIFICATION_DOCUMENT_EXPIRING.equals(n.type)) {
+                matches++;
+            }
+        }
+        assertEquals(1, matches);
+    }
+
     // --- STM-06-US-006 Update document metadata ---
 
     private StudentDocument uploadMetadataDoc(String code, String title) {

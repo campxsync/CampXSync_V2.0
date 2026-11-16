@@ -165,5 +165,28 @@ public interface DocumentPersistence {
      * Any status (active, pending, rejected, archived) is treated as a live reference.
      */
     Set<String> listReferencedStoragePaths(Actor actor);
+
+    /**
+     * Lists in-app document-expiry notifications for the calling registrar (STM-06-US-015).
+     * Scoped to {@code tenant_id} + {@code user_id}.
+     */
+    List<DocumentDomainService.DocumentExpiryNotification> listExpiryNotifications(Actor actor);
+
+    /**
+     * Inserts an expiry notification when no active duplicate exists for
+     * (tenant, user, document, type). Duplicate calls are no-ops (STM-06-US-015).
+     */
+    void upsertExpiryNotification(Actor actor, DocumentDomainService.DocumentExpiryNotification notification);
+
+    /**
+     * Finds one expiry notification by id for the calling user within the tenant.
+     */
+    DocumentDomainService.DocumentExpiryNotification findExpiryNotificationById(Actor actor, UUID notificationId);
+
+    /**
+     * Marks an expiry notification as read for the calling user within the tenant.
+     * Returns the updated row, or {@code null} when not found / wrong recipient.
+     */
+    DocumentDomainService.DocumentExpiryNotification markExpiryNotificationRead(Actor actor, UUID notificationId);
 }
 

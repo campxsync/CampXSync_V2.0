@@ -1276,5 +1276,174 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
                     }
                 });
     }
+
+    @Override
+    public List<DocumentDomainService.DocumentExpiryNotification> listExpiryNotifications(final Actor actor) {
+        return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<List<DocumentDomainService.DocumentExpiryNotification>>() {
+                    @Override
+                    public List<DocumentDomainService.DocumentExpiryNotification> execute(Connection conn)
+                            throws SQLException {
+                        String sql = "SELECT id, tenant_id, user_id, notification_type, document_id, "
+                                + "document_expires_at, read_at, created_at "
+                                + "FROM doc.document_expiry_notifications "
+                                + "WHERE tenant_id = ? AND user_id = ? AND deleted_at IS NULL "
+                                + "ORDER BY created_at DESC";
+                        List<DocumentDomainService.DocumentExpiryNotification> list =
+                                new ArrayList<DocumentDomainService.DocumentExpiryNotification>();
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setObject(1, actor.getTenantId());
+                            ps.setObject(2, actor.getUserId());
+                            try (ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    list.add(mapExpiryNotification(rs));
+                                }
+                            }
+                        }
+                        return list;
+                    }
+                });
+    }
+
+    @Override
+    public void upsertExpiryNotification(final Actor actor,
+                                         final DocumentDomainService.DocumentExpiryNotification notification) {
+        DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<Void>() {
+                    @Override
+                    public Void execute(Connection conn) throws SQLException {
+                        String existsSql = "SELECT 1 FROM doc.document_expiry_notifications "
+                                + "WHERE tenant_id = ? AND user_id = ? AND document_id = ? "
+                                + "AND notification_type = ? AND deleted_at IS NULL LIMIT 1";
+                        try (PreparedStatement existsPs = conn.prepareStatement(existsSql)) {
+                            existsPs.setObject(1, notification.tenantId);
+                            existsPs.setObject(2, notification.userId);
+                            existsPs.setObject(3, notification.documentId);
+                            existsPs.setString(4, notification.type);
+                            try (ResultSet rs = existsPs.executeQuery()) {
+                                if (rs.next()) {
+                                    return null;
+                                }
+                            }
+                        }
+                        String insertSql = "INSERT INTO doc.document_expiry_notifications "
+                                + "(id, tenant_id, college_id, user_id, document_id, notification_type, "
+                                + "document_expires_at, read_at, created_at, updated_at, created_by, row_version) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)";
+                        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                            ps.setObject(1, notification.id);
+                            ps.setObject(2, notification.tenantId);
+                            ps.setObject(3, actor.getCollegeId());
+                            ps.setObject(4, notification.userId);
+                            ps.setObject(5, notification.documentId);
+                            ps.setString(6, notification.type);
+                            if (notification.expiresAt != null) {
+                                ps.setTimestamp(7, Timestamp.from(notification.expiresAt));
+                            } else {
+                                ps.setTimestamp(7, null);
+                            }
+                            ps.setTimestamp(8, Timestamp.from(notification.createdAt != null
+                                    ? notification.createdAt : Instant.now()));
+                            ps.setTimestamp(9, Timestamp.from(Instant.now()));
+                            ps.setObject(10, actor.getUserId());
+                            ps.executeUpdate();
+                        } catch (SQLException e) {
+                            // Unique index race: treat as idempotent duplicate.
+                            if (e.getSQLState() != null && e.getSQLState().startsWith("23")) {
+                                logger.warn("Duplicate expiry notification ignored for document "
+                                        + notification.documentId);
+                                return null;
+                            }
+                            throw e;
+                        }
+                        return null;
+                    }
+                });
+    }
+
+    @Override
+    public DocumentDomainService.DocumentExpiryNotification findExpiryNotificationById(final Actor actor,
+                                                                                      final UUID notificationId) {
+        return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<DocumentDomainService.DocumentExpiryNotification>() {
+                    @Override
+                    public DocumentDomainService.DocumentExpiryNotification execute(Connection conn)
+                            throws SQLException {
+                        String sql = "SELECT id, tenant_id, user_id, notification_type, document_id, "
+                                + "document_expires_at, read_at, created_at "
+                                + "FROM doc.document_expiry_notifications "
+                                + "WHERE tenant_id = ? AND user_id = ? AND id = ? AND deleted_at IS NULL";
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setObject(1, actor.getTenantId());
+                            ps.setObject(2, actor.getUserId());
+                            ps.setObject(3, notificationId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) {
+                                    return mapExpiryNotification(rs);
+                                }
+                            }
+                        }
+                        return null;
+                    }
+                });
+    }
+
+    @Override
+    public DocumentDomainService.DocumentExpiryNotification markExpiryNotificationRead(final Actor actor,
+                                                                                      final UUID notificationId) {
+        return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<DocumentDomainService.DocumentExpiryNotification>() {
+                    @Override
+                    public DocumentDomainService.DocumentExpiryNotification execute(Connection conn)
+                            throws SQLException {
+                        String updateSql = "UPDATE doc.document_expiry_notifications "
+                                + "SET read_at = COALESCE(read_at, now()), updated_at = now(), "
+                                + "updated_by = ?, row_version = row_version + 1 "
+                                + "WHERE tenant_id = ? AND user_id = ? AND id = ? AND deleted_at IS NULL";
+                        try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                            ps.setObject(1, actor.getUserId());
+                            ps.setObject(2, actor.getTenantId());
+                            ps.setObject(3, actor.getUserId());
+                            ps.setObject(4, notificationId);
+                            int updated = ps.executeUpdate();
+                            if (updated < 1) {
+                                return null;
+                            }
+                        }
+                        String selectSql = "SELECT id, tenant_id, user_id, notification_type, document_id, "
+                                + "document_expires_at, read_at, created_at "
+                                + "FROM doc.document_expiry_notifications "
+                                + "WHERE tenant_id = ? AND user_id = ? AND id = ? AND deleted_at IS NULL";
+                        try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                            ps.setObject(1, actor.getTenantId());
+                            ps.setObject(2, actor.getUserId());
+                            ps.setObject(3, notificationId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) {
+                                    return mapExpiryNotification(rs);
+                                }
+                            }
+                        }
+                        return null;
+                    }
+                });
+    }
+
+    private static DocumentDomainService.DocumentExpiryNotification mapExpiryNotification(ResultSet rs)
+            throws SQLException {
+        Timestamp expiresTs = rs.getTimestamp("document_expires_at");
+        Timestamp createdTs = rs.getTimestamp("created_at");
+        Timestamp readTs = rs.getTimestamp("read_at");
+        return new DocumentDomainService.DocumentExpiryNotification(
+                (UUID) rs.getObject("id"),
+                (UUID) rs.getObject("tenant_id"),
+                (UUID) rs.getObject("user_id"),
+                rs.getString("notification_type"),
+                (UUID) rs.getObject("document_id"),
+                expiresTs != null ? expiresTs.toInstant() : null,
+                readTs != null,
+                createdTs != null ? createdTs.toInstant() : Instant.now()
+        );
+    }
 }
 

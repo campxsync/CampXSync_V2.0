@@ -83,8 +83,6 @@ public class DocumentDomainService {
     private final SignedDownloadTokenService signedDownloadTokenService;
     private final DocumentObjectStorage objectStorage;
     private final DelegationPort delegationPort;
-    private final List<DocumentExpiryNotification> documentExpiryNotifications =
-            Collections.synchronizedList(new ArrayList<DocumentExpiryNotification>());
     private final ConcurrentHashMap<UUID, Object> scanLocks = new ConcurrentHashMap<UUID, Object>();
     private final AtomicLong scanEventClock = new AtomicLong();
 
@@ -425,7 +423,8 @@ public class DocumentDomainService {
     }
 
     /**
-     * In-app notification for registrar document expiry (STM-06-US-015). Not email/SMS/push.
+     * Persisted in-app notification for registrar document expiry (STM-06-US-015).
+     * Stored in {@code doc.document_expiry_notifications}. Not email/SMS/push.
      */
     public static class DocumentExpiryNotification {
         public final UUID id;
@@ -434,7 +433,7 @@ public class DocumentDomainService {
         public final String type;
         public final UUID documentId;
         public final Instant expiresAt;
-        public boolean read;
+        public final boolean read;
         public final Instant createdAt;
 
         public DocumentExpiryNotification(UUID id, UUID tenantId, UUID userId, String type,
@@ -1393,22 +1392,13 @@ public class DocumentDomainService {
     }
 
     /**
-     * STM-06-US-015: In-app expiry notifications for the calling registrar.
+     * STM-06-US-015: In-app expiry notifications for the calling registrar (PostgreSQL).
      */
     public List<DocumentExpiryNotification> listInAppNotifications(Actor actor) {
         requireCaller(actor);
         requireRegistrarCampus(actor);
         syncExpiryNotifications(actor, DEFAULT_EXPIRY_WINDOW_DAYS);
-        List<DocumentExpiryNotification> result = new ArrayList<DocumentExpiryNotification>();
-        synchronized (documentExpiryNotifications) {
-            for (DocumentExpiryNotification notification : documentExpiryNotifications) {
-                if (notification.tenantId.equals(actor.getTenantId())
-                        && notification.userId.equals(actor.getUserId())) {
-                    result.add(notification);
-                }
-            }
-        }
-        return result;
+        return persistence.listExpiryNotifications(actor);
     }
 
     /**
@@ -1420,20 +1410,15 @@ public class DocumentDomainService {
         if (notificationId == null) {
             throw new DocumentException(422, "NOTIFICATION_ID_REQUIRED", "notificationId is required");
         }
-        synchronized (documentExpiryNotifications) {
-            for (DocumentExpiryNotification notification : documentExpiryNotifications) {
-                if (!notification.id.equals(notificationId)) {
-                    continue;
-                }
-                if (!notification.tenantId.equals(actor.getTenantId())
-                        || !notification.userId.equals(actor.getUserId())) {
-                    throw new DocumentException(404, "NOTIFICATION_NOT_FOUND", "Notification not found");
-                }
-                notification.read = true;
-                return notification;
-            }
+        DocumentExpiryNotification existing = persistence.findExpiryNotificationById(actor, notificationId);
+        if (existing == null) {
+            throw new DocumentException(404, "NOTIFICATION_NOT_FOUND", "Notification not found");
         }
-        throw new DocumentException(404, "NOTIFICATION_NOT_FOUND", "Notification not found");
+        DocumentExpiryNotification marked = persistence.markExpiryNotificationRead(actor, notificationId);
+        if (marked == null) {
+            throw new DocumentException(404, "NOTIFICATION_NOT_FOUND", "Notification not found");
+        }
+        return marked;
     }
 
     /**
@@ -1576,30 +1561,16 @@ public class DocumentDomainService {
         UUID tenantId = actor.getTenantId();
         UUID userId = actor.getUserId();
         Instant now = Instant.now();
-        synchronized (documentExpiryNotifications) {
-            for (StudentDocument doc : expiring) {
-                boolean exists = false;
-                for (DocumentExpiryNotification existing : documentExpiryNotifications) {
-                    if (existing.tenantId.equals(tenantId)
-                            && existing.userId.equals(userId)
-                            && existing.documentId.equals(doc.id)
-                            && NOTIFICATION_DOCUMENT_EXPIRING.equals(existing.type)) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
-                    documentExpiryNotifications.add(new DocumentExpiryNotification(
-                            UUID.randomUUID(),
-                            tenantId,
-                            userId,
-                            NOTIFICATION_DOCUMENT_EXPIRING,
-                            doc.id,
-                            doc.expiresAt,
-                            false,
-                            now));
-                }
-            }
+        for (StudentDocument doc : expiring) {
+            persistence.upsertExpiryNotification(actor, new DocumentExpiryNotification(
+                    UUID.randomUUID(),
+                    tenantId,
+                    userId,
+                    NOTIFICATION_DOCUMENT_EXPIRING,
+                    doc.id,
+                    doc.expiresAt,
+                    false,
+                    now));
         }
     }
 

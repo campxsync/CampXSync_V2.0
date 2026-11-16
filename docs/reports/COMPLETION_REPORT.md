@@ -1035,3 +1035,42 @@ EN-002 remains **completed** (live cleanup note appended). EN-003 unchanged (**p
 
 ### Stop
 Await next owner pickup. **No push.** EN-003 live AV still blocked.
+
+---
+
+## Entry 28 — STM-06-US-015 notification DDL + persistence (2026-11-16)
+
+**Task ID:** STM-06-US-015  
+**Owner authorization:** Master non-infra clearance (apply notification DDL on Dev `azulbaxszsqxymqmlwfe`).  
+**Status:** **completed**. Local commit only; **no push**.
+
+### Implementation
+- Migration: `database/migrations/20261116000100_create_doc_document_expiry_notifications.sql`
+- Applied via Supabase MCP `apply_migration` → table `doc.document_expiry_notifications`
+- FORCE RLS + policies (select/insert/update) requiring `doc.view`, tenant match, `user_id = auth.uid()`
+- Unique active row: `(tenant_id, user_id, document_id, notification_type)`
+- Domain: removed process-local list; `DocumentPersistence` upsert/list/find/mark-read on Postgres + InMemory
+
+### Acceptance → code → tests
+| Criterion | Code | Test |
+|---|---|---|
+| Registrar sees expiring docs + in-app notifications | `listExpiringDocuments` / `listInAppNotifications` | `stm06Us015_registrarSeesExpiringAndInAppNotifications` |
+| Persist notifications (DDL) | `doc.document_expiry_notifications` + Postgres upsert | migration evidence JSON; suite green |
+| Duplicate suppressed | `upsertExpiryNotification` | `stm06Us015_duplicateNotificationNotCreated` |
+| Mark read own only | `markNotificationRead` | `stm06Us015_markNotificationRead` |
+| Student/faculty denied | `requireRegistrarCampus` | `stm06Us015_studentDenied` / `_facultyDenied` |
+| Tenant / campus isolation | persistence + campus filter | `stm06Us015_wrongTenantEmpty` / `_otherCampusExcludedFromExpiringList` |
+
+### Tests
+- `mvn test -pl services/student-services/document-service` → **139 run, 0 fail, 0 error**
+
+### Evidence
+- `docs/reports/STM06_US015_NOTIFICATION_DDL_2026-11-16.json`
+
+### CSV / governance
+- CSV Implementation status → **completed**
+- `NEXT_TASK.md` → CROSS-EN-010 next
+- Still BLOCKED: EN-003 live AV; DEFERRED: CROSS-EN-007 Kafka
+
+### Stop
+Continue queue with STM-CROSS-EN-010 (authorized). **No push.**

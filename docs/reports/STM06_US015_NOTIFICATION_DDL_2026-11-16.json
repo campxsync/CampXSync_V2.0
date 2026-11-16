@@ -1,0 +1,60 @@
+{
+  "storyId": "STM-06-US-015",
+  "title": "Receive document-expiry notifications",
+  "date": "2026-11-16",
+  "project": {
+    "ref": "azulbaxszsqxymqmlwfe",
+    "name": "CampXSync-Architecture-Dev",
+    "environment": "development"
+  },
+  "migration": {
+    "name": "create_doc_document_expiry_notifications",
+    "file": "database/migrations/20261116000100_create_doc_document_expiry_notifications.sql",
+    "appliedVia": "supabase_apply_migration",
+    "success": true
+  },
+  "schemaVerification": {
+    "table": "doc.document_expiry_notifications",
+    "rls": true,
+    "forceRls": true,
+    "policyCount": 3,
+    "policies": [
+      "document_expiry_notifications_select",
+      "document_expiry_notifications_insert",
+      "document_expiry_notifications_update"
+    ],
+    "uniqueRecipientIndex": "uq_document_expiry_notifications_recipient_doc_type",
+    "fk": "fk_document_expiry_notifications_document (tenant_id, document_id) -> doc.documents(tenant_id, id)"
+  },
+  "implementation": {
+    "persistence": [
+      "DocumentPersistence.listExpiryNotifications",
+      "DocumentPersistence.upsertExpiryNotification",
+      "DocumentPersistence.findExpiryNotificationById",
+      "DocumentPersistence.markExpiryNotificationRead"
+    ],
+    "domain": [
+      "DocumentDomainService.listInAppNotifications",
+      "DocumentDomainService.markNotificationRead",
+      "DocumentDomainService.ensureExpiryNotifications"
+    ],
+    "removed": "process-local documentExpiryNotifications list"
+  },
+  "tests": {
+    "module": "services/student-services/document-service",
+    "total": 139,
+    "failures": 0,
+    "errors": 0,
+    "us015Focused": [
+      "stm06Us015_registrarSeesExpiringAndInAppNotifications",
+      "stm06Us015_studentDenied",
+      "stm06Us015_facultyDenied",
+      "stm06Us015_wrongTenantEmpty",
+      "stm06Us015_otherCampusExcludedFromExpiringList",
+      "stm06Us015_markNotificationRead",
+      "stm06Us015_duplicateNotificationNotCreated"
+    ]
+  },
+  "status": "completed",
+  "remainingGaps": []
+}
