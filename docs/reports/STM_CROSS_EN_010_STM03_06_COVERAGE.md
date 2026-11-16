@@ -10,12 +10,23 @@ Delivery-first vertical slice: **named, grep-discoverable** tenant-isolation and
 | STM-05 | `guardian-service` | `GuardianDomainServiceTest.stm05En002_crossTenantRegistrarCannotSeePilotGuardians` (`updateGuardian`) | `stmCrossEn010_crossTenantMutationDenied` (alias) | `stm05Us007_wrongRoleDenied` · `stmCrossEn010_wrongRoleDenied` (alias) | `stm05Us007_nullActorDenied` (401 `TENANT_REQUIRED`) | `stm05En002_crossTenantCannotGrantOrViewAccess`, `stm05Us007_crossTenantCannotDesignate`, live RLS in `LivePostgresGuardianPersistenceTest` |
 | STM-06 | `document-service` | `DocumentDomainServiceTest.stm06En004_crossTenantUploadDenied` | `stmCrossEn010_crossTenantMutationDenied` (alias) | `stm06Us010_unauthenticatedAndWrongRoleDenied` (faculty branch) · `stmCrossEn010_wrongRoleDenied` (alias) | `unauthenticatedCallerIsRejected`, `stm06En006_unauthenticatedRoleCannotConfigureTypes` | `crossTenantStudentUploadIsIsolated`, `LivePostgresStudentDocumentUploadTest` RLS read-back, verification cross-tenant in `LivePostgresDocumentVerificationTest` |
 
+## Cross-service E2E harness (2026-11-16)
+
+| Artifact | Path |
+|----------|------|
+| Harness | `scripts/demo/run_stm_cross_en_010_e2e.mjs` |
+| Stack runner | `scripts/demo/run_cross_en_010_stack.ps1` |
+| Evidence | `docs/reports/STM_CROSS_EN_010_E2E_2026-11-16.json` (**31/31 PASS**) |
+
+Covers: gateway health; STM-03..06 listen/health; Supabase JWT personas; `GATEWAY_MISSING_AUTH`; spoofed identity header rejection; registrar/student gateway reads; wrong-role denials; loopback HMAC cross-tenant document-types; Path C IAM active-check; service-failure detection probe.
+
 ## Gaps (honest)
 
-1. **No single harness** exercises UI → Gateway → all four services in one Playwright/JUnit flow for CROSS-EN-010.
-2. **STM-04** lacks an explicit unauthenticated negative in `LifecycleDomainServiceTest` (controller-only / future HTTP contract test).
+1. ~~No single harness~~ **Resolved** for Gateway → STM-03..06 HTTP E2E (Bearer JWT). Playwright UI desk tour remains optional / per-story demos.
+2. **STM-04** lacks an explicit unauthenticated negative in `LifecycleDomainServiceTest` (HTTP 401 covered by harness via gateway).
 3. **Live Postgres** suites require env JDBC; skipped locally when `campx.live.jdbc.url` is unset (documented in respective test classes).
 4. **STM-07..STM-10** not included in this slice.
+5. Full cross-tenant penetration matrix (broader IDOR) is a separate authorized follow-on.
 
 ## Discovery
 

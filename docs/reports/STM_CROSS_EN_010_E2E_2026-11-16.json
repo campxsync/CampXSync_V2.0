@@ -1,0 +1,172 @@
+{
+  "startedAt": "2026-11-16T08:33:07.915Z",
+  "task": "STM-CROSS-EN-010-e2e",
+  "gatewayBase": "http://127.0.0.1:8080",
+  "iamBase": "http://127.0.0.1:8081",
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "checks": [
+    {
+      "name": "api-gateway-health",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "service-health-enrollment",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "service-health-lifecycle",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "service-health-guardian",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "service-health-documents",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "iam-institute-admin-health",
+      "ok": true,
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "jwt-student1",
+      "ok": true,
+      "detail": "userIdPresent=true role=n/a"
+    },
+    {
+      "name": "jwt-registrar-pilot",
+      "ok": true,
+      "detail": "userIdMatch=true role=n/a"
+    },
+    {
+      "name": "jwt-faculty",
+      "ok": true,
+      "detail": "role=n/a"
+    },
+    {
+      "name": "gateway-missing-auth-enrollment",
+      "ok": true,
+      "detail": "HTTP 401 {\"timestamp\":1794817990020,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+    },
+    {
+      "name": "gateway-missing-auth-lifecycle",
+      "ok": true,
+      "detail": "HTTP 401 {\"timestamp\":1794817990026,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+    },
+    {
+      "name": "gateway-missing-auth-guardians",
+      "ok": true,
+      "detail": "HTTP 401 {\"timestamp\":1794817990031,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+    },
+    {
+      "name": "gateway-missing-auth-documents",
+      "ok": true,
+      "detail": "HTTP 401 {\"timestamp\":1794817990037,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+    },
+    {
+      "name": "gateway-rejects-spoofed-identity-headers",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-enrollment-terms",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-lifecycle-requests",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-lifecycle-student-status",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-guardians-student",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-documents-types",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-documents-verifications",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-documents-expiry-notifications",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "gw-student-document-submissions",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "gw-student-enrolments",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "gw-student-denied-verifications",
+      "ok": true,
+      "detail": "HTTP 403 {\"timestamp\":1794817995361,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"REGISTRAR_FORBIDDEN\",\"errorCode\""
+    },
+    {
+      "name": "gw-faculty-denied-expiry-notifications",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "name": "loopback-cross-tenant-document-types",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "pathc-allow-STM-03.ENROLMENT.A",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "pathc-allow-STM-04.LIFECYCLE.A",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "pathc-allow-STM-05.GUARDIAN.A",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "pathc-allow-STM-06.DOCUMENTS.A",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "service-failure-detection-probe",
+      "ok": true,
+      "detail": "connection failure detected: fetch failed"
+    }
+  ],
+  "endedAt": "2026-11-16T08:33:19.316Z",
+  "summary": {
+    "total": 31,
+    "passed": 31,
+    "failed": 0,
+    "failedNames": [],
+    "ok": true
+  }
+}

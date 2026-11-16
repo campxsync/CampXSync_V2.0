@@ -1,18 +1,18 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (STM-06-US-015 notification DDL + persistence completed; EN-003 live AV still gated)
+**Updated:** 2026-11-16 (CROSS-EN-010 E2E 31/31; US-015 completed; EN-003 live AV still gated)
 
 ## Scoreboard (session)
 
 | Lane | Status |
 |---|---|
 | R31-SoD (1e) | **tested** (`dfc6788`) |
-| STM-CROSS-EN-010 | **partially completed** (`7a41325`); e2e harness **NEXT** |
+| STM-CROSS-EN-010 | **completed** — Gateway Bearer E2E harness 31/31 (`STM_CROSS_EN_010_E2E_2026-11-16.json`) |
 | STM-06-US-010 | **tested** (`0b1f73d`) |
 | STM-05-US-007 | **tested** (`4b2154b`) |
 | STM-06-US-006 | **tested** (`24473ff`) |
-| STM-06-US-015 | **completed** — `doc.document_expiry_notifications` on Dev + persistence (suite 139/0) |
+| STM-06-US-015 | **completed** — `doc.document_expiry_notifications` on Dev + persistence (`5fd1f8a`, suite 139/0) |
 | IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
 | STM-06-EN-002 | **completed** — live Storage + 1b/1c + orphan API + **live Dev orphan cleanup** (`azulbaxszsqxymqmlwfe`, 12/12) |
 | STM-06-EN-003 | **partially completed** — fail-closed lifecycle + content heuristic DONE; live commercial AV gated (D11 / new tool) |

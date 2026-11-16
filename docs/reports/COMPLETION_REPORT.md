@@ -1074,3 +1074,42 @@ Await next owner pickup. **No push.** EN-003 live AV still blocked.
 
 ### Stop
 Continue queue with STM-CROSS-EN-010 (authorized). **No push.**
+
+---
+
+## Entry 29 — STM-CROSS-EN-010 cross-service E2E harness (2026-11-16)
+
+**Task ID:** STM-CROSS-EN-010  
+**Owner authorization:** Master non-infra clearance (E2E harness using existing gateway/services).  
+**Status:** **completed**. Local commit only; **no push**.
+
+### Implementation
+- `scripts/demo/run_stm_cross_en_010_e2e.mjs` — Bearer JWT → `:8080` → STM-03..06
+- `scripts/demo/run_cross_en_010_stack.ps1` — starts IAM `:8081`, gateway, enrollment/lifecycle/guardian/document; runs harness; stops ports
+- Coverage ledger updated: `docs/reports/STM_CROSS_EN_010_STM03_06_COVERAGE.md`
+
+### Acceptance → evidence
+| Criterion | Check names (sample) |
+|---|---|
+| Gateway + service health | `api-gateway-health`, `service-health-*` |
+| JWT propagation | `jwt-student1`, `jwt-registrar-pilot`, `jwt-faculty` |
+| Auth failures | `gateway-missing-auth-*`, `gateway-rejects-spoofed-identity-headers` |
+| Cross-service workflows | `gw-enrollment-terms`, `gw-lifecycle-*`, `gw-guardians-student`, `gw-documents-*` |
+| Role denials | `gw-student-denied-verifications`, `gw-faculty-denied-expiry-notifications` |
+| Tenant isolation probe | `loopback-cross-tenant-document-types` |
+| Path C IAM | `pathc-allow-STM-0*.*.A` |
+| Service failure detection | `service-failure-detection-probe` |
+
+### Tests / evidence
+- E2E: **31/31 PASS** — `docs/reports/STM_CROSS_EN_010_E2E_2026-11-16.json`
+- Prior unit aliases `stmCrossEn010_*` remain in module suites
+
+### CSV
+Implementation status → **completed**
+
+### Remaining
+- Broader cross-tenant penetration suite (queued next with readiness pack)
+- EN-003 live AV BLOCKED; CROSS-EN-007 Kafka DEFERRED
+
+### Stop
+Continue with STM-CROSS-EN-014 / STM-03-EN-007 (non-infra). **No push.**
