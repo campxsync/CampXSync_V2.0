@@ -12,7 +12,7 @@
 | STM-07-US-010 | DONE | Lifecycle SUSPENDED/DETAINED/WITHDRAWN revokes IAM link |
 | STM-07-US-013 | DONE | Student self-view link-status (API + BFF + dashboard) |
 
-Commit hash: *(set after local commit)*  
+Commit hash: `7ace09f`  
 student-service suite: **127/0**
 
 ## BLOCKED (do not implement)
