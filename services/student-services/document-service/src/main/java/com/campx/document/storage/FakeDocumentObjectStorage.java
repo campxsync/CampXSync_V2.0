@@ -1,5 +1,8 @@
 package com.campx.document.storage;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,6 +15,8 @@ public class FakeDocumentObjectStorage implements DocumentObjectStorage {
     private final String bucket;
     private final boolean configured;
     private volatile boolean failNext;
+    private volatile boolean failNextDelete;
+    private volatile boolean failNextList;
 
     public FakeDocumentObjectStorage() {
         this(DocumentStorageConfig.DEFAULT_BUCKET, true);
@@ -26,13 +31,27 @@ public class FakeDocumentObjectStorage implements DocumentObjectStorage {
         this.failNext = true;
     }
 
+    public void failNextDelete() {
+        this.failNextDelete = true;
+    }
+
+    public void failNextList() {
+        this.failNextList = true;
+    }
+
     public void clear() {
         objects.clear();
         failNext = false;
+        failNextDelete = false;
+        failNextList = false;
     }
 
     public int objectCount() {
         return objects.size();
+    }
+
+    public boolean contains(String bucketName, String objectPath) {
+        return objects.containsKey(key(bucketName, objectPath));
     }
 
     @Override
@@ -62,6 +81,41 @@ public class FakeDocumentObjectStorage implements DocumentObjectStorage {
             throw new DocumentStorageException("OBJECT_NOT_FOUND", "Object not found in fake storage");
         }
         return copy(found);
+    }
+
+    @Override
+    public List<String> listObjectPaths(String bucketName, String prefix) throws DocumentStorageException {
+        if (failNextList) {
+            failNextList = false;
+            throw new DocumentStorageException("STORAGE_UNAVAILABLE", "Fake storage forced failure on list");
+        }
+        String p = prefix == null ? "" : prefix.trim();
+        String bucketKeyPrefix = (bucketName == null ? "" : bucketName) + "::";
+        List<String> out = new ArrayList<String>();
+        for (String fullKey : objects.keySet()) {
+            if (!fullKey.startsWith(bucketKeyPrefix)) {
+                continue;
+            }
+            String path = fullKey.substring(bucketKeyPrefix.length());
+            if (p.isEmpty() || path.equals(p) || path.startsWith(p)) {
+                out.add(path);
+            }
+        }
+        Collections.sort(out);
+        return out;
+    }
+
+    @Override
+    public void deleteObject(String bucketName, String objectPath) throws DocumentStorageException {
+        if (failNextDelete) {
+            failNextDelete = false;
+            throw new DocumentStorageException("STORAGE_UNAVAILABLE", "Fake storage forced failure on delete");
+        }
+        if (objectPath == null || objectPath.trim().isEmpty()) {
+            throw new DocumentStorageException("INVALID_OBJECT_PATH", "Object path is required");
+        }
+        // Idempotent: missing key is success
+        objects.remove(key(bucketName, objectPath.trim()));
     }
 
     @Override

@@ -10,6 +10,7 @@ import com.campx.document.DocumentDomainService.DocumentLink;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -157,5 +158,12 @@ public interface DocumentPersistence {
     void updateStudentDocumentMetadata(Actor actor, UUID documentId, String title, String classification,
                                        Instant expiresAt, UUID documentTypeId, String documentTypeCode,
                                        String documentTypeName);
+
+    /**
+     * Returns all non-blank storage paths referenced by {@code doc.documents} and
+     * {@code doc.document_versions} for the caller's tenant (STM-06-EN-002 orphan scan).
+     * Any status (active, pending, rejected, archived) is treated as a live reference.
+     */
+    Set<String> listReferencedStoragePaths(Actor actor);
 }
 

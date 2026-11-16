@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -2245,6 +2246,242 @@ public class DocumentDomainService {
             }
         }
         return consents;
+    }
+
+    // --- STM-06-EN-002 orphan storage cleanup ---
+
+    public static final String ORPHAN_CONFIRMED = "CONFIRMED_ORPHAN";
+    public static final String ORPHAN_REFERENCED = "REFERENCED";
+    public static final String ORPHAN_CROSS_TENANT = "CROSS_TENANT";
+    public static final String ORPHAN_AMBIGUOUS = "AMBIGUOUS";
+
+    public static final String ORPHAN_DISPOSITION_RETAIN = "RETAIN";
+    public static final String ORPHAN_DISPOSITION_CANDIDATE = "DELETE_CANDIDATE";
+    public static final String ORPHAN_DISPOSITION_DELETED = "DELETED";
+    public static final String ORPHAN_DISPOSITION_DELETE_FAILED = "DELETE_FAILED";
+
+    public static class OrphanCleanupRequest {
+        /** When false/null, report candidates only (dry-run). */
+        public Boolean confirmExecute;
+        /** Optional subset of object paths to evaluate/delete; null/empty = scan tenant prefix. */
+        public List<String> objectPaths;
+    }
+
+    public static class OrphanCandidate {
+        public final String objectPath;
+        public final String classification;
+        public final String disposition;
+
+        public OrphanCandidate(String objectPath, String classification, String disposition) {
+            this.objectPath = objectPath;
+            this.classification = classification;
+            this.disposition = disposition;
+        }
+    }
+
+    public static class OrphanCleanupReport {
+        public final boolean dryRun;
+        public final String status;
+        public final String tenantPrefix;
+        public final int scannedCount;
+        public final int confirmedOrphanCount;
+        public final int referencedCount;
+        public final int crossTenantCount;
+        public final int ambiguousCount;
+        public final int deletedCount;
+        public final int deleteFailedCount;
+        public final List<OrphanCandidate> candidates;
+
+        public OrphanCleanupReport(boolean dryRun, String status, String tenantPrefix,
+                                   int scannedCount, int confirmedOrphanCount, int referencedCount,
+                                   int crossTenantCount, int ambiguousCount, int deletedCount,
+                                   int deleteFailedCount, List<OrphanCandidate> candidates) {
+            this.dryRun = dryRun;
+            this.status = status;
+            this.tenantPrefix = tenantPrefix;
+            this.scannedCount = scannedCount;
+            this.confirmedOrphanCount = confirmedOrphanCount;
+            this.referencedCount = referencedCount;
+            this.crossTenantCount = crossTenantCount;
+            this.ambiguousCount = ambiguousCount;
+            this.deletedCount = deletedCount;
+            this.deleteFailedCount = deleteFailedCount;
+            this.candidates = candidates == null
+                    ? Collections.<OrphanCandidate>emptyList()
+                    : Collections.unmodifiableList(new ArrayList<OrphanCandidate>(candidates));
+        }
+    }
+
+    /**
+     * Dry-run orphan identification under {@code tenants/{tenantId}/}.
+     * Never deletes. College Admin only.
+     */
+    public OrphanCleanupReport scanStorageOrphans(Actor actor) {
+        OrphanCleanupRequest req = new OrphanCleanupRequest();
+        req.confirmExecute = Boolean.FALSE;
+        return cleanupStorageOrphans(actor, req);
+    }
+
+    /**
+     * Identify (and optionally delete) confirmed orphan objects under the caller's tenant prefix.
+     * Ambiguous / cross-tenant / referenced objects are retained. Default is dry-run.
+     */
+    public OrphanCleanupReport cleanupStorageOrphans(Actor actor, OrphanCleanupRequest request) {
+        requireCaller(actor);
+        requireAdmin(actor);
+        if (!objectStorage.isConfigured()) {
+            throw new DocumentException(503, "STORAGE_NOT_CONFIGURED",
+                    "Object storage is not configured; orphan cleanup is unavailable in this profile");
+        }
+
+        boolean execute = request != null && Boolean.TRUE.equals(request.confirmExecute);
+        String tenantPrefix = "tenants/" + actor.getTenantId() + "/";
+        String bucket = objectStorage.getDefaultBucket();
+
+        Set<String> referenced;
+        try {
+            referenced = persistence.listReferencedStoragePaths(actor);
+        } catch (RuntimeException e) {
+            logger.warn("Orphan scan database failure tenant={} err={}", actor.getTenantId(), e.getMessage());
+            throw new DocumentException(503, "DATABASE_UNAVAILABLE",
+                    "Could not load referenced storage paths for orphan scan");
+        }
+        if (referenced == null) {
+            referenced = Collections.emptySet();
+        }
+
+        LinkedHashSet<String> candidates = new LinkedHashSet<String>();
+        boolean subsetMode = request != null && request.objectPaths != null && !request.objectPaths.isEmpty();
+        if (subsetMode) {
+            for (String raw : request.objectPaths) {
+                if (raw != null && !raw.trim().isEmpty()) {
+                    candidates.add(raw.trim());
+                }
+            }
+        } else {
+            try {
+                List<String> listed = objectStorage.listObjectPaths(bucket, tenantPrefix);
+                if (listed != null) {
+                    for (String path : listed) {
+                        if (path != null && !path.trim().isEmpty()) {
+                            candidates.add(path.trim());
+                        }
+                    }
+                }
+            } catch (DocumentStorageException e) {
+                logger.warn("Orphan scan storage list failure code={} pathLen={}",
+                        e.getCode(), tenantPrefix.length());
+                throw new DocumentException(503, "STORAGE_UNAVAILABLE",
+                        "Could not list storage objects for orphan scan");
+            }
+        }
+
+        List<OrphanCandidate> results = new ArrayList<OrphanCandidate>();
+        int confirmed = 0;
+        int referencedCount = 0;
+        int crossTenant = 0;
+        int ambiguous = 0;
+        int deleted = 0;
+        int deleteFailed = 0;
+
+        for (String path : candidates) {
+            String classification = classifyStoragePath(actor.getTenantId(), path, referenced);
+            String disposition = ORPHAN_DISPOSITION_RETAIN;
+            if (ORPHAN_CONFIRMED.equals(classification)) {
+                confirmed++;
+                disposition = ORPHAN_DISPOSITION_CANDIDATE;
+                if (execute) {
+                    try {
+                        objectStorage.deleteObject(bucket, path);
+                        disposition = ORPHAN_DISPOSITION_DELETED;
+                        deleted++;
+                    } catch (DocumentStorageException e) {
+                        disposition = ORPHAN_DISPOSITION_DELETE_FAILED;
+                        deleteFailed++;
+                        logger.warn("Orphan delete failed code={} pathLen={} tenant={}",
+                                e.getCode(), path.length(), actor.getTenantId());
+                    }
+                }
+            } else if (ORPHAN_REFERENCED.equals(classification)) {
+                referencedCount++;
+            } else if (ORPHAN_CROSS_TENANT.equals(classification)) {
+                crossTenant++;
+            } else {
+                ambiguous++;
+            }
+            results.add(new OrphanCandidate(path, classification, disposition));
+        }
+
+        String status;
+        if (!execute) {
+            status = confirmed == 0 ? "NO_CANDIDATES" : "DRY_RUN";
+        } else if (deleteFailed > 0 && deleted > 0) {
+            status = "PARTIAL";
+        } else if (deleteFailed > 0) {
+            status = "FAILED";
+        } else if (deleted == 0) {
+            status = "NO_CANDIDATES";
+        } else {
+            status = "COMPLETED";
+        }
+
+        AuditEvent audit = AuditEvent.builder()
+                .tenantId(actor.getTenantId().toString())
+                .action(execute ? "document.storage_orphan_cleanup" : "document.storage_orphan_scan")
+                .principalId(actor.getUserId().toString())
+                .principalRole(actor.getRole())
+                .resourceType("STORAGE_ORPHAN")
+                .resourceId(tenantPrefix)
+                .correlationId(actor.getCorrelationId())
+                .status(status)
+                .severity(deleteFailed > 0 ? "WARN" : "INFO")
+                .description("dryRun=" + (!execute)
+                        + " scanned=" + candidates.size()
+                        + " confirmed=" + confirmed
+                        + " referenced=" + referencedCount
+                        + " crossTenant=" + crossTenant
+                        + " ambiguous=" + ambiguous
+                        + " deleted=" + deleted
+                        + " deleteFailed=" + deleteFailed)
+                .build();
+        logger.audit(audit);
+
+        return new OrphanCleanupReport(!execute, status, tenantPrefix, candidates.size(), confirmed,
+                referencedCount, crossTenant, ambiguous, deleted, deleteFailed, results);
+    }
+
+    /**
+     * Lifecycle rule: confirmed orphan = object under caller's tenant prefix with no row in
+     * documents or document_versions. Referenced (any status), cross-tenant, and ambiguous paths are retained.
+     */
+    static String classifyStoragePath(UUID tenantId, String objectPath, Set<String> referencedPaths) {
+        if (objectPath == null || objectPath.trim().isEmpty()) {
+            return ORPHAN_AMBIGUOUS;
+        }
+        String path = objectPath.trim();
+        if (path.contains("..") || path.startsWith("/") || path.contains("//")) {
+            return ORPHAN_AMBIGUOUS;
+        }
+        if (!path.startsWith("tenants/")) {
+            return ORPHAN_AMBIGUOUS;
+        }
+        String[] parts = path.split("/");
+        if (parts.length < 3 || !"tenants".equals(parts[0]) || parts[1] == null || parts[1].isEmpty()) {
+            return ORPHAN_AMBIGUOUS;
+        }
+        UUID pathTenant;
+        try {
+            pathTenant = UUID.fromString(parts[1]);
+        } catch (IllegalArgumentException e) {
+            return ORPHAN_AMBIGUOUS;
+        }
+        if (!pathTenant.equals(tenantId)) {
+            return ORPHAN_CROSS_TENANT;
+        }
+        if (referencedPaths != null && referencedPaths.contains(path)) {
+            return ORPHAN_REFERENCED;
+        }
+        return ORPHAN_CONFIRMED;
     }
 
     // --- STM-06-EN-003 secure upload/download, validation, malware scan, signed URL ---

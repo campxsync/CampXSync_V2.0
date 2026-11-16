@@ -572,6 +572,33 @@ public class DocumentController {
                 return json(200, retentionInfoNode(info), correlationId);
             }
 
+            // POST /api/v1/documents/storage/orphans/scan — STM-06-EN-002 dry-run orphan identification
+            if ("POST".equals(method) && "/api/v1/documents/storage/orphans/scan".equals(normalized)) {
+                DocumentDomainService.OrphanCleanupReport report = domain.scanStorageOrphans(actor);
+                return json(200, orphanCleanupNode(report), correlationId);
+            }
+
+            // POST /api/v1/documents/storage/orphans/cleanup — STM-06-EN-002 dry-run by default; execute only if confirmExecute=true
+            if ("POST".equals(method) && "/api/v1/documents/storage/orphans/cleanup".equals(normalized)) {
+                DocumentDomainService.OrphanCleanupRequest req = new DocumentDomainService.OrphanCleanupRequest();
+                if (json.has("confirmExecute") && !json.get("confirmExecute").isNull()) {
+                    req.confirmExecute = json.get("confirmExecute").asBoolean();
+                } else {
+                    req.confirmExecute = Boolean.FALSE;
+                }
+                if (json.has("objectPaths") && json.get("objectPaths").isArray()) {
+                    List<String> paths = new java.util.ArrayList<String>();
+                    for (JsonNode n : json.get("objectPaths")) {
+                        if (n != null && !n.isNull()) {
+                            paths.add(n.asText());
+                        }
+                    }
+                    req.objectPaths = paths;
+                }
+                DocumentDomainService.OrphanCleanupReport report = domain.cleanupStorageOrphans(actor, req);
+                return json(200, orphanCleanupNode(report), correlationId);
+            }
+
             return problem(404, "ROUTE_NOT_FOUND", "No route found for " + method + " " + path, correlationId, path);
         } catch (DocumentException e) {
             return problem(e.getStatusCode(), e.getCode(), e.getMessage(), correlationId, path);
@@ -878,6 +905,29 @@ public class DocumentController {
             throw new IllegalArgumentException("withinDays must be at least 1");
         }
         return parsed;
+    }
+
+    private ObjectNode orphanCleanupNode(DocumentDomainService.OrphanCleanupReport report) {
+        ObjectNode node = mapper.createObjectNode();
+        node.put("dryRun", report.dryRun);
+        node.put("status", report.status);
+        node.put("tenantPrefix", report.tenantPrefix);
+        node.put("scannedCount", report.scannedCount);
+        node.put("confirmedOrphanCount", report.confirmedOrphanCount);
+        node.put("referencedCount", report.referencedCount);
+        node.put("crossTenantCount", report.crossTenantCount);
+        node.put("ambiguousCount", report.ambiguousCount);
+        node.put("deletedCount", report.deletedCount);
+        node.put("deleteFailedCount", report.deleteFailedCount);
+        ArrayNode arr = node.putArray("candidates");
+        for (DocumentDomainService.OrphanCandidate c : report.candidates) {
+            ObjectNode item = mapper.createObjectNode();
+            item.put("objectPath", c.objectPath);
+            item.put("classification", c.classification);
+            item.put("disposition", c.disposition);
+            arr.add(item);
+        }
+        return node;
     }
 
     private ObjectNode signedDownloadNode(DocumentDomainService.SignedDownloadUrl signed) {

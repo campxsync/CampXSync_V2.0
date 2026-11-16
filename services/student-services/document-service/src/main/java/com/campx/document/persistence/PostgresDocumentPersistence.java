@@ -19,7 +19,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -1240,6 +1242,37 @@ public class PostgresDocumentPersistence implements DocumentPersistence {
                             }
                         }
                         return list;
+                    }
+                });
+    }
+
+    @Override
+    public Set<String> listReferencedStoragePaths(final Actor actor) {
+        return DocumentSecurityContext.fromActor(effectiveDbActor(actor)).executeInTransaction(connectionManager,
+                new DocumentSecurityContext.TransactionCallback<Set<String>>() {
+                    @Override
+                    public Set<String> execute(Connection conn) throws SQLException {
+                        String sql = "SELECT DISTINCT storage_path FROM ("
+                                + " SELECT storage_path FROM doc.documents"
+                                + "  WHERE tenant_id = ? AND storage_path IS NOT NULL AND btrim(storage_path) <> ''"
+                                + " UNION ALL"
+                                + " SELECT storage_path FROM doc.document_versions"
+                                + "  WHERE tenant_id = ? AND storage_path IS NOT NULL AND btrim(storage_path) <> ''"
+                                + ") refs";
+                        Set<String> paths = new HashSet<String>();
+                        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setObject(1, actor.getTenantId());
+                            ps.setObject(2, actor.getTenantId());
+                            try (ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    String path = rs.getString("storage_path");
+                                    if (path != null && !path.trim().isEmpty()) {
+                                        paths.add(path.trim());
+                                    }
+                                }
+                            }
+                        }
+                        return paths;
                     }
                 });
     }

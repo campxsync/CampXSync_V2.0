@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-16 (Frontend 1c Registrar R31 mapping DONE 50/50 routing; next: owner pickup)
+**Last current-state refresh:** 2026-11-16 (STM-06-EN-002 orphan API DONE; EN-002 completed; next: EN-003 live malware or blocked queue)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — owner queue (EN-002 storage, stack Path C smoke, frontend 1b/1c, …).
+1. `docs/prompts/NEXT_TASK.md` — owner queue (EN-003 malware AV, blocked CROSS/US-015, …).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (D1–D12a-Phase2).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -20,9 +20,9 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits only when authorized; **no push** unless owner says.
-2. **STM-06-EN-002 Phase A:** storage abstraction + `contentBase64` validation + service-streamed download; fake storage tests PASS; staging runbook prepared **not applied**.
-3. **CSV:** EN-002 and EN-003 marked `partially completed` (no prior byte store / content validation against real bytes; live AV still open gap).
-4. **Next (queue):** CROSS e2e / US-015 DDL as approved. Frontend 1b contentBase64 + 1c Registrar mapping DONE; EN-002 live storage verified on Dev.
+2. **STM-06-EN-002:** **completed** — private bucket, live put/get, frontend contentBase64 + Registrar mapping, orphan scan/cleanup API (dry-run default; no live Storage delete in orphan task).
+3. **CSV:** EN-002 `completed`; EN-003 `partially completed` (live malware AV open).
+4. **Next (queue):** EN-003 live AV (new tool — needs approval) or blocked CROSS-EN-010 / US-015 as authorized.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C HTTP stack smoke passed (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` when STM services run.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.

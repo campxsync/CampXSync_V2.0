@@ -2,6 +2,9 @@ package com.campx.document.storage;
 
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -9,6 +12,9 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Supabase Storage REST client using JDK {@link HttpURLConnection} only (D11).
@@ -19,8 +25,10 @@ public class SupabaseStorageHttpClient implements DocumentObjectStorage {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(SupabaseStorageHttpClient.class);
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_MS = 60000;
+    private static final int LIST_PAGE_SIZE = 1000;
 
     private final DocumentStorageConfig config;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public SupabaseStorageHttpClient(DocumentStorageConfig config) {
         if (config == null || !config.configured) {
@@ -114,6 +122,60 @@ public class SupabaseStorageHttpClient implements DocumentObjectStorage {
     }
 
     @Override
+    public List<String> listObjectPaths(String bucket, String prefix) throws DocumentStorageException {
+        String b = bucket == null || bucket.trim().isEmpty() ? config.bucket : bucket.trim();
+        String p = prefix == null ? "" : prefix.trim();
+        if (p.contains("..") || p.startsWith("/")) {
+            throw new DocumentStorageException("INVALID_OBJECT_PATH", "List prefix is invalid");
+        }
+        List<String> out = new ArrayList<String>();
+        listRecursive(b, p, out);
+        Collections.sort(out);
+        logger.info("Supabase storage list ok bucket={} prefixLen={} objectCount={}",
+                b, p.length(), out.size());
+        return out;
+    }
+
+    @Override
+    public void deleteObject(String bucket, String objectPath) throws DocumentStorageException {
+        String b = bucket == null || bucket.trim().isEmpty() ? config.bucket : bucket.trim();
+        String path = requirePath(objectPath);
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(trimSlash(config.supabaseUrl) + "/storage/v1/object/" + encodePath(b + "/" + path));
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
+            conn.setRequestMethod("DELETE");
+            conn.setRequestProperty("Authorization", "Bearer " + config.serviceRoleKey);
+            conn.setRequestProperty("apikey", config.serviceRoleKey);
+            int status = conn.getResponseCode();
+            // Idempotent: missing object is success
+            if (status == 404 || status == 400) {
+                logger.info("Supabase storage delete idempotent-miss status={} bucket={} pathLen={}",
+                        status, b, path.length());
+                return;
+            }
+            if (status < 200 || status >= 300) {
+                logger.warn("Supabase storage delete failed status={} bucket={} pathLen={}",
+                        status, b, path.length());
+                throw new DocumentStorageException("STORAGE_DELETE_FAILED",
+                        "Object storage delete failed with HTTP " + status);
+            }
+            logger.info("Supabase storage delete ok bucket={} pathLen={}", b, path.length());
+        } catch (DocumentStorageException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("Supabase storage delete error: {}", e.getMessage());
+            throw new DocumentStorageException("STORAGE_DELETE_FAILED", "Object storage delete failed", e);
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    @Override
     public boolean isConfigured() {
         return true;
     }
@@ -121,6 +183,80 @@ public class SupabaseStorageHttpClient implements DocumentObjectStorage {
     @Override
     public String getDefaultBucket() {
         return config.bucket;
+    }
+
+    private void listRecursive(String bucket, String prefix, List<String> out) throws DocumentStorageException {
+        int offset = 0;
+        while (true) {
+            JsonNode page = listPage(bucket, prefix, offset, LIST_PAGE_SIZE);
+            if (page == null || !page.isArray() || page.size() == 0) {
+                break;
+            }
+            for (int i = 0; i < page.size(); i++) {
+                JsonNode item = page.get(i);
+                if (item == null || !item.has("name")) {
+                    continue;
+                }
+                String name = item.get("name").asText("");
+                if (name == null || name.trim().isEmpty()) {
+                    continue;
+                }
+                String fullPath = prefix.isEmpty() ? name : (prefix.endsWith("/") ? prefix + name : prefix + "/" + name);
+                boolean isFolder = item.get("id") == null || item.get("id").isNull();
+                if (isFolder) {
+                    String childPrefix = fullPath.endsWith("/") ? fullPath : fullPath + "/";
+                    listRecursive(bucket, childPrefix, out);
+                } else {
+                    out.add(fullPath);
+                }
+            }
+            if (page.size() < LIST_PAGE_SIZE) {
+                break;
+            }
+            offset += LIST_PAGE_SIZE;
+        }
+    }
+
+    private JsonNode listPage(String bucket, String prefix, int offset, int limit) throws DocumentStorageException {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(trimSlash(config.supabaseUrl) + "/storage/v1/object/list/" + encodePath(bucket));
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Authorization", "Bearer " + config.serviceRoleKey);
+            conn.setRequestProperty("apikey", config.serviceRoleKey);
+            conn.setRequestProperty("Content-Type", "application/json");
+            ObjectNode body = mapper.createObjectNode();
+            body.put("prefix", prefix == null ? "" : prefix);
+            body.put("limit", limit);
+            body.put("offset", offset);
+            byte[] payload = mapper.writeValueAsBytes(body);
+            OutputStream os = conn.getOutputStream();
+            os.write(payload);
+            os.flush();
+            os.close();
+            int status = conn.getResponseCode();
+            if (status < 200 || status >= 300) {
+                logger.warn("Supabase storage list failed status={} bucket={} prefixLen={}",
+                        status, bucket, prefix == null ? 0 : prefix.length());
+                throw new DocumentStorageException("STORAGE_LIST_FAILED",
+                        "Object storage list failed with HTTP " + status);
+            }
+            InputStream in = conn.getInputStream();
+            return mapper.readTree(in);
+        } catch (DocumentStorageException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("Supabase storage list error: {}", e.getMessage());
+            throw new DocumentStorageException("STORAGE_LIST_FAILED", "Object storage list failed", e);
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
     }
 
     private static String requirePath(String objectPath) throws DocumentStorageException {

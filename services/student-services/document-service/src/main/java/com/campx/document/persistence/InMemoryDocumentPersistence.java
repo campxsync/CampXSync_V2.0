@@ -12,8 +12,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -584,6 +586,33 @@ public class InMemoryDocumentPersistence implements DocumentPersistence {
             }
         });
         return result;
+    }
+
+    @Override
+    public Set<String> listReferencedStoragePaths(Actor actor) {
+        Set<String> paths = new HashSet<String>();
+        for (DocumentDomainService.StudentDocument doc : docStorage.values()) {
+            if (!doc.tenantId.equals(actor.getTenantId())) {
+                continue;
+            }
+            if (doc.storagePath != null && !doc.storagePath.trim().isEmpty()) {
+                paths.add(doc.storagePath.trim());
+            }
+        }
+        for (List<DocumentDomainService.DocumentVersion> versions : verStorage.values()) {
+            if (versions == null) {
+                continue;
+            }
+            for (DocumentDomainService.DocumentVersion version : versions) {
+                if (version == null || version.tenantId == null || !version.tenantId.equals(actor.getTenantId())) {
+                    continue;
+                }
+                if (version.storagePath != null && !version.storagePath.trim().isEmpty()) {
+                    paths.add(version.storagePath.trim());
+                }
+            }
+        }
+        return paths;
     }
 }
 

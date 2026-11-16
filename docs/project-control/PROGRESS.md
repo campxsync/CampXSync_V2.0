@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (Frontend 1c Registrar R31 mapping DONE; EN-002 still partially completed)
+**Updated:** 2026-11-16 (STM-06-EN-002 orphan deletion API DONE; EN-002 completed; EN-003 malware AV remains)
 
 ## Scoreboard (session)
 
@@ -14,7 +14,8 @@
 | STM-06-US-006 | **tested** (`24473ff`) |
 | STM-06-US-015 | **partially completed** (`7a41325`); DB notifications **BLOCKED** (DDL) |
 | IAM live delegation adapter | **partially completed** — Path C live allow + HTTP stack smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
-| STM-06-EN-002 / EN-003 | **partially completed** — Phase B live PASS + frontend 1b/1c DONE; orphan API + malware AV remain |
+| STM-06-EN-002 | **completed** — live Storage + frontend 1b/1c + orphan scan/cleanup API (fake tests; no live Storage delete this task) |
+| STM-06-EN-003 | **partially completed** — signed URL + heuristic malware; live AV open (D11) |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 
 ## Evidence highlights

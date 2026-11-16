@@ -2624,6 +2624,234 @@ public class DocumentDomainServiceTest {
         }
     }
 
+    // --- STM-06-EN-002 orphan deletion API (fake storage; no live Supabase delete) ---
+
+    @Test
+    public void stm06En002_orphanConfirmedIdentifiedAndReferencedProtected() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+
+        ConfigureDocumentTypeRequest dtReq = new ConfigureDocumentTypeRequest();
+        dtReq.code = "DOC-ORPHAN-" + UUID.randomUUID().toString().substring(0, 8);
+        dtReq.name = "Orphan Scan Doc";
+        DocumentType type = storageService.configureDocumentType(adminTenantA, dtReq);
+
+        byte[] pdf = ("%PDF-1.4 orphan").getBytes(StandardCharsets.US_ASCII);
+        UploadStudentDocumentRequest up = new UploadStudentDocumentRequest();
+        up.documentTypeId = type.id;
+        up.title = "Live Doc";
+        up.mimeType = "application/pdf";
+        up.sizeBytes = (long) pdf.length;
+        up.fileName = "live.pdf";
+        up.checksumSha256 = sha256Hex(pdf);
+        up.contentBase64 = Base64.getEncoder().encodeToString(pdf);
+        StudentDocument uploaded = storageService.uploadStudentDocument(studentTenantA, up);
+
+        String orphanPath = "tenants/" + tenantA + "/students/" + studentTenantA.getUserId()
+                + "/00000000-0000-0000-0000-00000000orph/v1-orphan.pdf";
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, orphanPath, pdf, "application/pdf");
+        assertEquals(2, storage.objectCount());
+
+        DocumentDomainService.OrphanCleanupReport dry =
+                storageService.scanStorageOrphans(adminTenantA);
+        assertTrue(dry.dryRun);
+        assertEquals("DRY_RUN", dry.status);
+        assertEquals(1, dry.confirmedOrphanCount);
+        assertEquals(1, dry.referencedCount);
+        assertEquals(0, dry.deletedCount);
+
+        boolean foundOrphan = false;
+        boolean foundReferenced = false;
+        for (DocumentDomainService.OrphanCandidate c : dry.candidates) {
+            if (orphanPath.equals(c.objectPath)) {
+                foundOrphan = true;
+                assertEquals(DocumentDomainService.ORPHAN_CONFIRMED, c.classification);
+                assertEquals(DocumentDomainService.ORPHAN_DISPOSITION_CANDIDATE, c.disposition);
+            }
+            if (uploaded.storagePath.equals(c.objectPath)) {
+                foundReferenced = true;
+                assertEquals(DocumentDomainService.ORPHAN_REFERENCED, c.classification);
+                assertEquals(DocumentDomainService.ORPHAN_DISPOSITION_RETAIN, c.disposition);
+            }
+        }
+        assertTrue(foundOrphan);
+        assertTrue(foundReferenced);
+        assertTrue(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, uploaded.storagePath));
+        assertTrue(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, orphanPath));
+    }
+
+    @Test
+    public void stm06En002_orphanCrossTenantAndAuthAndAmbiguousRetained() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+
+        String foreign = "tenants/" + tenantB + "/students/" + UUID.randomUUID() + "/doc/v1-x.pdf";
+        String ambiguous = "not-a-tenant-path/file.pdf";
+        byte[] pdf = ("%PDF-1.4 x").getBytes(StandardCharsets.US_ASCII);
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, foreign, pdf, "application/pdf");
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, ambiguous, pdf, "application/pdf");
+
+        DocumentDomainService.OrphanCleanupRequest req = new DocumentDomainService.OrphanCleanupRequest();
+        req.confirmExecute = Boolean.TRUE;
+        req.objectPaths = java.util.Arrays.asList(foreign, ambiguous,
+                "tenants/" + tenantA + "/students/" + UUID.randomUUID() + "/ghost/v1-g.pdf");
+        // Put only the confirmed orphan so execute can delete it
+        String orphan = req.objectPaths.get(2);
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, orphan, pdf, "application/pdf");
+
+        try {
+            storageService.cleanupStorageOrphans(null, req);
+            fail("Unauthenticated must fail");
+        } catch (DocumentException e) {
+            assertEquals(401, e.getStatusCode());
+        }
+        try {
+            storageService.cleanupStorageOrphans(studentTenantA, req);
+            fail("Student must be denied");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+        try {
+            storageService.cleanupStorageOrphans(registrarTenantA, req);
+            fail("Registrar must not delete orphans (College Admin only)");
+        } catch (DocumentException e) {
+            assertEquals(403, e.getStatusCode());
+        }
+
+        DocumentDomainService.OrphanCleanupReport report =
+                storageService.cleanupStorageOrphans(adminTenantA, req);
+        assertFalse(report.dryRun);
+        assertEquals(1, report.confirmedOrphanCount);
+        assertEquals(1, report.crossTenantCount);
+        assertEquals(1, report.ambiguousCount);
+        assertEquals(1, report.deletedCount);
+        assertFalse(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, orphan));
+        assertTrue(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, foreign));
+        assertTrue(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, ambiguous));
+
+        // Cross-tenant admin cannot delete tenant A orphan via their own prefix scan
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, orphan, pdf, "application/pdf");
+        DocumentDomainService.OrphanCleanupRequest foreignAdmin = new DocumentDomainService.OrphanCleanupRequest();
+        foreignAdmin.confirmExecute = Boolean.TRUE;
+        foreignAdmin.objectPaths = java.util.Arrays.asList(orphan);
+        DocumentDomainService.OrphanCleanupReport denied =
+                storageService.cleanupStorageOrphans(adminTenantB, foreignAdmin);
+        assertEquals(1, denied.crossTenantCount);
+        assertEquals(0, denied.deletedCount);
+        assertTrue(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, orphan));
+    }
+
+    @Test
+    public void stm06En002_orphanIdempotentCleanupAndStorageDeleteFailurePartial() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+
+        byte[] pdf = ("%PDF-1.4 idemp").getBytes(StandardCharsets.US_ASCII);
+        String orphan1 = "tenants/" + tenantA + "/students/" + UUID.randomUUID() + "/o1/v1-a.pdf";
+        String orphan2 = "tenants/" + tenantA + "/students/" + UUID.randomUUID() + "/o2/v1-b.pdf";
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, orphan1, pdf, "application/pdf");
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, orphan2, pdf, "application/pdf");
+
+        DocumentDomainService.OrphanCleanupRequest exec = new DocumentDomainService.OrphanCleanupRequest();
+        exec.confirmExecute = Boolean.TRUE;
+        exec.objectPaths = java.util.Arrays.asList(orphan1, orphan2);
+
+        storage.failNextDelete();
+        DocumentDomainService.OrphanCleanupReport partial =
+                storageService.cleanupStorageOrphans(adminTenantA, exec);
+        assertEquals("PARTIAL", partial.status);
+        assertEquals(1, partial.deletedCount);
+        assertEquals(1, partial.deleteFailedCount);
+
+        // Idempotent re-run: already-deleted path succeeds; remaining orphan deleted
+        DocumentDomainService.OrphanCleanupReport again =
+                storageService.cleanupStorageOrphans(adminTenantA, exec);
+        assertEquals(0, again.deleteFailedCount);
+        assertTrue(again.deletedCount >= 1);
+        assertFalse(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, orphan1));
+        assertFalse(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, orphan2));
+
+        DocumentDomainService.OrphanCleanupReport third =
+                storageService.cleanupStorageOrphans(adminTenantA, exec);
+        assertEquals(2, third.confirmedOrphanCount);
+        assertEquals(2, third.deletedCount);
+        assertEquals("COMPLETED", third.status);
+    }
+
+    @Test
+    public void stm06En002_orphanDatabaseFailureAndListFailureAndUnconfigured() throws Exception {
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        InMemoryDocumentPersistence failingDb = new InMemoryDocumentPersistence() {
+            @Override
+            public java.util.Set<String> listReferencedStoragePaths(Actor actor) {
+                throw new RuntimeException("simulated db outage");
+            }
+        };
+        DocumentDomainService dbFailService = new DocumentDomainService(
+                failingDb, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+        try {
+            dbFailService.scanStorageOrphans(adminTenantA);
+            fail("DB failure must surface");
+        } catch (DocumentException e) {
+            assertEquals(503, e.getStatusCode());
+            assertEquals("DATABASE_UNAVAILABLE", e.getCode());
+        }
+
+        storage.failNextList();
+        DocumentDomainService listFailService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+        try {
+            listFailService.scanStorageOrphans(adminTenantA);
+            fail("Storage list failure must surface");
+        } catch (DocumentException e) {
+            assertEquals(503, e.getStatusCode());
+            assertEquals("STORAGE_UNAVAILABLE", e.getCode());
+        }
+
+        try {
+            service.scanStorageOrphans(adminTenantA);
+            fail("Unconfigured storage must fail closed");
+        } catch (DocumentException e) {
+            assertEquals("STORAGE_NOT_CONFIGURED", e.getCode());
+        }
+    }
+
+    @Test
+    public void stm06En002_orphanClassifyAmbiguousAndDefaultDryRun() throws Exception {
+        assertEquals(DocumentDomainService.ORPHAN_AMBIGUOUS,
+                DocumentDomainService.classifyStoragePath(tenantA, "../etc/passwd", java.util.Collections.<String>emptySet()));
+        assertEquals(DocumentDomainService.ORPHAN_AMBIGUOUS,
+                DocumentDomainService.classifyStoragePath(tenantA, "tenants/not-a-uuid/x.pdf",
+                        java.util.Collections.<String>emptySet()));
+        assertEquals(DocumentDomainService.ORPHAN_CROSS_TENANT,
+                DocumentDomainService.classifyStoragePath(tenantA, "tenants/" + tenantB + "/x.pdf",
+                        java.util.Collections.<String>emptySet()));
+
+        FakeDocumentObjectStorage storage = new FakeDocumentObjectStorage(DocumentStorageConfig.DEFAULT_BUCKET, true);
+        DocumentDomainService storageService = new DocumentDomainService(
+                persistence, intelligenceService, new ControlledMalwareScanAdapter(),
+                new SignedDownloadTokenService("test-secret"), storage, delegations);
+        String orphan = "tenants/" + tenantA + "/students/" + UUID.randomUUID() + "/dry/v1-d.pdf";
+        storage.putObject(DocumentStorageConfig.DEFAULT_BUCKET, orphan,
+                ("%PDF-1.4 d").getBytes(StandardCharsets.US_ASCII), "application/pdf");
+
+        DocumentDomainService.OrphanCleanupRequest dry = new DocumentDomainService.OrphanCleanupRequest();
+        dry.confirmExecute = Boolean.FALSE;
+        DocumentDomainService.OrphanCleanupReport report =
+                storageService.cleanupStorageOrphans(adminTenantA, dry);
+        assertTrue(report.dryRun);
+        assertEquals(0, report.deletedCount);
+        assertTrue(storage.contains(DocumentStorageConfig.DEFAULT_BUCKET, orphan));
+    }
+
     // --- STM-CROSS-EN-010 discoverability (STM-06) ---
 
     @Test

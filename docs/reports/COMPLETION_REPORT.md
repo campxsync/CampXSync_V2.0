@@ -903,3 +903,57 @@ Await owner: next was **1c** — completed in Entry 24. **No push.**
 
 ### Stop
 Await owner pickup for remaining EN-002 gaps or blocked queue items. **No push.**
+
+---
+
+## Entry 25 — STM-06-EN-002 orphan deletion API (2026-11-16)
+
+**Task ID:** STM-06-EN-002 (orphan cleanup)  
+**Status:** **DONE** (integrated unit suite PASS). Local commit only; **no push**. **No live Dev/prod Storage delete.**
+
+### Orphan definition (lifecycle)
+Confirmed orphan = Storage object under `tenants/{callerTenantId}/` whose path is **not** present in `doc.documents.storage_path` ∪ `doc.document_versions.storage_path` for that tenant (any document status). Referenced, cross-tenant, and ambiguous paths are **retained**.
+
+### What shipped
+- `DocumentObjectStorage.listObjectPaths` / `deleteObject` (Fake + Supabase HTTP client)
+- `DocumentPersistence.listReferencedStoragePaths` (InMemory + Postgres)
+- Domain: `scanStorageOrphans` / `cleanupStorageOrphans` — College Admin only; dry-run default; `confirmExecute=true` to delete; idempotent; partial failure status
+- Routes: `POST /api/v1/documents/storage/orphans/scan`, `POST /api/v1/documents/storage/orphans/cleanup`
+- Audit events with counts only (no credentials, bytes, or full sensitive contents)
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `mvn test -pl services/student-services/document-service` | **133/133 PASS** (was 128; +5 orphan tests) |
+| Live Storage delete | **not run** (per task boundary) |
+
+### Acceptance → implementation → test
+
+| Clause | Location | Test |
+|---|---|---|
+| Confirmed orphan identification | `DocumentDomainService.classifyStoragePath` / `scanStorageOrphans` | `stm06En002_orphanConfirmedIdentifiedAndReferencedProtected` |
+| Active/referenced protection | same + `listReferencedStoragePaths` | `stm06En002_orphanConfirmedIdentifiedAndReferencedProtected` |
+| Cross-tenant denial | classify + cleanup subset | `stm06En002_orphanCrossTenantAndAuthAndAmbiguousRetained` |
+| Authorization failures | `requireCaller` + `requireAdmin` | `stm06En002_orphanCrossTenantAndAuthAndAmbiguousRetained` |
+| Idempotent cleanup | `FakeDocumentObjectStorage.deleteObject` | `stm06En002_orphanIdempotentCleanupAndStorageDeleteFailurePartial` |
+| Storage deletion failures | failNextDelete → PARTIAL | `stm06En002_orphanIdempotentCleanupAndStorageDeleteFailurePartial` |
+| DB / list failures | DATABASE_UNAVAILABLE / STORAGE_UNAVAILABLE | `stm06En002_orphanDatabaseFailureAndListFailureAndUnconfigured` |
+| Ambiguous ownership retained | classify + subset cleanup | `stm06En002_orphanClassifyAmbiguousAndDefaultDryRun` + cross-tenant test |
+| Audit/logging | `logger.audit` counts | covered by orphan tests (audit lines emitted) |
+| Upload/download regression | existing EN-002 tests | `stm06En002_configuredStorageRequiresContentAndStoresBytes` et al. |
+
+### CSV
+Intended: `STM-06-EN-002` → **completed**; `STM-06-EN-003` remains **partially completed** (live malware AV).  
+**Gate:** primary backlog CSV was locked by another process (`EBUSY` / Win32 32). Updated rows staged at  
+`docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.EN002_ORPHAN_UPDATE.csv`  
+— close the lock on the primary CSV and replace it with the staged file (or re-apply status cells).
+
+### Remaining limitations
+- Live orphan cleanup against Dev Storage not exercised (needs separate owner auth).
+- Live malware AV still open (EN-003).
+- No frontend BFF for orphan desk in this task (API-only).
+- Primary backlog CSV not overwritten in-place (file lock).
+
+### Stop
+Await `APPROVED STM-06-EN-002` / push authorization; close CSV lock and promote staged update. **No push.**
