@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-16 (STM-07 US-001/002/004/010/013 done; US-008/009 + STM-08/09 blocked)
+**Last current-state refresh:** 2026-11-16 (STM-07 batch 2: US-008/009 + EN-002 + EN-004 done; US-001 partial; browser demo `406e25e`)
 
 ---
 
@@ -10,8 +10,8 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — next: STM-07-EN-002+ unblocked items; STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (D1–D12a-Phase2).
+1. `docs/prompts/NEXT_TASK.md` — next: remaining STM-07 P1 (US-003/005/006/012); STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. STM-07-B2-D1..D3).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -22,13 +22,13 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **STM-06-EN-002 / US-015 / CROSS-EN-010 / cross-tenant pen:** **completed**.
 3. **STM-CROSS-EN-014 / STM-03-EN-007:** **partially completed** — ops pack for STM-03..06.
-4. **STM-07-EN-001:** **completed**. **STM-07-US-001/002/004/010/013:** **completed** in `student-service` (127/0). **US-008/009** BLOCKED (IAM role API). **STM-08/09** BLOCKED (design notes).
-5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C HTTP stack smoke passed (`docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`); set `CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081` when STM services run.
+4. **STM-07 batch 2:** US-008/009 (`2675dea`), EN-002 (`57dc0ff`), EN-004 (`bf8cf6d`); browser demo `406e25e`. US-001 **partial** (verificationStatus gate uncovered). **STM-08/09** BLOCKED.
+5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C + STM-07 R25 role ports use institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
-8. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1`.
+8. **Stack note:** STM-03 (:8095) and STM-01 student-service (:8093) are **not** in `start_stack.ps1` (batch2 demo skipped API specs for this reason).
 9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope).
-10. **Demos:** headed `run_story_demo.mjs` required every story; EN-002 Phase A is unit-test + runbook only (no live Storage demo).
+10. **Demos:** `docs/reports/playwright-stm07-batch2/` for batch 2; `run_story_demo.mjs` for story demos.
 
 ---
 
