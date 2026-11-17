@@ -136,6 +136,12 @@ public class StudentController implements HttpHandler {
             return getRoster(headers, queryParams);
         }
 
+        // GET /api/v1/students/account-role-audit — STM-07-US-012 (before {id} routing)
+        if ("GET".equals(method) && (path.equals("/api/v1/students/account-role-audit")
+                || path.equals("/v1/students/account-role-audit"))) {
+            return listAccountRoleAudit(headers, queryParams);
+        }
+
         // Match /api/v1/students/{id} sub-routes
         String[] parts = path.split("/");
         // e.g. ["", "api", "v1", "students", "{id}", ...]
@@ -817,6 +823,30 @@ public class StudentController implements HttpHandler {
             return HttpResponse.forbidden(e.getMessage());
         } catch (Exception e) {
             logger.error("Unhandled error in revokeApprovedStudentRole: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-07-US-012 — tenant account link / R25 role audit history (R01/R02/R03).
+     */
+    public HttpResponse listAccountRoleAudit(Map<String, String> headers, Map<String, String> queryParams) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            int limit = 50;
+            if (queryParams != null && queryParams.get("limit") != null) {
+                try {
+                    limit = Integer.parseInt(queryParams.get("limit").trim());
+                } catch (NumberFormatException ignored) {
+                    limit = 50;
+                }
+            }
+            return HttpResponse.ok(objectMapper.writeValueAsString(
+                    studentDomainService.listAccountAndRoleAuditHistory(context, limit)));
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in listAccountRoleAudit: {}", e.getMessage(), e);
             return HttpResponse.internalServerError(e.getMessage());
         }
     }

@@ -13,6 +13,17 @@
 | **STM-07-B2-D2** | Provisioning mapping: student role **R25** applies while the student is linked and **ACTIVE**. Access is revoked on **SUSPENDED**, **DETAINED** and **WITHDRAWN**. **GRADUATED** and **ALUMNI** are **NOT** revoked automatically. Closes matrix item "student-status-to-IAM-role mapping and suspension/deprovisioning triggers". |
 | **STM-07-B2-D3** | US-008/009 **UNBLOCKED**. Add a role assign/revoke endpoint inside the **existing IAM service** (institute-admin-service owns `iam.*`; identity-service remains scaffold-only), limited to role **R25**, tenant-scoped, audited, no self-assignment, only for a student linked and **ACTIVE**. student-service calls via port/adapter; **never** writes `iam` schema directly (Path B banned). Explicit exception to same-service selection: US-008/009 may span IAM + student-service. STOP if no IAM code under `services/` or if a new table/schema beyond existing role-assignment tables is required. |
 
+## Owner decisions – STM-07 batch 3 (17-11-2026)
+
+**Approved by:** Niranjan (product owner). Final; do not re-ask.
+
+| ID | Decision |
+|---|---|
+| **STM-07-B3-D3** | Role assign/revoke endpoint hosted in **institute-admin**: **approved**. |
+| **STM-07-B3-D4** | Linking requires the student's identity to be **VERIFIED**. |
+| **STM-07-B3-D5** | Staff view of link status (STM-07-US-003) and See past login requests (STM-07-US-006): minimal read-only staff screen in existing frontend patterns; visible to **R01–R03** and to a **Registrar (R31)** delegated through **STM-07.ACCOUNT.A**. |
+| **STM-07-B3-D6** | Audit who changed accounts and roles (STM-07-US-012): read-only, tenant-scoped list of account link/unlink and R25 assign/revoke events from **existing** audit logs, for **R01–R03**; **no new audit store**. |
+
 ## Scoreboard (session)
 
 | Lane | Status |
@@ -30,6 +41,7 @@
 | STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests |
 | STM-07-US-001 | **completed** — `VERIFICATION_NOT_VERIFIED` gate (`912a6f9`) |
 | STM-07-US-002 | **completed** — provisioning eligibility API |
+| STM-07-US-003 | **completed** — staff link-status desk + B3-D5 auth (R01–R03 / R31+ACCOUNT.A) |
 | STM-07-US-004 | **completed** — eligibility-gated provisioning request |
 | STM-07-US-010 | **completed** — lifecycle revoke of IAM link |
 | STM-07-US-013 | **completed** — student link-status portal strip |

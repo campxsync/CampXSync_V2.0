@@ -10,6 +10,7 @@ import {
   Layers,
   BookOpen,
   FileText,
+  Link2,
   LucideIcon,
 } from 'lucide-react';
 import { UserRole } from './auth/resolve-role';
@@ -26,6 +27,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Dashboard', href: '/platform', icon: LayoutDashboard },
     { title: 'Institutes & Tenancies', href: '/platform/institutes', icon: Building2 },
     { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
+    { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],
   college_admin: [
@@ -33,6 +35,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Admissions & Applications', href: '/college/admissions', icon: FileText },
     { title: 'Course Registration Desk', href: '/college/enrollment', icon: BookOpen },
     { title: 'Lifecycle Desk', href: '/college/lifecycle', icon: GraduationCap },
+    { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Documents Catalog', href: '/college/documents', icon: FileText },
     { title: 'Guardians', href: '/college/guardians', icon: Users },
     { title: 'Departments & Programs', href: '/college/departments', icon: Building2 },
@@ -47,6 +50,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   registrar: [
     { title: 'Lifecycle Desk', href: '/college/lifecycle', icon: GraduationCap },
     { title: 'Course Registration Desk', href: '/college/enrollment', icon: BookOpen },
+    { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Document Verification', href: '/college/documents', icon: FileText },
     { title: 'Guardians', href: '/college/guardians', icon: Users },
   ],

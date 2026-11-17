@@ -1361,3 +1361,28 @@ End of batch (size 4 + US-013 filled after US-008/009 blocked). **No push.**
 
 ### OWNER open
 Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
+
+## Entry 39 — Staff view of account link status (STM-07-US-003) (2026-11-17)
+
+**Plain name:** Staff view of account link status (STM-07-US-003)  
+**Status:** completed  
+**Owner decisions:** STM-07-B3-D5  
+**No push.**
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| IAM operator (R01/R02/R03) can view staff link status | `assertCanViewStaffAccountLink` + `getAccountLinkStatus` | `stm07Us003_iamOperatorCanViewStaffLinkStatus`, `stm07Us003_r01CanViewStaffLinkStatus` |
+| Registrar (R31) with STM-07.ACCOUNT.A can view | same | `stm07Us003_registrarWithDelegationCanView` |
+| Registrar without delegation denied | same | `stm07Us003_registrarWithoutDelegationDenied` |
+| Faculty denied | same | `stm07Us003_facultyDeniedStaffLinkStatus` |
+| College admin (even with delegation) not a staff viewer | same | `stm07Us003_collegeAdminWithoutBeingOperatorDenied` |
+| College desk + BFF via gateway | `/college/account-provisioning`, `/api/college/account-provisioning` | `npx tsc --noEmit` 0 errors |
+
+### Suites
+| Command | Result |
+|---|---|
+| `mvn test -pl …/student-service -Dtest=Stm07Us003StaffLinkStatusTest,…` | PASS |
+| Full student-service | 160 run / 0 fail / **1 error** (pre-existing RLS on `persons` in `StudentEngineeringQualityAndSecurityTest`) |
+| `cd frontend; npx tsc --noEmit` | 0 errors |

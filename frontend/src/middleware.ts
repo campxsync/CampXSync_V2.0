@@ -136,6 +136,7 @@ export async function middleware(request: NextRequest) {
   const registrarAllowedCollegePrefixes = [
     '/college/lifecycle',
     '/college/enrollment',
+    '/college/account-provisioning',
     '/college/documents',
     '/college/guardians',
   ];
@@ -236,7 +237,12 @@ export async function middleware(request: NextRequest) {
       const facultyAdmissionsException =
         isFacultyUser && pathname.startsWith('/college/admissions/applications');
       const registrarOk = isRegistrarUser && registrarCanAccessCollegePath(pathname);
-      if (!isCollegeAdminUser && !facultyAdmissionsException && !registrarOk) {
+      // STM-07-US-003 / B3-D5 — R01 platform admin may open staff account-link desk
+      const platformAccountDeskOk =
+        isPlatformUser &&
+        (pathname === '/college/account-provisioning' ||
+          pathname.startsWith('/college/account-provisioning/'));
+      if (!isCollegeAdminUser && !facultyAdmissionsException && !registrarOk && !platformAccountDeskOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
     }

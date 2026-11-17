@@ -1258,6 +1258,7 @@ public class StudentDomainService {
 
     /**
      * STM-07-US-001 / US-013 — account-link status for portal and staff desks.
+     * STM-07-US-003 / B3-D5 — non-student callers must be R01/R02/R03 or Registrar (R31) with STM-07.ACCOUNT.A.
      */
     public AccountLinkStatusResponse getAccountLinkStatus(UserSecurityContext context, UUID studentId) {
         assertTenantContext(context);
@@ -1266,6 +1267,9 @@ public class StudentDomainService {
         StudentEntity student = studentRepository.findById(context, studentId)
                 .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
         enforceReadAccess(context, student);
+        if (!isStudentRole(context)) {
+            assertCanViewStaffAccountLink(context);
+        }
 
         AccountLinkStatusResponse response = new AccountLinkStatusResponse();
         response.setStudentId(student.getId());
@@ -1400,10 +1404,55 @@ public class StudentDomainService {
 
     public List<ProvisioningRequestRecord> listProvisioningRequests(UserSecurityContext context, UUID studentId) {
         assertTenantContext(context);
-        assertCanManageAccountProvisioning(context);
+        // STM-07-US-006 / B3-D5 — same staff viewers as link-status desk
+        assertCanViewStaffAccountLink(context);
         studentRepository.findById(context, studentId)
                 .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
         return studentRepository.listProvisioningRequests(context, studentId);
+    }
+
+    /**
+     * STM-07-US-012 / B3-D6 — read-only tenant audit of link/unlink and R25 role changes; R01/R02/R03 only.
+     */
+    public List<AccountRoleAuditEntry> listAccountAndRoleAuditHistory(UserSecurityContext context, int limit) {
+        assertTenantContext(context);
+        assertIamOperatorOnly(context);
+        if (auditRepository == null) {
+            return Collections.emptyList();
+        }
+        int capped = limit <= 0 ? 50 : Math.min(limit, 200);
+        final List<AuditRecord> raw = new ArrayList<AuditRecord>();
+        try {
+            if (isRelationalMode()) {
+                context.executeInTransaction(DatabaseConnectionManager.getInstance(), conn -> {
+                    raw.addAll(auditRepository.findAuditEventsByTenant(conn, context.getTenantId(), capped * 4));
+                    return null;
+                });
+            } else {
+                raw.addAll(auditRepository.findAuditEventsByTenant(null, context.getTenantId(), capped * 4));
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to read account/role audit history: " + e.getMessage(), e);
+        }
+        Set<String> allowed = new HashSet<String>(Arrays.asList(
+                "IAM_LINKED", "IAM_ACCESS_REVOKED", "STUDENT_ROLE_ASSIGNED", "STUDENT_ROLE_REVOKED"));
+        List<AccountRoleAuditEntry> out = new ArrayList<AccountRoleAuditEntry>();
+        for (AuditRecord r : raw) {
+            if (r == null || r.getAction() == null || !allowed.contains(r.getAction())) {
+                continue;
+            }
+            out.add(new AccountRoleAuditEntry(
+                    r.getId(),
+                    r.getAction(),
+                    r.getResourceId(),
+                    r.getPrincipalId(),
+                    r.getEventTime() == null ? null : r.getEventTime().toString(),
+                    r.getDetailJson()));
+            if (out.size() >= capped) {
+                break;
+            }
+        }
+        return out;
     }
 
     /**
@@ -1819,6 +1868,40 @@ public class StudentDomainService {
         String r = context.getRole() == null ? "" : context.getRole().trim().toLowerCase();
         return r.equals("registrar") || r.equals("r31")
                 || r.equals("college_admin") || r.equals("college-admin");
+    }
+
+    /** STM-07-B3-D5: staff link-status / provisioning-history desk viewers. */
+    private void assertCanViewStaffAccountLink(UserSecurityContext context) {
+        if (context == null || context.getRole() == null || context.getRole().trim().isEmpty()) {
+            throw new StudentSecurityViolationException("Missing role for staff account-link view.");
+        }
+        if (isIamOperator(context)) {
+            return;
+        }
+        String r = context.getRole().trim().toLowerCase();
+        if (r.equals("registrar") || r.equals("r31")) {
+            if (context.getUserId() != null && context.getTenantId() != null
+                    && delegationPort.hasActiveDelegation(
+                    context.getTenantId(), context.getUserId(), DELEGATION_ACCOUNT_KEY)) {
+                return;
+            }
+            throw new StudentSecurityViolationException(
+                    "Registrar requires an active IAM delegation for " + DELEGATION_ACCOUNT_KEY
+                            + " to view account-link status.");
+        }
+        throw new StudentSecurityViolationException(
+                "Role is not authorised to view staff account-link status.");
+    }
+
+    /** STM-07-B3-D6: account/role audit list is IAM operators only. */
+    private void assertIamOperatorOnly(UserSecurityContext context) {
+        if (context == null || context.getRole() == null || context.getRole().trim().isEmpty()) {
+            throw new StudentSecurityViolationException("Missing role for account/role audit view.");
+        }
+        if (!isIamOperator(context)) {
+            throw new StudentSecurityViolationException(
+                    "Only IAM operators R01/R02/R03 may review account and role assignment history.");
+        }
     }
 
     private boolean isOwnProfile(UserSecurityContext context, StudentEntity student) {

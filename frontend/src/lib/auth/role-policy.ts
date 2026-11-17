@@ -16,6 +16,7 @@ export const REGISTRAR_HOME = '/college/lifecycle';
 export const REGISTRAR_ALLOWED_COLLEGE_PREFIXES = [
   '/college/lifecycle',
   '/college/enrollment',
+  '/college/account-provisioning',
   '/college/documents',
   '/college/guardians',
 ] as const;
@@ -88,7 +89,12 @@ export function defaultDashboardForRole(role: UserRole): string {
 }
 
 export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): boolean {
-  if (role === 'platform_admin' && returnTo.startsWith('/platform')) return true;
+  if (
+    role === 'platform_admin' &&
+    (returnTo.startsWith('/platform') || returnTo.startsWith('/college/account-provisioning'))
+  ) {
+    return true;
+  }
   if (role === 'college_admin' && returnTo.startsWith('/college')) return true;
   if (role === 'registrar' && canRegistrarAccessCollegePath(returnTo)) return true;
   if (

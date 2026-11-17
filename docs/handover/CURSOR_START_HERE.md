@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-17 (stack :8081/:8093 `a480396`; US-001 VERIFIED gate `912a6f9`; role security `8412134`; verify 32/32 + 34/34 + Playwright 5/5)
+**Last current-state refresh:** 2026-11-17 (batch 3: Staff view of account link status / STM-07-US-003 completed; next US-005)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — next: remaining STM-07 P1 (US-003/005/006/012); STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
+1. `docs/prompts/NEXT_TASK.md` — next: STM-07-US-005 / US-006 / US-012 (batch 3); STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. STM-07-B2-D1..D3).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -19,7 +19,7 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
+1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says. **Known preflight leftovers (do not STOP):** `classpath.txt`, `docs/reports/_csv_status_*.txt`, `docs/reports/_verify_*.txt`, `docs/reports/_wt_compare_*.txt`, `docs/reports/**/video/*.webm`.
 2. **STM-06-EN-002 / US-015 / CROSS-EN-010 / cross-tenant pen:** **completed**.
 3. **STM-CROSS-EN-014 / STM-03-EN-007:** **partially completed** — ops pack for STM-03..06.
 4. **STM-07 batch 2 + verify:** US-008/009 (`2675dea`), EN-002 (`57dc0ff`), EN-004 (`bf8cf6d`), US-001 **completed** (`912a6f9`). Role security `8412134`. **STM-08/09** BLOCKED. OWNER still must confirm institute-admin hosts role endpoint (**approved** vs **move**).
