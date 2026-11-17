@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-17T09:54:20.450Z",
+  "startedAt": "2026-11-17T10:09:34.805Z",
   "base": "http://localhost:3000",
   "slowMo": 250,
   "stack": {
@@ -64,17 +64,17 @@
         "Faculty denied desk access (url=http://localhost:3000/access-denied?reason=forbidden)",
         "NEGATIVE: Student denied — student cannot open staff account-provisioning desk",
         "Student denied desk access (url=http://localhost:3000/access-denied?reason=forbidden)",
-        "NEGATIVE: Registrar (R31) without STM-07.ACCOUNT.A — desk UI may open; link-status API must fail",
-        "Registrar reached desk UI — probing link-status without ACCOUNT.A delegation",
-        "Registrar without delegation denied by API (error={\"timestamp\":1794909314911,\"status\":401,\"error\":\"unauthorized\",\"title\":\"unauthorized\",\"code\":\"gateway_malformed_jwt\",\"errorcode\":\"gateway_malformed_jwt\",\"messag)"
+        "NEGATIVE: Registrar (R31) — desk UI may open; API path recorded",
+        "Registrar reached desk UI — probing link-status",
+        "Registrar API rejected at gateway as malformed login token (not Java ACCOUNT.A denial)"
       ],
       "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch3\\screenshots\\05_negative_auth.png",
       "notes": [
         "NEGATIVE_PASS: Faculty denied staff account-provisioning desk",
         "NEGATIVE_PASS: Student denied staff account-provisioning desk",
-        "NEGATIVE_PASS: Registrar (R31) without STM-07.ACCOUNT.A denied link-status"
+        "NEGATIVE_OBSERVED: Registrar rejected at gateway (malformed JWT / missing tenant_id) — Java delegation case STOPPED pending Auth metadata"
       ]
     }
   ],
-  "finishedAt": "2026-11-17T09:55:18.839Z"
+  "finishedAt": "2026-11-17T10:10:30.214Z"
 }
