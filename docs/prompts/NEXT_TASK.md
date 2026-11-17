@@ -1,24 +1,42 @@
 # Next Task
 
-**STATUS: STM-07 batch 2 COMPLETED 2026-11-16. Batch stop.**
+**STATUS: STM-07 stack fix + US-001 VERIFIED gate COMPLETED 2026-11-17. Batch stop.**
 
-## Just completed (this batch)
+## Just completed (this verify pass)
 
 | ID | Status | Commit | Notes |
 |---|---|---|---|
-| STM-07-US-008 | DONE | `2675dea` | Assign R25 via institute-admin IAM + student-service port |
-| STM-07-US-009 | DONE | `2675dea` | Revoke R25 via IAM port; lifecycle best-effort revoke |
-| STM-07-EN-002 | DONE | `57dc0ff` | No duplicate auth/credential/role store; fail-closed IAM port |
-| STM-07-EN-004 | DONE | `bf8cf6d` | Idempotent REQUESTED reuse; FAILED retry; COMPLETED/FAILED markers |
-| Browser demo | DONE | (separate commit) | `docs/reports/playwright-stm07-batch2/` |
+| Stack script | DONE | `a480396` | institute-admin :8081 + student-service :8093 in start/check_stack |
+| STM-07-US-001 | **completed** | `912a6f9` (+ `117f4fa` suite adapt) | `VERIFICATION_NOT_VERIFIED` eligibility gate |
+| Role endpoint security tests | DONE | `8412134` | R01/R02/R03 only; deny paths; gateway missing-auth |
+| STM-07-US-008 | completed | `2675dea` | Re-verified: Playwright batch2 5/5 |
+| STM-07-US-009 | completed | `2675dea` | Re-verified: Playwright batch2 5/5 |
+| STM-07-EN-002 | completed | `57dc0ff` | Re-verified: Playwright batch2 5/5 |
+| STM-07-EN-004 | completed | `bf8cf6d` | Re-verified: Playwright batch2 5/5 |
 
-student-service suite after batch: **153/0**
+## Verify counts (2026-11-17)
+
+| Command | Result |
+|---|---|
+| `node scripts/demo/run_stm_cross_en_010_e2e.mjs` | **32/32 PASS** (after starting :8095/:8097) |
+| `node scripts/demo/run_cross_tenant_pen_test.mjs` | **34/34 PASS; vulns=0** |
+| `node docs/reports/playwright-stm07-batch2/run_batch2_demo.mjs` | **5/5 PASS** |
+
+## Pre-existing suite compare @ `8f486ab` worktree
+
+| Module | HEAD | `8f486ab` | Verdict |
+|---|---|---|---|
+| institute-admin | 493 / 0f / **12e** | 477 / 0f / **12e** | **Identical** 12 Postgres/live errors |
+| api-gateway | 155 / **6f** / **7e** | 153 / **6f** / **7e** | **Identical** 6f+7e (HEAD +2 tests from role auth) |
+
+## OWNER decision still open
+
+Hosting of student role assign/revoke on **institute-admin-service :8081** — confirm **"approved"** or **"move"**.
 
 ## BLOCKED (do not implement)
 
 | ID | Reason |
 |---|---|
-| STM-07-US-001 | **partially completed** — verificationStatus=VERIFIED eligibility gate still UNCOVERED |
 | STM-07-US-007 | Notifications need event bus (CROSS-EN-007 / Kafka hold) |
 | STM-07-US-011 | Depends on FLAG-002 |
 | STM-07-US-014 | Self-request "if enabled" setting not defined |
@@ -31,9 +49,8 @@ student-service suite after batch: **153/0**
 ## Pickup queue (next batch when authorized)
 
 1. Remaining unblocked STM-07 P1 (US-003/005/006/012) inside student-service
-2. Close US-001 verificationStatus gate if owner confirms it is required
-3. STM-10-EN-001 preferences if independent
-4. Unblock STM-08/09 only after owner approves new services
+2. STM-10-EN-001 preferences if independent
+3. Unblock STM-08/09 only after owner approves new services
 
 ## Rules
 

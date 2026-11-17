@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-16 (STM-07 batch 2 completed: US-008/009, EN-002, EN-004; browser demo committed)
+**Updated:** 2026-11-17 (stack :8081/:8093 + US-001 VERIFIED gate + role security tests; verify suites green)
 
 ## Owner decisions – STM-07 batch 2 (16-11-2026)
 
@@ -28,7 +28,7 @@
 | Cross-tenant pen | **completed** — 34/34 (`5cfe378`) |
 | RBAC FLAG-004/005 | **completed** (D8/D9); FLAG-002/003/007 open |
 | STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests |
-| STM-07-US-001 | **partially completed** — verificationStatus=VERIFIED gate still UNCOVERED |
+| STM-07-US-001 | **completed** — `VERIFICATION_NOT_VERIFIED` gate (`912a6f9`) |
 | STM-07-US-002 | **completed** — provisioning eligibility API |
 | STM-07-US-004 | **completed** — eligibility-gated provisioning request |
 | STM-07-US-010 | **completed** — lifecycle revoke of IAM link |

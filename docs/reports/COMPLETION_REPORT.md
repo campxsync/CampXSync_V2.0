@@ -1341,3 +1341,23 @@ End of batch (size 4 + US-013 filled after US-008/009 blocked). **No push.**
 
 ### Tests
 `mvn test -pl services/student-services/student-service -Dtest=Stm07En004ProvisioningRecoveryTest` â†’ **5/0**
+
+## Entry 38 — Stack fix + US-001 VERIFIED gate + role security (2026-11-17)
+
+**No push.** Commits: `a480396` (stack), `912a6f9` (gate), `117f4fa` (suite adapt), `8412134` (role security).
+
+### Verify
+| Suite | Count |
+|---|---|
+| CROSS-EN-010 E2E | 32/32 PASS |
+| Cross-tenant pen | 34/34 PASS; vulns=0 |
+| Playwright STM-07 batch2 | 5/5 PASS |
+
+### Pre-existing @ 8f486ab
+| Module | HEAD | 8f486ab |
+|---|---|---|
+| institute-admin | 493/0f/12e | 477/0f/12e (identical 12e) |
+| api-gateway | 155/6f/7e | 153/6f/7e (identical 6f+7e) |
+
+### OWNER open
+Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
