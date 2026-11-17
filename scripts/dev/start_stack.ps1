@@ -33,7 +33,7 @@ try {
 }
 
 # 2. Stop old listeners on core + academic ports
-$targetPorts = @(8080, 8098, 8096, 8085, 8088, 8092, 3000)
+$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 3000)
 foreach ($p in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
     if ($conns) {
@@ -62,6 +62,46 @@ $docProc = Start-Process -FilePath "java" -ArgumentList @(
 ) -WorkingDirectory $docDir -RedirectStandardOutput "$logDir\stm-06.log" -RedirectStandardError "$logDir\stm-06.err" -WindowStyle Minimized -PassThru
 
 Write-Host "STM-06 launched with PID $($docProc.Id)" -ForegroundColor DarkGray
+
+# 3a. Launch Institute Admin Service (ADM-01 / IAM Path C) on port 8081
+Write-Host "Starting ADM-01 Institute Admin Service on port 8081 (-Xms32m -Xmx128m)..." -ForegroundColor Cyan
+$iamDir = "$baseDir\services\administration-services\institute-admin-service"
+$iamCp = (Get-Content "$iamDir\classpath.txt" -Raw).Trim()
+
+$iamProc = Start-Process -FilePath "java" -ArgumentList @(
+    "-Xms32m",
+    "-Xmx128m",
+    "-Dcampx.persistence.mode=postgres",
+    "-Dcampx.internal.auth.enabled=true",
+    "-cp",
+    "target\classes;$iamCp",
+    "com.campx.admin.institute.InstituteAdminApplication",
+    "8081"
+) -WorkingDirectory $iamDir -RedirectStandardOutput "$logDir\adm-01.log" -RedirectStandardError "$logDir\adm-01.err" -WindowStyle Minimized -PassThru
+
+Write-Host "ADM-01 launched with PID $($iamProc.Id)" -ForegroundColor DarkGray
+
+# Path C + STM-07 IAM role port client base (student-service)
+$env:CAMPX_IAM_DELEGATION_BASE_URL = "http://127.0.0.1:8081"
+
+# 3a2. Launch Student Domain Service (STM-01 / STM-07 host) on port 8093
+Write-Host "Starting STM-01 Student Domain Service on port 8093 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$stuDir = "$baseDir\services\student-services\student-service"
+$stuCp = (Get-Content "$stuDir\classpath.txt" -Raw).Trim()
+
+$stuProc = Start-Process -FilePath "java" -ArgumentList @(
+    "-Xms32m",
+    "-Xmx96m",
+    "-Dcampx.persistence.mode=postgres",
+    "-Dcampx.internal.auth.enabled=true",
+    "-Dcampx.iam.delegation.baseUrl=http://127.0.0.1:8081",
+    "-cp",
+    "target\classes;$stuCp",
+    "com.campx.student.StudentApplication",
+    "8093"
+) -WorkingDirectory $stuDir -RedirectStandardOutput "$logDir\stm-01.log" -RedirectStandardError "$logDir\stm-01.err" -WindowStyle Minimized -PassThru
+
+Write-Host "STM-01 launched with PID $($stuProc.Id)" -ForegroundColor DarkGray
 
 # 3b. Launch Lifecycle Management Service (STM-04) on port 8096
 Write-Host "Starting STM-04 Student Lifecycle Service on port 8096 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
@@ -173,16 +213,43 @@ Write-Host "Next.js launched with PID $($feProc.Id)" -ForegroundColor DarkGray
 # 6. Wait for health checks
 Write-Host "Waiting for services to become healthy..." -ForegroundColor Yellow
 $docReady = $false
+$iamReady = $false
+$stuReady = $false
 $lifeReady = $false
 $subjReady = $false
 $attReady = $false
 $anlReady = $false
 $gwReady = $false
 $feReady = $false
-$timeout = [DateTime]::Now.AddSeconds(60)
+$timeout = [DateTime]::Now.AddSeconds(90)
 
-while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $lifeReady -or -not $subjReady -or -not $attReady -or -not $anlReady -or -not $gwReady -or -not $feReady)) {
+while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $iamReady -or -not $stuReady -or -not $lifeReady -or -not $subjReady -or -not $attReady -or -not $anlReady -or -not $gwReady -or -not $feReady)) {
     Start-Sleep -Seconds 2
+
+    if (-not $iamReady) {
+        $conn = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue
+        if ($conn) {
+            $iamReady = $true
+            Write-Host "[+] Institute Admin / IAM (8081) is LISTENING" -ForegroundColor Green
+        }
+    }
+
+    if (-not $stuReady) {
+        try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8093/actuator/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+            if ($r -and ($r.StatusCode -eq 200 -or $r.StatusCode -eq 401 -or $r.StatusCode -eq 403)) {
+                $stuReady = $true
+                Write-Host "[+] Student Service (8093) is HEALTHY" -ForegroundColor Green
+            }
+        } catch {
+            $code = $null
+            if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+            if ($code -eq 401 -or $code -eq 403) {
+                $stuReady = $true
+                Write-Host "[+] Student Service (8093) is UP (auth challenge)" -ForegroundColor Green
+            }
+        }
+    }
 
     if (-not $docReady) {
         try {
@@ -255,8 +322,8 @@ while ([DateTime]::Now -lt $timeout -and (-not $docReady -or -not $lifeReady -or
     }
 }
 
-if (-not $docReady -or -not $lifeReady -or -not $subjReady -or -not $attReady -or -not $anlReady -or -not $gwReady -or -not $feReady) {
-    Write-Host "WARNING: Stack may still be initializing (doc=$docReady, life=$lifeReady, subj=$subjReady, att=$attReady, anl=$anlReady, gw=$gwReady, fe=$feReady)" -ForegroundColor Yellow
+if (-not $docReady -or -not $iamReady -or -not $stuReady -or -not $lifeReady -or -not $subjReady -or -not $attReady -or -not $anlReady -or -not $gwReady -or -not $feReady) {
+    Write-Host "WARNING: Stack may still be initializing (doc=$docReady, iam=$iamReady, stu=$stuReady, life=$lifeReady, subj=$subjReady, att=$attReady, anl=$anlReady, gw=$gwReady, fe=$feReady)" -ForegroundColor Yellow
 } else {
     Write-Host "ALL REQUIRED SERVICES READY!" -ForegroundColor Green
 }
@@ -277,6 +344,30 @@ function Ensure-Service([int]$port, [scriptblock]$startBlock, [string]$name) {
 
 while ($true) {
     Start-Sleep -Seconds 5
+
+    # Watch Institute Admin / IAM (8081)
+    Ensure-Service 8081 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx128m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$iamCp",
+            "com.campx.admin.institute.InstituteAdminApplication", "8081"
+        ) -WorkingDirectory $iamDir -RedirectStandardOutput "$logDir\adm-01.log" -RedirectStandardError "$logDir\adm-01.err" -WindowStyle Minimized
+    } "Institute Admin"
+
+    # Watch Student Domain Service (8093)
+    Ensure-Service 8093 {
+        $env:CAMPX_IAM_DELEGATION_BASE_URL = "http://127.0.0.1:8081"
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-Dcampx.iam.delegation.baseUrl=http://127.0.0.1:8081",
+            "-cp", "target\classes;$stuCp",
+            "com.campx.student.StudentApplication", "8093"
+        ) -WorkingDirectory $stuDir -RedirectStandardOutput "$logDir\stm-01.log" -RedirectStandardError "$logDir\stm-01.err" -WindowStyle Minimized
+    } "Student Service"
     
     # Watch Lifecycle Service (8096)
     Ensure-Service 8096 {
