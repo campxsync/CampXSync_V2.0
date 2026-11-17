@@ -1,18 +1,31 @@
 # Next Task
 
-**STATUS: Owner answers applied (partial) — STOP. No push.**
+**STATUS: STOP. No push. Await owner on CSV close + optional next fix.**
 
-## Done
+## Done this turn
 
-1. Confirmed Dev `azulbaxszsqxymqmlwfe`. Runbook restore of pilot Registrar role-assignment `…000032` — row **already present** (INSERT no-op). Evidence: `docs/reports/STM07_REGISTRAR_ROLE_ASSIGNMENT_BEFORE_AFTER_2026-11-17.md`.
-2. Root cause of `GATEWAY_NO_ROLE_ASSIGNED`: gateway does not recognize `REGISTRAR` in `JdbcIdentityResolver` (not a missing row / not test cleanup of the pilot). Tests not changed.
-3. College Admin is **not** on the STM-07.ACCOUNT.A path for link-status — browser deny kept off; service tests cover denial. Pilot M1 not revoked.
-4. Platform Admin: no college selector; R02/R03 have **no** existing `.env.audit` test accounts on Dev.
-5. Announcements (STM-10-US-023): publishers confirmed College Admin + Communication Manager; communication service **missing** under `services/` → BLOCKED (CSV patch ready in `.tmpwrite` if the open CSV file lock is released).
+1. **Gateway Registrar recognition (approved, limited):** commit `dffbf19`.
+   - Baseline gateway suite: **6 failures / 7 errors** (`docs/reports/_verify_gateway_baseline_pre_registrar.txt`).
+   - After change: **6 failures / 8 errors** on full module run — failure count unchanged; +1 error was `LiveG1GrantsExecutionTest` prepared-statement flake (alone: 0 errors). Identity suite **32/0**. New tests: Registrar recognised; College Admin-only route still denied; Faculty/Student/College Admin unchanged; no-role still rejected.
+   - No new route grants. Registrar without delegation still denied in Java when the student row is visible.
+2. **Browser re-run (delegated Registrar success only):** **FAIL** after gateway fix. Desk + JWT OK; link-status **404 Student not found** (RLS/visibility under authenticated role for pilot Registrar). Screenshot refreshed; `DEMO_GUIDE.md` updated. No further code without approval.
+3. **Path C finding (STM-03…06 delegated Registrar approvals):** exercised as **IAM Path C HTTP active-checks / service-client smoke** (e.g. `docs/reports/R31_PATH_C_STACK_SMOKE_2026-11-15.json`), **not** as headed browser desk approvals through UI → gateway. No fix in this turn.
+4. **CSV:** `.csv.tmpwrite` ready. **Do not swap** until owner says the backlog CSV is closed in the editor.
+5. **STM-10-US-023** (Configure portal settings and publish announcements): **BLOCKED** — communication service does not exist (`communication-services/notification-service/.gitkeep` only). Do not build.
 
-## Owner question to unblock Registrar success demo
+## Owner approval needed (new services) — do not start
 
-May we add Registrar (R31) / `REGISTRAR` to the API Gateway’s recognized business roles in `JdbcIdentityResolver` (and the in-memory twin) so delegated Registrar JWT identity resolves?
+Treat these as one approval gate for missing services:
+
+| Item | Why blocked |
+|---|---|
+| Student portal announcements (STM-10-US-023) | No communication service implementation |
+| Academic history (STM-08) | No academic-history service in repo |
+| Student service requests (STM-09) | No service-requests service in repo |
+
+## Optional unblock for Registrar staff-screen success
+
+Pilot Registrar can pass the gateway but cannot see `stu.students` under RLS the way College Admin can. Needs a separate owner decision (grants / visibility), not more gateway route access.
 
 ## Rules
 

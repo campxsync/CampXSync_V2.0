@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-17 (STM-07 batch 4 COMPLETED — EN-005 partial, EN-006 done; Playwright batch4; STM10 buildable map; pen 34/34; E2E 32/32; **no push**)
+**Last current-state refresh:** 2026-11-17 (Gateway Registrar recognition `dffbf19`; delegated Registrar browser success still FAIL on student visibility; CSV swap waiting; STM-10-US-023 + STM-08/09 new-service gate; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STM-07 batch 4 stopped; next only after owner: remaining STM-07 gaps / STM-10 buildable items; STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
+1. `docs/prompts/NEXT_TASK.md` — STOP: await CSV-closed swap; optional Registrar RLS/visibility decision; new-service approval for STM-10-US-023 + STM-08 + STM-09; live AV / Kafka / FLAG gated.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. STM-07-B2-D1..D3).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -20,15 +20,15 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says. **Known preflight leftovers (do not STOP):** `classpath.txt`, `docs/reports/_csv_status_*.txt`, `docs/reports/_verify_*.txt`, `docs/reports/_wt_compare_*.txt`, `docs/reports/**/video/*.webm`.
-2. **STM-06-EN-002 / US-015 / CROSS-EN-010 / cross-tenant pen:** **completed**.
-3. **STM-CROSS-EN-014 / STM-03-EN-007:** **partially completed** — ops pack for STM-03..06.
-4. **STM-07 batch 2 + verify:** US-008/009 (`2675dea`), EN-002 (`57dc0ff`), EN-004 (`bf8cf6d`), US-001 **completed** (`912a6f9`). Role security `8412134`. **STM-08/09** BLOCKED. OWNER still must confirm institute-admin hosts role endpoint (**approved** vs **move**).
-5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C + STM-07 R25 role ports use institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
+2. **Gateway:** Registrar (R31) recognised as business role only (`dffbf19`). No new route grants. Baseline failures unchanged (6); identity suite 32/0.
+3. **Delegated Registrar staff-screen browser case:** still **FAIL** after gateway fix — JWT accepted; link-status 404 (student not visible under authenticated RLS for pilot Registrar). Evidence in `docs/reports/playwright-stm07-batch4/`.
+4. **STM-07 batch 4:** EN-005 partial, EN-006 done. **STM-08 / STM-09 / STM-10-US-023** gated as **new services** — do not build without approval.
+5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
-8. **Stack:** `start_stack.ps1` now starts institute-admin (:8081) and student-service (:8093) (`a480396`). STM-02/03/05 still omitted for RAM; start them for CROSS-EN-010 / pen when needed.
+8. **CSV:** swap from `.csv.tmpwrite` only after owner says the backlog CSV is closed; delete `.tmpwrite` in the same commit.
 9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope).
-10. **Demos:** `docs/reports/playwright-stm07-batch2/` for batch 2; `run_story_demo.mjs` for story demos.
+10. **Demos:** `docs/reports/playwright-stm07-batch4/` for Registrar/EN-005; `run_story_demo.mjs` for story demos.
 
 ---
 

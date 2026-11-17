@@ -58,3 +58,13 @@ CSV status in the backlog is noted where useful; this file is about *dependency 
 - Do **not** start Academic history (STM-08) or Student service requests (STM-09) from this map.
 - Do **not** stub the event bus, antivirus, or unresolved role-configuration decisions.
 - Next independent STM-10 pickup (when authorized): preferences persistence (STM-10-EN-001) or secure logout (STM-10-US-020).
+
+## New-service approval gate (owner)
+
+Do **not** build these until the owner approves them as new services (together):
+
+| Item | Status |
+|---|---|
+| Configure portal settings and publish announcements (STM-10-US-023) | **BLOCKED** — communication service missing |
+| Academic history (STM-08) | **BLOCKED** — no service in repo |
+| Student service requests (STM-09) | **BLOCKED** — no service in repo |

@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-17 (STM-07 batch 4 complete: EN-005 partial `591f2c0`, EN-006 `895016b`; demo `435e28a`; STM10 map `c021678`; pen 34/34; E2E 32/32; student 184/0 with clean env; **no push**)
+**Updated:** 2026-11-17 (Gateway Registrar recognition `dffbf19`; delegated Registrar browser success still FAIL on student visibility; STM-10-US-023 BLOCKED with STM-08/09 new-service gate; CSV swap waiting on editor close; **no push**)
 
 ## Owner decisions – STM-07 batch 2 (16-11-2026)
 
