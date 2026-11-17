@@ -1,0 +1,61 @@
+{
+  "startedAt": "2026-11-17T09:35:22.031Z",
+  "base": "http://localhost:3000",
+  "slowMo": 300,
+  "stack": {
+    "ui3000": true,
+    "gateway8080": true,
+    "iam8081": true,
+    "student8093": true
+  },
+  "results": [
+    {
+      "spec": "01_us003_staff_link_status.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "College Admin opens account provisioning desk (staff UI path)",
+        "Desk visible — account link status panel present",
+        "Platform Admin (R01) also reaches the desk",
+        "Platform Admin desk visible"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch3\\screenshots\\01_us003_staff_link_status.png",
+      "notes": [
+        "Java B3-D5 still denies college_admin for link-status API without IAM operator / R31+ACCOUNT.A."
+      ]
+    },
+    {
+      "spec": "02_us005_retry.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Open provisioning desk as college admin (retry UI)",
+        "Retry controls render for FAILED rows (data-testid provisioning-retry-*)"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch3\\screenshots\\02_us005_retry.png",
+      "notes": [
+        "Live FAILED seed optional; unit suite Stm07Us005RetryProvisioningTest covers Path C + IAM operator retry."
+      ]
+    },
+    {
+      "spec": "03_us006_history.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Registrar session can reach account provisioning desk (B3-D5 UI path)",
+        "Past login requests panel visible"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch3\\screenshots\\03_us006_history.png",
+      "notes": []
+    },
+    {
+      "spec": "04_us012_audit.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Platform Admin opens account/role audit panel",
+        "Audit panel visible (B3-D6 R01–R03)",
+        "Load audit via desk button"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch3\\screenshots\\04_us012_audit.png",
+      "notes": []
+    }
+  ],
+  "finishedAt": "2026-11-17T09:35:54.612Z"
+}

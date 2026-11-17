@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-17 (stack :8081/:8093 + US-001 VERIFIED gate + role security tests; verify suites green)
+**Updated:** 2026-11-17 (STM-07 batch 3 complete: US-003/005/006/012; Playwright 4/4; pen 34/34; E2E 32/32)
 
 ## Owner decisions – STM-07 batch 2 (16-11-2026)
 

@@ -1,6 +1,6 @@
 # Next Task
 
-**STATUS: STM-07 batch 3 stories COMPLETED — running batch-end verification.**
+**STATUS: STM-07 batch 3 COMPLETED 2026-11-17. Batch stop. No push.**
 
 ## Completed this batch
 
@@ -9,18 +9,26 @@
 | STM-07-US-003 | Staff view of account link status | **completed** | `aa5f990` |
 | STM-07-US-005 | Retry failed login setup | **completed** | `d6bf89b` |
 | STM-07-US-006 | See past login requests | **completed** | `dcb9a3b` |
-| STM-07-US-012 | Audit who changed accounts and roles | **completed** | (this commit) |
+| STM-07-US-012 | Audit who changed accounts and roles | **completed** | `64327a8` |
 
-## Batch-end remaining
+## Batch-end verify (2026-11-17)
 
-1. Full student-service / institute-admin / gateway suites (note pre-existing flakes)
-2. CROSS-EN-010 E2E + cross-tenant pen (stack up)
-3. Headed Playwright STM-07 batch3 demo + demo commit
-4. Final Section 10 + 7A report; STOP; **no push**
+| Command | Result |
+|---|---|
+| Playwright STM-07 batch3 | **4/4 PASS** (`docs/reports/playwright-stm07-batch3/`) |
+| `run_cross_tenant_pen_test.mjs` | **34/34 PASS; vulns=0** |
+| `run_stm_cross_en_010_e2e.mjs` | **32/32 PASS** |
+| `cd frontend; npx tsc --noEmit` | **0 errors** |
 
-## Parked / BLOCKED
+## Pickup queue (next batch when authorized)
 
-STM-07-EN-005 / EN-006 → next batch if authorized. US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV — blocked.
+1. STM-07-EN-005 / EN-006 if still fitting and unblocked
+2. STM-10-EN-001 preferences if independent
+3. Unblock STM-08/09 only after owner approves new services
+
+## BLOCKED (unchanged)
+
+STM-07-US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV.
 
 ## Rules
 

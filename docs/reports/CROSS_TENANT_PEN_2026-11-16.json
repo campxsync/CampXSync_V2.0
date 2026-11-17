@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-17T06:50:18.601Z",
+  "startedAt": "2026-11-17T09:38:06.036Z",
   "task": "CROSS-TENANT-PEN-2026-11-16",
   "projectRef": "azulbaxszsqxymqmlwfe",
   "gatewayBase": "http://127.0.0.1:8080",
@@ -219,7 +219,7 @@
   ],
   "fixesApplied": [],
   "stackAvailable": true,
-  "endedAt": "2026-11-17T06:50:35.467Z",
+  "endedAt": "2026-11-17T09:38:18.936Z",
   "summary": {
     "total": 34,
     "passed": 34,

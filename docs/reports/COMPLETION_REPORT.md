@@ -1443,3 +1443,31 @@ Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
 
 ### Suites
 `mvn test -pl …/student-service -Dtest=Stm07Us012AccountRoleAuditTest` → PASS
+
+## Entry 43 — STM-07 batch 3 close (2026-11-17)
+
+**Mode:** BATCH END / STOP  
+**No push.**
+
+### Stories (plain name + ID)
+
+| Plain name | ID | Status | Commit |
+|---|---|---|---|
+| Staff view of account link status | STM-07-US-003 | completed | `aa5f990` |
+| Retry failed login setup | STM-07-US-005 | completed | `d6bf89b` |
+| See past login requests | STM-07-US-006 | completed | `dcb9a3b` |
+| Audit who changed accounts and roles | STM-07-US-012 | completed | `64327a8` |
+
+### Batch-end evidence (Agreement 7A)
+
+| Suite | Result |
+|---|---|
+| Playwright `docs/reports/playwright-stm07-batch3/` | **4/4 PASS** |
+| Cross-tenant pen | **34/34 PASS; vulns=0** |
+| STM-CROSS-EN-010 E2E | **32/32 PASS** |
+| student-service full | **177 run / 0 fail / 1 error** (pre-existing RLS `persons` flake in `StudentEngineeringQualityAndSecurityTest`) |
+| `npx tsc --noEmit` | **0 errors** |
+
+### Parked
+
+STM-07-EN-005 / EN-006 left for a later batch. BLOCKED set unchanged (US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV).
