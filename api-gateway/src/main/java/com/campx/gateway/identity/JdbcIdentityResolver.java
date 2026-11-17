@@ -295,6 +295,16 @@ public class JdbcIdentityResolver implements IdentityResolver {
                     if (ra.departmentId != null)
                         matchedDeptId = ra.departmentId;
                     break;
+                } else if (isRegistrarRole(code)) {
+                    // Registrar (R31) is recognised but never elevated to College Admin.
+                    if (resolvedRole == null || isStudentRole(resolvedRole)
+                            || (resolvedRole != null && isFacultyRole(resolvedRole.toUpperCase(Locale.ROOT)))) {
+                        resolvedRole = ra.roleCode != null ? ra.roleCode : "REGISTRAR";
+                        if (ra.collegeId != null)
+                            matchedCollegeId = ra.collegeId;
+                        if (ra.departmentId != null)
+                            matchedDeptId = ra.departmentId;
+                    }
                 } else if (isFacultyRole(code)) {
                     if (resolvedRole == null || isStudentRole(resolvedRole)) {
                         resolvedRole = ra.roleCode != null ? ra.roleCode : "FACULTY";
@@ -382,6 +392,14 @@ public class JdbcIdentityResolver implements IdentityResolver {
             return false;
         String upper = code.toUpperCase(Locale.ROOT);
         return upper.equals("STUDENT");
+    }
+
+    /** Catalogue Registrar (R31) — recognised identity only; does not grant College Admin routes. */
+    private static boolean isRegistrarRole(String code) {
+        if (code == null)
+            return false;
+        String upper = code.toUpperCase(Locale.ROOT);
+        return upper.equals("REGISTRAR") || upper.equals("R31");
     }
 
     private static class RoleAssignmentDto {

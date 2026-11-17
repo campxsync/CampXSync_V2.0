@@ -842,6 +842,120 @@ public class GatewayIdentityResolutionTest {
         assertTrue("Cache-Control must contain no-store: " + cacheControl, cacheControl.contains("no-store"));
     }
 
+    // 29. Registrar (R31) token is recognised as REGISTRAR (not College Admin)
+    @Test
+    public void test29_authMe_validRegistrar_returns200AsRegistrarNotCollegeAdmin() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID collegeId = UUID.randomUUID();
+
+        identityResolver.registerTenant(tenantId, "Registrar Pilot College", "RPC", "ACTIVE");
+        identityResolver.registerUserProfile(userId, tenantId, "registrar.pilot@rpc.edu", "Pilot Registrar", "ACTIVE", collegeId, null);
+        identityResolver.registerRoleAssignment(userId, tenantId, "REGISTRAR", collegeId, null,
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(90));
+
+        String token = createJwt(userId.toString(), tenantId.toString(), "authenticated");
+
+        URL url = new URL("http://127.0.0.1:" + gatewayPort + "/api/v1/auth/me");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+
+        assertEquals(200, conn.getResponseCode());
+        String resp = readStream(conn.getInputStream());
+        assertTrue("Business role must be REGISTRAR: " + resp, resp.contains("\"role\":\"REGISTRAR\""));
+        assertTrue("Normalized role must be registrar: " + resp, resp.contains("\"normalizedRole\":\"registrar\""));
+        assertFalse("Must not elevate Registrar to College Admin: " + resp, resp.contains("\"role\":\"COLLEGE_ADMIN\""));
+        assertFalse("Must not normalize Registrar as college_admin: " + resp, resp.contains("\"normalizedRole\":\"college_admin\""));
+        assertTrue("College scope must be preserved: " + resp, resp.contains("\"collegeId\":\"" + collegeId + "\""));
+    }
+
+    // 30. Registrar is not forwarded as College Admin on proxied routes (no College Admin elevation)
+    @Test
+    public void test30_proxy_registrarNotElevatedToCollegeAdminRoleHeader() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID collegeId = UUID.randomUUID();
+
+        identityResolver.registerTenant(tenantId, "Registrar Scope College", "RSC", "ACTIVE");
+        identityResolver.registerUserProfile(userId, tenantId, "registrar@rsc.edu", "Scoped Registrar", "ACTIVE", collegeId, null);
+        identityResolver.registerRoleAssignment(userId, tenantId, "REGISTRAR", collegeId, null, null, null);
+
+        String token = createJwt(userId.toString(), tenantId.toString(), "authenticated");
+
+        URL url = new URL("http://127.0.0.1:" + gatewayPort + "/api/v1/mock/college-admin-only-probe");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+        // Client tries to claim College Admin; gateway must still forward REGISTRAR
+        conn.setRequestProperty("X-User-Role", "COLLEGE_ADMIN");
+
+        assertEquals(200, conn.getResponseCode());
+        RecordedRequest downstreamReq = lastDownstreamRequest.get();
+        assertNotNull("Request must reach downstream mock", downstreamReq);
+        assertEquals("REGISTRAR", getFirstHeader(downstreamReq, GatewayHmacProtocol.HEADER_USER_ROLE));
+        assertFalse("Must not forward College Admin for Registrar token",
+                "COLLEGE_ADMIN".equalsIgnoreCase(getFirstHeader(downstreamReq, GatewayHmacProtocol.HEADER_USER_ROLE)));
+    }
+
+    // 31. Faculty / Student / College Admin resolution unchanged after Registrar recognition
+    @Test
+    public void test31_authMe_facultyStudentCollegeAdmin_unchangedAfterRegistrarRecognition() throws Exception {
+        UUID facultyId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID collegeId = UUID.randomUUID();
+
+        identityResolver.registerTenant(tenantId, "Unchanged Roles College", "URC", "ACTIVE");
+        identityResolver.registerUserProfile(facultyId, tenantId, "fac@urc.edu", "Faculty User", "ACTIVE", collegeId, null);
+        identityResolver.registerRoleAssignment(facultyId, tenantId, "FACULTY", collegeId, null, null, null);
+        identityResolver.registerUserProfile(studentId, tenantId, "stu@urc.edu", "Student User", "ACTIVE", null, null);
+        identityResolver.registerRoleAssignment(studentId, tenantId, "STUDENT", null, null, null, null);
+        identityResolver.registerUserProfile(adminId, tenantId, "admin@urc.edu", "College Admin User", "ACTIVE", collegeId, null);
+        identityResolver.registerRoleAssignment(adminId, tenantId, "COLLEGE_ADMIN", collegeId, null, null, null);
+
+        String facultyResp = authMeBody(createJwt(facultyId.toString(), tenantId.toString(), "authenticated"));
+        assertTrue(facultyResp.contains("\"role\":\"FACULTY\""));
+        assertTrue(facultyResp.contains("\"normalizedRole\":\"faculty\""));
+
+        String studentResp = authMeBody(createJwt(studentId.toString(), tenantId.toString(), "authenticated"));
+        assertTrue(studentResp.contains("\"role\":\"STUDENT\""));
+        assertTrue(studentResp.contains("\"normalizedRole\":\"student\""));
+
+        String adminResp = authMeBody(createJwt(adminId.toString(), tenantId.toString(), "authenticated"));
+        assertTrue(adminResp.contains("\"role\":\"COLLEGE_ADMIN\""));
+        assertTrue(adminResp.contains("\"normalizedRole\":\"college_admin\""));
+    }
+
+    // 32. User with profile but no role assignment is still rejected
+    @Test
+    public void test32_authMe_profileWithoutRole_stillRejected() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        identityResolver.registerTenant(tenantId, "No Role College", "NRC", "ACTIVE");
+        identityResolver.registerUserProfile(userId, tenantId, "norole@nrc.edu", "No Role User", "ACTIVE", null, null);
+
+        String token = createJwt(userId.toString(), tenantId.toString(), "authenticated");
+        URL url = new URL("http://127.0.0.1:" + gatewayPort + "/api/v1/auth/me");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+
+        assertEquals(403, conn.getResponseCode());
+        String resp = readStream(conn.getErrorStream());
+        assertTrue("Must contain GATEWAY_NO_ROLE_ASSIGNED: " + resp, resp.contains("GATEWAY_NO_ROLE_ASSIGNED"));
+    }
+
+    private String authMeBody(String token) throws Exception {
+        URL url = new URL("http://127.0.0.1:" + gatewayPort + "/api/v1/auth/me");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+        assertEquals(200, conn.getResponseCode());
+        return readStream(conn.getInputStream());
+    }
+
     private static String createJwt(String sub, String tenantId, String role) throws Exception {
         return SupabaseJwtValidator.createSignedJwt(
                 sub, tenantId, role, dynamicIssuer, "authenticated",

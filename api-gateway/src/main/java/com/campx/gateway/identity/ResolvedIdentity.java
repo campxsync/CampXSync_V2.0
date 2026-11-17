@@ -91,6 +91,9 @@ public class ResolvedIdentity {
                 || upper.equals("PRINCIPAL") || upper.equals("ACADEMIC_ADMIN")) {
             return "college_admin";
         }
+        if (upper.equals("REGISTRAR") || upper.equals("R31")) {
+            return "registrar";
+        }
         if (upper.equals("FACULTY") || upper.equals("HOD") || upper.equals("DEAN")
                 || upper.equals("TEACHER") || upper.equals("SECTION_COORDINATOR")) {
             return "faculty";
