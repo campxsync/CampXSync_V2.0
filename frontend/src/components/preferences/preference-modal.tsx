@@ -63,9 +63,10 @@ export function PreferenceModal({
 }: PreferenceModalProps) {
   const adapter = React.useMemo(() => new ServerPreferenceAdapter(), []);
   const [preferences, setPreferences] = useState<UserPreferences>(PRODUCT_DEFAULTS);
-  const [activeTab, setActiveTab] = useState<'display' | 'widgets'>('display');
+  const [activeTab, setActiveTab] = useState<'display' | 'widgets' | 'shortcuts'>('display');
   const [feedback, setFeedback] = useState<{ message: string; isSynced: boolean } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [shortcutDraft, setShortcutDraft] = useState({ id: '', label: '', path: '/student' });
 
   useEffect(() => {
     if (isOpen) {
@@ -213,6 +214,7 @@ export function PreferenceModal({
           <button
             type="button"
             onClick={() => setActiveTab('widgets')}
+            data-testid="preferences-tab-widgets"
             className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
               activeTab === 'widgets'
                 ? 'border-[#1F6FEB] text-[#1F6FEB]'
@@ -221,6 +223,20 @@ export function PreferenceModal({
           >
             Dashboard Widgets ({currentRoleWidgets.order.length})
           </button>
+          {role === 'student' && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('shortcuts')}
+              data-testid="preferences-tab-shortcuts"
+              className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
+                activeTab === 'shortcuts'
+                  ? 'border-[#1F6FEB] text-[#1F6FEB]'
+                  : 'border-transparent text-[#475569] hover:text-[#0B1F3A]'
+              }`}
+            >
+              Shortcuts ({preferences.shortcuts?.length || 0})
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -228,7 +244,7 @@ export function PreferenceModal({
           {activeTab === 'display' ? (
             <>
               {/* Color Theme */}
-              <div>
+              <div data-testid="preferences-display-panel">
                 <label className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider">
                   Color Theme
                 </label>
@@ -299,6 +315,40 @@ export function PreferenceModal({
                 </div>
               </div>
 
+              {/* Language & timezone (STM-10-US-014) */}
+              <div data-testid="preferences-language-panel">
+                <label className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider">
+                  Language & Timezone
+                </label>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="text-xs text-[#475569]">
+                    Locale
+                    <select
+                      data-testid="preferences-locale-select"
+                      className="mt-1 w-full rounded-[8px] border border-[#E3E8EF] bg-white p-2 text-xs text-[#0B1F3A]"
+                      value={preferences.locale}
+                      onChange={(e) => setPreferences({ ...preferences, locale: e.target.value })}
+                    >
+                      <option value="en-IN">English (India)</option>
+                      <option value="hi-IN">Hindi (India)</option>
+                      <option value="ta-IN">Tamil (India)</option>
+                    </select>
+                  </label>
+                  <label className="text-xs text-[#475569]">
+                    Timezone
+                    <select
+                      data-testid="preferences-timezone-select"
+                      className="mt-1 w-full rounded-[8px] border border-[#E3E8EF] bg-white p-2 text-xs text-[#0B1F3A]"
+                      value={preferences.timezone}
+                      onChange={(e) => setPreferences({ ...preferences, timezone: e.target.value })}
+                    >
+                      <option value="Asia/Kolkata">Asia/Kolkata</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
               {/* Accessibility Options */}
               <div>
                 <label className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider">
@@ -353,9 +403,99 @@ export function PreferenceModal({
                 </div>
               </div>
             </>
+          ) : activeTab === 'shortcuts' ? (
+            <div className="space-y-3" data-testid="preferences-shortcuts-panel">
+              <p className="text-xs text-[#475569]">
+                Save internal portal shortcuts. Paths must start with / and cannot leave the site.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <input
+                  data-testid="preferences-shortcut-id"
+                  className="rounded-[8px] border border-[#E3E8EF] p-2 text-xs"
+                  placeholder="id (e.g. docs)"
+                  value={shortcutDraft.id}
+                  onChange={(e) => setShortcutDraft({ ...shortcutDraft, id: e.target.value })}
+                />
+                <input
+                  data-testid="preferences-shortcut-label"
+                  className="rounded-[8px] border border-[#E3E8EF] p-2 text-xs"
+                  placeholder="Label"
+                  value={shortcutDraft.label}
+                  onChange={(e) => setShortcutDraft({ ...shortcutDraft, label: e.target.value })}
+                />
+                <input
+                  data-testid="preferences-shortcut-path"
+                  className="rounded-[8px] border border-[#E3E8EF] p-2 text-xs"
+                  placeholder="/student/documents"
+                  value={shortcutDraft.path}
+                  onChange={(e) => setShortcutDraft({ ...shortcutDraft, path: e.target.value })}
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                data-testid="preferences-shortcut-add"
+                onClick={() => {
+                  const id = shortcutDraft.id.trim();
+                  const label = shortcutDraft.label.trim();
+                  const path = shortcutDraft.path.trim();
+                  if (!id || !label || !path.startsWith('/') || path.includes('://') || path.includes('..')) {
+                    setFeedback({
+                      message: 'Shortcut needs id, label, and an internal path starting with /.',
+                      isSynced: false,
+                    });
+                    return;
+                  }
+                  const next = [...(preferences.shortcuts || [])];
+                  if (next.some((s) => s.id === id)) {
+                    setFeedback({ message: 'Shortcut id already exists.', isSynced: false });
+                    return;
+                  }
+                  if (next.length >= 20) {
+                    setFeedback({ message: 'Maximum of 20 shortcuts reached.', isSynced: false });
+                    return;
+                  }
+                  next.push({ id, label, path });
+                  setPreferences({ ...preferences, shortcuts: next });
+                  setShortcutDraft({ id: '', label: '', path: '/student' });
+                }}
+              >
+                Add shortcut
+              </Button>
+              <ul className="space-y-2" data-testid="preferences-shortcuts-list">
+                {(preferences.shortcuts || []).map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between rounded-[8px] border border-[#E3E8EF] p-2 text-xs"
+                    data-testid={`preferences-shortcut-item-${item.id}`}
+                  >
+                    <div>
+                      <div className="font-semibold text-[#0B1F3A]">{item.label}</div>
+                      <div className="font-mono text-[10px] text-[#475569]">
+                        {item.id} → {item.path}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      data-testid={`preferences-shortcut-remove-${item.id}`}
+                      onClick={() =>
+                        setPreferences({
+                          ...preferences,
+                          shortcuts: (preferences.shortcuts || []).filter((s) => s.id !== item.id),
+                        })
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
             /* Widgets Tab */
-            <div className="space-y-3">
+            <div className="space-y-3" data-testid="preferences-widgets-panel">
               <p className="text-xs text-[#475569]">
                 Customize which widgets appear on your dashboard and their display order. Mandatory
                 security alerts and essential actions cannot be bypassed.

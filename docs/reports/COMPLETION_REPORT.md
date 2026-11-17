@@ -1575,3 +1575,27 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 ### Tests
 - `mvn test -pl services/student-services/student-service "-Dtest=Stm10Us012DashboardWidgetsTest,Stm10PortalPreferencesEn001Test"` → **12/0**
 - Frontend TypeScript check (`npx tsc --noEmit`) → **0 errors**
+
+### CSV
+- Configure dashboard widgets (STM-10-US-012) → **completed (0d4e6a8)**
+
+---
+
+## Entry 48 — Save shortcuts (STM-10-US-013) (2026-11-17)
+
+**Plain name:** Save shortcuts (STM-10-US-013)  
+**Status:** completed  
+**No push.**
+
+### Implementation
+- Portal payload includes `shortcuts[]`; preference modal Shortcuts tab (student only)
+- `StudentShortcutsStrip` on student dashboard
+- BFF merge preserves shortcuts when other preference sections update
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Shortcuts persist for owning student | `savePortalPreferences` shortcuts | `stm10Us013_shortcutsPersistAcrossReload` |
+| Other student does not see them | store isolation | `stm10Us013_otherStudentDoesNotSeeShortcuts` |
+| External / unsafe path rejected | sanitize path rules | `stm10Us013_externalShortcutPathRejected` |

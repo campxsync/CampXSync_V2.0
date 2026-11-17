@@ -1,24 +1,17 @@
 # Next Task
 
-**STATUS:** STM-10 batch 5 in progress. EN-001 + US-012 done. Next: Save shortcuts (STM-10-US-013). **No push.**
+**STATUS:** STM-10 batch 5 — US-013 done locally pending commit; next US-014 then demos. **No push.**
 
-## Done this turn
+## Done
 
 1. Save portal preferences in the database (STM-10-EN-001) — `0cf5190`
-2. Configure dashboard widgets (STM-10-US-012) — durable widgets via portal BFF + StudentWidgetGate
+2. Configure dashboard widgets (STM-10-US-012) — `0d4e6a8`
+3. Save shortcuts (STM-10-US-013) — portal shortcuts + strip + tests
 
-## Queue remaining (this batch only)
+## Remaining this batch
 
-1. Save shortcuts (STM-10-US-013)
-2. Configure language and display preferences (STM-10-US-014)
-3. Headed Playwright demos under `docs/reports/playwright-stm10-batch5/`
-
-## Still BLOCKED (do not build)
-
-| Item | Why |
-|---|---|
-| Configure portal settings and publish announcements (STM-10-US-023) | D10 — communication service missing |
-| Academic history (STM-08) / Student service requests (STM-09) | New service gate |
+1. Configure language and display preferences (STM-10-US-014)
+2. Headed Playwright demos `docs/reports/playwright-stm10-batch5/`
 
 ## Rules
 

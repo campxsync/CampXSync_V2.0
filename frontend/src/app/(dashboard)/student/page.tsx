@@ -28,6 +28,8 @@ import {
   setCachedStudentAttendance,
 } from '@/lib/cache/student-profile-cache';
 import { StudentWidgetGate } from '@/components/preferences/student-widget-gate';
+import { StudentShortcutsStrip } from '@/components/preferences/student-shortcuts-strip';
+import { StudentDisplayEffects } from '@/components/preferences/student-display-effects';
 
 export const dynamic = 'force-dynamic';
 
@@ -232,6 +234,8 @@ export default async function StudentDashboardPage() {
         Skip to main content
       </a>
 
+      <StudentDisplayEffects userId={userId} tenantId={tenantId} />
+      <StudentShortcutsStrip userId={userId} tenantId={tenantId} />
       <div
         className="flex flex-col gap-6"
         data-testid="student-dashboard-widgets"

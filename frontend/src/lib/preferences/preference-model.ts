@@ -14,6 +14,12 @@ export interface RoleDashboardConfig {
   hidden: string[];
 }
 
+export interface PortalShortcut {
+  id: string;
+  label: string;
+  path: string;
+}
+
 export interface UserPreferences {
   version: 1;
   theme: 'light' | 'dark' | 'system';
@@ -29,6 +35,8 @@ export interface UserPreferences {
     largeFont: boolean;
   };
   dashboardWidgets: RoleDashboardConfig;
+  /** STM-10-US-013 student portal shortcuts (internal paths only). */
+  shortcuts?: PortalShortcut[];
   roles?: {
     college_admin?: RoleDashboardConfig;
     registrar?: RoleDashboardConfig;
@@ -76,6 +84,7 @@ export const PRODUCT_DEFAULTS: UserPreferences = {
     largeFont: false,
   },
   dashboardWidgets: ROLE_DEFAULT_WIDGETS.college_admin,
+  shortcuts: [],
   roles: {
     college_admin: ROLE_DEFAULT_WIDGETS.college_admin,
     registrar: ROLE_DEFAULT_WIDGETS.registrar,
@@ -178,6 +187,29 @@ export function sanitizePreferences(
     rolesObj[roleKey] = sanitizeWidgetConfig(incoming, rFallback);
   }
 
+  const shortcuts: PortalShortcut[] = [];
+  if (Array.isArray((obj as { shortcuts?: unknown }).shortcuts)) {
+    for (const raw of (obj as { shortcuts: unknown[] }).shortcuts) {
+      if (!raw || typeof raw !== 'object') continue;
+      const item = raw as Partial<PortalShortcut>;
+      if (
+        typeof item.id === 'string' &&
+        typeof item.label === 'string' &&
+        typeof item.path === 'string' &&
+        item.path.startsWith('/') &&
+        !item.path.includes('://') &&
+        !item.path.includes('..')
+      ) {
+        shortcuts.push({
+          id: item.id.slice(0, 64),
+          label: item.label.slice(0, 80),
+          path: item.path.slice(0, 200),
+        });
+      }
+      if (shortcuts.length >= 20) break;
+    }
+  }
+
   return {
     version: 1,
     theme,
@@ -189,6 +221,7 @@ export function sanitizePreferences(
     timezone,
     accessibility,
     dashboardWidgets: rolesObj[currentRole] || activeDashboardWidgets,
+    shortcuts,
     roles: rolesObj,
   };
 }
@@ -233,6 +266,7 @@ function portalPayloadToUserPreferences(portal: any, role: string): UserPreferen
         largeFont: Boolean(display.accessibility?.largeFont),
       },
       dashboardWidgets: widgets,
+      shortcuts: Array.isArray(portal?.shortcuts) ? portal.shortcuts : [],
       roles: { student: widgets },
     },
     role,
@@ -248,6 +282,7 @@ function userPreferencesToPortalPayload(prefs: UserPreferences) {
       order: widgets.order || [],
       hidden: widgets.hidden || [],
     },
+    shortcuts: prefs.shortcuts || [],
     display: {
       theme: prefs.theme,
       locale: prefs.locale,
