@@ -1386,3 +1386,22 @@ Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
 | `mvn test -pl …/student-service -Dtest=Stm07Us003StaffLinkStatusTest,…` | PASS |
 | Full student-service | 160 run / 0 fail / **1 error** (pre-existing RLS on `persons` in `StudentEngineeringQualityAndSecurityTest`) |
 | `cd frontend; npx tsc --noEmit` | 0 errors |
+
+## Entry 40 — Retry failed login setup (STM-07-US-005) (2026-11-17)
+
+**Plain name:** Retry failed login setup (STM-07-US-005)  
+**Status:** completed  
+**No push.**
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| IAM operator retries FAILED → REQUESTED | `retryFailedProvisioningRequest` | `stm07Us005_iamOperatorRetriesFailedLoginSetup` |
+| Registrar / college admin with STM-07.ACCOUNT.A can retry | `assertCanManageAccountProvisioning` | `stm07Us005_registrarWithDelegationCanRetry`, `stm07Us005_collegeAdminWithDelegationCanRetry` |
+| No delegation / faculty denied | same | `stm07Us005_registrarWithoutDelegationDenied`, `stm07Us005_facultyDeniedRetry` |
+| Already linked cannot retry | same | `stm07Us005_cannotRetryWhenAlreadyLinked` |
+| Desk retry control | `/college/account-provisioning` retry button | shipped with US-003 desk |
+
+### Suites
+`mvn test -pl …/student-service -Dtest=Stm07Us005RetryProvisioningTest` → PASS
