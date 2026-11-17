@@ -25,6 +25,7 @@ const SPECS = [
   '02_us005_retry.spec.mjs',
   '03_us006_history.spec.mjs',
   '04_us012_audit.spec.mjs',
+  '05_negative_auth.spec.mjs',
 ];
 
 async function portOpen(port) {
