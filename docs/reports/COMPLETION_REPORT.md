@@ -1405,3 +1405,22 @@ Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
 
 ### Suites
 `mvn test -pl …/student-service -Dtest=Stm07Us005RetryProvisioningTest` → PASS
+
+## Entry 41 — See past login requests (STM-07-US-006) (2026-11-17)
+
+**Plain name:** See past login requests (STM-07-US-006)  
+**Status:** completed  
+**Owner decisions:** STM-07-B3-D5  
+**No push.**
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| R01–R03 view provisioning history | `listProvisioningRequests` + `assertCanViewStaffAccountLink` | `stm07Us006_iamOperatorSeesPastLoginRequests`, `stm07Us006_r02CanViewHistory` |
+| Registrar with ACCOUNT.A can view | same | `stm07Us006_registrarWithDelegationCanViewHistory` |
+| Faculty / undelegated registrar / college admin denied | same | `stm07Us006_facultyDeniedHistory`, `stm07Us006_registrarWithoutDelegationDenied`, `stm07Us006_collegeAdminDeniedEvenWithDelegation` |
+| Desk history panel | `/college/account-provisioning` | shipped with US-003 desk |
+
+### Suites
+`mvn test -pl …/student-service -Dtest=Stm07Us006ProvisioningHistoryTest` → PASS

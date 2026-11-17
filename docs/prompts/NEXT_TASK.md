@@ -1,23 +1,19 @@
 # Next Task
 
-**STATUS: STM-07 batch 3 in progress — US-003 + US-005 COMPLETED.**
+**STATUS: STM-07 batch 3 in progress — US-003/005/006 COMPLETED.**
 
 ## Just completed
 
 | ID | Plain name | Status |
 |---|---|---|
 | STM-07-US-003 | Staff view of account link status | **completed** (`aa5f990`) |
-| STM-07-US-005 | Retry failed login setup | **completed** (this commit) |
+| STM-07-US-005 | Retry failed login setup | **completed** (`d6bf89b`) |
+| STM-07-US-006 | See past login requests | **completed** (this commit) |
 
 ## Remaining this batch
 
-1. See past login requests (STM-07-US-006)
-2. Audit who changed accounts and roles (STM-07-US-012)
-3. Batch-end suites + headed Playwright batch3 + STOP (no push)
-
-## BLOCKED (do not implement)
-
-STM-07-US-007/011/014, EN-003/005/006, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV — unchanged.
+1. Audit who changed accounts and roles (STM-07-US-012)
+2. Batch-end suites + headed Playwright batch3 + STOP (no push)
 
 ## Rules
 
