@@ -1491,3 +1491,22 @@ BLOCKED set unchanged (US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROS
 
 ### Matrix
 `docs/reports/STM07_EN005_INTEGRATION_MATRIX.md`
+
+## Entry 45 — Security tests, logs and go-live readiness for account setup (STM-07-EN-006) (2026-11-17)
+
+**Plain name:** Security tests, logs and go-live readiness for account setup (STM-07-EN-006)  
+**Status:** completed (readiness package; parked gaps listed as gaps)  
+**No push.**
+
+### Acceptance → code → tests
+
+| Clause | Code / doc | Test |
+|---|---|---|
+| Faculty denied account provisioning | domain gate | `stm07En006_facultyDeniedProvisioning` |
+| Student denied account provisioning | domain gate | `stm07En006_studentDeniedProvisioning` |
+| Privileged provisioning audited | existing audit repository | `stm07En006_privilegedProvisioningIsAudited` |
+| Registrar denied account/role audit list | `assertIamOperatorOnly` | `stm07En006_registrarWithoutDelegationDeniedAuditList` |
+| Go-live checklist in plain words | `docs/reports/STM07_GO_LIVE_READINESS.md` | documentation evidence |
+
+### Explicit gaps recorded (not done)
+Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, STM-08/09, Registrar JWT `tenant_id`, admission auto-provision.
