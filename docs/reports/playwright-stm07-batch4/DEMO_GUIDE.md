@@ -25,14 +25,19 @@ There is no college/tenant selector for Platform Admin. Staff desks are for role
 | Institution Admin (R03) | **No** existing test account in `.env.audit`, and **no** active `INSTITUTION_ADMIN` assignment linked to an Auth email on Dev. |
 | Present in `.env.audit` | Platform Admin (R01) `platformadmin.campx@gmail.com`, College Admin `campxsync@gmail.com`, Faculty, Student 1/2, Registrar pilot. |
 
-## Registrar demo re-run (owner answers)
+## Registrar demo re-run (after gateway recognises Registrar)
+
+Gateway change: commit `dffbf19` — Registrar (R31) recognised in identity resolution only; no new route grants.
 
 | Spec | Result |
 |---|---|
-| Delegated Registrar success | **FAIL / STOPPED** — role-assignment row present (runbook restore was a no-op). Gateway returns `GATEWAY_NO_ROLE_ASSIGNED` because API Gateway identity resolver does **not** treat `REGISTRAR` as a recognized business role. See `STM07_REGISTRAR_ROLE_ASSIGNMENT_BEFORE_AFTER_2026-11-17.md`. |
+| Delegated Registrar success | **FAIL** — desk opens as Registrar; gateway accepts the JWT and forwards to student-service. Load link-status returns **404 Student not found** for live Dev student `81dd67d3-1d5f-4d8e-8061-a67648610002` (row exists). Same call as College Admin reaches Java and returns **403 Role is not authorised** (row visible; staff ACCOUNT.A path denies College Admin). Registrar path is blocked by student-row visibility under the authenticated DB role before the Java ACCOUNT.A check runs. Screenshot: `screenshots/02_registrar_delegated_success.png`. Report: `REGISTRAR_DEMO_RUN_REPORT.json`. |
 | No-delegation Java denial in browser | **Not run** — College Admin does **not** use the same STM-07.ACCOUNT.A check (denied as unauthorised role). Pilot M1 not revoked. Rely on `Stm07Us003StaffLinkStatusTest` service negatives. |
 
 ```powershell
+# Success case only was re-run after the gateway change
+node --input-type=module  # imports 02_registrar_delegated_success.spec.mjs only
+# Full registrar pair:
 node docs/reports/playwright-stm07-batch4/run_registrar_demo.mjs
 ```
 
