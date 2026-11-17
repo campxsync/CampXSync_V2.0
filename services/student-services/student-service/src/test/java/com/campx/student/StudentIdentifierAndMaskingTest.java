@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 public class StudentIdentifierAndMaskingTest {
 
     private StudentDomainService service;
+    private InMemoryStudentRepository studentRepo;
     private UUID tenantId;
     private UUID collegeId;
     private UserSecurityContext staffContext;
@@ -33,7 +34,7 @@ public class StudentIdentifierAndMaskingTest {
     @Before
     public void setUp() {
         InMemoryPersonRepository personRepo = new InMemoryPersonRepository();
-        InMemoryStudentRepository studentRepo = new InMemoryStudentRepository(personRepo);
+        studentRepo = new InMemoryStudentRepository(personRepo);
         InMemoryGuardianshipRepository guardianshipRepo = new InMemoryGuardianshipRepository();
 
         service = new StudentDomainService(studentRepo, personRepo, guardianshipRepo);
@@ -52,6 +53,7 @@ public class StudentIdentifierAndMaskingTest {
         req.setCollegeId(collegeId);
         // Leave enrollmentNo null to test auto-generation
         student = service.enrollStudent(staffContext, req);
+        StudentTestSupport.markVerified(studentRepo, staffContext, student.getId());
         service.linkIamAccount(staffContext, student.getId(), studentUserId);
     }
 

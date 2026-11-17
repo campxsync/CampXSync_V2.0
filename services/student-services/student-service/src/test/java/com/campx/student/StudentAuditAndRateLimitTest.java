@@ -29,6 +29,7 @@ import static org.junit.Assert.*;
 public class StudentAuditAndRateLimitTest {
 
     private StudentDomainService service;
+    private com.campx.student.repository.InMemoryStudentRepository studentRepo;
     private InMemoryAuditLogRepository auditRepo;
     private StudentController controller;
     private RateLimiter rateLimiter;
@@ -56,6 +57,7 @@ public class StudentAuditAndRateLimitTest {
         crossTenantContext = UserSecurityContext.fromHeaders(UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), "system_admin");
 
         StudentDomainService.RepositoryBundle bundle = StudentDomainService.createInMemoryBundle();
+        this.studentRepo = (com.campx.student.repository.InMemoryStudentRepository) bundle.studentRepository;
         this.auditRepo = (InMemoryAuditLogRepository) bundle.auditLogRepository;
         this.service = new StudentDomainService(bundle);
         this.rateLimiter = new RateLimiter(3, 60000); // 3 requests per minute for targeted test
@@ -77,6 +79,7 @@ public class StudentAuditAndRateLimitTest {
     public void testProfileChangeHistoryRetrievalScopedToStudentAndTenant() {
         // STM01-US-025: View profile change history
         StudentProfileResponse student = service.enrollStudent(staffContext, buildEnrollRequest("HIST001"));
+        StudentTestSupport.markVerified(studentRepo, staffContext, student.getId());
         service.linkIamAccount(staffContext, student.getId(), studentUserId);
 
         // Perform some updates
@@ -194,6 +197,7 @@ public class StudentAuditAndRateLimitTest {
     public void testAccessibilityAndLocalePreferencesPersistence() {
         // STM01-US-045: Support accessibility and locale preferences
         StudentProfileResponse student = service.enrollStudent(staffContext, buildEnrollRequest("PREF001"));
+        StudentTestSupport.markVerified(studentRepo, staffContext, student.getId());
         service.linkIamAccount(staffContext, student.getId(), studentUserId);
 
         StudentPreferencesDto prefs = new StudentPreferencesDto();

@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 public class StudentVerificationWorkflowTest {
 
     private StudentDomainService service;
+    private InMemoryStudentRepository studentRepo;
     private UUID tenantId;
     private UUID collegeId;
     private UserSecurityContext staffContext;
@@ -33,7 +34,7 @@ public class StudentVerificationWorkflowTest {
     @Before
     public void setUp() {
         InMemoryPersonRepository personRepo = new InMemoryPersonRepository();
-        InMemoryStudentRepository studentRepo = new InMemoryStudentRepository(personRepo);
+        studentRepo = new InMemoryStudentRepository(personRepo);
         InMemoryGuardianshipRepository guardianshipRepo = new InMemoryGuardianshipRepository();
 
         service = new StudentDomainService(studentRepo, personRepo, guardianshipRepo);
@@ -52,6 +53,7 @@ public class StudentVerificationWorkflowTest {
         req.setPrimaryEmail("meera.nair@institution.edu");
         req.setCollegeId(collegeId);
         student = service.enrollStudent(staffContext, req);
+        StudentTestSupport.markVerified(studentRepo, staffContext, student.getId());
         service.linkIamAccount(iamOperatorContext, student.getId(), studentUserId);
     }
 

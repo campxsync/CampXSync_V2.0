@@ -22,6 +22,7 @@ import static org.junit.Assert.*;
 public class StudentGuardianAndConsentTest {
 
     private StudentDomainService service;
+    private InMemoryStudentRepository studentRepo;
     private UUID tenantId;
     private UUID collegeId;
     private UserSecurityContext staffContext;
@@ -31,7 +32,7 @@ public class StudentGuardianAndConsentTest {
     @Before
     public void setUp() {
         InMemoryPersonRepository personRepo = new InMemoryPersonRepository();
-        InMemoryStudentRepository studentRepo = new InMemoryStudentRepository(personRepo);
+        studentRepo = new InMemoryStudentRepository(personRepo);
         InMemoryGuardianshipRepository guardianshipRepo = new InMemoryGuardianshipRepository();
 
         service = new StudentDomainService(studentRepo, personRepo, guardianshipRepo);
@@ -49,6 +50,7 @@ public class StudentGuardianAndConsentTest {
         req.setPrimaryEmail("ananya.roy@institution.edu");
         req.setCollegeId(collegeId);
         student = service.enrollStudent(staffContext, req);
+        StudentTestSupport.markVerified(studentRepo, staffContext, student.getId());
         service.linkIamAccount(staffContext, student.getId(), studentUserId);
     }
 

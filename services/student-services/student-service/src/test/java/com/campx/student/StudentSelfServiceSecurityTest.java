@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 public class StudentSelfServiceSecurityTest {
 
     private StudentDomainService service;
+    private InMemoryStudentRepository studentRepo;
     private UUID tenantId;
     private UUID collegeId;
     private UserSecurityContext staffContext;
@@ -30,7 +31,7 @@ public class StudentSelfServiceSecurityTest {
     @Before
     public void setUp() {
         InMemoryPersonRepository personRepo = new InMemoryPersonRepository();
-        InMemoryStudentRepository studentRepo = new InMemoryStudentRepository(personRepo);
+        studentRepo = new InMemoryStudentRepository(personRepo);
         InMemoryGuardianshipRepository guardianshipRepo = new InMemoryGuardianshipRepository();
 
         service = new StudentDomainService(studentRepo, personRepo, guardianshipRepo);
@@ -52,6 +53,7 @@ public class StudentSelfServiceSecurityTest {
 
         StudentProfileResponse created = service.enrollStudent(staffContext, req);
         assertNotNull(created.getId());
+        StudentTestSupport.markVerified(studentRepo, staffContext, created.getId());
 
         // Link student to IAM user ID
         service.linkIamAccount(staffContext, created.getId(), studentUserId);
@@ -78,6 +80,7 @@ public class StudentSelfServiceSecurityTest {
         req1.setPrimaryEmail("s1@institution.edu");
         req1.setCollegeId(collegeId);
         StudentProfileResponse p1 = service.enrollStudent(staffContext, req1);
+        StudentTestSupport.markVerified(studentRepo, staffContext, p1.getId());
         service.linkIamAccount(staffContext, p1.getId(), student1UserId);
 
         EnrollStudentRequest req2 = new EnrollStudentRequest();
@@ -86,6 +89,7 @@ public class StudentSelfServiceSecurityTest {
         req2.setPrimaryEmail("s2@institution.edu");
         req2.setCollegeId(collegeId);
         StudentProfileResponse p2 = service.enrollStudent(staffContext, req2);
+        StudentTestSupport.markVerified(studentRepo, staffContext, p2.getId());
         service.linkIamAccount(staffContext, p2.getId(), student2UserId);
 
         // Student 1 tries to access Student 2's profile by ID directly
