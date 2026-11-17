@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-17 (STM-10 batch 5: EN-001 portal prefs DDL+API done; next US-012 widgets; D1/D7/D9/D10 recorded; **no push**)
+**Last current-state refresh:** 2026-11-17 (STM-10 batch 5 preferences DONE locally EN-001..US-014; headed demos STOPPED at student sign-in; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STM-10 batch 5: next Configure dashboard widgets (STM-10-US-012); optional Registrar visibility decision; new-service gate for STM-10-US-023 + STM-08 + STM-09.
+1. `docs/prompts/NEXT_TASK.md` — STOP after STM-10 batch 5; optional Registrar visibility decision; new-service gate for STM-10-US-023 + STM-08 + STM-09; fix student Quick Dev sign-in for headed prefs demos if owner wants browser evidence.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. STM-07-B2-D1..D3).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.

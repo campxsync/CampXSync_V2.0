@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-17 (STM-10 batch 5 preferences queue started; owner D1/D7/D9/D10 recorded; CSV swap `5eccfd2`; **no push**)
+**Updated:** 2026-11-17 (STM-10 batch 5 EN-001/`0cf5190` US-012/`0d4e6a8` US-013/`f8a7a22` US-014/`9cd4cb9`; demos STOPPED at student sign-in; **no push**)
 
 ## Owner decisions – STM-10 batch 5 (17-11-2026)
 

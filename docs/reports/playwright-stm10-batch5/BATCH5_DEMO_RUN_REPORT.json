@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-11-17T12:28:41.858Z",
+  "base": "http://127.0.0.1:3000",
+  "slowMo": 700,
+  "stack": {
+    "ui3000": true,
+    "gateway8080": true,
+    "student8093": true
+  },
+  "results": [
+    {
+      "spec": "01_us012_widgets.spec.mjs",
+      "status": "FAIL",
+      "steps": [
+        "Sign in as student1 via Quick Dev Testing on login"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm10-batch5\\screenshots\\01_us012_widgets_FAIL.png",
+      "notes": [
+        "page.waitForURL: Timeout 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
+      ]
+    },
+    {
+      "spec": "02_us013_shortcuts.spec.mjs",
+      "status": "FAIL",
+      "steps": [
+        "Sign in as student via Quick Dev Testing on login"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm10-batch5\\screenshots\\02_us013_shortcuts_FAIL.png",
+      "notes": [
+        "page.waitForURL: Timeout 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
+      ]
+    },
+    {
+      "spec": "03_us014_display.spec.mjs",
+      "status": "FAIL",
+      "steps": [
+        "Sign in as student via Quick Dev Testing on login"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm10-batch5\\screenshots\\03_us014_display_FAIL.png",
+      "notes": [
+        "page.waitForURL: Timeout 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://localhost:3000/login?returnTo=%2Fstudent%2Fdocuments\"\n============================================================"
+      ]
+    }
+  ],
+  "finishedAt": "2026-11-17T12:31:56.561Z"
+}

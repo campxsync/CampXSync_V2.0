@@ -1,22 +1,32 @@
 # Next Task
 
-**STATUS:** STM-10 batch 5 stories EN-001..US-014 committed locally. Next: headed Playwright demos, then final suite + STOP. **No push.**
+**STATUS: STOP. STM-10 batch 5 preferences implementation complete locally. No push.**
 
 ## Done this batch
 
-1. Save portal preferences in the database (STM-10-EN-001) — `0cf5190`
-2. Configure dashboard widgets (STM-10-US-012) — `0d4e6a8`
-3. Save shortcuts (STM-10-US-013) — `f8a7a22`
-4. Configure language and display preferences (STM-10-US-014) — pending commit hash in this commit
+| Plain name | Code | Commit |
+|---|---|---|
+| Save portal preferences in the database | STM-10-EN-001 | `0cf5190` |
+| Configure dashboard widgets | STM-10-US-012 | `0d4e6a8` |
+| Save shortcuts | STM-10-US-013 | `f8a7a22` |
+| Configure language and display preferences | STM-10-US-014 | `9cd4cb9` |
 
-## Remaining this batch
+## Demo
 
-1. Headed Playwright demos under `docs/reports/playwright-stm10-batch5/` (separate demo commit)
-2. End-of-batch full suites + final report
+Headed Playwright under `docs/reports/playwright-stm10-batch5/` — all three specs **STOPPED at student sign-in** (test-session / Quick Dev bounced to `/login`). Java suites cover persistence and isolation. See `DEMO_GUIDE.md`.
 
-## Still BLOCKED
+## Still BLOCKED (do not build)
 
-Configure portal settings and publish announcements (STM-10-US-023); Academic history (STM-08); Student service requests (STM-09).
+| Item | Why |
+|---|---|
+| Configure portal settings and publish announcements (STM-10-US-023) | D10 — communication service missing |
+| Academic history (STM-08) / Student service requests (STM-09) | New service gate |
+| Delegated Registrar staff-screen student visibility | Separate owner decision (do not touch RLS) |
+
+## Next buildable Student portal items (when authorized)
+
+- Secure logout (STM-10-US-020) if still open
+- Other buildable STM-10 rows from `STM10_BUILDABLE_NOW.md` excluding parked/BLOCKED items
 
 ## Rules
 
