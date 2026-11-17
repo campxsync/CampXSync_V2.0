@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-11-17T11:21:47.553Z",
+  "base": "http://localhost:3000",
+  "slowMo": 700,
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "stack": {
+    "ui3000": true,
+    "gateway8080": true,
+    "iam8081": true,
+    "student8093": true
+  },
+  "results": [
+    {
+      "spec": "02_registrar_delegated_success.spec.mjs",
+      "status": "FAIL",
+      "steps": [
+        "Pilot Registrar (R31) opens staff account-provisioning desk via JWT test-session",
+        "Desk visible for Registrar",
+        "Load account link status for known Dev student"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch4\\screenshots\\02_registrar_delegated_success.png",
+      "notes": [],
+      "error": "Delegated Registrar link-status failed: {\"timestamp\":1794914515825,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"GATEWAY_NO_ROLE_ASSIGNED\",\"errorCode\":\"GATEWAY_NO_ROLE_ASSIGNED\",\"message\":\"No active recognized business role assignment found for user in tenant\",\"pat"
+    },
+    {
+      "spec": "03_registrar_without_delegation_deny.spec.mjs",
+      "status": "STOPPED",
+      "steps": [
+        "Check whether a second Registrar Auth user without STM-07.ACCOUNT.A exists",
+        "Record exact owner question and stop this case"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch4\\screenshots\\03_registrar_without_delegation_deny.png",
+      "notes": [
+        "STOPPED_CASE: Dev Auth has only registrar.pilot.campx@gmail.com (…000031). That account has ACTIVE M1 REGISTRAR delegation (covers STM-07.ACCOUNT.A). No other Registrar login exists. Cannot show Java ACCOUNT.A denial without a second existing Registrar account or an owner-authorized temporary revoke of the pilot grant. No accounts created.",
+        "QUESTION: May we use a second already-existing Registrar Auth user without STM-07.ACCOUNT.A (email?), or temporarily revoke the pilot M1 REGISTRAR delegation for a deny demo then restore it?"
+      ]
+    }
+  ],
+  "finishedAt": "2026-11-17T11:22:35.095Z"
+}

@@ -2,47 +2,48 @@
 
 **Date:** 2026-11-17  
 **Project:** `azulbaxszsqxymqmlwfe` (Dev/staging only)  
-**Accounts:** only those in `.env.audit`. No invented credentials or Auth users.
+**Accounts:** only those in `.env.audit`. No invented credentials.
 
 ## What this demo shows
 
-| Spec | Plain name | ID |
+| Spec | Plain name | ID / case |
 |---|---|---|
 | `01_en005_integration_flow.spec.mjs` | Connect account setup to student, admission, lifecycle and portal | STM-07-EN-005 |
+| `02_registrar_delegated_success.spec.mjs` | Delegated pilot Registrar succeeds on staff screen | Registrar (R31) + STM-07.ACCOUNT.A |
+| `03_registrar_without_delegation_deny.spec.mjs` | No-delegation browser deny | **not run in browser** — see below |
 
-### Plain steps in the browser
+## Platform Admin (R01) on staff desks
 
-1. **Admission auto-login-setup** — recorded as stopped: automatic “request a new login” after admission handover is **not wired** (same gap as the integration matrix).
-2. **Staff desk link status** — Platform Admin (R01) opens `/college/account-provisioning` and loads link status for the known Dev student `81dd67d3-1d5f-4d8e-8061-a67648610002` (enrollment `STU-DEV-2026-0001`).
-3. **Student portal link status** — Student 1 opens `/student` and the account link-status strip (`student-account-link-status`) is shown.
+**Platform Admin cannot use the staff desks until a separate story is approved.**  
+There is no college/tenant selector for Platform Admin. Staff desks are for roles tied to one college — Institution Admin (R03) and the delegated Registrar (R31).
 
-## Services started for this demo
+### Which existing test accounts hold System Admin (R02) or Institution Admin (R03)?
 
-| Service | Port | Why |
-|---|---|---|
-| Frontend (Next.js) | 3000 | Already running via stack |
-| API Gateway | 8080 | Already running |
-| Institute Admin (IAM Path C) | 8081 | Already running |
-| Student service (STM-01 / STM-07) | 8093 | Already running |
-| Lifecycle service (STM-04) | 8096 | Already running |
-| **Admissions service (STM-02)** | **8094** | **Started manually for batch 4** |
-| **Enrollment service (STM-03)** | **8095** | **Started manually for batch 4** |
-| **Guardian service (STM-05)** | **8097** | **Started manually for batch 4** |
+| Role | Finding |
+|---|---|
+| System Admin (R02) | **No** existing test account in `.env.audit`, and **no** `SYSTEM_ADMIN` row in `plat.platform_admins` or `iam.role_assignments` on Dev. |
+| Institution Admin (R03) | **No** existing test account in `.env.audit`, and **no** active `INSTITUTION_ADMIN` assignment linked to an Auth email on Dev. |
+| Present in `.env.audit` | Platform Admin (R01) `platformadmin.campx@gmail.com`, College Admin `campxsync@gmail.com`, Faculty, Student 1/2, Registrar pilot. |
 
-## Known live-data / stopped-step notes
+## Registrar demo re-run (owner answers)
 
-1. Dev currently has **zero** rows in `stu.student_iam_links`. This demo does **not** create a link or Auth user.
-2. **Staff link-status load (Platform Admin R01):** BFF → gateway returned **403** with detail `Missing required X-Tenant-Id header for student domain operations`. Platform Admin’s session/JWT path does not supply a tenant id for student-domain calls. Stopped — needs an owner decision on how Platform Admin (R01) selects/supplies tenant context for this desk (no Auth inventing done here).
-3. **Student portal strip:** the Account link status panel rendered, but no status value appeared (no resolved student profile / link payload for the session). Strip presence still proves the portal UI integration point.
-4. **Admission auto-login-setup:** stopped — not wired in Connect account setup integration (STM-07-EN-005).
-
-## Re-run headed
+| Spec | Result |
+|---|---|
+| Delegated Registrar success | **FAIL / STOPPED** — role-assignment row present (runbook restore was a no-op). Gateway returns `GATEWAY_NO_ROLE_ASSIGNED` because API Gateway identity resolver does **not** treat `REGISTRAR` as a recognized business role. See `STM07_REGISTRAR_ROLE_ASSIGNMENT_BEFORE_AFTER_2026-11-17.md`. |
+| No-delegation Java denial in browser | **Not run** — College Admin does **not** use the same STM-07.ACCOUNT.A check (denied as unauthorised role). Pilot M1 not revoked. Rely on `Stm07Us003StaffLinkStatusTest` service negatives. |
 
 ```powershell
-cd d:\CampXSync\CampXSync_V2.0
-powershell -ExecutionPolicy Bypass -File scripts\dev\check_stack.ps1
-# If admissions/enrollment/guardian are down, start them the same way as batch 4 (java Main on 8094/8095/8097).
+node docs/reports/playwright-stm07-batch4/run_registrar_demo.mjs
+```
+
+## EN-005 flow notes
+
+1. Admission auto-login-setup — stopped (not wired).
+2. Staff desk / student portal strips — see batch-4 EN-005 report.
+3. Live Dev currently may have zero `stu.student_iam_links` rows; demo does not invent links.
+
+```powershell
 node docs/reports/playwright-stm07-batch4/run_batch4_demo.mjs
 ```
 
-`slowMo` defaults to **700 ms**. Browser holds ~4 s after the spec.
+`slowMo` defaults to **700 ms**.
