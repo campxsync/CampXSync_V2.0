@@ -55,8 +55,12 @@ public class StudentRoleAssignmentService {
         return repository;
     }
 
-    public RoleChangeResult assignStudentRole(UserSecurityContext context, String targetUserId,
-                                              String roleCode, String collegeId) {
+    /**
+     * Assign R25. Caller role must be R01/R02/R03 (or catalogue aliases).
+     */
+    public RoleChangeResult assignStudentRole(UserSecurityContext context, String callerRole,
+                                              String targetUserId, String roleCode, String collegeId) {
+        assertIamOperatorCaller(callerRole);
         UUID target = parseUser(targetUserId);
         assertApprovedRole(roleCode);
         assertContext(context);
@@ -83,8 +87,12 @@ public class StudentRoleAssignmentService {
                 APPROVED_ROLE_R25, STUDENT_ROLE_CODE);
     }
 
-    public RoleChangeResult revokeStudentRole(UserSecurityContext context, String targetUserId,
-                                              String roleCode) {
+    /**
+     * Revoke R25. Caller role must be R01/R02/R03 (or catalogue aliases).
+     */
+    public RoleChangeResult revokeStudentRole(UserSecurityContext context, String callerRole,
+                                              String targetUserId, String roleCode) {
+        assertIamOperatorCaller(callerRole);
         UUID target = parseUser(targetUserId);
         assertApprovedRole(roleCode);
         assertContext(context);
@@ -118,6 +126,26 @@ public class StudentRoleAssignmentService {
         }
         String c = roleCode.trim().toUpperCase(Locale.ROOT);
         return APPROVED_ROLE_R25.equals(c) || STUDENT_ROLE_CODE.equals(c);
+    }
+
+    /**
+     * STM-07-B2-D1: Platform Admin (R01), System Admin (R02), Institution Admin (R03).
+     */
+    public static boolean isIamOperatorRole(String callerRole) {
+        if (callerRole == null || callerRole.trim().isEmpty()) {
+            return false;
+        }
+        String r = callerRole.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return "r01".equals(r) || "platform_admin".equals(r)
+                || "r02".equals(r) || "system_admin".equals(r)
+                || "r03".equals(r) || "institution_admin".equals(r);
+    }
+
+    private static void assertIamOperatorCaller(String callerRole) {
+        if (!isIamOperatorRole(callerRole)) {
+            throw new SecurityViolationException(
+                    "Only IAM operators R01/R02/R03 may assign or revoke student roles");
+        }
     }
 
     private static void assertApprovedRole(String roleCode) {

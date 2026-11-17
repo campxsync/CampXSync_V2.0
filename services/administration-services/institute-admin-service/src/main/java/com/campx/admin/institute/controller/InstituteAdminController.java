@@ -2732,12 +2732,13 @@ public class InstituteAdminController implements HttpHandler {
      */
     private void handleStudentRoleAssign(HttpExchange exchange) throws IOException {
         UserSecurityContext context = extractSecurityContext(exchange);
+        String callerRole = extractCallerRole(exchange);
         String body = readBody(exchange);
         String userId = extract(body, "userId", null);
         String roleCode = extract(body, "roleCode", "R25");
         String collegeId = extract(body, "collegeId", null);
         StudentRoleAssignmentService.RoleChangeResult result =
-                studentRoleAssignmentService.assignStudentRole(context, userId, roleCode, collegeId);
+                studentRoleAssignmentService.assignStudentRole(context, callerRole, userId, roleCode, collegeId);
         sendJson(exchange, 200, result.toJson());
     }
 
@@ -2747,12 +2748,21 @@ public class InstituteAdminController implements HttpHandler {
      */
     private void handleStudentRoleRevoke(HttpExchange exchange) throws IOException {
         UserSecurityContext context = extractSecurityContext(exchange);
+        String callerRole = extractCallerRole(exchange);
         String body = readBody(exchange);
         String userId = extract(body, "userId", null);
         String roleCode = extract(body, "roleCode", "R25");
         StudentRoleAssignmentService.RoleChangeResult result =
-                studentRoleAssignmentService.revokeStudentRole(context, userId, roleCode);
+                studentRoleAssignmentService.revokeStudentRole(context, callerRole, userId, roleCode);
         sendJson(exchange, 200, result.toJson());
+    }
+
+    private static String extractCallerRole(HttpExchange exchange) {
+        String role = exchange.getRequestHeaders().getFirst("X-User-Role");
+        if (role == null || role.trim().isEmpty()) {
+            role = LogContext.getUserRole();
+        }
+        return role;
     }
 
     private void sendJson(HttpExchange exchange, int statusCode, String responseJson) throws IOException {
