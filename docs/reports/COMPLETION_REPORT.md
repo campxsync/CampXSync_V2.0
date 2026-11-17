@@ -1424,3 +1424,22 @@ Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
 
 ### Suites
 `mvn test -pl …/student-service -Dtest=Stm07Us006ProvisioningHistoryTest` → PASS
+
+## Entry 42 — Audit who changed accounts and roles (STM-07-US-012) (2026-11-17)
+
+**Plain name:** Audit who changed accounts and roles (STM-07-US-012)  
+**Status:** completed  
+**Owner decisions:** STM-07-B3-D6  
+**No push.**
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| R01–R03 read filtered account/role audit | `listAccountAndRoleAuditHistory` + `GET /api/v1/students/account-role-audit` | `stm07Us012_iamOperatorSeesFilteredAccountRoleAudit`, `stm07Us012_r03CanReadAudit` |
+| Filters to IAM_LINKED / IAM_ACCESS_REVOKED / STUDENT_ROLE_* | same | asserts exclude STUDENT_ENROLLED / STATUS_CHANGED |
+| Registrar / faculty / college admin denied | `assertIamOperatorOnly` | `stm07Us012_registrarDeniedEvenWithDelegation`, `stm07Us012_facultyDeniedAudit`, `stm07Us012_collegeAdminDeniedAudit` |
+| No new audit store | existing `auditRepository` | B3-D6 |
+
+### Suites
+`mvn test -pl …/student-service -Dtest=Stm07Us012AccountRoleAuditTest` → PASS

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-17 (batch 3: Staff view of account link status / STM-07-US-003 completed; next US-005)
+**Last current-state refresh:** 2026-11-17 (batch 3 stories US-003/005/006/012 completed; batch-end verify next)
 
 ---
 

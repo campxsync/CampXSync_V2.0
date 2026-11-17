@@ -45,6 +45,7 @@
 | STM-07-US-004 | **completed** — eligibility-gated provisioning request |
 | STM-07-US-005 | **completed** — retry FAILED provisioning (desk + Path C / IAM operator) |
 | STM-07-US-006 | **completed** — past login / provisioning request history (B3-D5) |
+| STM-07-US-012 | **completed** — account/role audit list from existing logs (B3-D6, R01–R03) |
 | STM-07-US-010 | **completed** — lifecycle revoke of IAM link |
 | STM-07-US-013 | **completed** — student link-status portal strip |
 | STM-07-US-008 | **completed** — assign R25 via IAM (`2675dea`) |
