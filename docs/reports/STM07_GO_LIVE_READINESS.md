@@ -28,9 +28,9 @@
 | Self-request “if enabled” setting | Student self-request login (US-014) not defined |
 | Commercial antivirus | Live AV for documents gated |
 | Academic history / service requests | New services STM-08 / STM-09 blocked |
-| Pilot Registrar JWT | Missing `app_metadata.tenant_id` → gateway malformed token before Java delegation check |
+| Pilot Registrar JWT | Auth app metadata updated 2026-11-17 (see `STM07_REGISTRAR_PILOT_APP_METADATA_BEFORE_AFTER_2026-11-17.md`) |
 | Admission auto-provision | Not automatic after handover (needs VERIFIED + policy) |
-| Known red suites | institute-admin ~12 errors; api-gateway 6f+7e; student-service 1 RLS `persons` error (identical at older commits) |
+| Known red suites | institute-admin ~12 errors; api-gateway 6f+7e; student-service 1 RLS `persons` error (identical at older commits); **student-service 1 error appears only with `CAMPX_PERSISTENCE_MODE=postgres`** |
 
 ## Logging & audit
 

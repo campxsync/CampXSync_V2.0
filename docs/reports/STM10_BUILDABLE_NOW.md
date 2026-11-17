@@ -39,7 +39,7 @@ CSV status in the backlog is noted where useful; this file is about *dependency 
 | Log out securely | STM-10-US-020 | buildable now | Supabase Auth sign-out already available; wire/confirm portal UX. |
 | View permitted linked views for my student | STM-10-US-021 | buildable now | Guardian service (STM-05) + consent exist; portal surface can call existing APIs. |
 | View role-scoped portal data | STM-10-US-022 | depends on a parked item | Broader role-configuration decision (FLAG-002 / STM-07-EN-003 family) still open for college-specific mappings. |
-| Configure portal settings and publish announcements | STM-10-US-023 | UNKNOWN | **Question:** which roles may publish announcements (College Admin R31 only, IAM operators R01–R03, or a dedicated communications role)? Recommendation: College Admin (R31) + Platform Admin (R01) draft/publish in tenant; no new role until RBAC doc says otherwise. |
+| Configure portal settings and publish announcements | STM-10-US-023 | **depends on a parked item / missing service** | Owner confirmed publishers: **College Admin** and **Communication Manager** (not Registrar R31). Under `services/` there is only `communication-services/notification-service/.gitkeep` — **no communication service implementation**. Marked **BLOCKED** in backlog; do not build. |
 
 ## Enablers
 
