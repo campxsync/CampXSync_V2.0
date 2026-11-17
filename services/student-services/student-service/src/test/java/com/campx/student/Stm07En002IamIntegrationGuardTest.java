@@ -64,6 +64,14 @@ public class Stm07En002IamIntegrationGuardTest {
         req.setPrimaryEmail("ira.mehta@institution.edu");
         req.setCollegeId(collegeId);
         student = service.enrollStudent(iamOperator, req);
+        markVerified(student.getId());
+        student = service.getStudentById(iamOperator, student.getId());
+    }
+
+    private void markVerified(UUID studentId) {
+        com.campx.student.model.StudentEntity entity = studentRepo.findById(iamOperator, studentId).get();
+        entity.setVerificationStatus("VERIFIED");
+        studentRepo.save(iamOperator, entity);
     }
 
     @Test
@@ -92,6 +100,7 @@ public class Stm07En002IamIntegrationGuardTest {
         req.setPrimaryEmail("jay.shah@institution.edu");
         req.setCollegeId(collegeId);
         StudentProfileResponse other = closed.enrollStudent(iamOperator, req);
+        markVerified(other.getId());
         UUID otherIam = UUID.randomUUID();
         closed.linkIamAccount(iamOperator, other.getId(), otherIam);
         closed.assignApprovedStudentRole(iamOperator, other.getId());

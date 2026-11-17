@@ -70,6 +70,15 @@ public class Stm07AccountProvisioningTest {
         req.setPrimaryEmail("asha.rao@institution.edu");
         req.setCollegeId(collegeId);
         student = service.enrollStudent(iamOperator, req);
+        markStudentVerified(student.getId());
+        student = service.getStudentById(iamOperator, student.getId());
+    }
+
+    private void markStudentVerified(UUID studentId) {
+        com.campx.student.model.StudentEntity entity = studentRepo.findById(iamOperator, studentId)
+                .orElseThrow(() -> new IllegalStateException("student missing"));
+        entity.setVerificationStatus("VERIFIED");
+        studentRepo.save(iamOperator, entity);
     }
 
     private UserSecurityContext registrar() {
@@ -87,6 +96,30 @@ public class Stm07AccountProvisioningTest {
         assertTrue(result.isEligible());
         assertTrue(result.getFailures().isEmpty());
         assertEquals("NONE", result.getLinkStatus());
+        assertEquals("VERIFIED", result.getVerificationStatus());
+    }
+
+    @Test
+    public void stm07Us001_unverifiedStudentFailsWithNamedCode() {
+        EnrollStudentRequest req = new EnrollStudentRequest();
+        req.setFirstName("Unverified");
+        req.setLastName("Student");
+        req.setPrimaryEmail("unverified.student@institution.edu");
+        req.setCollegeId(collegeId);
+        StudentProfileResponse unverified = service.enrollStudent(iamOperator, req);
+        assertEquals("UNVERIFIED", unverified.getVerificationStatus());
+
+        ProvisioningEligibilityResult result =
+                service.evaluateProvisioningEligibility(iamOperator, unverified.getId(), studentUserId);
+        assertFalse(result.isEligible());
+        assertTrue(result.getFailures().contains("VERIFICATION_NOT_VERIFIED"));
+
+        try {
+            service.linkIamAccount(iamOperator, unverified.getId(), UUID.randomUUID());
+            fail("Expected StudentValidationException for unverified student");
+        } catch (StudentValidationException expected) {
+            assertTrue(expected.getMessage().contains("VERIFICATION_NOT_VERIFIED"));
+        }
     }
 
     @Test
@@ -134,6 +167,7 @@ public class Stm07AccountProvisioningTest {
         req2.setPrimaryEmail("other.student@institution.edu");
         req2.setCollegeId(collegeId);
         StudentProfileResponse other = service.enrollStudent(iamOperator, req2);
+        markStudentVerified(other.getId());
 
         service.linkIamAccount(iamOperator, other.getId(), studentUserId);
     }

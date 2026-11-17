@@ -57,6 +57,10 @@ public class Stm07En004ProvisioningRecoveryTest {
         req.setPrimaryEmail("kiran.das@institution.edu");
         req.setCollegeId(collegeId);
         student = service.enrollStudent(iamOperator, req);
+        com.campx.student.model.StudentEntity entity = studentRepo.findById(iamOperator, student.getId()).get();
+        entity.setVerificationStatus("VERIFIED");
+        studentRepo.save(iamOperator, entity);
+        student = service.getStudentById(iamOperator, student.getId());
     }
 
     @Test

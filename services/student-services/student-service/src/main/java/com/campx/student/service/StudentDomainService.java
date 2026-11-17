@@ -1228,6 +1228,11 @@ public class StudentDomainService {
         if (student.getStatus() != StudentStatus.ACTIVE) {
             result.addFailure("STUDENT_NOT_ACTIVE");
         }
+        // STM-07-US-001 — named eligibility failure when verificationStatus is not VERIFIED
+        if (!"VERIFIED".equalsIgnoreCase(
+                student.getVerificationStatus() == null ? "" : student.getVerificationStatus().trim())) {
+            result.addFailure("VERIFICATION_NOT_VERIFIED");
+        }
 
         UUID existingLink = student.getIamUserId();
         if (existingLink != null) {
