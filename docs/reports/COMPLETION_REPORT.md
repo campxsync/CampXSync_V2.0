@@ -1599,3 +1599,26 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 | Shortcuts persist for owning student | `savePortalPreferences` shortcuts | `stm10Us013_shortcutsPersistAcrossReload` |
 | Other student does not see them | store isolation | `stm10Us013_otherStudentDoesNotSeeShortcuts` |
 | External / unsafe path rejected | sanitize path rules | `stm10Us013_externalShortcutPathRejected` |
+
+### CSV
+- Save shortcuts (STM-10-US-013) → **completed (f8a7a22)**
+
+---
+
+## Entry 49 — Configure language and display preferences (STM-10-US-014) (2026-11-17)
+
+**Plain name:** Configure language and display preferences (STM-10-US-014)  
+**Status:** completed  
+**No push.**
+
+### Implementation
+- Preference modal language/timezone + display/accessibility controls persist through portal BFF
+- `StudentDisplayEffects` applies locale, theme, density, accessibility classes on the student portal
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Language/display persist for owning student | `display` in portal prefs | `stm10Us014_languageAndDisplayPersistAcrossReload` |
+| Other student keeps defaults | store isolation | `stm10Us014_otherStudentKeepsDefaultDisplay` |
+| Invalid locale rejected | sanitize locale | `stm10Us014_invalidLocaleRejected` |

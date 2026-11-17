@@ -72,8 +72,8 @@
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 | STM-10-EN-001 | **completed** — `stu.student_portal_preferences` FORCE RLS (Dev); portal-preferences API |
 | STM-10-US-012 | **completed** — durable widgets via portal BFF + StudentWidgetGate (`0d4e6a8`) |
-| STM-10-US-013 | **completed** — shortcuts via portal prefs + StudentShortcutsStrip |
-| STM-10-US-014 | **in progress** — language/display next |
+| STM-10-US-013 | **completed** — shortcuts via portal prefs + StudentShortcutsStrip (`f8a7a22`) |
+| STM-10-US-014 | **completed** — language/display via portal prefs + StudentDisplayEffects |
 | STM-10-US-023 | **BLOCKED** — D10 communication service missing (with STM-08/09 new-service gate) |
 
 ## Evidence highlights
