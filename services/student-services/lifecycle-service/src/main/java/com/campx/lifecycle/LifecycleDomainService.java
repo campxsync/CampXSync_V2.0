@@ -1,5 +1,7 @@
 package com.campx.lifecycle;
 
+import com.campx.lifecycle.integration.NoOpStudentAccountAccessPort;
+import com.campx.lifecycle.integration.StudentAccountAccessPort;
 import com.campx.lifecycle.intelligence.LifecycleIntelligenceService;
 import com.campx.lifecycle.persistence.LifecyclePersistence;
 import com.campx.lifecycle.security.DelegationPort;
@@ -47,6 +49,7 @@ public class LifecycleDomainService {
     private final LifecyclePersistence persistence;
     private final LifecycleIntelligenceService intelligenceService;
     private final DelegationPort delegationPort;
+    private final StudentAccountAccessPort studentAccountAccessPort;
 
     private final Map<String, LifecycleStatus> statuses = new ConcurrentHashMap<String, LifecycleStatus>();
     private final Map<String, List<HistoryEntry>> history = new ConcurrentHashMap<String, List<HistoryEntry>>();
@@ -77,12 +80,22 @@ public class LifecycleDomainService {
     public LifecycleDomainService(Clock clock, LifecyclePersistence persistence,
                                   LifecycleIntelligenceService intelligenceService,
                                   DelegationPort delegationPort) {
+        this(clock, persistence, intelligenceService, delegationPort, new NoOpStudentAccountAccessPort());
+    }
+
+    public LifecycleDomainService(Clock clock, LifecyclePersistence persistence,
+                                  LifecycleIntelligenceService intelligenceService,
+                                  DelegationPort delegationPort,
+                                  StudentAccountAccessPort studentAccountAccessPort) {
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.persistence = persistence;
         this.intelligenceService = intelligenceService == null
                 ? new LifecycleIntelligenceService()
                 : intelligenceService;
         this.delegationPort = delegationPort == null ? new FailClosedDelegationPort() : delegationPort;
+        this.studentAccountAccessPort = studentAccountAccessPort == null
+                ? new NoOpStudentAccountAccessPort()
+                : studentAccountAccessPort;
     }
 
     public boolean isPersistent() {
@@ -675,6 +688,11 @@ public class LifecycleDomainService {
             persistence.appendHistory(actor, entry);
         }
         emitLifecycleChanged(actor, current.studentId, previous, targetStatus, action, requestId, now);
+        // STM-07-EN-005 — best-effort notify student-service so IAM link/R25 revoke can run
+        if ("SUSPENDED".equals(targetStatus) || "DETAINED".equals(targetStatus) || "WITHDRAWN".equals(targetStatus)) {
+            studentAccountAccessPort.onAccessCuttingStatus(
+                    actor.getTenantId(), current.studentId, targetStatus, actor.getCorrelationId());
+        }
     }
 
     private void emitLifecycleChanged(Actor actor, UUID studentId, String previous, String status, String action,

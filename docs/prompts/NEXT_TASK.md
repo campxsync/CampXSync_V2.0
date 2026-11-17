@@ -1,34 +1,23 @@
 # Next Task
 
-**STATUS: STM-07 batch 3 COMPLETED 2026-11-17. Batch stop. No push.**
+**STATUS: STM-07 batch 4 in progress — EN-005 partially completed; next EN-006.**
 
-## Completed this batch
+## Just completed
 
-| ID | Plain name | Status | Commit |
+| Plain name | ID | Status | Notes |
 |---|---|---|---|
-| STM-07-US-003 | Staff view of account link status | **completed** | `aa5f990` |
-| STM-07-US-005 | Retry failed login setup | **completed** | `d6bf89b` |
-| STM-07-US-006 | See past login requests | **completed** | `dcb9a3b` |
-| STM-07-US-012 | Audit who changed accounts and roles | **completed** | `64327a8` |
+| Connect account setup to student, admission, lifecycle and portal | STM-07-EN-005 | **partially completed** | student/portal/lifecycle notify; admission auto-provision + event bus uncovered |
+| Batch 3 negative demo | — | committed | `1d38263` / report `a62950e` |
 
-## Batch-end verify (2026-11-17)
+## Owner decision needed (Registrar JWT)
 
-| Command | Result |
-|---|---|
-| Playwright STM-07 batch3 | **4/4 PASS** (`docs/reports/playwright-stm07-batch3/`) |
-| `run_cross_tenant_pen_test.mjs` | **34/34 PASS; vulns=0** |
-| `run_stm_cross_en_010_e2e.mjs` | **32/32 PASS** |
-| `cd frontend; npx tsc --noEmit` | **0 errors** |
+Pilot Registrar Auth user signs in but JWT `app_metadata` has **no `tenant_id`**, so the gateway returns malformed-token before Java STM-07.ACCOUNT.A runs. Should we set `app_metadata.tenant_id` (and role) on that existing Auth user in Dev project `azulbaxszsqxymqmlwfe` without inventing a new account?
 
-## Pickup queue (next batch when authorized)
+## Remaining this batch
 
-1. STM-07-EN-005 / EN-006 if still fitting and unblocked
-2. STM-10-EN-001 preferences if independent
-3. Unblock STM-08/09 only after owner approves new services
-
-## BLOCKED (unchanged)
-
-STM-07-US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV.
+1. Security tests, logs and go-live readiness for account setup (STM-07-EN-006)
+2. Playwright batch4 demo + STM10_BUILDABLE_NOW.md
+3. Final report; STOP; no push
 
 ## Rules
 

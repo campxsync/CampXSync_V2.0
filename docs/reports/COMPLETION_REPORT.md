@@ -1470,4 +1470,24 @@ Confirm institute-admin hosts student-role endpoint: **approved** or **move**.
 
 ### Parked
 
-STM-07-EN-005 / EN-006 left for a later batch. BLOCKED set unchanged (US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV).
+BLOCKED set unchanged (US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROSS-EN-007, live AV).
+
+## Entry 44 — Connect account setup to student, admission, lifecycle and portal (STM-07-EN-005) (2026-11-17)
+
+**Plain name:** Connect account setup to student, admission, lifecycle and portal (STM-07-EN-005)  
+**Status:** partially completed  
+**No push.**
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Student record carries admission join field | enroll + `admissionNo` | `stm07En005_studentRecordCarriesAdmissionNoForHandoverJoin` |
+| Portal link-status ACTIVE after verified link | `getAccountLinkStatus` | `stm07En005_portalLinkStatusActiveAfterVerifiedLink` |
+| Student-status lifecycle cut revokes portal access | `transitionLifecycle` → `revokeAccessForLifecycleEvent` | `stm07En005_lifecycleSuspendCutsPortalAccessOnStudentStatusPath` |
+| STM-04 lifecycle notifies student-account port on SUSPENDED/DETAINED/WITHDRAWN | `StudentAccountAccessPort` / `HttpStudentAccountAccessPort` | `stm07En005_suspendNotifiesStudentAccountAccessPort`, `stm07En005_graduatedDoesNotNotifyAccessCut` |
+| Admission auto request-login after handover | — | **UNCOVERED** (needs VERIFIED + policy) |
+| Event-bus fan-out STM-04 → STM-07 | — | **UNCOVERED** (Kafka hold) |
+
+### Matrix
+`docs/reports/STM07_EN005_INTEGRATION_MATRIX.md`

@@ -52,6 +52,7 @@
 | STM-07-US-009 | **completed** — revoke R25 via IAM (`2675dea`) |
 | STM-07-EN-002 | **completed** — existing IAM integration guards (`57dc0ff`) |
 | STM-07-EN-004 | **completed** — idempotent provisioning + FAILED retry (`bf8cf6d`) |
+| STM-07-EN-005 | **partially completed** — student/portal/lifecycle notify wired; admission auto-provision + event bus uncovered |
 | STM-08 / STM-09 | **BLOCKED** — new service gate (design notes created) |
 | IAM live delegation adapter | **partially completed** — Path C smoke **17/17 PASS**; frontend 1c Registrar mapping DONE |
 | STM-06-EN-002 | **completed** — live Storage + orphan cleanup (12/12) |
