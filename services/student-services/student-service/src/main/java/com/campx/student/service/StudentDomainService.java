@@ -1676,6 +1676,217 @@ public class StudentDomainService {
     }
 
     /**
+     * STM-10-EN-001 — load portal preferences for the student's college scope.
+     * Defaults are returned when no row exists yet.
+     */
+    public PortalPreferencesDto getPortalPreferences(UserSecurityContext context, UUID studentId) {
+        assertTenantContext(context);
+        if (context.getUserId() == null) {
+            throw new StudentSecurityViolationException("Authentication required to read portal preferences.");
+        }
+        if (studentId == null) {
+            throw new StudentValidationException("studentId cannot be null");
+        }
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        enforcePortalPreferencesAccess(context, student);
+
+        UUID collegeId = student.getCollegeId();
+        if (collegeId == null) {
+            throw new StudentValidationException("Student has no college assignment for portal preferences.");
+        }
+        if (context.getCollegeId() != null && !context.getCollegeId().equals(collegeId)) {
+            throw new StudentSecurityViolationException("Cross-college portal preference access is denied.");
+        }
+
+        return studentRepository.findPortalPreferences(context, studentId, collegeId)
+                .orElseGet(() -> defaultPortalPreferences(studentId, collegeId));
+    }
+
+    /**
+     * STM-10-EN-001 — upsert portal preferences (widgets / shortcuts / display) for own student+college.
+     */
+    public PortalPreferencesDto savePortalPreferences(UserSecurityContext context, UUID studentId,
+                                                      PortalPreferencesDto incoming) {
+        assertTenantContext(context);
+        if (context.getUserId() == null) {
+            throw new StudentSecurityViolationException("Authentication required to save portal preferences.");
+        }
+        if (studentId == null) {
+            throw new StudentValidationException("studentId cannot be null");
+        }
+        if (incoming == null) {
+            throw new StudentValidationException("Portal preferences body is required.");
+        }
+
+        StudentEntity student = studentRepository.findById(context, studentId)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        enforcePortalPreferencesAccess(context, student);
+
+        UUID collegeId = student.getCollegeId();
+        if (collegeId == null) {
+            throw new StudentValidationException("Student has no college assignment for portal preferences.");
+        }
+        if (context.getCollegeId() != null && !context.getCollegeId().equals(collegeId)) {
+            throw new StudentSecurityViolationException("Cross-college portal preference access is denied.");
+        }
+        if (incoming.getCollegeId() != null && !incoming.getCollegeId().equals(collegeId)) {
+            throw new StudentSecurityViolationException("College in payload does not match the student's college.");
+        }
+        if (incoming.getStudentId() != null && !incoming.getStudentId().equals(studentId)) {
+            throw new StudentSecurityViolationException("Students cannot write another student's portal preferences.");
+        }
+
+        PortalPreferencesDto sanitized = sanitizePortalPreferences(incoming, studentId, collegeId);
+        PortalPreferencesDto saved = studentRepository.savePortalPreferences(context, sanitized);
+
+        publishOutboxEvent(context, studentId, "student.portal_preferences.updated.v1", String.format(
+                "{\"studentId\":\"%s\",\"collegeId\":\"%s\",\"version\":%d}",
+                studentId, collegeId, sanitized.getVersion()
+        ));
+        return saved;
+    }
+
+    private void enforcePortalPreferencesAccess(UserSecurityContext context, StudentEntity student) {
+        if (isStudentRole(context)) {
+            if (!isOwnProfile(context, student)) {
+                throw new StudentSecurityViolationException(
+                        "Students can only access their own portal preferences.");
+            }
+            return;
+        }
+        // Portal prefs are student self-service; non-student roles are denied for this store.
+        throw new StudentSecurityViolationException(
+                "Only the owning student may read or update portal preferences.");
+    }
+
+    private PortalPreferencesDto defaultPortalPreferences(UUID studentId, UUID collegeId) {
+        PortalPreferencesDto dto = new PortalPreferencesDto();
+        dto.setStudentId(studentId);
+        dto.setCollegeId(collegeId);
+        dto.setVersion(1);
+        PortalPreferencesDto.DashboardWidgetsConfig widgets = new PortalPreferencesDto.DashboardWidgetsConfig();
+        widgets.setOrder(Arrays.asList("profile", "courses", "documents", "notifications", "kpis"));
+        widgets.setHidden(new ArrayList<>());
+        dto.setWidgets(widgets);
+        dto.setShortcuts(new ArrayList<>());
+        dto.setDisplay(new PortalPreferencesDto.DisplayPreferences());
+        return dto;
+    }
+
+    private PortalPreferencesDto sanitizePortalPreferences(PortalPreferencesDto incoming,
+                                                           UUID studentId, UUID collegeId) {
+        Set<String> allowedWidgets = new HashSet<>(Arrays.asList(
+                "kpis", "trends", "batches", "shortage", "missed", "recent", "today", "upcoming",
+                "lifecycle", "institutes", "audit", "profile", "courses", "documents", "enrollment",
+                "notifications"
+        ));
+        Set<String> allowedThemes = new HashSet<>(Arrays.asList("light", "dark", "system"));
+        Set<String> allowedDensity = new HashSet<>(Arrays.asList("comfortable", "compact"));
+        Set<String> allowedAccessibility = new HashSet<>(Arrays.asList(
+                "highContrast", "reducedMotion", "largeFont"
+        ));
+
+        PortalPreferencesDto out = defaultPortalPreferences(studentId, collegeId);
+        out.setVersion(incoming.getVersion() > 0 ? incoming.getVersion() : 1);
+
+        if (incoming.getWidgets() != null) {
+            List<String> order = new ArrayList<>();
+            if (incoming.getWidgets().getOrder() != null) {
+                for (String w : incoming.getWidgets().getOrder()) {
+                    if (w == null || !allowedWidgets.contains(w)) {
+                        throw new StudentValidationException("Invalid dashboard widget id: " + w);
+                    }
+                    if (!order.contains(w)) {
+                        order.add(w);
+                    }
+                }
+            }
+            List<String> hidden = new ArrayList<>();
+            if (incoming.getWidgets().getHidden() != null) {
+                for (String w : incoming.getWidgets().getHidden()) {
+                    if (w == null || !allowedWidgets.contains(w)) {
+                        throw new StudentValidationException("Invalid hidden widget id: " + w);
+                    }
+                    if (!hidden.contains(w)) {
+                        hidden.add(w);
+                    }
+                }
+            }
+            if (order.size() > 20 || hidden.size() > 20) {
+                throw new StudentValidationException("Widget lists exceed the maximum of 20 entries.");
+            }
+            out.getWidgets().setOrder(order.isEmpty() ? out.getWidgets().getOrder() : order);
+            out.getWidgets().setHidden(hidden);
+        }
+
+        if (incoming.getShortcuts() != null) {
+            if (incoming.getShortcuts().size() > 20) {
+                throw new StudentValidationException("Shortcuts exceed the maximum of 20 entries.");
+            }
+            List<PortalPreferencesDto.ShortcutItem> shortcuts = new ArrayList<>();
+            for (PortalPreferencesDto.ShortcutItem item : incoming.getShortcuts()) {
+                if (item == null || item.getId() == null || item.getId().trim().isEmpty()
+                        || item.getLabel() == null || item.getLabel().trim().isEmpty()
+                        || item.getPath() == null || item.getPath().trim().isEmpty()) {
+                    throw new StudentValidationException("Each shortcut requires id, label, and path.");
+                }
+                String path = item.getPath().trim();
+                if (!path.startsWith("/") || path.contains("://") || path.contains("..")) {
+                    throw new StudentValidationException("Shortcut path must be an internal absolute path.");
+                }
+                if (item.getId().length() > 64 || item.getLabel().length() > 80 || path.length() > 200) {
+                    throw new StudentValidationException("Shortcut field length exceeds limits.");
+                }
+                shortcuts.add(new PortalPreferencesDto.ShortcutItem(
+                        item.getId().trim(), item.getLabel().trim(), path));
+            }
+            out.setShortcuts(shortcuts);
+        }
+
+        if (incoming.getDisplay() != null) {
+            PortalPreferencesDto.DisplayPreferences display = incoming.getDisplay();
+            if (display.getTheme() != null) {
+                if (!allowedThemes.contains(display.getTheme())) {
+                    throw new StudentValidationException("Invalid theme: " + display.getTheme());
+                }
+                out.getDisplay().setTheme(display.getTheme());
+            }
+            if (display.getTableDensity() != null) {
+                if (!allowedDensity.contains(display.getTableDensity())) {
+                    throw new StudentValidationException("Invalid table density: " + display.getTableDensity());
+                }
+                out.getDisplay().setTableDensity(display.getTableDensity());
+            }
+            if (display.getLocale() != null) {
+                String locale = display.getLocale().trim();
+                if (locale.isEmpty() || locale.length() > 10 || !locale.matches("[A-Za-z]{2}([-_][A-Za-z0-9]+)*")) {
+                    throw new StudentValidationException("Invalid locale: " + display.getLocale());
+                }
+                out.getDisplay().setLocale(locale);
+            }
+            if (display.getTimezone() != null) {
+                String tz = display.getTimezone().trim();
+                if (tz.isEmpty() || tz.length() > 50 || tz.contains(" ")) {
+                    throw new StudentValidationException("Invalid timezone: " + display.getTimezone());
+                }
+                out.getDisplay().setTimezone(tz);
+            }
+            if (display.getAccessibility() != null) {
+                Map<String, Boolean> access = new HashMap<>();
+                for (Map.Entry<String, Boolean> e : display.getAccessibility().entrySet()) {
+                    if (e.getKey() == null || !allowedAccessibility.contains(e.getKey())) {
+                        throw new StudentValidationException("Invalid accessibility key: " + e.getKey());
+                    }
+                    access.put(e.getKey(), Boolean.TRUE.equals(e.getValue()));
+                }
+                out.getDisplay().setAccessibility(access);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Retrieves permission-scoped profile change history (STM01-US-025).
      * Students may view only their own history. Staff may view history within their tenant.
      * Reuses shared audit infrastructure (audit.change_log & correction requests).

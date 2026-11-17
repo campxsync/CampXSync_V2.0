@@ -1,6 +1,7 @@
 package com.campx.student.repository;
 
 import com.campx.student.model.CursorPagedResult;
+import com.campx.student.model.PortalPreferencesDto;
 import com.campx.student.model.ProvisioningRequestRecord;
 import com.campx.student.model.StudentEntity;
 import com.campx.student.model.StudentRosterItem;
@@ -69,4 +70,14 @@ public interface StudentRepository {
      * Soft-revokes all ACTIVE IAM links for a student (STM-07-US-010).
      */
     void revokeActiveIamLinks(UserSecurityContext context, UUID studentId);
+
+    /**
+     * Loads portal preferences for a student+college (STM-10-EN-001). Empty optional if none saved.
+     */
+    Optional<PortalPreferencesDto> findPortalPreferences(UserSecurityContext context, UUID studentId, UUID collegeId);
+
+    /**
+     * Upserts portal preferences for a student+college (STM-10-EN-001).
+     */
+    PortalPreferencesDto savePortalPreferences(UserSecurityContext context, PortalPreferencesDto preferences);
 }

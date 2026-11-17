@@ -1510,3 +1510,41 @@ BLOCKED set unchanged (US-007/011/014, EN-003, STM-08/09, FLAG-002/003/007, CROS
 
 ### Explicit gaps recorded (not done)
 Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, STM-08/09, Registrar JWT `tenant_id`, admission auto-provision.
+
+---
+
+## Entry 46 — Save portal preferences in the database (STM-10-EN-001) (2026-11-17)
+
+**Plain name:** Supabase persistence for portal-owned preferences/configuration only (STM-10-EN-001)  
+**Status:** completed  
+**Host:** existing student-service (:8093); no new microservice  
+**Dev project:** `azulbaxszsqxymqmlwfe` (confirmed before DDL)  
+**Owner decision:** D7  
+**No push.**
+
+### Implementation
+- Migration: `database/migrations/20261117000100_create_stu_student_portal_preferences.sql` applied on Dev
+- Table: `stu.student_portal_preferences` (college column, FORCE RLS, own-row via active login link)
+- Domain: `StudentDomainService.getPortalPreferences` / `savePortalPreferences` with allowlist validation
+- API: `GET|PUT /api/v1/students/{id}/portal-preferences` (existing `/api/v1/students` gateway prefix)
+- Evidence: `docs/reports/STM10_EN001_PORTAL_PREFERENCES_DDL_2026-11-17.json`
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Persist portal preferences per student + college | `stu.student_portal_preferences` + `savePortalPreferences` | `stm10En001_saveAndReloadPortalPreferences` |
+| Student cannot read another student's preferences | `enforcePortalPreferencesAccess` | `stm10En001_studentCannotReadAnotherStudentsPreferences` |
+| Student cannot change another student's preferences | `enforcePortalPreferencesAccess` | `stm10En001_studentCannotWriteAnotherStudentsPreferences` |
+| Other-college student denied | college scope check | `stm10En001_crossCollegeStudentDenied` |
+| Unauthenticated denied | null userId gate | `stm10En001_unauthenticatedDenied` |
+| Invalid widget / theme / shortcut path rejected | `sanitizePortalPreferences` | `stm10En001_invalidWidgetRejected`, `stm10En001_invalidThemeRejected`, `stm10En001_invalidShortcutPathRejected` |
+| Second student does not see first student's saved prefs | store keyed by student+college | `stm10En001_secondStudentDoesNotSeeFirstStudentsPreferences` |
+| Non-student staff cannot use this store | role gate | `stm10En001_staffCannotUsePortalPreferencesStore` |
+
+### Tests
+- Focused: `mvn test -pl services/student-services/student-service "-Dtest=Stm10PortalPreferencesEn001Test"` → **10 run, 0 fail**
+- Full module: **194 run, 0 fail, 1 error** on `LiveStudentRuntimeSecurityTest` prepared-statement flake (alone: **3/0** PASS); same class of known live-DB flake — not counted as a new red suite.
+
+### CSV
+- Save portal preferences in the database (STM-10-EN-001) → **completed**

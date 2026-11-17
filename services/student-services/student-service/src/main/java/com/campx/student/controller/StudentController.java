@@ -191,6 +191,10 @@ public class StudentController implements HttpHandler {
                 } else if ("preferences".equals(sub)) {
                     if ("GET".equals(method)) return getPreferences(headers, studentId);
                     if ("PUT".equals(method) || "PATCH".equals(method)) return updatePreferences(headers, studentId, body);
+                } else if ("portal-preferences".equals(sub)) {
+                    // STM-10-EN-001 portal-owned preferences store (widgets / shortcuts / display)
+                    if ("GET".equals(method)) return getPortalPreferences(headers, studentId);
+                    if ("PUT".equals(method) || "PATCH".equals(method)) return savePortalPreferences(headers, studentId, body);
                 } else if ("address".equals(sub) && ("PUT".equals(method) || "PATCH".equals(method))) {
                     return updateAddress(headers, studentId, body);
                 } else if ("guardians".equals(sub) && "POST".equals(method)) {
@@ -1036,6 +1040,53 @@ public class StudentController implements HttpHandler {
             return HttpResponse.badRequest(e.getMessage());
         } catch (Exception e) {
             logger.error("Unhandled error in updatePreferences: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-10-EN-001 — GET portal preferences for a student.
+     */
+    public HttpResponse getPortalPreferences(Map<String, String> headers, String studentId) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID sId = UUID.fromString(studentId.trim());
+            PortalPreferencesDto prefs = studentDomainService.getPortalPreferences(context, sId);
+            return HttpResponse.ok(objectMapper.writeValueAsString(prefs));
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid student UUID format");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in getPortalPreferences: {}", e.getMessage(), e);
+            return HttpResponse.internalServerError(e.getMessage());
+        }
+    }
+
+    /**
+     * STM-10-EN-001 — PUT/PATCH portal preferences for a student.
+     */
+    public HttpResponse savePortalPreferences(Map<String, String> headers, String studentId, String body) {
+        try {
+            UserSecurityContext context = resolveContext(headers);
+            UUID sId = UUID.fromString(studentId.trim());
+            PortalPreferencesDto prefs = objectMapper.readValue(body, PortalPreferencesDto.class);
+            PortalPreferencesDto saved = studentDomainService.savePortalPreferences(context, sId, prefs);
+            return HttpResponse.ok(objectMapper.writeValueAsString(saved));
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest("Invalid student UUID format or JSON");
+        } catch (StudentNotFoundException e) {
+            return HttpResponse.notFound(e.getMessage());
+        } catch (StudentSecurityViolationException e) {
+            return HttpResponse.forbidden(e.getMessage());
+        } catch (StudentValidationException e) {
+            return HttpResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unhandled error in savePortalPreferences: {}", e.getMessage(), e);
             return HttpResponse.internalServerError(e.getMessage());
         }
     }

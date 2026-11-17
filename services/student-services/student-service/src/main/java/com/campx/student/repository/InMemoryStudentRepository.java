@@ -2,6 +2,7 @@ package com.campx.student.repository;
 
 import com.campx.student.model.CursorPagedResult;
 import com.campx.student.model.PersonEntity;
+import com.campx.student.model.PortalPreferencesDto;
 import com.campx.student.model.ProvisioningRequestRecord;
 import com.campx.student.model.StudentEntity;
 import com.campx.student.model.StudentRosterItem;
@@ -24,6 +25,8 @@ public class InMemoryStudentRepository implements StudentRepository {
     private final Map<String, StudentEntity> store = new ConcurrentHashMap<>();
     /** Key: tenantId + ":" + requestId */
     private final Map<String, ProvisioningRequestRecord> provisioningById = new ConcurrentHashMap<>();
+    /** Key: tenantId + ":" + collegeId + ":" + studentId */
+    private final Map<String, PortalPreferencesDto> portalPreferencesByKey = new ConcurrentHashMap<>();
     private final PersonRepository personRepository;
 
     public InMemoryStudentRepository() {
@@ -306,6 +309,69 @@ public class InMemoryStudentRepository implements StudentRepository {
             entity.setIamUserId(null);
             entity.setUpdatedBy(context.getUserId());
         }
+    }
+
+    private String portalPrefKey(UUID tenantId, UUID collegeId, UUID studentId) {
+        return tenantId + ":" + collegeId + ":" + studentId;
+    }
+
+    @Override
+    public Optional<PortalPreferencesDto> findPortalPreferences(UserSecurityContext context, UUID studentId, UUID collegeId) {
+        if (context == null || context.getTenantId() == null || studentId == null || collegeId == null) {
+            return Optional.empty();
+        }
+        PortalPreferencesDto stored = portalPreferencesByKey.get(portalPrefKey(context.getTenantId(), collegeId, studentId));
+        return Optional.ofNullable(copyPortalPreferences(stored));
+    }
+
+    @Override
+    public PortalPreferencesDto savePortalPreferences(UserSecurityContext context, PortalPreferencesDto preferences) {
+        if (context == null || context.getTenantId() == null) {
+            throw new IllegalArgumentException("tenant context required");
+        }
+        if (preferences == null || preferences.getStudentId() == null || preferences.getCollegeId() == null) {
+            throw new IllegalArgumentException("studentId and collegeId are required");
+        }
+        PortalPreferencesDto copy = copyPortalPreferences(preferences);
+        portalPreferencesByKey.put(
+                portalPrefKey(context.getTenantId(), copy.getCollegeId(), copy.getStudentId()),
+                copy);
+        return copyPortalPreferences(copy);
+    }
+
+    private PortalPreferencesDto copyPortalPreferences(PortalPreferencesDto src) {
+        if (src == null) {
+            return null;
+        }
+        PortalPreferencesDto copy = new PortalPreferencesDto();
+        copy.setStudentId(src.getStudentId());
+        copy.setCollegeId(src.getCollegeId());
+        copy.setVersion(src.getVersion());
+        if (src.getWidgets() != null) {
+            PortalPreferencesDto.DashboardWidgetsConfig w = new PortalPreferencesDto.DashboardWidgetsConfig();
+            w.setOrder(src.getWidgets().getOrder() != null ? new ArrayList<>(src.getWidgets().getOrder()) : new ArrayList<>());
+            w.setHidden(src.getWidgets().getHidden() != null ? new ArrayList<>(src.getWidgets().getHidden()) : new ArrayList<>());
+            copy.setWidgets(w);
+        }
+        if (src.getShortcuts() != null) {
+            List<PortalPreferencesDto.ShortcutItem> shortcuts = new ArrayList<>();
+            for (PortalPreferencesDto.ShortcutItem item : src.getShortcuts()) {
+                shortcuts.add(new PortalPreferencesDto.ShortcutItem(item.getId(), item.getLabel(), item.getPath()));
+            }
+            copy.setShortcuts(shortcuts);
+        }
+        if (src.getDisplay() != null) {
+            PortalPreferencesDto.DisplayPreferences d = new PortalPreferencesDto.DisplayPreferences();
+            d.setTheme(src.getDisplay().getTheme());
+            d.setLocale(src.getDisplay().getLocale());
+            d.setTimezone(src.getDisplay().getTimezone());
+            d.setTableDensity(src.getDisplay().getTableDensity());
+            if (src.getDisplay().getAccessibility() != null) {
+                d.setAccessibility(new HashMap<>(src.getDisplay().getAccessibility()));
+            }
+            copy.setDisplay(d);
+        }
+        return copy;
     }
 
     private String encodeCursor(String val) {

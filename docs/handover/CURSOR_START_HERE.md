@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-17 (Gateway Registrar recognition `dffbf19`; delegated Registrar browser success still FAIL on student visibility; CSV swap waiting; STM-10-US-023 + STM-08/09 new-service gate; **no push**)
+**Last current-state refresh:** 2026-11-17 (STM-10 batch 5: EN-001 portal prefs DDL+API done; next US-012 widgets; D1/D7/D9/D10 recorded; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STOP: await CSV-closed swap; optional Registrar RLS/visibility decision; new-service approval for STM-10-US-023 + STM-08 + STM-09; live AV / Kafka / FLAG gated.
+1. `docs/prompts/NEXT_TASK.md` — STM-10 batch 5: next Configure dashboard widgets (STM-10-US-012); optional Registrar visibility decision; new-service gate for STM-10-US-023 + STM-08 + STM-09.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. STM-07-B2-D1..D3).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.

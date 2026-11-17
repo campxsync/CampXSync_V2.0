@@ -1,0 +1,54 @@
+{
+  "storyId": "STM-10-EN-001",
+  "plainName": "Supabase persistence for portal-owned preferences/configuration only",
+  "date": "2026-11-17",
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "ownerDecision": "D7",
+  "migration": {
+    "name": "create_stu_student_portal_preferences",
+    "file": "database/migrations/20261117000100_create_stu_student_portal_preferences.sql",
+    "applied": true,
+    "tables": ["stu.student_portal_preferences"],
+    "forceRls": true,
+    "policyCount": 2,
+    "collegeColumn": true,
+    "ownRowViaActiveIamLink": true
+  },
+  "implementation": {
+    "hostService": "student-service (:8093)",
+    "noNewMicroservice": true,
+    "endpoints": [
+      "GET /api/v1/students/{id}/portal-preferences",
+      "PUT /api/v1/students/{id}/portal-preferences"
+    ],
+    "persistence": [
+      "PostgresStudentRepository.findPortalPreferences",
+      "PostgresStudentRepository.savePortalPreferences",
+      "InMemoryStudentRepository portal preference map for unit tests"
+    ],
+    "domain": [
+      "StudentDomainService.getPortalPreferences",
+      "StudentDomainService.savePortalPreferences",
+      "sanitizePortalPreferences allowlist validation"
+    ]
+  },
+  "tests": {
+    "class": "Stm10PortalPreferencesEn001Test",
+    "focused": [
+      "stm10En001_saveAndReloadPortalPreferences",
+      "stm10En001_studentCannotReadAnotherStudentsPreferences",
+      "stm10En001_studentCannotWriteAnotherStudentsPreferences",
+      "stm10En001_crossCollegeStudentDenied",
+      "stm10En001_unauthenticatedDenied",
+      "stm10En001_invalidWidgetRejected",
+      "stm10En001_invalidThemeRejected",
+      "stm10En001_invalidShortcutPathRejected",
+      "stm10En001_staffCannotUsePortalPreferencesStore",
+      "stm10En001_secondStudentDoesNotSeeFirstStudentsPreferences"
+    ],
+    "focusedResult": "10 run, 0 fail"
+  },
+  "status": {
+    "STM-10-EN-001": "completed"
+  }
+}

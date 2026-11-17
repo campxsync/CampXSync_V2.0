@@ -14,6 +14,7 @@ import com.campx.student.config.DatabaseConnectionManager;
 import com.campx.student.exception.StudentSecurityViolationException;
 import com.campx.student.model.*;
 import com.campx.student.security.UserSecurityContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
@@ -32,6 +33,7 @@ public class PostgresStudentRepository implements StudentRepository {
     private static final String SERVICE_NAME = "student-service";
     private static final String AGGREGATE_TYPE = "STUDENT";
     private static final String SCHEMA_VERSION = "1.0.0";
+    private static final ObjectMapper PORTAL_PREFS_MAPPER = new ObjectMapper();
 
     private final DatabaseConnectionManager connectionManager;
     private final AuditLogRepository auditRepository;
@@ -849,6 +851,100 @@ public class PostgresStudentRepository implements StudentRepository {
 
         s.setRowVersion(rs.getInt("row_version"));
         return s;
+    }
+
+    @Override
+    public Optional<PortalPreferencesDto> findPortalPreferences(UserSecurityContext context, UUID studentId, UUID collegeId) {
+        assertContext(context);
+        if (studentId == null || collegeId == null) {
+            return Optional.empty();
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            String sql = "SELECT student_id, college_id, preferences_json FROM stu.student_portal_preferences "
+                    + "WHERE tenant_id = ? AND student_id = ? AND college_id = ? AND deleted_at IS NULL LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setObject(1, context.getTenantId());
+                ps.setObject(2, studentId);
+                ps.setObject(3, collegeId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(mapPortalPreferences(rs));
+                    }
+                }
+            }
+            return Optional.empty();
+        });
+    }
+
+    @Override
+    public PortalPreferencesDto savePortalPreferences(UserSecurityContext context, PortalPreferencesDto preferences) {
+        assertContext(context);
+        if (preferences == null || preferences.getStudentId() == null || preferences.getCollegeId() == null) {
+            throw new IllegalArgumentException("studentId and collegeId are required");
+        }
+        return context.executeInTransaction(connectionManager, conn -> {
+            String json;
+            try {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("version", preferences.getVersion());
+                payload.put("widgets", preferences.getWidgets());
+                payload.put("shortcuts", preferences.getShortcuts());
+                payload.put("display", preferences.getDisplay());
+                json = PORTAL_PREFS_MAPPER.writeValueAsString(payload);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to serialize portal preferences: " + e.getMessage(), e);
+            }
+
+            String updateSql = "UPDATE stu.student_portal_preferences SET preferences_json = ?::jsonb, "
+                    + "updated_at = now(), updated_by = ?, row_version = row_version + 1 "
+                    + "WHERE tenant_id = ? AND student_id = ? AND college_id = ? AND deleted_at IS NULL";
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, json);
+                ps.setObject(2, context.getUserId());
+                ps.setObject(3, context.getTenantId());
+                ps.setObject(4, preferences.getStudentId());
+                ps.setObject(5, preferences.getCollegeId());
+                int updated = ps.executeUpdate();
+                if (updated > 0) {
+                    return preferences;
+                }
+            }
+
+            String insertSql = "INSERT INTO stu.student_portal_preferences "
+                    + "(id, tenant_id, college_id, student_id, preferences_json, created_at, updated_at, "
+                    + "created_by, updated_by, row_version) "
+                    + "VALUES (?, ?, ?, ?, ?::jsonb, now(), now(), ?, ?, 1)";
+            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                ps.setObject(1, UUID.randomUUID());
+                ps.setObject(2, context.getTenantId());
+                ps.setObject(3, preferences.getCollegeId());
+                ps.setObject(4, preferences.getStudentId());
+                ps.setString(5, json);
+                ps.setObject(6, context.getUserId());
+                ps.setObject(7, context.getUserId());
+                ps.executeUpdate();
+            }
+            return preferences;
+        });
+    }
+
+    private PortalPreferencesDto mapPortalPreferences(ResultSet rs) throws SQLException {
+        PortalPreferencesDto dto = new PortalPreferencesDto();
+        dto.setStudentId((UUID) rs.getObject("student_id"));
+        dto.setCollegeId((UUID) rs.getObject("college_id"));
+        String json = rs.getString("preferences_json");
+        if (json != null && !json.trim().isEmpty()) {
+            try {
+                PortalPreferencesDto parsed = PORTAL_PREFS_MAPPER.readValue(json, PortalPreferencesDto.class);
+                dto.setVersion(parsed.getVersion());
+                dto.setWidgets(parsed.getWidgets());
+                dto.setShortcuts(parsed.getShortcuts());
+                dto.setDisplay(parsed.getDisplay());
+            } catch (Exception e) {
+                logger.warn("Failed to parse portal preferences JSON: {}", e.getMessage());
+            }
+        }
+        return dto;
     }
 
     private void assertContext(UserSecurityContext context) {

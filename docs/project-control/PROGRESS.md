@@ -1,7 +1,18 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-17 (Gateway Registrar recognition `dffbf19`; delegated Registrar browser success still FAIL on student visibility; STM-10-US-023 BLOCKED with STM-08/09 new-service gate; CSV swap waiting on editor close; **no push**)
+**Updated:** 2026-11-17 (STM-10 batch 5 preferences queue started; owner D1/D7/D9/D10 recorded; CSV swap `5eccfd2`; **no push**)
+
+## Owner decisions – STM-10 batch 5 (17-11-2026)
+
+**Approved by:** Niranjan (product owner). Final; do not re-ask.
+
+| ID | Decision |
+|---|---|
+| **D1** | IAM operator = Super Admin (R01), System Admin (R02), Institution Admin (R03). |
+| **D7** | Portal preferences tables approved: create them in the existing student-service schema, following the same pattern as the login-link tables from Save portal preferences / login-link enabler (STM-07-EN-001) (college column, FORCE RLS on every table, a student can read and write only their own row), in Supabase project `azulbaxszsqxymqmlwfe` only, with a DDL script and evidence under `docs/reports/`. No other tables. |
+| **D9** | Platform Admin (R01) cannot use the staff screens (they are for roles tied to one college: Institution Admin R03 and the delegated Registrar R31). No college selector is to be built. |
+| **D10** | Student portal announcements (Configure portal settings and publish announcements, STM-10-US-023): publishers per the matrix are College Admin and Communication Manager (not the Registrar). It is **BLOCKED** because the communication service does not exist; it joins Academic history (STM-08) and Student service requests (STM-09) as a new-service item awaiting owner approval. Build nothing for it. |
 
 ## Owner decisions – STM-07 batch 2 (16-11-2026)
 
@@ -59,6 +70,10 @@
 | STM-06-EN-002 | **completed** — live Storage + orphan cleanup (12/12) |
 | STM-06-EN-003 | **partially completed** — controlled scanner DONE; live commercial AV gated |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
+| STM-10-EN-001 | **completed** — `stu.student_portal_preferences` FORCE RLS (Dev); portal-preferences API |
+| STM-10-US-012 | **in progress** — batch 5 next (durable widget save on EN-001) |
+| STM-10-US-013 / US-014 | **yet to pickup** — batch 5 queue |
+| STM-10-US-023 | **BLOCKED** — D10 communication service missing (with STM-08/09 new-service gate) |
 
 ## Evidence highlights
 
