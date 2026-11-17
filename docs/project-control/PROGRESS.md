@@ -71,8 +71,8 @@
 | STM-06-EN-003 | **partially completed** — controlled scanner DONE; live commercial AV gated |
 | STM-CROSS-EN-007 | **yet to pickup** (Kafka hold) |
 | STM-10-EN-001 | **completed** — `stu.student_portal_preferences` FORCE RLS (Dev); portal-preferences API |
-| STM-10-US-012 | **in progress** — batch 5 next (durable widget save on EN-001) |
-| STM-10-US-013 / US-014 | **yet to pickup** — batch 5 queue |
+| STM-10-US-012 | **completed** — durable widgets via portal BFF + StudentWidgetGate |
+| STM-10-US-013 / US-014 | **yet to pickup** — batch 5 queue (next: shortcuts) |
 | STM-10-US-023 | **BLOCKED** — D10 communication service missing (with STM-08/09 new-service gate) |
 
 ## Evidence highlights

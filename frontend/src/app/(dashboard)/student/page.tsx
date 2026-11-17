@@ -27,6 +27,7 @@ import {
   getCachedStudentAttendance,
   setCachedStudentAttendance,
 } from '@/lib/cache/student-profile-cache';
+import { StudentWidgetGate } from '@/components/preferences/student-widget-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -231,7 +232,13 @@ export default async function StudentDashboardPage() {
         Skip to main content
       </a>
 
+      <div
+        className="flex flex-col gap-6"
+        data-testid="student-dashboard-widgets"
+        style={{ display: 'flex', flexDirection: 'column' }}
+      >
       {/* Student Welcome Header */}
+      <StudentWidgetGate widgetId="profile" userId={userId} tenantId={tenantId}>
       <div
         id="student-main-content"
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
@@ -252,6 +259,7 @@ export default async function StudentDashboardPage() {
           </Badge>
         )}
       </div>
+      </StudentWidgetGate>
 
       {/* Visible Service Degradation Indicator (REC-01) */}
       {gatewayFallback && (
@@ -319,6 +327,7 @@ export default async function StudentDashboardPage() {
         data-testid="student-portal-summaries"
         aria-label="Portal summaries"
       >
+        <StudentWidgetGate widgetId="documents" userId={userId} tenantId={tenantId}>
         <div className="rounded-[8px] border border-[#E3E8EF] bg-white p-4" data-testid="student-document-summary">
           <h2 className="text-sm font-semibold text-[#0B1F3A]">Document summaries</h2>
           <p className="mt-1 text-xs text-[#6B7688]">
@@ -333,15 +342,19 @@ export default async function StudentDashboardPage() {
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
+        </StudentWidgetGate>
+        <StudentWidgetGate widgetId="notifications" userId={userId} tenantId={tenantId}>
         <div className="rounded-[8px] border border-[#E3E8EF] bg-white p-4" data-testid="student-notifications">
           <h2 className="text-sm font-semibold text-[#0B1F3A]">Notifications & announcements</h2>
           <p className="mt-1 text-xs text-[#6B7688]" data-testid="student-notifications-empty">
             No in-service announcements right now. Enrollment and lifecycle alerts appear on their desks.
           </p>
         </div>
+        </StudentWidgetGate>
       </section>
 
       {/* KPI Cards */}
+      <StudentWidgetGate widgetId="kpis" userId={userId} tenantId={tenantId}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="student-dashboard-kpis">
         <StatCard
           title="Overall Attendance"
@@ -362,6 +375,7 @@ export default async function StudentDashboardPage() {
           description={student?.college_name || 'Institutional Campus'}
         />
       </div>
+      </StudentWidgetGate>
 
       {/* Admissions Handover Bridge Card & Quick Actions Hub */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -463,6 +477,7 @@ export default async function StudentDashboardPage() {
       </div>
 
       {/* Course-Wise Attendance Table */}
+      <StudentWidgetGate widgetId="courses" userId={userId} tenantId={tenantId}>
       <Card data-testid="student-courses-panel">
         <CardHeader>
           <CardTitle>Course-Wise Attendance Summary</CardTitle>
@@ -525,6 +540,7 @@ export default async function StudentDashboardPage() {
           )}
         </CardContent>
       </Card>
+      </StudentWidgetGate>
 
       {/* Recent Conducted Sessions Table */}
       <Card>
@@ -583,6 +599,7 @@ export default async function StudentDashboardPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

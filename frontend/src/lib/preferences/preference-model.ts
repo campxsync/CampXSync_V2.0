@@ -172,8 +172,8 @@ export function sanitizePreferences(
   const activeDashboardWidgets = sanitizeWidgetConfig(obj.dashboardWidgets, roleFallback);
 
   const rolesObj: Record<string, RoleDashboardConfig> = {};
-  for (const roleKey of ['college_admin', 'registrar', 'faculty', 'platform_admin']) {
-    const rFallback = ROLE_DEFAULT_WIDGETS[roleKey];
+  for (const roleKey of ['college_admin', 'registrar', 'faculty', 'platform_admin', 'student']) {
+    const rFallback = ROLE_DEFAULT_WIDGETS[roleKey] || ROLE_DEFAULT_WIDGETS.student;
     const incoming = obj.roles?.[roleKey as keyof typeof obj.roles] || (roleKey === currentRole ? activeDashboardWidgets : undefined);
     rolesObj[roleKey] = sanitizeWidgetConfig(incoming, rFallback);
   }
@@ -214,6 +214,50 @@ export interface PreferenceAdapter {
  * Attempts durable PostgreSQL persistence via /api/user/preferences.
  * Falls back to local device storage with transparent user disclosure when offline or blocked.
  */
+function portalPayloadToUserPreferences(portal: any, role: string): UserPreferences {
+  const widgets = portal?.widgets || ROLE_DEFAULT_WIDGETS.student;
+  const display = portal?.display || {};
+  return sanitizePreferences(
+    {
+      version: 1,
+      theme: display.theme || 'light',
+      sidebarCollapsed: false,
+      tableDensity: display.tableDensity || 'comfortable',
+      defaultDateRangeDays: 14,
+      defaultAttendanceFilter: 'all',
+      locale: display.locale || 'en-IN',
+      timezone: display.timezone || 'Asia/Kolkata',
+      accessibility: {
+        highContrast: Boolean(display.accessibility?.highContrast),
+        reducedMotion: Boolean(display.accessibility?.reducedMotion),
+        largeFont: Boolean(display.accessibility?.largeFont),
+      },
+      dashboardWidgets: widgets,
+      roles: { student: widgets },
+    },
+    role,
+    PRODUCT_DEFAULTS
+  );
+}
+
+function userPreferencesToPortalPayload(prefs: UserPreferences) {
+  const widgets = prefs.roles?.student || prefs.dashboardWidgets || ROLE_DEFAULT_WIDGETS.student;
+  return {
+    version: 1,
+    widgets: {
+      order: widgets.order || [],
+      hidden: widgets.hidden || [],
+    },
+    display: {
+      theme: prefs.theme,
+      locale: prefs.locale,
+      timezone: prefs.timezone,
+      tableDensity: prefs.tableDensity,
+      accessibility: prefs.accessibility,
+    },
+  };
+}
+
 export class ServerPreferenceAdapter implements PreferenceAdapter {
   private getStorageKey(userId: string, role: string, tenantId: string | null): string {
     const tid = tenantId || 'platform';
@@ -221,7 +265,24 @@ export class ServerPreferenceAdapter implements PreferenceAdapter {
   }
 
   async load(userId: string, role: string, tenantId: string | null): Promise<UserPreferences> {
-    // 1. Try loading from PostgreSQL via /api/user/preferences
+    // Student portal preferences persist via student-service (STM-10-EN-001 / US-012).
+    if (typeof window !== 'undefined' && role === 'student') {
+      try {
+        const res = await fetch('/api/student/portal-preferences', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.preferences) {
+            const sanitized = portalPayloadToUserPreferences(data.preferences, role);
+            localStorage.setItem(this.getStorageKey(userId, role, tenantId), JSON.stringify(sanitized));
+            return sanitized;
+          }
+        }
+      } catch {
+        // fall through to local cache
+      }
+    }
+
+    // Staff path: institute-admin preferences via /api/user/preferences
     if (typeof window !== 'undefined') {
       try {
         const res = await fetch(`/api/user/preferences?role=${encodeURIComponent(role)}`);
@@ -229,16 +290,14 @@ export class ServerPreferenceAdapter implements PreferenceAdapter {
           const data = await res.json();
           if (data.success && data.preferences) {
             const sanitized = sanitizePreferences(data.preferences, role, PRODUCT_DEFAULTS);
-            // Cache locally
             localStorage.setItem(this.getStorageKey(userId, role, tenantId), JSON.stringify(sanitized));
             return sanitized;
           }
         }
-      } catch (err) {
+      } catch {
         // Network or offline, fallback to local
       }
 
-      // 2. Fallback to localStorage
       try {
         const raw = localStorage.getItem(this.getStorageKey(userId, role, tenantId));
         if (raw) {
@@ -259,14 +318,39 @@ export class ServerPreferenceAdapter implements PreferenceAdapter {
   ): Promise<PreferenceSaveResult> {
     const sanitized = sanitizePreferences(prefs, role, PRODUCT_DEFAULTS);
 
-    // Save to local device storage first as immediate responsive cache
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(this.getStorageKey(userId, role, tenantId), JSON.stringify(sanitized));
       } catch {}
     }
 
-    // Attempt authoritative database persistence via /api/user/preferences
+    if (typeof window !== 'undefined' && role === 'student') {
+      try {
+        const res = await fetch('/api/student/portal-preferences', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userPreferencesToPortalPayload(sanitized)),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.isAccountSynced) {
+            return {
+              success: true,
+              isAccountSynced: true,
+              message: 'Dashboard widgets synced to your student portal account (PostgreSQL).',
+            };
+          }
+        }
+      } catch {
+        // fallback below
+      }
+      return {
+        success: true,
+        isAccountSynced: false,
+        message: 'Saved to local device cache. (Server sync will complete on next network connection).',
+      };
+    }
+
     if (typeof window !== 'undefined') {
       try {
         const res = await fetch('/api/user/preferences', {
@@ -288,7 +372,7 @@ export class ServerPreferenceAdapter implements PreferenceAdapter {
             };
           }
         }
-      } catch (err) {
+      } catch {
         // Fallback message below
       }
     }

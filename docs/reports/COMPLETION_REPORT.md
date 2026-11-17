@@ -1547,4 +1547,31 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 - Full module: **194 run, 0 fail, 1 error** on `LiveStudentRuntimeSecurityTest` prepared-statement flake (alone: **3/0** PASS); same class of known live-DB flake — not counted as a new red suite.
 
 ### CSV
-- Save portal preferences in the database (STM-10-EN-001) → **completed**
+- Save portal preferences in the database (STM-10-EN-001) → **completed (0cf5190)**
+
+---
+
+## Entry 47 — Configure dashboard widgets (STM-10-US-012) (2026-11-17)
+
+**Plain name:** Configure dashboard widgets (STM-10-US-012)  
+**Status:** completed  
+**Depends on:** Save portal preferences in the database (STM-10-EN-001) `0cf5190`  
+**No push.**
+
+### Implementation
+- BFF: `frontend/src/app/api/student/portal-preferences/route.ts` → gateway → student-service portal-preferences
+- Adapter: student role saves/loads widgets via portal BFF (not institute-admin user preferences)
+- UI: `StudentWidgetGate` on student dashboard widgets (profile, documents, notifications, kpis, courses)
+- Preference modal student role included in sanitize allowlist
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Widget order/hidden persist for owning student | `savePortalPreferences` widgets | `stm10Us012_widgetOrderAndHiddenPersistAcrossReload` |
+| Other student does not receive that layout | store keyed by student | `stm10Us012_otherStudentDoesNotReceiveWidgetLayout` |
+| Cross-student / unauth / invalid already covered by EN-001 suite | EN-001 gates | `Stm10PortalPreferencesEn001Test` (10/0) |
+
+### Tests
+- `mvn test -pl services/student-services/student-service "-Dtest=Stm10Us012DashboardWidgetsTest,Stm10PortalPreferencesEn001Test"` → **12/0**
+- Frontend TypeScript check (`npx tsc --noEmit`) → **0 errors**
