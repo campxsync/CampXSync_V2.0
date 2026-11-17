@@ -1,0 +1,37 @@
+{
+  "startedAt": "2026-11-17T10:26:42.064Z",
+  "base": "http://localhost:3000",
+  "slowMo": 700,
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "stack": {
+    "ui3000": true,
+    "gateway8080": true,
+    "iam8081": true,
+    "student8093": true,
+    "admissions8094": true,
+    "enrollment8095": true,
+    "lifecycle8096": true,
+    "guardian8097": true
+  },
+  "results": [
+    {
+      "spec": "01_en005_integration_flow.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Check admissions service for auto-login-setup after admission",
+        "Platform Admin (R01) opens staff account-provisioning desk",
+        "Staff desk visible — load link status for known Dev student record",
+        "Student 1 opens student portal and looks for own account link-status strip",
+        "Student portal account link-status strip is visible"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch4\\screenshots\\01_en005_integration_flow.png",
+      "notes": [
+        "STOPPED_STEP: Automatic request-a-new-login right after admission handover is not wired (Connect account setup integration STM-07-EN-005 gap). Admissions is up for handover→student create only; no browser auto-provision step to run.",
+        "Staff link-status API returned an error (recorded, not invented): {\"type\":\"https://campxsync.edu/errors/forbidden\",\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Missing required X-Tenant-Id header for student domain operations\"}",
+        "STOPPED_STEP: Link-status strip visible but no status value — likely no student profile resolution for this session (no invented link/account).",
+        "Lifecycle service is up; browser demo does not mutate student status (cut-access already covered by unit tests). Event-bus fan-out remains parked."
+      ]
+    }
+  ],
+  "finishedAt": "2026-11-17T10:28:32.088Z"
+}
