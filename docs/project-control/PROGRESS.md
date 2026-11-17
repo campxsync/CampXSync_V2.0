@@ -1,7 +1,7 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-17 (STM-07 batch 3 complete: US-003/005/006/012; Playwright 4/4; pen 34/34; E2E 32/32)
+**Updated:** 2026-11-17 (STM-07 batch 4 complete: EN-005 partial `591f2c0`, EN-006 `895016b`; demo `435e28a`; STM10 map `c021678`; pen 34/34; E2E 32/32; student 184/0 with clean env; **no push**)
 
 ## Owner decisions – STM-07 batch 2 (16-11-2026)
 

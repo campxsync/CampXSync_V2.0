@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-17 (STM-07 batch 3 COMPLETED — US-003/005/006/012; Playwright 4/4; pen 34/34; E2E 32/32)
+**Last current-state refresh:** 2026-11-17 (STM-07 batch 4 COMPLETED — EN-005 partial, EN-006 done; Playwright batch4; STM10 buildable map; pen 34/34; E2E 32/32; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — next: remaining unblocked STM-07 enablers / STM-10; STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
+1. `docs/prompts/NEXT_TASK.md` — STM-07 batch 4 stopped; next only after owner: remaining STM-07 gaps / STM-10 buildable items; STM-08/09 gated; live AV / Kafka / FLAG-002/003/007 gated.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. STM-07-B2-D1..D3).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
