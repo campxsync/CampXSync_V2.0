@@ -1,0 +1,21 @@
+{
+  "label": "worktree-c51fc6e-batch3-student-signin",
+  "commit": "c51fc6e",
+  "base": "http://127.0.0.1:3000",
+  "startedAt": "2026-11-17T12:53:17.307Z",
+  "afterSessionUrl": "http://localhost:3000/login?returnTo=%2Fstudent",
+  "hasDashboard": false,
+  "cookies": [
+    {
+      "name": "sb-azulbaxszsqxymqmlwfe-auth-token",
+      "domain": "127.0.0.1"
+    },
+    {
+      "name": "campx_test_session",
+      "domain": "127.0.0.1"
+    }
+  ],
+  "pass": false,
+  "verdict": "FAIL",
+  "finishedAt": "2026-11-17T12:53:20.254Z"
+}

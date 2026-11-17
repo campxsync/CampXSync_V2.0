@@ -1,0 +1,23 @@
+{
+  "label": "batch3-student-signin-step",
+  "base": "http://localhost:3000",
+  "startedAt": "2026-11-17T12:52:40.966Z",
+  "afterSessionUrl": "http://localhost:3000/student",
+  "hasDashboard": true,
+  "cookies": [
+    {
+      "name": "sb-azulbaxszsqxymqmlwfe-auth-token",
+      "domain": "localhost"
+    },
+    {
+      "name": "campx_test_session",
+      "domain": "localhost"
+    }
+  ],
+  "afterStaffUrl": "http://localhost:3000/access-denied?reason=forbidden",
+  "staffDeskVisible": false,
+  "sessionSurvivedToStaffNav": true,
+  "pass": true,
+  "verdict": "PASS",
+  "finishedAt": "2026-11-17T12:52:59.123Z"
+}

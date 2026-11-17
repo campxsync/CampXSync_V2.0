@@ -1,0 +1,22 @@
+﻿{
+  "label": "worktree-c51fc6e-batch3-student-signin",
+  "commit": "c51fc6e",
+  "base": "http://localhost:3000",
+  "startedAt": "2026-11-17T12:52:59.834Z",
+  "afterSessionUrl": "http://localhost:3000/student",
+  "hasDashboard": true,
+  "cookies": [
+    {
+      "name": "sb-azulbaxszsqxymqmlwfe-auth-token",
+      "domain": "localhost"
+    },
+    {
+      "name": "campx_test_session",
+      "domain": "localhost"
+    }
+  ],
+  "pass": true,
+  "verdict": "PASS",
+  "finishedAt": "2026-11-17T12:53:16.647Z"
+}
+Evidence: D:\CampXSync\CampXSync_V2.0\docs\reports\_verify_followup_worktree_c51fc6e_signin.json

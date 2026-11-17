@@ -1,0 +1,77 @@
+{
+  "base": "http://localhost:3000",
+  "startedAt": "2026-11-17T12:49:43.692Z",
+  "sessionUrl": "http://localhost:3000/student",
+  "hasDashboard": true,
+  "prefsGet": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "isAccountSynced": true,
+      "preferences": {
+        "studentId": "81dd67d3-1d5f-4d8e-8061-a67648610002",
+        "collegeId": "a0000000-0000-0000-0000-000000000002",
+        "version": 1,
+        "widgets": {
+          "order": [
+            "profile",
+            "courses",
+            "documents",
+            "notifications",
+            "kpis"
+          ],
+          "hidden": []
+        },
+        "shortcuts": [],
+        "display": {
+          "theme": "light",
+          "locale": "en-IN",
+          "timezone": "Asia/Kolkata",
+          "tableDensity": "comfortable",
+          "accessibility": {}
+        }
+      }
+    }
+  },
+  "studentMe": {
+    "status": 200,
+    "body": {
+      "id": "81dd67d3-1d5f-4d8e-8061-a67648610002",
+      "tenantId": "a0000000-0000-0000-0000-000000000001",
+      "personId": "81dd67d3-1d5f-4d8e-8061-a6764861f924",
+      "collegeId": "a0000000-0000-0000-0000-000000000002",
+      "programId": "a0000000-0000-0000-0000-000000000040",
+      "enrollmentNo": "STU-DEV-2026-0001",
+      "admissionNo": "ADM-DEV-2026-0001",
+      "admissionDate": "2026-09-06",
+      "admissionAcademicYearId": null,
+      "status": "ACTIVE",
+      "verificationStatus": "UNVERIFIED",
+      "verificationExpiry": null,
+      "iamUserId": null,
+      "rowVersion": 1,
+      "firstName": "Student",
+      "middleName": null,
+      "lastName": "One",
+      "preferredName": null,
+      "displayName": "Student One",
+      "dateOfBirth": null,
+      "gender": null,
+      "bloodGroup": null,
+      "nationality": null,
+      "maritalStatus": null,
+      "primaryEmail": "student1.campx@gmail.com",
+      "primaryPhone": null,
+      "photoDocumentId": null,
+      "identifiers": [],
+      "permanentAddress": null,
+      "currentAddress": null,
+      "preferences": null,
+      "documents": [],
+      "guardians": [],
+      "createdAt": "2026-11-05T07:06:51.987892Z",
+      "updatedAt": "2026-11-05T07:06:51.987892Z"
+    }
+  },
+  "finishedAt": "2026-11-17T12:50:05.604Z"
+}

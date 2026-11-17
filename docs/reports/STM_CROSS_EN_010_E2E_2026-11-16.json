@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-17T10:34:50.178Z",
+  "startedAt": "2026-11-17T12:40:59.212Z",
   "task": "STM-CROSS-EN-010-e2e",
   "gatewayBase": "http://127.0.0.1:8080",
   "iamBase": "http://127.0.0.1:8081",
@@ -43,7 +43,7 @@
     {
       "name": "jwt-registrar-pilot",
       "ok": true,
-      "detail": "userIdMatch=true role=n/a"
+      "detail": "userIdMatch=true role=REGISTRAR"
     },
     {
       "name": "jwt-faculty",
@@ -53,22 +53,22 @@
     {
       "name": "gateway-missing-auth-enrollment",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794911691827,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794919261140,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-missing-auth-lifecycle",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794911691831,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794919261144,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-missing-auth-guardians",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794911691833,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794919261147,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-missing-auth-documents",
       "ok": true,
-      "detail": "HTTP 401 {\"timestamp\":1794911691836,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
+      "detail": "HTTP 401 {\"timestamp\":1794919261149,\"status\":401,\"error\":\"Unauthorized\",\"title\":\"Unauthorized\",\"code\":\"GATEWAY_MISSING_AUTH\",\"errorCode\":\"GATEWAY_MISSING_AUTH\",\"message\""
     },
     {
       "name": "gateway-rejects-spoofed-identity-headers",
@@ -78,37 +78,37 @@
     {
       "name": "gw-enrollment-terms",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 200"
     },
     {
       "name": "gw-lifecycle-requests",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 200"
     },
     {
       "name": "gw-lifecycle-student-status",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 200"
     },
     {
       "name": "gw-guardians-student",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 200"
     },
     {
       "name": "gw-documents-types",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 200"
     },
     {
       "name": "gw-documents-verifications",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 403"
     },
     {
       "name": "gw-documents-expiry-notifications",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 403"
     },
     {
       "name": "gw-student-document-submissions",
@@ -123,7 +123,7 @@
     {
       "name": "gw-student-denied-verifications",
       "ok": true,
-      "detail": "HTTP 403 {\"timestamp\":1794911693758,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"REGISTRAR_FORBIDDEN\",\"errorCode\""
+      "detail": "HTTP 403 {\"timestamp\":1794919266769,\"status\":403,\"error\":\"Forbidden\",\"title\":\"Forbidden\",\"code\":\"REGISTRAR_FORBIDDEN\",\"errorCode\""
     },
     {
       "name": "gw-faculty-denied-expiry-notifications",
@@ -166,7 +166,7 @@
       "detail": "connection failure detected: fetch failed"
     }
   ],
-  "endedAt": "2026-11-17T10:34:56.301Z",
+  "endedAt": "2026-11-17T12:41:09.194Z",
   "summary": {
     "total": 32,
     "passed": 32,

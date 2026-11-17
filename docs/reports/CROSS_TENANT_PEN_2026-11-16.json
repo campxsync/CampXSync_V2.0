@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-17T10:34:50.818Z",
+  "startedAt": "2026-11-17T12:41:45.617Z",
   "task": "CROSS-TENANT-PEN-2026-11-16",
   "projectRef": "azulbaxszsqxymqmlwfe",
   "gatewayBase": "http://127.0.0.1:8080",
@@ -58,19 +58,19 @@
       "name": "jwt-registrar-pilot",
       "category": "gateway-auth",
       "ok": true,
-      "detail": "userIdMatch=true role=n/a"
+      "detail": "userIdMatch=true role=REGISTRAR"
     },
     {
       "name": "gw-bearer-spoof-tenant-stripped",
       "category": "gateway-auth",
       "ok": true,
-      "detail": "baseline HTTP 401 n=0; spoofed HTTP 401 n=0"
+      "detail": "baseline HTTP 200 n=1; spoofed HTTP 200 n=1"
     },
     {
       "name": "gw-guardian-student-a-in-tenant-a",
       "category": "gateway-read",
       "ok": true,
-      "detail": "HTTP 401"
+      "detail": "HTTP 200"
     },
     {
       "name": "probe-enrollment-terms-tenant-a",
@@ -219,7 +219,7 @@
   ],
   "fixesApplied": [],
   "stackAvailable": true,
-  "endedAt": "2026-11-17T10:35:01.136Z",
+  "endedAt": "2026-11-17T12:41:54.800Z",
   "summary": {
     "total": 34,
     "passed": 34,
