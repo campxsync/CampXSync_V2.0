@@ -2200,5 +2200,30 @@ Does the owner authorize an explicit college-scoped Registrar **V** (view) on `s
 - `node --experimental-strip-types --test src/lib/portal/portal-dashboard-access.test.ts` → **7/0**
 
 ### CSV
-- Existing IAM, Gateway and tenant context integration (STM-10-EN-003) → **completed**
+- Existing IAM, Gateway and tenant context integration (STM-10-EN-003) → **completed** (`e987165`)
+
+---
+
+## Entry 59 — Connect account setup remainder (STM-07-EN-005) (2026-11-18)
+
+**Plain name:** Connect account setup — auto request login after admission handover (STM-07-EN-005 remainder)  
+**Status:** partially completed (auto-provision wired; Kafka fan-out still HARD STOP)  
+**No push.**
+
+### Implementation
+- `HttpAccountProvisioningPort` POST `/api/v1/students/{id}/provision-iam` after handover create (mirrors lifecycle student notify port)
+- Fail-soft; NoOp when student-service URL unset
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| After handover, request new login (provisioning) | `HandoverOrchestrationService` + `AccountProvisioningPort` | `stm07En005_handoverRequestsLoginProvisioningNotify` |
+| Event-bus STM-04→STM-07 fan-out | — | **UNCOVERED** (Kafka hard stop) |
+
+### Tests
+- `mvn test -pl services/student-services/admissions-service -Dtest=HandoverOrchestrationServiceTest` → **pass**
+
+### CSV
+- Connect account setup… (STM-07-EN-005) → **partially completed**
 

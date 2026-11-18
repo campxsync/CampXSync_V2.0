@@ -2,6 +2,9 @@ package com.campx.admissions.service;
 
 import com.campx.admissions.exception.AdmissionsConflictException;
 import com.campx.admissions.exception.AdmissionsNotFoundException;
+import com.campx.admissions.integration.AccountProvisioningPort;
+import com.campx.admissions.integration.HttpAccountProvisioningPort;
+import com.campx.admissions.integration.NoOpAccountProvisioningPort;
 import com.campx.admissions.model.*;
 import com.campx.admissions.model.dto.HandoverStatusResponse;
 import com.campx.admissions.repository.AdmissionHandoverRepository;
@@ -35,6 +38,7 @@ public class HandoverOrchestrationService {
 
     // Simulated/configurable downstream STM-01 client adapter for tests
     private StudentServiceAdapter studentServiceAdapter;
+    private AccountProvisioningPort accountProvisioningPort;
 
     public interface StudentServiceAdapter {
         UUID createOrLinkStudent(UUID tenantId, Map<String, Object> enrollmentPayload, String idempotencyKey) throws Exception;
@@ -45,7 +49,7 @@ public class HandoverOrchestrationService {
                                         AdmissionHandoverRepository handoverRepository,
                                         AdmissionsStateEngine stateEngine,
                                         AdmissionsEventPublisher eventPublisher) {
-        this(applicationRepository, offerRepository, handoverRepository, stateEngine, eventPublisher, null, null);
+        this(applicationRepository, offerRepository, handoverRepository, stateEngine, eventPublisher, null, null, null);
     }
 
     public HandoverOrchestrationService(ApplicationRepository applicationRepository,
@@ -54,7 +58,7 @@ public class HandoverOrchestrationService {
                                         AdmissionsStateEngine stateEngine,
                                         AdmissionsEventPublisher eventPublisher,
                                         StudentServiceAdapter studentServiceAdapter) {
-        this(applicationRepository, offerRepository, handoverRepository, stateEngine, eventPublisher, studentServiceAdapter, null);
+        this(applicationRepository, offerRepository, handoverRepository, stateEngine, eventPublisher, studentServiceAdapter, null, null);
     }
 
     public HandoverOrchestrationService(ApplicationRepository applicationRepository,
@@ -64,6 +68,18 @@ public class HandoverOrchestrationService {
                                         AdmissionsEventPublisher eventPublisher,
                                         StudentServiceAdapter studentServiceAdapter,
                                         AdmissionIntakeRepository intakeRepository) {
+        this(applicationRepository, offerRepository, handoverRepository, stateEngine, eventPublisher,
+                studentServiceAdapter, intakeRepository, null);
+    }
+
+    public HandoverOrchestrationService(ApplicationRepository applicationRepository,
+                                        AdmissionOfferRepository offerRepository,
+                                        AdmissionHandoverRepository handoverRepository,
+                                        AdmissionsStateEngine stateEngine,
+                                        AdmissionsEventPublisher eventPublisher,
+                                        StudentServiceAdapter studentServiceAdapter,
+                                        AdmissionIntakeRepository intakeRepository,
+                                        AccountProvisioningPort accountProvisioningPort) {
         this.applicationRepository = applicationRepository;
         this.offerRepository = offerRepository;
         this.handoverRepository = handoverRepository;
@@ -71,6 +87,9 @@ public class HandoverOrchestrationService {
         this.eventPublisher = eventPublisher;
         this.studentServiceAdapter = studentServiceAdapter != null ? studentServiceAdapter : new DefaultStudentServiceAdapter();
         this.intakeRepository = intakeRepository;
+        this.accountProvisioningPort = accountProvisioningPort != null
+                ? accountProvisioningPort
+                : HttpAccountProvisioningPort.fromEnvironment();
     }
 
     public void setIntakeRepository(AdmissionIntakeRepository intakeRepository) {
@@ -79,6 +98,12 @@ public class HandoverOrchestrationService {
 
     public void setStudentServiceAdapter(StudentServiceAdapter adapter) {
         this.studentServiceAdapter = adapter;
+    }
+
+    public void setAccountProvisioningPort(AccountProvisioningPort accountProvisioningPort) {
+        this.accountProvisioningPort = accountProvisioningPort != null
+                ? accountProvisioningPort
+                : new NoOpAccountProvisioningPort();
     }
 
     public HandoverStatusResponse triggerHandover(UserSecurityContext context, UUID applicationId, String callerIdempotencyKey) {
@@ -146,6 +171,17 @@ public class HandoverOrchestrationService {
             }
 
             logger.info("Application {} successfully handed over to STM-01 student {}", applicationId, studentId);
+
+            // STM-07-EN-005 remainder: best-effort "request a new login" (fail-soft; same pattern as lifecycle→student port)
+            try {
+                accountProvisioningPort.requestLoginAfterHandover(
+                        context.getTenantId(),
+                        studentId,
+                        context.getUserId() != null ? context.getUserId().toString() : null);
+            } catch (Exception notifyEx) {
+                logger.warn("Post-handover provisioning notify failed for student {}: {}",
+                        studentId, notifyEx.getMessage());
+            }
 
         } catch (Exception e) {
             logger.error("Handover failed for application {}: {}", applicationId, e.getMessage());

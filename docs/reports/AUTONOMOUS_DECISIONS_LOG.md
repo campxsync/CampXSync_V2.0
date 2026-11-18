@@ -106,4 +106,18 @@ Each entry: what was decided, why, which files, how to undo.
 
 **Undo:** Revert the item commit.
 
+**Commit:** `e987165`
+
+---
+
+## G — STM-07-EN-005 admission auto “request login” after handover
+
+**Decision:** Wire best-effort `AccountProvisioningPort` / `HttpAccountProvisioningPort` after successful handover student create, copying the lifecycle `HttpStudentAccountAccessPort` env (`STM01_SERVICE_URL` / `STUDENT_SERVICE_URL`) and header pattern. Fail-soft so handover success is not rolled back. Kafka fan-out remains HARD STOP / UNCOVERED.
+
+**Why:** Autonomy G allows wiring when an existing S2S client pattern exists; DefaultStudentServiceAdapter + lifecycle port already call student-service over HTTP.
+
+**Files:** `admissions-service/.../integration/AccountProvisioningPort.java`, `HttpAccountProvisioningPort.java`, `NoOpAccountProvisioningPort.java`, `HandoverOrchestrationService.java`, `HandoverOrchestrationServiceTest.java`
+
+**Undo:** Revert the item commit.
+
 ---

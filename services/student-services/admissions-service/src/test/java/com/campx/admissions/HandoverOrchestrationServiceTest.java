@@ -1,6 +1,7 @@
 package com.campx.admissions;
 
 import com.campx.admissions.exception.AdmissionsConflictException;
+import com.campx.admissions.integration.AccountProvisioningPort;
 import com.campx.admissions.model.*;
 import com.campx.admissions.model.dto.HandoverStatusResponse;
 import com.campx.admissions.repository.*;
@@ -11,6 +12,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,6 +35,7 @@ public class HandoverOrchestrationServiceTest {
     private UUID offerId;
     private UserSecurityContext staffContext;
     private final AtomicInteger downstreamCalls = new AtomicInteger(0);
+    private final List<UUID> provisioningNotifies = new ArrayList<UUID>();
 
     @Before
     public void setUp() {
@@ -56,13 +60,23 @@ public class HandoverOrchestrationServiceTest {
             }
         };
 
+        AccountProvisioningPort recordingPort = new AccountProvisioningPort() {
+            @Override
+            public void requestLoginAfterHandover(UUID tId, UUID studentId, String correlationId) {
+                provisioningNotifies.add(studentId);
+            }
+        };
+
+        provisioningNotifies.clear();
         handoverService = new HandoverOrchestrationService(
                 applicationRepository,
                 offerRepository,
                 handoverRepository,
                 stateEngine,
                 null,
-                mockAdapter
+                mockAdapter,
+                null,
+                recordingPort
         );
 
         // Seed application in ACCEPTED status
@@ -99,6 +113,14 @@ public class HandoverOrchestrationServiceTest {
         // Verify application status updated to HANDED_OVER
         ApplicationEntity updatedApp = applicationRepository.findById(tenantId, applicationId).get();
         assertEquals(ApplicationStatus.HANDED_OVER, updatedApp.getStatus());
+    }
+
+    @Test
+    public void stm07En005_handoverRequestsLoginProvisioningNotify() {
+        HandoverStatusResponse response = handoverService.triggerHandover(staffContext, applicationId, "idemp-prov-001");
+        assertEquals("STUDENT_CREATED", response.getEnrolmentStatus());
+        assertEquals(1, provisioningNotifies.size());
+        assertEquals(response.getCreatedStudentId(), provisioningNotifies.get(0));
     }
 
     @Test
