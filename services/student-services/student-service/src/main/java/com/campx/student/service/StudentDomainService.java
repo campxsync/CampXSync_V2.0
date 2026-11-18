@@ -1185,11 +1185,17 @@ public class StudentDomainService {
                     + String.join(",", eligibility.getFailures()));
         }
 
-        StudentEntity student = studentRepository.findById(context, studentId)
-                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        StudentEntity student;
+        if (isRegistrarRole(context)) {
+            student = studentRepository.findStudentForAccountLink(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        } else {
+            student = studentRepository.findById(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        }
 
         student.setIamUserId(request.getIamUserId());
-        student = studentRepository.save(context, student);
+        studentRepository.linkIamAccount(context, student.getId(), request.getIamUserId());
 
         publishOutboxEvent(context, student.getId(), "student.account.linked.v1", String.format(
                 "{\"studentId\":\"%s\",\"iamUserId\":\"%s\"}",
@@ -1199,6 +1205,15 @@ public class StudentDomainService {
         logger.info("Linked student [{}] to IAM user [{}]", studentId, request.getIamUserId());
         recordPrivilegedAuditAction(context, "IAM_LINKED", student.getId(),
                 Collections.singletonList("iamUserId"), "Linked to IAM account: " + request.getIamUserId());
+
+        if (isRegistrarRole(context)) {
+            StudentProfileResponse resp = new StudentProfileResponse();
+            resp.setId(student.getId());
+            resp.setEnrollmentNo(student.getEnrollmentNo());
+            resp.setStatus(student.getStatus());
+            resp.setIamUserId(request.getIamUserId());
+            return resp;
+        }
         return getStudentById(context, studentId);
     }
 
@@ -1212,9 +1227,15 @@ public class StudentDomainService {
         if (studentId == null) throw new StudentValidationException("studentId cannot be null");
 
         assertCanManageAccountProvisioning(context);
-        StudentEntity student = studentRepository.findById(context, studentId)
-                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
-        enforceReadAccess(context, student);
+        StudentEntity student;
+        if (isRegistrarRole(context)) {
+            student = studentRepository.findStudentForAccountLink(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        } else {
+            student = studentRepository.findById(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+            enforceReadAccess(context, student);
+        }
 
         ProvisioningEligibilityResult result = new ProvisioningEligibilityResult();
         result.setStudentId(student.getId());
@@ -1264,11 +1285,18 @@ public class StudentDomainService {
         assertTenantContext(context);
         if (studentId == null) throw new StudentValidationException("studentId cannot be null");
 
-        StudentEntity student = studentRepository.findById(context, studentId)
-                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
-        enforceReadAccess(context, student);
         if (!isStudentRole(context)) {
             assertCanViewStaffAccountLink(context);
+        }
+
+        StudentEntity student;
+        if (isRegistrarRole(context)) {
+            student = studentRepository.findStudentForAccountLink(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        } else {
+            student = studentRepository.findById(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+            enforceReadAccess(context, student);
         }
 
         AccountLinkStatusResponse response = new AccountLinkStatusResponse();
@@ -1406,8 +1434,13 @@ public class StudentDomainService {
         assertTenantContext(context);
         // STM-07-US-006 / B3-D5 — same staff viewers as link-status desk
         assertCanViewStaffAccountLink(context);
-        studentRepository.findById(context, studentId)
-                .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        if (isRegistrarRole(context)) {
+            studentRepository.findStudentForAccountLink(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        } else {
+            studentRepository.findById(context, studentId)
+                    .orElseThrow(() -> new StudentNotFoundException("Student not found with ID: " + studentId));
+        }
         return studentRepository.listProvisioningRequests(context, studentId);
     }
 
@@ -2079,6 +2112,12 @@ public class StudentDomainService {
         String r = context.getRole() == null ? "" : context.getRole().trim().toLowerCase();
         return r.equals("registrar") || r.equals("r31")
                 || r.equals("college_admin") || r.equals("college-admin");
+    }
+
+    private boolean isRegistrarRole(UserSecurityContext context) {
+        if (context == null || context.getRole() == null) return false;
+        String r = context.getRole().trim().toLowerCase();
+        return r.equals("registrar") || r.equals("r31");
     }
 
     /** STM-07-B3-D5: staff link-status / provisioning-history desk viewers. */

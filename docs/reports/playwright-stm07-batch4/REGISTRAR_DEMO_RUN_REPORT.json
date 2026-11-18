@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-17T11:49:21.207Z",
+  "startedAt": "2026-11-18T10:19:54.502Z",
   "base": "http://localhost:3000",
   "slowMo": 700,
   "projectRef": "azulbaxszsqxymqmlwfe",
@@ -12,23 +12,31 @@
   "results": [
     {
       "spec": "02_registrar_delegated_success.spec.mjs",
-      "status": "FAIL",
+      "status": "PASS",
       "steps": [
         "Pilot Registrar (R31) opens staff account-provisioning desk via JWT test-session",
         "Desk visible for Registrar",
-        "Load account link status for known Dev student"
+        "Load account link status for known Dev student",
+        "Delegated Registrar success — link status=\"ACTIVE\""
       ],
-      "notes": [],
-      "screenshot": "docs\\reports\\playwright-stm07-batch4\\screenshots\\02_registrar_delegated_success.png",
-      "stack": {
-        "ui3000": true,
-        "gateway8080": true,
-        "iam8081": true,
-        "student8093": true
-      },
-      "error": "Delegated Registrar link-status failed: {\"type\":\"https://campxsync.edu/errors/not-found\",\"title\":\"Not Found\",\"status\":404,\"detail\":\"Student not found with ID: 81dd67d3-1d5f-4d8e-8061-a67648610002\"}",
-      "finishedAt": "2026-11-17T11:49:21.207Z"
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch4\\screenshots\\02_registrar_delegated_success.png",
+      "notes": [
+        "PASS: Pilot Registrar with STM-07.ACCOUNT.A path loaded staff link status (gateway accepted JWT)"
+      ]
+    },
+    {
+      "spec": "03_registrar_without_delegation_deny.spec.mjs",
+      "status": "STOPPED",
+      "steps": [
+        "Confirm College Admin is not on the STM-07.ACCOUNT.A delegation path for link-status",
+        "Skip College Admin browser path per owner instruction"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-stm07-batch4\\screenshots\\03_registrar_without_delegation_deny.png",
+      "notes": [
+        "CODE_CHECK: assertCanViewStaffAccountLink allows only IAM operators R01–R03, or Registrar (R31) with active STM-07.ACCOUNT.A. College Admin is denied as unauthorised role even if a delegation were granted.",
+        "STOPPED_CASE: Browser deny demo kept to success-case only. Java denial covered by Stm07Us003StaffLinkStatusTest (college admin / faculty / student negatives). Pilot M1 not revoked; no accounts created."
+      ]
     }
   ],
-  "finishedAt": "2026-11-17T11:49:21.207Z"
+  "finishedAt": "2026-11-18T10:21:18.513Z"
 }
