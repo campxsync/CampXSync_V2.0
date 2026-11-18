@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/shell/sidebar';
 import { Topbar } from '@/components/shell/topbar';
 import { Breadcrumbs } from '@/components/shell/breadcrumbs';
 import { PreferenceModal } from '@/components/preferences/preference-modal';
+import { LogoutBroadcastListener } from '@/components/auth/logout-broadcast-listener';
 import { ResolvedUserSession } from '@/lib/auth/resolve-role';
 
 export interface DashboardClientLayoutProps {
@@ -19,6 +20,7 @@ export function DashboardClientLayout({ session, children }: DashboardClientLayo
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F6F8FB]">
+      <LogoutBroadcastListener />
       {/* Role-Aware Collapsible Sidebar with Mobile Drawer */}
       <Sidebar
         role={session.role}

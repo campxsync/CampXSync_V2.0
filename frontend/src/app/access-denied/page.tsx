@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { ShieldAlert, ArrowLeft, Building2, UserX, AlertTriangle, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { secureLogoutInBrowser } from '@/lib/auth/secure-logout';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +16,7 @@ function AccessDeniedContent() {
   const supabase = createClient();
 
   const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/test-session', { method: 'DELETE' });
-    } catch {}
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+    await secureLogoutInBrowser(supabase);
   };
 
   const getReasonDetails = () => {

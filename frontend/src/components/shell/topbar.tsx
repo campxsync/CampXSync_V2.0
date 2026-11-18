@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { getInitials } from '@/lib/utils';
 import { UserRole } from '@/lib/auth/resolve-role';
 import { createClient } from '@/lib/supabase/client';
+import { secureLogoutInBrowser } from '@/lib/auth/secure-logout';
 
 export interface TopbarProps {
   displayName: string;
@@ -46,12 +47,9 @@ export function Topbar({
   }, []);
 
   const handleSignOut = async () => {
-    try {
-      await fetch('/api/auth/test-session', { method: 'DELETE' });
-    } catch {}
-    await supabase.auth.signOut();
+    // STM-10-US-020: existing sign-out path + clear portal browser data + all-tab broadcast + replace
+    await secureLogoutInBrowser(supabase);
     router.refresh();
-    window.location.href = '/login';
   };
 
   const getRoleBadge = () => {
@@ -162,6 +160,7 @@ export function Topbar({
                 type="button"
                 suppressHydrationWarning
                 onClick={handleSignOut}
+                data-testid="student-secure-logout"
                 className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#D64545] hover:bg-[#FDECEC]"
               >
                 <LogOut className="h-3.5 w-3.5" />
