@@ -2,7 +2,19 @@
  * STM-10-EN-002 — Student portal dashboard aggregation.
  * Bounded per-call timeouts, short-lived cache, partial-failure shape.
  * Reads only existing gateway APIs; never invents data or relaxes ownership.
+ * STM-10-US-015 adds `activities` from existing student-owned history sources.
  */
+
+export type PortalActivitySource = 'profile_history' | 'lifecycle_history';
+
+export interface PortalActivityItem {
+  id: string;
+  source: PortalActivitySource;
+  action: string;
+  summary: string;
+  occurredAt: string | null;
+  studentId: string;
+}
 
 export type PortalSectionId =
   | 'profile'
@@ -12,7 +24,121 @@ export type PortalSectionId =
   | 'enrollment'
   | 'lifecycle'
   | 'admissions'
-  | 'attendance';
+  | 'attendance'
+  | 'activities';
+
+function asActivityRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function extractActivityArray(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload;
+  const obj = asActivityRecord(payload);
+  if (!obj) return [];
+  for (const key of ['data', 'items', 'history', 'events', 'records']) {
+    if (Array.isArray(obj[key])) return obj[key] as unknown[];
+  }
+  return [];
+}
+
+function pickActivityString(row: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const v = row[key];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  }
+  return null;
+}
+
+function normalizeActivityOccurredAt(row: Record<string, unknown>): string | null {
+  const raw = pickActivityString(row, [
+    'occurredAt',
+    'timestamp',
+    'createdAt',
+    'eventTime',
+    'changedAt',
+    'decidedAt',
+  ]);
+  if (!raw) return null;
+  const t = Date.parse(raw);
+  return Number.isNaN(t) ? raw : new Date(t).toISOString();
+}
+
+/** Map profile-history rows; drop rows for another studentId when present. */
+export function mapProfileHistoryToActivities(
+  payload: unknown,
+  studentId: string
+): PortalActivityItem[] {
+  const out: PortalActivityItem[] = [];
+  for (const raw of extractActivityArray(payload)) {
+    const row = asActivityRecord(raw);
+    if (!row) continue;
+    const rowStudent = pickActivityString(row, ['studentId', 'student_id']);
+    if (rowStudent && rowStudent !== studentId) continue;
+    const action = pickActivityString(row, ['action', 'actionName', 'eventType']) || 'PROFILE_EVENT';
+    const summary =
+      pickActivityString(row, ['summary', 'description', 'detail', 'message']) ||
+      `Profile activity: ${action}`;
+    const id =
+      pickActivityString(row, ['id', 'eventId', 'changeLogId']) ||
+      `${studentId}:profile:${action}:${normalizeActivityOccurredAt(row) || 'unknown'}`;
+    out.push({
+      id,
+      source: 'profile_history',
+      action,
+      summary,
+      occurredAt: normalizeActivityOccurredAt(row),
+      studentId,
+    });
+  }
+  return out;
+}
+
+export function mapLifecycleHistoryToActivities(
+  payload: unknown,
+  studentId: string
+): PortalActivityItem[] {
+  const out: PortalActivityItem[] = [];
+  for (const raw of extractActivityArray(payload)) {
+    const row = asActivityRecord(raw);
+    if (!row) continue;
+    const rowStudent = pickActivityString(row, ['studentId', 'student_id']);
+    if (rowStudent && rowStudent !== studentId) continue;
+    const action =
+      pickActivityString(row, ['action', 'eventType', 'status', 'toStatus', 'newStatus']) ||
+      'LIFECYCLE_EVENT';
+    const summary =
+      pickActivityString(row, ['summary', 'description', 'detail', 'message', 'reason']) ||
+      `Lifecycle activity: ${action}`;
+    const id =
+      pickActivityString(row, ['id', 'eventId', 'historyId']) ||
+      `${studentId}:lifecycle:${action}:${normalizeActivityOccurredAt(row) || 'unknown'}`;
+    out.push({
+      id,
+      source: 'lifecycle_history',
+      action,
+      summary,
+      occurredAt: normalizeActivityOccurredAt(row),
+      studentId,
+    });
+  }
+  return out;
+}
+
+export function mergeRecentPortalActivities(
+  items: PortalActivityItem[],
+  limit = 20
+): PortalActivityItem[] {
+  const sorted = [...items].sort((a, b) => {
+    const ta = a.occurredAt ? Date.parse(a.occurredAt) : 0;
+    const tb = b.occurredAt ? Date.parse(b.occurredAt) : 0;
+    return tb - ta;
+  });
+  return sorted.slice(0, Math.max(0, limit));
+}
 
 export type PortalSectionStatus = 'ok' | 'empty' | 'failed';
 
@@ -79,6 +205,7 @@ const SECTION_ORDER: PortalSectionId[] = [
   'lifecycle',
   'admissions',
   'attendance',
+  'activities',
 ];
 
 const DEFAULT_TIMEOUT_MS = 3500;
@@ -313,6 +440,8 @@ export async function aggregateStudentPortalDashboard(
       lifecycle,
       admissions,
       attendance,
+      profileHistory,
+      lifecycleHistory,
     ] = await Promise.all([
       callSection(
         fetcher,
@@ -363,6 +492,21 @@ export async function aggregateStudentPortalDashboard(
         timeoutMs,
         now
       ),
+      // STM-10-US-015 sources (existing history APIs; ownership from /me id only)
+      callSection(
+        fetcher,
+        `${base}/api/v1/students/${enc}/history`,
+        headers,
+        timeoutMs,
+        now
+      ),
+      callSection(
+        fetcher,
+        `${base}/api/v1/lifecycle/students/${enc}/history`,
+        withStudentHeader,
+        timeoutMs,
+        now
+      ),
     ]);
 
     sections.linkStatus = linkStatus;
@@ -372,6 +516,36 @@ export async function aggregateStudentPortalDashboard(
     sections.lifecycle = lifecycle;
     sections.admissions = admissions;
     sections.attendance = attendance;
+
+    const activityStarted = now();
+    const profileOk = profileHistory.status === 'ok' || profileHistory.status === 'empty';
+    const lifecycleHistOk =
+      lifecycleHistory.status === 'ok' || lifecycleHistory.status === 'empty';
+    if (!profileOk && !lifecycleHistOk) {
+      sections.activities = {
+        status: 'failed',
+        error: {
+          code: profileHistory.error?.code || lifecycleHistory.error?.code || 'UPSTREAM_ERROR',
+          message:
+            profileHistory.error?.message ||
+            lifecycleHistory.error?.message ||
+            'Recent activities could not be loaded right now.',
+        },
+        durationMs: Math.max(profileHistory.durationMs, lifecycleHistory.durationMs),
+      };
+    } else {
+      const merged = mergeRecentPortalActivities([
+        ...(profileOk ? mapProfileHistoryToActivities(profileHistory.data, studentId) : []),
+        ...(lifecycleHistOk
+          ? mapLifecycleHistoryToActivities(lifecycleHistory.data, studentId)
+          : []),
+      ]);
+      sections.activities = {
+        status: merged.length === 0 ? 'empty' : 'ok',
+        data: { items: merged, studentId },
+        durationMs: Math.max(0, now() - activityStarted),
+      };
+    }
   }
 
   const aggregate: PortalDashboardAggregate = {

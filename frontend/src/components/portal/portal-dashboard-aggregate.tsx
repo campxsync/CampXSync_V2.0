@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import type {
+  PortalActivityItem,
   PortalDashboardAggregate,
   PortalSectionId,
 } from '@/lib/portal/dashboard-aggregator';
@@ -16,6 +17,7 @@ const SECTION_LABELS: Record<PortalSectionId, string> = {
   lifecycle: 'Lifecycle standing',
   admissions: 'Admissions applications',
   attendance: 'Attendance summary',
+  activities: 'Recent portal activities',
 };
 
 interface Props {
@@ -171,6 +173,48 @@ export function PortalDashboardAggregatePanel({ initial = null }: Props) {
             );
           })}
         </ul>
+      )}
+
+      {aggregate?.sections.activities?.status === 'ok' &&
+        Array.isArray(
+          (aggregate.sections.activities.data as { items?: PortalActivityItem[] } | undefined)
+            ?.items
+        ) && (
+          <div className="mt-4" data-testid="student-recent-portal-activities">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-[#6B7688]">
+              Recent portal activities
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {(
+                (aggregate.sections.activities.data as { items: PortalActivityItem[] }).items || []
+              ).map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded-[6px] border border-[#E3E8EF] bg-[#F8FAFC] px-3 py-2 text-xs text-[#0B1F3A]"
+                  data-testid="student-recent-activity-item"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium">{item.action}</span>
+                    {item.occurredAt && (
+                      <time className="text-[11px] text-[#6B7688]" dateTime={item.occurredAt}>
+                        {item.occurredAt}
+                      </time>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[#6B7688]">{item.summary}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+      {aggregate?.sections.activities?.status === 'empty' && (
+        <p
+          className="mt-4 text-xs text-[#6B7688]"
+          data-testid="student-recent-portal-activities-empty"
+        >
+          No recent portal activities yet.
+        </p>
       )}
 
       {aggregate && failedCount > 0 && (

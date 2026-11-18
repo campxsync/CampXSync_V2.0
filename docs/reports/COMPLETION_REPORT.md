@@ -2116,3 +2116,32 @@ Matrix is **silent** on Registrar plain `V` (view/read) of student identity rows
 ### Unblock question
 Does the owner authorize an explicit college-scoped Registrar **V** (view) on `stu.students` without workflow delegation, or only a **delegated** read tied to `STM-07.ACCOUNT.A`?
 
+---
+
+## Entry 56 — View recent portal activities (STM-10-US-015) (2026-11-18)
+
+**Plain name:** View recent portal activities (STM-10-US-015)  
+**Status:** completed (built; browser demo deferred to closing pass)  
+**No push.**
+
+### Implementation
+- Portal aggregator section `activities` merges existing `GET /api/v1/students/{id}/history` and `GET /api/v1/lifecycle/students/{id}/history` using the `/students/me` id only
+- Drops foreign `studentId` rows; newest-first cap
+- UI: `data-testid=student-recent-portal-activities` on portal aggregate panel
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Show recent activities for logged-in student only | `aggregateStudentPortalDashboard` activities | `stm10Us015_activitiesFromOwnHistoryOnly` |
+| Foreign student history rows dropped | `mapProfileHistoryToActivities` | `stm10Us015_mapsOwnProfileHistoryOnly` |
+| Sources merged newest-first | `mergeRecentPortalActivities` | `stm10Us015_mergesAndSortsNewestFirst` |
+| Uses existing aggregation layer | `dashboard-aggregator.ts` | existing EN-002 suite still green |
+
+### Tests
+- `node --experimental-strip-types --test src/lib/portal/dashboard-aggregator.test.ts` → **14/0**
+- Frontend TypeScript check → **0 errors**
+
+### CSV
+- View recent portal activities (STM-10-US-015) → **completed**
+

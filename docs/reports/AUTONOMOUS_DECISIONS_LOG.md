@@ -66,4 +66,18 @@ Each entry: what was decided, why, which files, how to undo.
 
 **Undo:** N/A (no code/DB change). Owner can later quote an explicit Registrar `V` (college-scoped) row or authorize a delegated-read design, then revisit.
 
+**Commit:** `c71cc71`
+
+---
+
+## D — View recent portal activities (STM-10-US-015)
+
+**Decision:** Aggregate recent activities inside the existing portal dashboard aggregator from existing student-owned history APIs only: `GET /api/v1/students/{id}/history` (profile / `audit.change_log`) and `GET /api/v1/lifecycle/students/{id}/history`. Student id comes only from `/students/me`. Drop any history row whose `studentId` does not match. Surface as section `activities` + UI list on the portal aggregate panel. No new table or service.
+
+**Why:** Buildable-now note already pointed at audit/activity aggregation; sources exist and enforce own-profile reads in Java.
+
+**Files:** `frontend/src/lib/portal/dashboard-aggregator.ts`, `dashboard-aggregator.test.ts`, `frontend/src/components/portal/portal-dashboard-aggregate.tsx`, docs.
+
+**Undo:** Revert the item commit.
+
 ---

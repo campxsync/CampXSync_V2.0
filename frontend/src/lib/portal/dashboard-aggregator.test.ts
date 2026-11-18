@@ -8,6 +8,9 @@ import assert from 'node:assert/strict';
 import {
   aggregateStudentPortalDashboard,
   clearPortalDashboardCache,
+  mapLifecycleHistoryToActivities,
+  mapProfileHistoryToActivities,
+  mergeRecentPortalActivities,
   sanitizeGatewayError,
   type AggregateFetchResult,
   type AggregateFetcher,
@@ -314,5 +317,119 @@ describe('aggregateStudentPortalDashboard', () => {
     assert.equal(second.sections.documents.status, 'ok');
     assert.equal((second.sections.documents.data as { id: string }[])[0].id, 'doc-1');
     assert.equal(second.summary.failed.length, 0);
+  });
+
+  it('stm10Us015_activitiesFromOwnHistoryOnly', async () => {
+    const fetcher: AggregateFetcher = async (url) => {
+      if (url.includes('/students/me')) return jsonResult(200, { id: 'stu-own' });
+      // Match lifecycle history before the shorter students/.../history suffix.
+      if (url.includes('/lifecycle/students/stu-own/history')) {
+        return jsonResult(200, [
+          {
+            id: 'l1',
+            studentId: 'stu-own',
+            action: 'STATUS_CHANGED',
+            timestamp: '2026-11-18T10:00:00Z',
+            summary: 'Lifecycle bump',
+          },
+        ]);
+      }
+      if (url.includes('/api/v1/students/stu-own/history')) {
+        return jsonResult(200, [
+          {
+            id: 'h1',
+            studentId: 'stu-own',
+            action: 'PROFILE_UPDATED',
+            timestamp: '2026-11-18T08:00:00Z',
+            summary: 'Own change',
+          },
+          {
+            id: 'h2',
+            studentId: 'stu-other',
+            action: 'PROFILE_UPDATED',
+            timestamp: '2026-11-18T09:00:00Z',
+            summary: 'Other student leak',
+          },
+        ]);
+      }
+      return jsonResult(200, { ok: true });
+    };
+
+    const agg = await aggregateStudentPortalDashboard({
+      gatewayBaseUrl: 'http://gateway.test',
+      headers: { Authorization: 'Bearer t' },
+      fetcher,
+      bypassCache: true,
+    });
+
+    assert.equal(agg.sections.activities.status, 'ok');
+    const data = agg.sections.activities.data as {
+      items: Array<{ id: string; studentId: string }>;
+      studentId: string;
+    };
+    assert.equal(data.studentId, 'stu-own');
+    assert.ok(data.items.some((i) => i.id === 'h1'));
+    assert.ok(data.items.some((i) => i.id === 'l1'));
+    assert.equal(
+      data.items.some((i) => i.id === 'h2' || i.studentId === 'stu-other'),
+      false
+    );
+  });
+});
+
+describe('STM-10-US-015 activity mappers', () => {
+  it('stm10Us015_mapsOwnProfileHistoryOnly', () => {
+    const items = mapProfileHistoryToActivities(
+      [
+        {
+          id: 'h1',
+          studentId: 'stu-own',
+          action: 'PROFILE_UPDATED',
+          timestamp: '2026-11-18T08:00:00Z',
+          summary: 'Name corrected',
+        },
+        {
+          id: 'h2',
+          studentId: 'stu-other',
+          action: 'PROFILE_UPDATED',
+          timestamp: '2026-11-18T09:00:00Z',
+          summary: 'Should drop',
+        },
+      ],
+      'stu-own'
+    );
+    assert.equal(items.length, 1);
+    assert.equal(items[0].id, 'h1');
+  });
+
+  it('stm10Us015_mergesAndSortsNewestFirst', () => {
+    const merged = mergeRecentPortalActivities([
+      ...mapProfileHistoryToActivities(
+        [
+          {
+            id: 'p1',
+            studentId: 'stu-own',
+            action: 'PROFILE_UPDATED',
+            timestamp: '2026-11-17T10:00:00Z',
+            summary: 'Older',
+          },
+        ],
+        'stu-own'
+      ),
+      ...mapLifecycleHistoryToActivities(
+        [
+          {
+            id: 'l1',
+            studentId: 'stu-own',
+            action: 'STATUS_CHANGED',
+            timestamp: '2026-11-18T12:00:00Z',
+            summary: 'Newer',
+          },
+        ],
+        'stu-own'
+      ),
+    ]);
+    assert.equal(merged[0].id, 'l1');
+    assert.equal(merged[1].id, 'p1');
   });
 });
