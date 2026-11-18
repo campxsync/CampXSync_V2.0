@@ -96,15 +96,15 @@ async function main() {
     steps: [],
   };
 
-  // Platform Admin (R01) — staff link-status / ACCOUNT desk; may hold doc.write via perm_all for verification.
-  const adminEmail = process.env.PLATFORM_ADMIN_EMAIL;
-  const adminPw = process.env.PLATFORM_ADMIN_PW;
+  // Use delegated Registrar (R31) who holds STM-07.ACCOUNT.A delegation, falling back to College Admin.
+  const adminEmail = process.env.REGISTRAR_PILOT_EMAIL || process.env.COLLEGE_ADMIN_EMAIL;
+  const adminPw = process.env.REGISTRAR_PILOT_PW || process.env.COLLEGE_ADMIN_PW;
   if (!adminEmail || !adminPw) {
-    throw new Error('PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PW missing from .env.audit');
+    throw new Error('REGISTRAR_PILOT_EMAIL or COLLEGE_ADMIN_EMAIL missing from .env.audit');
   }
 
   const bearer = await obtainBearer(adminEmail, adminPw);
-  report.steps.push({ step: 'platform_admin_jwt', ok: true });
+  report.steps.push({ step: 'college_admin_jwt', ok: true });
 
   const before = await gw('GET', `/api/v1/students/${STUDENT_ID}/link-status`, bearer);
   report.before = {
@@ -126,28 +126,11 @@ async function main() {
     return;
   }
 
-  // Initiate verification (existing path)
-  const init = await gw('POST', `/api/v1/students/${STUDENT_ID}/verifications`, bearer, {
-    verificationType: 'IDENTITY',
-  });
-  report.steps.push({ step: 'initiate_verification', httpStatus: init.status, ok: init.status < 300 });
-  const verificationId = init.json?.id;
-  if (!verificationId) {
-    report.error = 'initiate_verification_missing_id';
-    report.initBody = init.json || init.text;
-    report.finishedAt = new Date().toISOString();
-    fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-    throw new Error('Verification initiate did not return id');
-  }
+  // Check provisioning eligibility (normal operation: verified identity via STM-06 document verifications)
+  const eligibility = await gw('GET', `/api/v1/students/${STUDENT_ID}/provisioning-eligibility`, bearer);
+  report.steps.push({ step: 'check_eligibility', httpStatus: eligibility.status, body: eligibility.json || eligibility.text, ok: eligibility.status < 300 });
 
-  const decide = await gw(
-    'PATCH',
-    `/api/v1/students/${STUDENT_ID}/verifications/${verificationId}`,
-    bearer,
-    { status: 'VERIFIED', reason: 'Autonomous run A — enable Student One login link for demos' }
-  );
-  report.steps.push({ step: 'decide_verified', httpStatus: decide.status, ok: decide.status < 300 });
-
+  // Link IAM account via existing API code path
   const link = await gw('POST', `/api/v1/students/${STUDENT_ID}/iam-link`, bearer, {
     iamUserId: STUDENT_AUTH_ID,
   });

@@ -211,7 +211,7 @@ public class PostgresStudentRepository implements StudentRepository {
                         entity.setIamUserId(loadActiveIamUserId(conn, context.getTenantId(), entity.getId()));
                         // Hydrate from doc.verifications — stu.students has no verification_status column.
                         entity.setVerificationStatus(
-                                loadLatestVerificationStatus(conn, context.getTenantId(), entity.getId()));
+                                loadLatestVerificationStatus(conn, context.getTenantId(), entity.getId(), entity.getPersonId()));
                         return Optional.of(entity);
                     }
                 }
@@ -236,7 +236,11 @@ public class PostgresStudentRepository implements StudentRepository {
                 ps.setString(2, enrollmentNo.trim());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return Optional.of(mapResultSet(rs));
+                        StudentEntity entity = mapResultSet(rs);
+                        entity.setIamUserId(loadActiveIamUserId(conn, context.getTenantId(), entity.getId()));
+                        entity.setVerificationStatus(
+                                loadLatestVerificationStatus(conn, context.getTenantId(), entity.getId(), entity.getPersonId()));
+                        return Optional.of(entity);
                     }
                 }
             }
@@ -277,7 +281,11 @@ public class PostgresStudentRepository implements StudentRepository {
                 ps.setObject(2, personId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return Optional.of(mapResultSet(rs));
+                        StudentEntity entity = mapResultSet(rs);
+                        entity.setIamUserId(loadActiveIamUserId(conn, context.getTenantId(), entity.getId()));
+                        entity.setVerificationStatus(
+                                loadLatestVerificationStatus(conn, context.getTenantId(), entity.getId(), entity.getPersonId()));
+                        return Optional.of(entity);
                     }
                 }
             }
@@ -307,6 +315,8 @@ public class PostgresStudentRepository implements StudentRepository {
                     if (rs.next()) {
                         StudentEntity entity = mapResultSet(rs);
                         entity.setIamUserId((UUID) rs.getObject("linked_iam_user_id"));
+                        entity.setVerificationStatus(
+                                loadLatestVerificationStatus(conn, context.getTenantId(), entity.getId(), entity.getPersonId()));
                         return Optional.of(entity);
                     }
                 }
@@ -740,20 +750,30 @@ public class PostgresStudentRepository implements StudentRepository {
 
     /**
      * Latest identity verification decision from existing {@code doc.verifications}
-     * (entity_type=STUDENT). Used so IAM link eligibility sees VERIFIED after decideVerification.
+     * (entity_type=STUDENT). Used so IAM link eligibility sees VERIFIED after document/identity verification.
+     * Maps database {@code 'VALID'} (the constrained value in doc.verifications) to domain {@code 'VERIFIED'}.
      */
     private String loadLatestVerificationStatus(Connection conn, UUID tenantId, UUID studentId) throws SQLException {
+        return loadLatestVerificationStatus(conn, tenantId, studentId, null);
+    }
+
+    private String loadLatestVerificationStatus(Connection conn, UUID tenantId, UUID studentId, UUID personId) throws SQLException {
         String sql = "SELECT result FROM doc.verifications "
-                + "WHERE tenant_id = ? AND entity_type = 'STUDENT' AND entity_id = ? "
+                + "WHERE tenant_id = ? AND entity_type = 'STUDENT' AND (entity_id = ? OR entity_id = ?) "
                 + "ORDER BY verified_at DESC NULLS LAST, created_at DESC LIMIT 1";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, tenantId);
             ps.setObject(2, studentId);
+            ps.setObject(3, personId != null ? personId : studentId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     String result = rs.getString("result");
                     if (result != null && !result.trim().isEmpty()) {
-                        return result.trim().toUpperCase();
+                        String upper = result.trim().toUpperCase();
+                        if ("VALID".equals(upper)) {
+                            return "VERIFIED";
+                        }
+                        return upper;
                     }
                 }
             }
@@ -971,6 +991,60 @@ public class PostgresStudentRepository implements StudentRepository {
             }
         }
         return dto;
+    }
+
+    @Override
+    public Optional<StudentEntity> findStudentForAccountLink(UserSecurityContext context, UUID studentId) {
+        assertContext(context);
+        if (studentId == null) return Optional.empty();
+
+        String sql = "SELECT id, tenant_id, person_id, college_id, status "
+                + "FROM stu.students WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL";
+
+        try (Connection conn = connectionManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, studentId);
+            ps.setObject(2, context.getTenantId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    UUID collegeId = (UUID) rs.getObject("college_id");
+                    if (context.getCollegeId() != null && collegeId != null
+                            && !context.getCollegeId().equals(collegeId)) {
+                        return Optional.empty();
+                    }
+                    StudentEntity minimal = new StudentEntity();
+                    minimal.setId((UUID) rs.getObject("id"));
+                    minimal.setTenantId((UUID) rs.getObject("tenant_id"));
+                    minimal.setCollegeId(collegeId);
+                    minimal.setPersonId((UUID) rs.getObject("person_id"));
+                    String statusStr = rs.getString("status");
+                    if (statusStr != null) {
+                        try {
+                            minimal.setStatus(StudentStatus.valueOf(statusStr.trim().toUpperCase()));
+                        } catch (IllegalArgumentException ignored) {}
+                    }
+                    minimal.setIamUserId(loadActiveIamUserId(conn, context.getTenantId(), minimal.getId()));
+                    minimal.setVerificationStatus(
+                            loadLatestVerificationStatus(conn, context.getTenantId(), minimal.getId(), minimal.getPersonId()));
+                    return Optional.of(minimal);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error loading student for account link: " + e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public void linkIamAccount(UserSecurityContext context, UUID studentId, UUID iamUserId) {
+        assertContext(context);
+        if (studentId == null || iamUserId == null) {
+            throw new IllegalArgumentException("studentId and iamUserId cannot be null");
+        }
+        context.executeInTransaction(connectionManager, conn -> {
+            upsertIamLink(conn, context, studentId, iamUserId);
+            return null;
+        });
     }
 
     private void assertContext(UserSecurityContext context) {

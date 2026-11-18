@@ -80,4 +80,15 @@ public interface StudentRepository {
      * Upserts portal preferences for a student+college (STM-10-EN-001).
      */
     PortalPreferencesDto savePortalPreferences(UserSecurityContext context, PortalPreferencesDto preferences);
+
+    /**
+     * D13: Minimum student record load for delegated Registrar (R31) staff account-link
+     * and provisioning eligibility desks (tenant and optional college scoped, no general student read).
+     */
+    Optional<StudentEntity> findStudentForAccountLink(UserSecurityContext context, UUID studentId);
+
+    /**
+     * D13 / STM-07: Records durable IAM account link in stu.student_iam_links.
+     */
+    void linkIamAccount(UserSecurityContext context, UUID studentId, UUID iamUserId);
 }

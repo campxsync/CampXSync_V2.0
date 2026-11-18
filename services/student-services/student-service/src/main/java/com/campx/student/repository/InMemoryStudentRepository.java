@@ -374,6 +374,41 @@ public class InMemoryStudentRepository implements StudentRepository {
         return copy;
     }
 
+    @Override
+    public Optional<StudentEntity> findStudentForAccountLink(UserSecurityContext context, UUID studentId) {
+        if (context == null || studentId == null || context.getTenantId() == null) {
+            return Optional.empty();
+        }
+        StudentEntity found = store.get(key(context.getTenantId(), studentId));
+        if (found == null || found.getDeletedAt() != null) {
+            return Optional.empty();
+        }
+        if (context.getCollegeId() != null && found.getCollegeId() != null
+                && !context.getCollegeId().equals(found.getCollegeId())) {
+            return Optional.empty();
+        }
+        StudentEntity minimal = new StudentEntity();
+        minimal.setId(found.getId());
+        minimal.setTenantId(found.getTenantId());
+        minimal.setCollegeId(found.getCollegeId());
+        minimal.setPersonId(found.getPersonId());
+        minimal.setStatus(found.getStatus());
+        minimal.setIamUserId(found.getIamUserId());
+        minimal.setVerificationStatus(found.getVerificationStatus());
+        return Optional.of(minimal);
+    }
+
+    @Override
+    public void linkIamAccount(UserSecurityContext context, UUID studentId, UUID iamUserId) {
+        if (studentId == null || context == null || context.getTenantId() == null) {
+            return;
+        }
+        StudentEntity found = store.get(key(context.getTenantId(), studentId));
+        if (found != null) {
+            found.setIamUserId(iamUserId);
+        }
+    }
+
     private String encodeCursor(String val) {
         if (val == null) return null;
         return Base64.getUrlEncoder().encodeToString(val.getBytes(StandardCharsets.UTF_8));

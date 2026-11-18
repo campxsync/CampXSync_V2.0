@@ -3,33 +3,57 @@
   "studentRecordId": "81dd67d3-1d5f-4d8e-8061-a67648610002",
   "studentAuthUserId": "81dd67d3-1d5f-4d8e-8061-a6764861f924",
   "email": "student1.campx@gmail.com",
-  "startedAt": "2026-11-18T06:35:50.498Z",
+  "startedAt": "2026-11-18T10:17:34.093Z",
   "steps": [
     {
-      "step": "platform_admin_jwt",
+      "step": "college_admin_jwt",
       "ok": true
     },
     {
-      "step": "initiate_verification",
-      "httpStatus": 403,
-      "ok": false
+      "step": "check_eligibility",
+      "httpStatus": 200,
+      "body": {
+        "studentId": "81dd67d3-1d5f-4d8e-8061-a67648610002",
+        "eligible": true,
+        "studentStatus": "ACTIVE",
+        "verificationStatus": "VERIFIED",
+        "linkStatus": "NONE",
+        "linkedIamUserId": null,
+        "provisioningRequestCount": 0,
+        "failures": []
+      },
+      "ok": true
+    },
+    {
+      "step": "iam_link",
+      "httpStatus": 200,
+      "ok": true
     }
   ],
   "before": {
-    "httpStatus": 403,
+    "httpStatus": 200,
     "body": {
-      "type": "https://campxsync.edu/errors/forbidden",
-      "title": "Forbidden",
-      "status": 403,
-      "detail": "Missing required X-Tenant-Id header for student domain operations"
+      "studentId": "81dd67d3-1d5f-4d8e-8061-a67648610002",
+      "linkStatus": "NONE",
+      "linkedIamUserId": null,
+      "studentStatus": "ACTIVE",
+      "verificationStatus": "VERIFIED",
+      "portalAccessActive": false,
+      "provisioningRequestCount": 0
     }
   },
-  "error": "initiate_verification_missing_id",
-  "initBody": {
-    "type": "https://campxsync.edu/errors/forbidden",
-    "title": "Forbidden",
-    "status": 403,
-    "detail": "Missing required X-Tenant-Id header for student domain operations"
+  "after": {
+    "httpStatus": 200,
+    "body": {
+      "studentId": "81dd67d3-1d5f-4d8e-8061-a67648610002",
+      "linkStatus": "ACTIVE",
+      "linkedIamUserId": "81dd67d3-1d5f-4d8e-8061-a6764861f924",
+      "studentStatus": "ACTIVE",
+      "verificationStatus": "VERIFIED",
+      "portalAccessActive": true,
+      "provisioningRequestCount": 0
+    }
   },
-  "finishedAt": "2026-11-18T06:35:50.837Z"
+  "action": "linked",
+  "finishedAt": "2026-11-18T10:17:39.685Z"
 }
