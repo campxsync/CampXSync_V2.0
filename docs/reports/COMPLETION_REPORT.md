@@ -2088,5 +2088,31 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 - Frontend TypeScript check (`npx tsc --noEmit`) → **0 errors**
 
 ### CSV
-- View timetable (STM-10-US-004) → **completed**
+- View timetable (STM-10-US-004) → **completed** (`93e9fba`)
+
+---
+
+## Entry 55 — Registrar (R31) student-row visibility (autonomy C) (2026-11-18)
+
+**Plain name:** Registrar student-row visibility (staff-screen prerequisite)  
+**Status:** BLOCKED  
+**No push. No database rule change.**
+
+### Quoted access-matrix rows (source: `docs/audit/RBAC_MATRIX_STUDENT_DUMP.txt` Table 16–17)
+
+1. Table 16: `V | View/read permitted data` vs `RV | Review/verify` (distinct codes).
+2. Table 17 STM-01 Identity/Profile | Registrar / Admissions | `C, U, RV; A verification if delegated` | — | Sensitive fields and merges require explicit policy/audit.
+3. Table 17 STM-07 Account Provisioning | College Admin / Registrar | `Request or trigger only when delegated` | AS scoped | No parallel identity authority.
+
+### Decision
+Matrix is **silent** on Registrar plain `V` (view/read) of student identity rows without workflow context; STM-07 staff actions require **delegation**. Autonomy rule C → **no READ-ONLY RLS added**. Registrar staff-screen demo remains BLOCKED (student row not visible under authenticated RLS for pilot Registrar; see prior batch-4 evidence).
+
+### Acceptance → code → tests
+| Clause | Code | Test |
+|---|---|---|
+| Quote matrix before any RLS change | `docs/audit/RBAC_MATRIX_STUDENT_DUMP.txt` Table 16–17 | N/A (policy gate) |
+| No rule change when silent / delegation required | no migration | N/A |
+
+### Unblock question
+Does the owner authorize an explicit college-scoped Registrar **V** (view) on `stu.students` without workflow delegation, or only a **delegated** read tied to `STM-07.ACCOUNT.A`?
 

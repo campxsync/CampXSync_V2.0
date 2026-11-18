@@ -48,4 +48,22 @@ Each entry: what was decided, why, which files, how to undo.
 
 **Demo note:** Browser demo may show “no data in Dev” if membership or published slots are empty; service tests use fixtures.
 
+**Commit:** `93e9fba`
+
+---
+
+## C — Registrar (R31) student-row visibility
+
+**Decision:** Make **NO** new database access rule. Mark the Registrar staff-screen student-row / demo case **BLOCKED**.
+
+**Why (quoted matrix rows):**
+1. **Table 16 (codes):** `V | View/read permitted data` and `RV | Review/verify` are distinct — the matrix does not treat RV as V.
+2. **Table 17 STM-01 Identity/Profile | Registrar / Admissions:** `C, U, RV; A verification if delegated` — grants create/update/review-verify and delegated approval of verification; **does not list `V` (view/read)**. Silent on a standalone read of student rows without workflow context.
+3. **Table 17 STM-07 Account Provisioning | College Admin / Registrar:** `Request or trigger only when delegated` — staff account-link actions require delegation (`STM-07.ACCOUNT.A` per owner decision STM-07-B3-D5).
+4. Autonomy rule C: if the matrix requires delegation to view, **or is silent**, make no rule change.
+
+**Files:** docs only (`AUTONOMOUS_DECISIONS_LOG.md`, `COMPLETION_REPORT.md`, `NEXT_TASK.md`, `PROGRESS.md`). No SQL, no RLS.
+
+**Undo:** N/A (no code/DB change). Owner can later quote an explicit Registrar `V` (college-scoped) row or authorize a delegated-read design, then revisit.
+
 ---
