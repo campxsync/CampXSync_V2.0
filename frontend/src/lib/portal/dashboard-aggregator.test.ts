@@ -432,4 +432,25 @@ describe('STM-10-US-015 activity mappers', () => {
     assert.equal(merged[0].id, 'l1');
     assert.equal(merged[1].id, 'p1');
   });
+
+  it('stm10Us015_excludesInternalReasonsAndStaffNotesFromSummary', () => {
+    const items = mapLifecycleHistoryToActivities(
+      [
+        {
+          id: 'l-secret',
+          studentId: 'stu-own',
+          action: 'DISCIPLINARY_HOLD',
+          timestamp: '2026-11-18T10:00:00Z',
+          reason: 'INTERNAL_INVESTIGATION_NOTE: Dean flagged academic dishonesty suspicion',
+        },
+      ],
+      'stu-own'
+    );
+    assert.equal(items.length, 1);
+    assert.ok(
+      !items[0].summary.includes('INTERNAL_INVESTIGATION_NOTE'),
+      'Internal reason must not be leaked into activity summary'
+    );
+    assert.equal(items[0].summary, 'Lifecycle activity: DISCIPLINARY_HOLD');
+  });
 });

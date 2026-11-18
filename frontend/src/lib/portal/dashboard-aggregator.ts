@@ -110,8 +110,9 @@ export function mapLifecycleHistoryToActivities(
     const action =
       pickActivityString(row, ['action', 'eventType', 'status', 'toStatus', 'newStatus']) ||
       'LIFECYCLE_EVENT';
+    // Student-safe summary only: internal reasons and staff notes are strictly excluded (STM-10-US-015 security rule)
     const summary =
-      pickActivityString(row, ['summary', 'description', 'detail', 'message', 'reason']) ||
+      pickActivityString(row, ['summary', 'description', 'detail', 'message']) ||
       `Lifecycle activity: ${action}`;
     const id =
       pickActivityString(row, ['id', 'eventId', 'historyId']) ||

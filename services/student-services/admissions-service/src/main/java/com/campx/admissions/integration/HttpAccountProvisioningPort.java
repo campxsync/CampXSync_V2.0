@@ -17,11 +17,19 @@ public final class HttpAccountProvisioningPort implements AccountProvisioningPor
 
     private final String baseUrl;
 
+    public static final String AUTO_PROVISION_ENABLED_ENV = "CAMPX_ADMISSIONS_AUTO_PROVISION_ENABLED";
+
     public HttpAccountProvisioningPort(String baseUrl) {
         this.baseUrl = baseUrl == null ? "" : baseUrl.trim().replaceAll("/+$", "");
     }
 
     public static AccountProvisioningPort fromEnvironment() {
+        // Must be explicitly enabled via CAMPX_ADMISSIONS_AUTO_PROVISION_ENABLED=true; defaults to OFF (disabled)
+        String enabled = System.getenv(AUTO_PROVISION_ENABLED_ENV);
+        if (enabled == null || !"true".equalsIgnoreCase(enabled.trim())) {
+            logger.info("Admissions auto login provisioning after handover is DISABLED (default off)");
+            return new NoOpAccountProvisioningPort();
+        }
         String base = System.getenv("STM01_SERVICE_URL");
         if (base == null || base.trim().isEmpty()) {
             base = System.getenv("STUDENT_SERVICE_URL");

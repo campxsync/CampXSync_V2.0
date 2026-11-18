@@ -110,16 +110,48 @@ Each entry: what was decided, why, which files, how to undo.
 
 ---
 
-## G — STM-07-EN-005 admission auto “request login” after handover
+## H — Student One login link identity verification & active link (Part 1)
 
-**Decision:** Wire best-effort `AccountProvisioningPort` / `HttpAccountProvisioningPort` after successful handover student create, copying the lifecycle `HttpStudentAccountAccessPort` env (`STM01_SERVICE_URL` / `STUDENT_SERVICE_URL`) and header pattern. Fail-soft so handover success is not rolled back. Kafka fan-out remains HARD STOP / UNCOVERED.
+**Decision:** Verified why identity verification was previously blocked (College Admin carries Tenant 1, but direct null-document verification inserts failed RLS `iam.perm_all('doc.write')`, and `doc.verifications` constraint requires `result in ('VALID', 'INVALID', 'EXPIRED', 'REVOKED')`). Resolved via normal operational flow: approved document verifications for Student One's person ID already exist with `result = 'VALID'`. Added `loadLatestVerificationStatus` to check `person_id` and map `'VALID'` to `'VERIFIED'`. Created ONE active login link for Student One using Delegated Registrar (`REGISTRAR_PILOT_EMAIL` holding active delegation `STM-07.ACCOUNT.A`), calling existing `POST /api/v1/students/{id}/iam-link` with `linkIamAccount` in `PostgresStudentRepository` writing to `stu.student_iam_links`.
 
-**Why:** Autonomy G allows wiring when an existing S2S client pattern exists; DefaultStudentServiceAdapter + lifecycle port already call student-service over HTTP.
+**Files:**
+- `services/student-services/student-service/.../PostgresStudentRepository.java`
+- `services/student-services/student-service/.../StudentRepository.java`
+- `services/student-services/student-service/.../InMemoryStudentRepository.java`
+- `scripts/dev/ensure_student_one_login_link.mjs`
+- `docs/reports/STUDENT_ONE_LOGIN_LINK_BEFORE_AFTER_2026-11-18.json`
 
-**Files:** `admissions-service/.../integration/AccountProvisioningPort.java`, `HttpAccountProvisioningPort.java`, `NoOpAccountProvisioningPort.java`, `HandoverOrchestrationService.java`, `HandoverOrchestrationServiceTest.java`
-
-**Undo:** Revert the item commit.
-
-**Commit:** `2ab091c`
+**Undo:** Revert `linkIamAccount` and `loadLatestVerificationStatus` updates; delete link row from `stu.student_iam_links`.
 
 ---
+
+## I — Owner Decision D13 Delegated Registrar student account link service path (Part 2)
+
+**Decision:** Built the Java service path for Delegated Registrar (R31) to reach staff account-link status and eligibility desks under approved Owner Decision D13. Service verifies delegation key `STM-07.ACCOUNT.A` through `DelegationPort` and queries minimal student fields (`id`, `status`, `iamUserId`, `verificationStatus`) via `findStudentForAccountLink`, enforcing tenant and college scoping without requiring general student read or altering any PostgreSQL RLS rules. Re-ran browser demo with Playwright: `02_registrar_delegated_success.spec.mjs` passed with status ACTIVE; `03_registrar_without_delegation_deny.spec.mjs` stopped as designed (covered by 4 Java unit tests in `Stm07Us003StaffLinkStatusTest`).
+
+**Files:**
+- `services/student-services/student-service/.../StudentDomainService.java`
+- `services/student-services/student-service/.../Stm07Us003StaffLinkStatusTest.java`
+- `docs/reports/playwright-stm07-batch4/REGISTRAR_DEMO_RUN_REPORT.json`
+- `docs/reports/playwright-stm07-batch4/screenshots/02_registrar_delegated_success.png`
+
+**Undo:** Revert D13 methods in `StudentDomainService` and `Stm07Us003StaffLinkStatusTest`.
+
+---
+
+## J — Autonomous decisions audit and security hardening (Part 3)
+
+**Decision:** Audited all earlier autonomous decisions:
+(a) Guardian reads: Compared against canonical matrix. Verified that person-based linked views respect consent categories (`can_view_academics`, `can_view_fees`, etc.) within valid consent time windows for linked students only, without exceeding matrix posture.
+(b) Recent portal activities: Audited `dashboard-aggregator.ts` and excluded internal reason fields and staff notes from student-facing summaries. Verified with unit test `stm10Us015_excludesInternalReasonsAndStaffNotesFromSummary` (15/15 passed).
+(c) Admissions auto-provision: Verified that `HttpAccountProvisioningPort` defaults to OFF (`CAMPX_ADMISSIONS_AUTO_PROVISION_ENABLED=true` required to activate), requires verified identity at the domain layer, and is idempotent via `findOpenProvisioningRequest`.
+(d) Timetable batch route: Verified that blocking students from `GET /batch/{batchId}` broke no other consumer; students exclusively use `GET /my`.
+
+**Files:**
+- `frontend/src/lib/portal/dashboard-aggregator.ts`
+- `frontend/src/lib/portal/dashboard-aggregator.test.ts`
+- `services/student-services/admissions-service/.../HttpAccountProvisioningPort.java`
+- `docs/reports/AUTONOMOUS_DECISIONS_LOG.md`
+
+**Undo:** Revert the aggregator sanitization and admissions default-off flag.
+
