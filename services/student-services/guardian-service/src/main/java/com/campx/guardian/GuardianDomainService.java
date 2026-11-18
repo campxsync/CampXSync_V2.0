@@ -643,7 +643,8 @@ public class GuardianDomainService {
      * @throws GuardianException 403 when the caller is outside the student or registrar, or the grant is not usable
      */
     public AuthorizedView viewAuthorizedInformation(Actor actor, UUID guardianshipId) {
-        GuardianLink current = requirePeriodActor(actor, guardianshipId);
+        // STM-10-US-021: guardian person may read their own permitted categories; mutations stay on requirePeriodActor.
+        GuardianLink current = requireAuthorizedViewActor(actor, guardianshipId);
         AccessWindow window = persistence != null ? persistence.findAccess(actor, current) : accessWindows.get(current.id);
         if (window == null) {
             window = new AccessWindow(false, false, false, null, null);
@@ -1087,6 +1088,55 @@ public class GuardianDomainService {
             throw reject(403, "ACCESS_PERIOD_FORBIDDEN", "Setting an access period requires the student or a registrar");
         }
         return current;
+    }
+
+    /**
+     * Read-only authorized-view gate (STM-10-US-021): student (own), registrar, or the linked guardian person.
+     */
+    private GuardianLink requireAuthorizedViewActor(Actor actor, UUID guardianshipId) {
+        requireTenant(actor);
+        if (guardianshipId == null) {
+            throw reject(422, "GUARDIAN_REQUIRED", "Guardian id is required");
+        }
+        GuardianLink current = findLink(actor, guardianshipId);
+        if (current == null) {
+            throw reject(404, "GUARDIAN_NOT_FOUND", "Guardian was not found");
+        }
+        if (isStudent(actor) && actor.subjectStudentId() != null && actor.subjectStudentId().equals(current.studentId)) {
+            return current;
+        }
+        if (actor.isRegistrar()) {
+            return current;
+        }
+        if (actor.getUserId() != null && current.guardianPersonId != null
+                && actor.getUserId().equals(current.guardianPersonId)) {
+            return current;
+        }
+        throw reject(403, "ACCESS_PERIOD_FORBIDDEN",
+                "Viewing permitted linked views requires the student, the linked guardian, or a registrar");
+    }
+
+    /**
+     * STM-10-US-021: list active permitted category views for every student linked to this guardian person.
+     * Uses existing consent/access windows only; skips links without a usable grant.
+     */
+    public List<AuthorizedView> listPermittedLinkedViews(Actor actor, UUID guardianPersonId) {
+        List<GuardianLink> linksForGuardian = listStudentsForGuardian(actor, guardianPersonId);
+        List<AuthorizedView> views = new ArrayList<AuthorizedView>();
+        for (GuardianLink link : linksForGuardian) {
+            if (link == null || link.id == null) {
+                continue;
+            }
+            try {
+                views.add(viewAuthorizedInformation(actor, link.id));
+            } catch (GuardianException ex) {
+                if (ex.getStatus() == 403 || ex.getStatus() == 404) {
+                    continue;
+                }
+                throw ex;
+            }
+        }
+        return views;
     }
 
     private java.time.LocalDate parseDate(String value, String label) {

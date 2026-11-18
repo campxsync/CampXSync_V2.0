@@ -75,6 +75,21 @@ public class GuardianController {
                     return json(200, emergencyNode(changed), correlationId);
                 }
             }
+            if ("GET".equals(method) && normalized.startsWith("/api/v1/guardians/persons/") && normalized.endsWith("/permitted-views")) {
+                // STM-10-US-021 — permitted linked views for the guardian person (consent windows only)
+                String personPart = normalized.substring("/api/v1/guardians/persons/".length(),
+                        normalized.length() - "/permitted-views".length());
+                List<GuardianDomainService.AuthorizedView> views =
+                        domain.listPermittedLinkedViews(actor, UUID.fromString(personPart));
+                ArrayNode arr = mapper.createArrayNode();
+                for (GuardianDomainService.AuthorizedView view : views) {
+                    arr.add(authorizedViewNode(view));
+                }
+                ObjectNode envelope = mapper.createObjectNode();
+                envelope.set("items", arr);
+                envelope.put("guardianPersonId", personPart);
+                return json(200, envelope, correlationId);
+            }
             if ("GET".equals(method) && normalized.startsWith("/api/v1/guardians/persons/") && normalized.endsWith("/students")) {
                 String personPart = normalized.substring("/api/v1/guardians/persons/".length(), normalized.length() - "/students".length());
                 return json(200, listNode(domain.listStudentsForGuardian(actor, UUID.fromString(personPart))), correlationId);

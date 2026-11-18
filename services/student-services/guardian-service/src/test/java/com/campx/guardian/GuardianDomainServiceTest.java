@@ -425,6 +425,48 @@ public class GuardianDomainServiceTest {
     }
 
     @Test
+    public void stm10Us021_guardianPersonSeesOwnPermittedLinkedViews() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        service.setAccessPeriod(registrar, link.id, "2026-11-01", "2027-06-30");
+        Actor guardian = new Actor(tenant, link.guardianPersonId, null, campus, "GUARDIAN", "corr-guard");
+        GuardianDomainService.AuthorizedView view = service.viewAuthorizedInformation(guardian, link.id);
+        assertEquals(student, view.studentId);
+        assertTrue(view.categories.contains("ACADEMICS"));
+        java.util.List<GuardianDomainService.AuthorizedView> views =
+                service.listPermittedLinkedViews(guardian, link.guardianPersonId);
+        assertEquals(1, views.size());
+        assertEquals(link.id, views.get(0).guardianshipId);
+    }
+
+    @Test
+    public void stm10Us021_guardianCannotViewAnotherGuardianship() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        service.setAccessPeriod(registrar, link.id, "2026-11-01", "2027-06-30");
+        Actor otherGuardian = new Actor(tenant, UUID.randomUUID(), null, campus, "GUARDIAN", "corr-other");
+        try {
+            service.viewAuthorizedInformation(otherGuardian, link.id);
+            fail("Another guardian must not read this student's permitted views");
+        } catch (GuardianException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("ACCESS_PERIOD_FORBIDDEN", ex.getCode());
+        }
+    }
+
+    @Test
+    public void stm10Us021_listPermittedLinkedViewsSkipsRevokedGrant() {
+        GuardianDomainService.GuardianLink link = verifiedGuardian();
+        service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS"), "FAMILY_SUPPORT", "2027-06-30");
+        service.setAccessPeriod(registrar, link.id, "2026-11-01", "2027-06-30");
+        service.revokeAccess(studentActor, link.id);
+        Actor guardian = new Actor(tenant, link.guardianPersonId, null, campus, "GUARDIAN", "corr-guard");
+        java.util.List<GuardianDomainService.AuthorizedView> views =
+                service.listPermittedLinkedViews(guardian, link.guardianPersonId);
+        assertEquals(0, views.size());
+    }
+
+    @Test
     public void revokedGrantCannotBeViewed() {
         GuardianDomainService.GuardianLink link = verifiedGuardian();
         service.grantAccess(approver, link.id, java.util.Arrays.asList("ACADEMICS", "FEES"), "FAMILY_SUPPORT", "2027-06-30");

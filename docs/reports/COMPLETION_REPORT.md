@@ -2143,5 +2143,34 @@ Does the owner authorize an explicit college-scoped Registrar **V** (view) on `s
 - Frontend TypeScript check → **0 errors**
 
 ### CSV
-- View recent portal activities (STM-10-US-015) → **completed**
+- View recent portal activities (STM-10-US-015) → **completed** (`dfd628b`)
+
+---
+
+## Entry 57 — View permitted linked views for my student (STM-10-US-021) (2026-11-18)
+
+**Plain name:** View permitted linked views for my student (STM-10-US-021)  
+**Status:** completed (service + BFF/UI built; browser demo **no test account**)  
+**No push.**
+
+### Implementation
+- Guardian person may read `viewAuthorizedInformation` for their own link (consent windows unchanged)
+- `listPermittedLinkedViews` + `GET /api/v1/guardians/persons/{id}/permitted-views`
+- BFF `/api/guardian/linked-views` (session userId only); page `/guardian/linked-views`
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Guardian sees only granted categories for linked student | `viewAuthorizedInformation` / `listPermittedLinkedViews` | `stm10Us021_guardianPersonSeesOwnPermittedLinkedViews` |
+| Other guardian cannot read this link | `requireAuthorizedViewActor` | `stm10Us021_guardianCannotViewAnotherGuardianship` |
+| Revoked grant omitted from list | `listPermittedLinkedViews` | `stm10Us021_listPermittedLinkedViewsSkipsRevokedGrant` |
+| Existing student own-view still works | unchanged path | `authorizedViewReturnsOnlyGrantedCategories` |
+
+### Tests
+- `mvn test -pl services/student-services/guardian-service -Dtest=GuardianDomainServiceTest` → **pass**
+- Frontend TypeScript check → **0 errors**
+
+### CSV
+- View permitted linked views for my student (STM-10-US-021) → **completed**
 

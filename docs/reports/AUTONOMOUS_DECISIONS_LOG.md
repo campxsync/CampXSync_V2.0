@@ -80,4 +80,18 @@ Each entry: what was decided, why, which files, how to undo.
 
 **Undo:** Revert the item commit.
 
+**Commit:** `dfd628b`
+
+---
+
+## E — View permitted linked views for my student (STM-10-US-021)
+
+**Decision:** Keep existing consent windows; allow the linked **guardian person** (actor userId = guardianPersonId) to call `viewAuthorizedInformation` read-only. Add `listPermittedLinkedViews` + `GET /api/v1/guardians/persons/{id}/permitted-views`. BFF uses session userId only. Browser demo marked **no test account** (frontend has no guardian role / no Dev guardian login).
+
+**Why:** Matrix STM-10 Parent/Guardian: “V permitted linked views”; existing APIs already encode categories; guardian was previously blocked by `requirePeriodActor` (student/registrar only).
+
+**Files:** `GuardianDomainService.java`, `GuardianController.java`, `GuardianDomainServiceTest.java`, `frontend/src/app/api/guardian/linked-views/route.ts`, `frontend/src/app/(dashboard)/guardian/linked-views/page.tsx`
+
+**Undo:** Revert the item commit.
+
 ---
