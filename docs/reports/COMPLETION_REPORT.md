@@ -2011,4 +2011,54 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 
 ### CSV
 - Use portal during one integrated service outage (STM-10-US-018) → **completed** (hash stamped after commit)
+---
+
+## Entry 52 — View timetable (STM-10-US-004) (2026-11-18)
+
+**Plain name:** View timetable (STM-10-US-004)  
+**Status:** BLOCKED  
+**No push. No code change for this item.**
+
+### Obstacle (plain words)
+1. The logged-in student profile from the existing students-me API does not include a batch or section id.
+2. The existing timetable service only allows a student to read a published batch timetable when a batch id is already known (`/api/v1/academics/timetables/batch/{batchId}`). There is no "my timetable" route that resolves the caller's own cohort.
+3. Asking the browser to supply a batch id would either fail (student does not know it) or open an IDOR path (any batch id). The timetable controller does not check that the caller belongs to that batch.
+4. Owner decision D11: portal reads only through existing APIs and existing database rules — no rule relaxed, no invented data, no new endpoint invented in this batch.
+
+### Recommendation
+Add a student-owned timetable read on the existing academic timetable service (or expose batch membership on the student profile) with an automated test that Student A cannot read Student B's batch, then resume View timetable (STM-10-US-004).
+
+### CSV
+- View timetable (STM-10-US-004) → **BLOCKED**
+
+
+---
+
+## Entry 53 — Log out securely (STM-10-US-020) (2026-11-18)
+
+**Plain name:** Log out securely (STM-10-US-020)  
+**Status:** completed  
+**No push.**
+
+### Implementation
+- `frontend/src/lib/auth/secure-logout.ts` — existing test-session DELETE + Supabase global signOut, clear campx_pref_* / auth storage, BroadcastChannel to other tabs, location.replace(/login)
+- Topbar + Access Denied use `secureLogoutInBrowser`; dashboard mounts `LogoutBroadcastListener` (cross-tab + bfcache pageshow bounce)
+- `data-testid=student-secure-logout`
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Sign-out clears portal browser preference keys | `clearPortalBrowserStorage` | `stm10Us020_clearsPortalPreferenceKeysOnly` |
+| Sign-out runs existing path then navigates with replace | `performSecureLogout` | `stm10Us020_performSecureLogoutEndsSessionAndNavigatesReplace` |
+| Continues to login even if test-session clear fails | `performSecureLogout` | `stm10Us020_continuesWhenTestSessionClearFails` |
+| Other tabs leave protected pages | `LogoutBroadcastListener` | Covered by broadcast message contract + demo |
+| Back button after logout does not show protected page | `location.replace` + pageshow bfcache check + middleware | Demo + layout listener |
+
+### Tests
+- `node --experimental-strip-types --test src/lib/auth/secure-logout.test.ts` (+ portal suite) → **18/0** combined with EN-002/US-018
+- Frontend TypeScript check → **0 errors**
+
+### CSV
+- Log out securely (STM-10-US-020) → **completed** (hash stamped after commit)
 
