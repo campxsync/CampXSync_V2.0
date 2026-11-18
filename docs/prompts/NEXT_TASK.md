@@ -1,18 +1,18 @@
 # Next Task
 
-**STATUS: STM-10 batch 6 in progress. Portal data aggregation (STM-10-EN-002) completed locally. No push.**
+**STATUS: STM-10 batch 6 in progress. EN-002 and US-018 completed locally. No push.**
 
 ## Done this batch
 
 | Plain name | Code | Commit |
 |---|---|---|
-| Portal data aggregation with bounded calls, timeouts, caching and partial-failure handling | STM-10-EN-002 | *(stamp after commit)* |
+| Portal data aggregation with bounded calls, timeouts, caching and partial-failure handling | STM-10-EN-002 | `414105f` |
+| Use the portal during one integrated service outage | STM-10-US-018 | *(stamp after commit)* |
 
 ## Next in this batch (authorized order)
 
-1. Use the portal during one integrated service outage (STM-10-US-018)
-2. View timetable (STM-10-US-004)
-3. Log out securely (STM-10-US-020)
+1. View timetable (STM-10-US-004)
+2. Log out securely (STM-10-US-020)
 
 ## Still BLOCKED (do not build)
 

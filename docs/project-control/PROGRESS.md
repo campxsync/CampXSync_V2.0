@@ -82,7 +82,8 @@
 | STM-10-US-012 | **completed** — durable widgets via portal BFF + StudentWidgetGate (`0d4e6a8`) |
 | STM-10-US-013 | **completed** — shortcuts via portal prefs + StudentShortcutsStrip (`f8a7a22`) |
 | STM-10-US-014 | **completed** — language/display via portal prefs + StudentDisplayEffects |
-| STM-10-EN-002 | **completed** — BFF portal-dashboard aggregation (timeouts, cache, partial failure) |
+| STM-10-EN-002 | **completed** — BFF portal-dashboard aggregation (timeouts, cache, partial failure) (`414105f`) |
+| STM-10-US-018 | **completed** — partial portal UX on one-service outage + plain retry |
 | STM-10-US-023 | **BLOCKED** — D10 communication service missing (with STM-08/09 new-service gate) |
 
 ## Evidence highlights

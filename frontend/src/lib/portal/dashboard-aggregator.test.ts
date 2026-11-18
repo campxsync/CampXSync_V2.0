@@ -248,4 +248,71 @@ describe('aggregateStudentPortalDashboard', () => {
     assert.equal(JSON.stringify(agg).includes('password'), false);
     assert.equal(JSON.stringify(agg).includes('10.0.0.5'), false);
   });
+
+  it('stm10Us018_oneServiceOutageLeavesOthersUsable', async () => {
+    const fetcher: AggregateFetcher = async (url) => {
+      if (url.includes('/students/me')) return jsonResult(200, { id: 'stu-own' });
+      if (url.includes('/documents/submissions')) {
+        return { ok: false, status: 503, text: 'documents down' };
+      }
+      if (url.includes('/link-status')) return jsonResult(200, { linkStatus: 'LINKED' });
+      if (url.includes('/portal-preferences')) return jsonResult(200, { version: 1 });
+      if (url.includes('/enrollment/enrolments')) return jsonResult(200, [{ id: 'e1' }]);
+      if (url.includes('/lifecycle/')) return jsonResult(200, { status: 'ACTIVE' });
+      if (url.includes('/admissions/applications')) return jsonResult(200, []);
+      if (url.includes('/attendance/summaries/student/')) {
+        return jsonResult(200, { overallPercentage: 88 });
+      }
+      return jsonResult(404, {});
+    };
+
+    const agg = await aggregateStudentPortalDashboard({
+      gatewayBaseUrl: 'http://gateway.test',
+      headers: { Authorization: 'Bearer t' },
+      fetcher,
+      bypassCache: true,
+    });
+
+    assert.equal(agg.sections.documents.status, 'failed');
+    assert.match(agg.sections.documents.error!.message, /temporarily unavailable|could not be loaded/i);
+    assert.ok(agg.summary.loaded.includes('enrollment'));
+    assert.ok(agg.summary.loaded.includes('attendance'));
+    assert.ok(agg.summary.failed.some((f) => f.section === 'documents'));
+    // Outage must not surface another student's payload
+    assert.equal(agg.sections.documents.data, undefined);
+    assert.equal(JSON.stringify(agg).includes('documents down'), false);
+  });
+
+  it('stm10Us018_retryAfterOutageRecoversSection', async () => {
+    let documentsDown = true;
+    const fetcher: AggregateFetcher = async (url) => {
+      if (url.includes('/students/me')) return jsonResult(200, { id: 'stu-own' });
+      if (url.includes('/documents/submissions')) {
+        if (documentsDown) return { ok: false, status: 503, text: 'down' };
+        return jsonResult(200, [{ id: 'doc-1', name: 'ID card' }]);
+      }
+      return jsonResult(200, { ok: true });
+    };
+
+    const first = await aggregateStudentPortalDashboard({
+      gatewayBaseUrl: 'http://gateway.test',
+      headers: { Authorization: 'Bearer t' },
+      fetcher,
+      cacheKey: 'tenant:retry-user',
+      bypassCache: true,
+    });
+    assert.equal(first.sections.documents.status, 'failed');
+
+    documentsDown = false;
+    const second = await aggregateStudentPortalDashboard({
+      gatewayBaseUrl: 'http://gateway.test',
+      headers: { Authorization: 'Bearer t' },
+      fetcher,
+      cacheKey: 'tenant:retry-user',
+      bypassCache: true,
+    });
+    assert.equal(second.sections.documents.status, 'ok');
+    assert.equal((second.sections.documents.data as { id: string }[])[0].id, 'doc-1');
+    assert.equal(second.summary.failed.length, 0);
+  });
 });
