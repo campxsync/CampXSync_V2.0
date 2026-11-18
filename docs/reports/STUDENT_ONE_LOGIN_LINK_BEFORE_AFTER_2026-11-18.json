@@ -1,0 +1,35 @@
+{
+  "project": "azulbaxszsqxymqmlwfe",
+  "studentRecordId": "81dd67d3-1d5f-4d8e-8061-a67648610002",
+  "studentAuthUserId": "81dd67d3-1d5f-4d8e-8061-a6764861f924",
+  "email": "student1.campx@gmail.com",
+  "startedAt": "2026-11-18T06:35:50.498Z",
+  "steps": [
+    {
+      "step": "platform_admin_jwt",
+      "ok": true
+    },
+    {
+      "step": "initiate_verification",
+      "httpStatus": 403,
+      "ok": false
+    }
+  ],
+  "before": {
+    "httpStatus": 403,
+    "body": {
+      "type": "https://campxsync.edu/errors/forbidden",
+      "title": "Forbidden",
+      "status": 403,
+      "detail": "Missing required X-Tenant-Id header for student domain operations"
+    }
+  },
+  "error": "initiate_verification_missing_id",
+  "initBody": {
+    "type": "https://campxsync.edu/errors/forbidden",
+    "title": "Forbidden",
+    "status": 403,
+    "detail": "Missing required X-Tenant-Id header for student domain operations"
+  },
+  "finishedAt": "2026-11-18T06:35:50.837Z"
+}

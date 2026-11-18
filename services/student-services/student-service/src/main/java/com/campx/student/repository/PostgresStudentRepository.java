@@ -209,6 +209,9 @@ public class PostgresStudentRepository implements StudentRepository {
                     if (rs.next()) {
                         StudentEntity entity = mapResultSet(rs);
                         entity.setIamUserId(loadActiveIamUserId(conn, context.getTenantId(), entity.getId()));
+                        // Hydrate from doc.verifications — stu.students has no verification_status column.
+                        entity.setVerificationStatus(
+                                loadLatestVerificationStatus(conn, context.getTenantId(), entity.getId()));
                         return Optional.of(entity);
                     }
                 }
@@ -733,6 +736,29 @@ public class PostgresStudentRepository implements StudentRepository {
             ps.setObject(6, context.getUserId());
             ps.executeUpdate();
         }
+    }
+
+    /**
+     * Latest identity verification decision from existing {@code doc.verifications}
+     * (entity_type=STUDENT). Used so IAM link eligibility sees VERIFIED after decideVerification.
+     */
+    private String loadLatestVerificationStatus(Connection conn, UUID tenantId, UUID studentId) throws SQLException {
+        String sql = "SELECT result FROM doc.verifications "
+                + "WHERE tenant_id = ? AND entity_type = 'STUDENT' AND entity_id = ? "
+                + "ORDER BY verified_at DESC NULLS LAST, created_at DESC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, tenantId);
+            ps.setObject(2, studentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String result = rs.getString("result");
+                    if (result != null && !result.trim().isEmpty()) {
+                        return result.trim().toUpperCase();
+                    }
+                }
+            }
+        }
+        return "UNVERIFIED";
     }
 
     private UUID loadActiveIamUserId(Connection conn, UUID tenantId, UUID studentId) throws SQLException {
