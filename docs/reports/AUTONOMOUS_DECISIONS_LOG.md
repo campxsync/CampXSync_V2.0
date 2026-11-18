@@ -94,4 +94,16 @@ Each entry: what was decided, why, which files, how to undo.
 
 **Undo:** Revert the item commit.
 
+**Commit:** `58eeb5e`
+
+---
+
+## F — Existing IAM / Gateway / tenant context (STM-10-EN-003)
+
+**Decision:** Treat EN-003 as closed on existing Channel-A + portal access gates. Add negative tests that Platform Admin (R01) and College Admin cannot load the student portal aggregate (D9). Document evidence in `docs/reports/STM10_EN003_IAM_GATEWAY_TENANT_EVIDENCE.md`. Do **not** build a college selector or weaken tenant rules.
+
+**Why:** Buildable-now note said “mostly present”; remaining Platform Admin staff-desk tenant gap is explicitly forbidden by D9.
+
+**Undo:** Revert the item commit.
+
 ---

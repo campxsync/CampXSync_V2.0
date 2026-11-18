@@ -2172,5 +2172,33 @@ Does the owner authorize an explicit college-scoped Registrar **V** (view) on `s
 - Frontend TypeScript check → **0 errors**
 
 ### CSV
-- View permitted linked views for my student (STM-10-US-021) → **completed**
+- View permitted linked views for my student (STM-10-US-021) → **completed** (`58eeb5e`)
+
+---
+
+## Entry 58 — Existing IAM, Gateway and tenant context (STM-10-EN-003) (2026-11-18)
+
+**Plain name:** Existing IAM, Gateway and tenant context integration (STM-10-EN-003)  
+**Status:** completed  
+**No push.**
+
+### Implementation
+- Evidence: `docs/reports/STM10_EN003_IAM_GATEWAY_TENANT_EVIDENCE.md`
+- Portal access negatives for Platform Admin (R01) and College Admin; missing tenant denied
+- D9 preserved (no college selector)
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Student portal uses trusted session/gateway identity | `getGatewayHeaders` + `decidePortalDashboardAccess` | `stm10En002_studentAllowedWithoutClientStudentId` |
+| Non-student / Platform Admin denied (D9) | `decidePortalDashboardAccess` | `stm10En003_platformAdminDeniedStaffPortalAggregate_D9`, `stm10En003_collegeAdminDeniedStudentPortalAggregate` |
+| Tenant required | same | `stm10En003_studentMissingTenantDenied` |
+| Client studentId IDOR denied | same | `stm10En002_clientStudentIdIdorDenied` |
+
+### Tests
+- `node --experimental-strip-types --test src/lib/portal/portal-dashboard-access.test.ts` → **7/0**
+
+### CSV
+- Existing IAM, Gateway and tenant context integration (STM-10-EN-003) → **completed**
 

@@ -87,7 +87,8 @@
 | STM-10-US-004 | **completed** — student-owned `/my` timetable (membership from batch_students); demo may be empty in Dev (`93e9fba`) |
 | Registrar student-row visibility (autonomy C) | **BLOCKED** — matrix silent on Registrar `V`; STM-07 staff actions require delegation; no RLS change (`c71cc71`) |
 | STM-10-US-015 | **completed** — recent portal activities via aggregator (profile + lifecycle history) (`dfd628b`) |
-| STM-10-US-021 | **completed** — guardian permitted linked views (service + BFF); demo no guardian test account |
+| STM-10-US-021 | **completed** — guardian permitted linked views (service + BFF); demo no guardian test account (`58eeb5e`) |
+| STM-10-EN-003 | **completed** — IAM/Gateway/tenant Channel-A + D9 portal access gates |
 | STM-10-US-020 | **completed** — secure logout (multi-tab, clear portal storage, replace) |
 | STM-10-US-023 | **BLOCKED** — D10 communication service missing (with STM-08/09 new-service gate) |
 
