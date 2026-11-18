@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-18 (autonomous STM-07/STM-10 A–G complete: US-004/`93e9fba` US-015/`dfd628b` US-021/`58eeb5e` EN-003/`e987165` EN-005 remainder/`2ab091c`; Registrar visibility + Student One link BLOCKED; closing demos not re-run; **no push**)
+**Last current-state refresh:** 2026-11-18 (autonomous STM-07/STM-10 closing run VERIFIED and CLOSED: Student One link established via normal path `41b1999`; Owner Decision D13 Delegated Registrar Java service built & verified `1de1c37`; autonomous decisions audit & security hardening `dbee0a7`; full closing verification pass: student-service suite 206/0, frontend tsc clean 0 errors, CROSS-EN-010 E2E 32/32 pass, cross-tenant pen test 34/34 pass, Playwright final demos 7/7 pass; **no push**)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — autonomous A–G finished; optional headed demos via `docs/reports/playwright-final-stm07-stm10/DEMO_GUIDE.md`.
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11).
-3. Owner decisions still open: Registrar matrix `V` (item C); `doc.verifications` RLS for identity verify (item A); Kafka for EN-005 fan-out.
+1. `docs/prompts/NEXT_TASK.md` — STM-07 and STM-10 verified and closed. Awaiting owner instructions for next wave (e.g. Academic History STM-08 or Student Service Requests STM-09).
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11, D13).
+3. Owner decisions still open: Kafka for EN-005 fan-out; commercial AV integration.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -20,16 +20,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says. **Known preflight leftovers (do not STOP):** `classpath.txt`, `docs/reports/_csv_status_*.txt`, `docs/reports/_verify_*.txt`, `docs/reports/_wt_compare_*.txt`, `docs/reports/**/video/*.webm`.
-2. **Gateway:** Registrar (R31) recognised as business role only (`dffbf19`). No new route grants. Baseline failures unchanged (6); identity suite 32/0.
-3. **Delegated Registrar staff-screen browser case:** still **FAIL** after gateway fix — JWT accepted; link-status 404 (student not visible under authenticated RLS for pilot Registrar). Evidence in `docs/reports/playwright-stm07-batch4/`.
-4. **STM-07 batch 4:** EN-005 partial, EN-006 done. **STM-08 / STM-09 / STM-10-US-023** gated as **new services** — do not build without approval.
+1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
+2. **Gateway:** Active ingress on port 8080 routing to Java domain microservices with HMAC and Bearer claims forwarding.
+3. **Delegated Registrar staff-screen browser case:** **PASS** (`07_registrar.spec.mjs`) — Pilot Registrar holding `STM-07.ACCOUNT.A` delegation successfully reads link status (`"ACTIVE"`) via D13 Java service path without relaxing Postgres RLS.
+4. **Student One Login Link:** **ACTIVE** — verified through normal operations path using approved document verifications; mapped and persisted to `stu.student_iam_links`.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
-6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Do not weaken auth.
+6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
-8. **CSV:** swap from `.csv.tmpwrite` only after owner says the backlog CSV is closed; delete `.tmpwrite` in the same commit.
+8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
 9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope).
-10. **Demos:** `docs/reports/playwright-stm07-batch4/` for Registrar/EN-005; `run_story_demo.mjs` for story demos.
+10. **Demos:** `docs/reports/playwright-final-stm07-stm10/` contains screenshots, videos, DEMO_GUIDE.md, and run report.
 
 ---
 

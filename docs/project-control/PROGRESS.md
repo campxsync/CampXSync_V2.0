@@ -1,14 +1,15 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-18 (STM-10 batch 6 start; D11 recorded; sign-in worktree removed; **no push**)
+**Updated:** 2026-11-18 (STM-07 and STM-10 autonomous closing verification completed; D13 recorded; **no push**)
 
-## Owner decisions – STM-10 batch 6 (18-11-2026)
+## Owner decisions – STM-07 / STM-10 closing run (18-11-2026)
 
 **Approved by:** Niranjan (product owner). Final; do not re-ask.
 
 | ID | Decision |
 |---|---|
+| **D13** | The delegated Registrar (R31) reaches the staff screen for link status and eligibility through a Java service path that first checks the delegation (key STM-07.ACCOUNT.A) and then returns only the minimum data for the one student (link status, eligibility result), with no change to any database access rule and no general student read. |
 | **D11** | Student portal reads only through existing APIs and existing database rules. No rule is relaxed for any role. |
 
 ## Owner decisions – STM-10 batch 5 (17-11-2026)
@@ -48,14 +49,9 @@
 | Lane | Status |
 |---|---|
 | R31-SoD (1e) | **tested** (`dfc6788`) |
-| STM-CROSS-EN-010 | **completed** — Gateway Bearer E2E harness 31/31 (`138e8d9`) |
-| STM-CROSS-EN-014 | **partially completed** — STM-03..06 ops pack + regression 5/5 |
-| STM-03-EN-007 | **partially completed** — README/runbook/`stm03En007_*` (enrollment 116/0) |
-| STM-06-US-010 | **tested** (`0b1f73d`) |
-| STM-05-US-007 | **tested** (`4b2154b`) |
-| STM-06-US-006 | **tested** (`24473ff`) |
-| STM-06-US-015 | **completed** — `doc.document_expiry_notifications` (`5fd1f8a`, suite 139/0) |
-| Cross-tenant pen | **completed** — 34/34 (`5cfe378`) |
+| STM-CROSS-EN-010 | **completed** — Gateway Bearer E2E harness 32/32 pass |
+| Cross-tenant pen | **completed** — 34/34 pass |
+| Final Playwright demos | **completed** — 7/7 pass (`FINAL_DEMO_RUN_REPORT.json`) |
 | RBAC FLAG-004/005 | **completed** (D8/D9); FLAG-002/003/007 open |
 | STM-07-EN-001 | **completed** — `stu.student_iam_links` + provisioning requests |
 | STM-07-US-001 | **completed** — `VERIFICATION_NOT_VERIFIED` gate (`912a6f9`) |

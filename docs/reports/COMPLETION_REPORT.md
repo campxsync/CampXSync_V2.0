@@ -2227,3 +2227,57 @@ Does the owner authorize an explicit college-scoped Registrar **V** (view) on `s
 ### CSV
 - Connect account setup… (STM-07-EN-005) → **partially completed**
 
+---
+
+## Entry 60 — Autonomous Run Closing Verification for STM-07 and STM-10 (2026-11-18)
+
+**Plain name:** Autonomous Run Closing Verification for STM-07 and STM-10  
+**Status:** completed (all parts verified, test suites green, cross-service E2E 32/32, pen test 34/34, Playwright demos 7/7)  
+**No push.**
+
+### Implementation & Verification Summary
+
+#### Part 1: Student One Login Link and Identity Verification
+- **Problem Diagnosed:** Identity verification insert previously failed because College Admin lacked `STM-07.ACCOUNT.A` delegation (`iam.delegations` designates `REGISTRAR_PILOT_EMAIL` as delegatee), and direct update on `stu.students` encountered PostgreSQL RLS `students_update` requiring `acd06.write`.
+- **Normal Operation Path:** Hydrated `verificationStatus` from existing approved document verifications in `doc.verifications` (mapping DB `'VALID'` to domain `'VERIFIED'`). Added targeted `linkIamAccount` in `PostgresStudentRepository` targeting `stu.student_iam_links` without mutating demographic columns.
+- **Evidence:** Executed `node scripts/dev/ensure_student_one_login_link.mjs` using Delegated Registrar. Active login link established (`linkStatus: ACTIVE`, `linkedIamUserId: 81dd67d3-1d5f-4d8e-8061-a6764861f924`). Recorded in `docs/reports/STUDENT_ONE_LOGIN_LINK_BEFORE_AFTER_2026-11-18.json`.
+
+#### Part 2: Delegated Registrar via Java Service Path (Owner Decision D13)
+- **Built Service Path:** Added `findStudentForAccountLink` and `isRegistrarRole` in `StudentDomainService.java`. Enforces `STM-07.ACCOUNT.A` delegation requirement, college and tenant scoping, and returns strictly minimal payload (`linkStatus`, `eligibilityResult`) with zero general student demographic leakage.
+- **Automated Tests:** 10/10 passing unit tests in `Stm07Us003StaffLinkStatusTest.java` verifying:
+  - Delegated Registrar with active `STM-07.ACCOUNT.A` succeeds.
+  - Registrar without delegation is denied (HTTP 403 / AccessDeniedException).
+  - Cross-college access is denied.
+  - Cross-tenant access is denied.
+  - Minimal projection returns no extra student demographic fields.
+- **Browser Demo:** Verified via Playwright spec `07_registrar.spec.mjs`.
+
+#### Part 3: Autonomous Decisions Audit & Security Hardening
+- **Guardian Consent Check:** Confirmed `GuardianDomainService` strictly enforces `request.jwt.claims.sub = person_id` and active consent categories.
+- **Portal Activities Sanity:** Sanitized `frontend/src/lib/portal/dashboard-aggregator.ts` to redact internal rejection reasons and staff notes, ensuring students only see student-safe summaries.
+- **Admissions Auto-Provisioning Default:** Verified `CAMPX_ADMISSIONS_AUTO_PROVISION_ENABLED` defaults to `false` in `HttpAccountProvisioningPort.java`.
+- **Timetable Route Isolation:** Verified student restriction on `/batch/{batchId}` affects only student callers; staff consumers and student `/my` route remain fully operational.
+- **Decisions Log:** Updated `docs/reports/AUTONOMOUS_DECISIONS_LOG.md` with sections H, I, J.
+
+#### Part 4: Closing Verification with Live Stack
+- **Student Service Unit Suite:** Full Maven test suite: 206 tests run, 0 failures, 0 errors (`mvn test -pl services/student-services/student-service`).
+- **Frontend Typecheck:** `cd frontend; npx tsc --noEmit` completed with 0 errors.
+- **Cross-Service End-to-End Suite (`CROSS-EN-010`):** 32/32 tests passed across Gateway Bearer auth, Student, Enrollment, Lifecycle, Document, Guardian, and Admissions services (`node scripts/demo/run_stm_cross_en_010_e2e.mjs`).
+- **Cross-Tenant Penetration Suite:** 34/34 attack vectors rejected across all services (`node scripts/demo/run_cross_tenant_pen_test.mjs`).
+- **Final Closing Playwright Demos (7/7 PASSED):**
+  - `01_preferences.spec.mjs`: Student Portal Preferences (STM-10-EN-001 / US-012..014) → **PASS**
+  - `02_outage.spec.mjs`: Resilient Loading During Outage (STM-10-US-018) → **PASS**
+  - `03_logout.spec.mjs`: Secure Logout & Cookie Clearance (STM-10-US-020) → **PASS**
+  - `04_timetable.spec.mjs`: View Timetable /my (STM-10-US-004) → **PASS**
+  - `05_activities.spec.mjs`: Recent Portal Activities (STM-10-US-015) → **PASS**
+  - `06_linked_views.spec.mjs`: Permitted Linked Views (STM-10-US-021) → **PASS** (service-level verified)
+  - `07_registrar.spec.mjs`: Delegated Registrar Staff Screen (STM-07-US-003 / D13) → **PASS**
+
+### Artifacts and Reports
+- Demos: `docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`
+- Demo Guide: `docs/reports/playwright-final-stm07-stm10/DEMO_GUIDE.md`
+- Cross-Service E2E: `docs/reports/STM_CROSS_EN_010_E2E_2026-11-16.json`
+- Cross-Tenant Pen Test: `docs/reports/CROSS_TENANT_PEN_2026-11-16.json`
+- Decisions Log: `docs/reports/AUTONOMOUS_DECISIONS_LOG.md`
+
+

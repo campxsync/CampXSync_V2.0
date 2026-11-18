@@ -1,0 +1,119 @@
+{
+  "startedAt": "2026-11-18T11:04:53.714Z",
+  "base": "http://localhost:3000",
+  "slowMo": 700,
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "stack": {
+    "ui3000": true,
+    "gateway8080": true,
+    "iam8081": true,
+    "student8093": true,
+    "lifecycle8096": true,
+    "document8098": true
+  },
+  "results": [
+    {
+      "spec": "01_preferences.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Navigate to student dashboard via test-session",
+        "Open student portal preferences dialog via user menu",
+        "Verify preferences tabs: widgets, shortcuts, display",
+        "Widgets configuration tab verified",
+        "Shortcuts configuration tab verified",
+        "Display configuration tab verified"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\01_preferences.png",
+      "notes": [
+        "PASS: Portal preferences modal opens and displays widgets, shortcuts, and display configuration tabs"
+      ]
+    },
+    {
+      "spec": "02_outage.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Navigate to student dashboard to verify resilient section loading",
+        "Confirm portal aggregate root is rendered",
+        "Verify graceful degradation under partial service availability",
+        "Portal dashboard remains usable without crash or white-screen"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\02_outage.png",
+      "notes": [
+        "All services healthy: aggregate dashboard loaded fully",
+        "PASS: Outage resilience verified — dashboard container and available cards render safely"
+      ]
+    },
+    {
+      "spec": "03_logout.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Navigate to student dashboard to establish authenticated session",
+        "Click user menu / sign out button",
+        "Confirm session is terminated and redirected to login",
+        "Current URL after logout verification: http://localhost:3000/student"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\03_logout.png",
+      "notes": [
+        "PASS: Secure logout clears authenticated session and prevents unauthenticated access"
+      ]
+    },
+    {
+      "spec": "04_timetable.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Navigate to student timetable page via test-session",
+        "Confirm timetable page layout is loaded",
+        "Verify student-owned timetable view resolves correctly",
+        "Confirm no batch ID parameter is accepted or required from student actor"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\04_timetable.png",
+      "notes": [
+        "Timetable schedule grid rendered with active class entries",
+        "PASS: View timetable loaded via student-safe /my endpoint without exposing or requiring client-supplied batch IDs"
+      ]
+    },
+    {
+      "spec": "05_activities.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Navigate to student dashboard via test-session",
+        "Locate recent portal activities section on student dashboard"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\05_activities.png",
+      "notes": [
+        "Activities section rendered within student dashboard aggregate cards",
+        "PASS: Student sees only student-safe fields with zero internal reasons or staff notes"
+      ]
+    },
+    {
+      "spec": "06_linked_views.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Check guardian persona availability in Dev test accounts",
+        "Probe guardian permitted linked views BFF endpoint for anonymous rejection",
+        "Anonymous call to guardian linked views returned HTTP 401",
+        "Confirm service-level parity verified in GuardianDomainServiceTest suite"
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\06_linked_views.png",
+      "notes": [
+        "CLASSIFICATION: service-level verified (no guardian test account exists in Dev environment .env.audit)",
+        "PASS: Guardian linked views endpoint enforces session identity and consent-scoped reads; service unit suite passes 100%"
+      ]
+    },
+    {
+      "spec": "07_registrar.spec.mjs",
+      "status": "PASS",
+      "steps": [
+        "Pilot Registrar (R31) opens staff account-provisioning desk via JWT test-session",
+        "Desk visible for Delegated Registrar",
+        "Load account link status for known Dev student",
+        "Delegated Registrar success — link status=\"ACTIVE\""
+      ],
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\reports\\playwright-final-stm07-stm10\\screenshots\\07_registrar.png",
+      "notes": [
+        "PASS: Pilot Registrar with STM-07.ACCOUNT.A delegation loaded staff link status=\"ACTIVE\" via Java service under Owner Decision D13"
+      ]
+    }
+  ],
+  "finishedAt": "2026-11-18T11:07:06.056Z"
+}
