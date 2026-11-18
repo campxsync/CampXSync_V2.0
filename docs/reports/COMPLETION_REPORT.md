@@ -2060,5 +2060,5 @@ Add a student-owned timetable read on the existing academic timetable service (o
 - Frontend TypeScript check → **0 errors**
 
 ### CSV
-- Log out securely (STM-10-US-020) → **completed** (hash stamped after commit)
+- Log out securely (STM-10-US-020) → **completed (dd3bda4)
 

@@ -9,7 +9,7 @@
 | Portal data aggregation with bounded calls, timeouts, caching and partial-failure handling | STM-10-EN-002 | `414105f` |
 | Use the portal during one integrated service outage | STM-10-US-018 | `eff9749` |
 | View timetable | STM-10-US-004 | **BLOCKED** (no student-scoped timetable API / no batch id on profile) |
-| Log out securely | STM-10-US-020 | *(stamp after commit)* |
+| Log out securely | STM-10-US-020 | `dd3bda4` |
 
 ## Still BLOCKED (do not build)
 

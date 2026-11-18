@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-18 (STM-10 batch 6: EN-002 + US-018 DONE locally; next US-004 → US-020; **no push**)
+**Last current-state refresh:** 2026-11-18 (STM-10 batch 6 complete locally: EN-002/`414105f` US-018/`eff9749` US-004 BLOCKED/`f5eb177` US-020/`dd3bda4`; headed demos STOPPED — stack down; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — continue STM-10 batch 6: View timetable (STM-10-US-004), then Log out securely (STM-10-US-020).
+1. `docs/prompts/NEXT_TASK.md` — STOP after STM-10 batch 6; optional: start stack and re-run `docs/reports/playwright-stm10-batch6/run_batch6_demo.mjs` on localhost; owner decision for student-scoped timetable API to unblock US-004.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
