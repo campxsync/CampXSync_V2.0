@@ -120,4 +120,6 @@ Each entry: what was decided, why, which files, how to undo.
 
 **Undo:** Revert the item commit.
 
+**Commit:** `2ab091c`
+
 ---

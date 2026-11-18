@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-18 (STM-10 batch 6 complete locally: EN-002/`414105f` US-018/`eff9749` US-004 BLOCKED/`f5eb177` US-020/`dd3bda4`; headed demos STOPPED — stack down; **no push**)
+**Last current-state refresh:** 2026-11-18 (autonomous STM-07/STM-10 A–G complete: US-004/`93e9fba` US-015/`dfd628b` US-021/`58eeb5e` EN-003/`e987165` EN-005 remainder/`2ab091c`; Registrar visibility + Student One link BLOCKED; closing demos not re-run; **no push**)
 
 ---
 
@@ -10,8 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STOP after STM-10 batch 6; optional: start stack and re-run `docs/reports/playwright-stm10-batch6/run_batch6_demo.mjs` on localhost; owner decision for student-scoped timetable API to unblock US-004.
+1. `docs/prompts/NEXT_TASK.md` — autonomous A–G finished; optional headed demos via `docs/reports/playwright-final-stm07-stm10/DEMO_GUIDE.md`.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11).
+3. Owner decisions still open: Registrar matrix `V` (item C); `doc.verifications` RLS for identity verify (item A); Kafka for EN-005 fan-out.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
