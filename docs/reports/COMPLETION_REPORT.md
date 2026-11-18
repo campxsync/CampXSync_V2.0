@@ -2016,20 +2016,16 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 ## Entry 52 — View timetable (STM-10-US-004) (2026-11-18)
 
 **Plain name:** View timetable (STM-10-US-004)  
-**Status:** BLOCKED  
-**No push. No code change for this item.**
+**Status:** BLOCKED (superseded by Entry 54 in the same autonomous run)  
+**No push. No code change for this item at the time of Entry 52.**
 
 ### Obstacle (plain words)
 1. The logged-in student profile from the existing students-me API does not include a batch or section id.
-2. The existing timetable service only allows a student to read a published batch timetable when a batch id is already known (`/api/v1/academics/timetables/batch/{batchId}`). There is no "my timetable" route that resolves the caller's own cohort.
-3. Asking the browser to supply a batch id would either fail (student does not know it) or open an IDOR path (any batch id). The timetable controller does not check that the caller belongs to that batch.
-4. Owner decision D11: portal reads only through existing APIs and existing database rules — no rule relaxed, no invented data, no new endpoint invented in this batch.
-
-### Recommendation
-Add a student-owned timetable read on the existing academic timetable service (or expose batch membership on the student profile) with an automated test that Student A cannot read Student B's batch, then resume View timetable (STM-10-US-004).
+2. The existing timetable service only allowed a student to read a published batch timetable when a batch id was already known (`/api/v1/academics/timetables/batch/{batchId}`).
+3. Client-supplied batch id would be an IDOR path.
 
 ### CSV
-- View timetable (STM-10-US-004) → **BLOCKED**
+- View timetable (STM-10-US-004) → **BLOCKED** (later completed in Entry 54)
 
 
 ---
@@ -2060,5 +2056,37 @@ Add a student-owned timetable read on the existing academic timetable service (o
 - Frontend TypeScript check → **0 errors**
 
 ### CSV
-- Log out securely (STM-10-US-020) → **completed (dd3bda4)
+- Log out securely (STM-10-US-020) → **completed** (`dd3bda4`)
+
+---
+
+## Entry 54 — View timetable (STM-10-US-004) unblocked (2026-11-18)
+
+**Plain name:** View timetable (STM-10-US-004)  
+**Status:** completed (service + UI built; browser demo may be “no data in Dev”)  
+**No push.**
+
+### Implementation
+- Academic timetable service: `GET /api/v1/academics/timetables/my` resolves active batch via `StudentBatchMembershipPort` (`stu.students` / `stu.student_iam_links` + `acd.batch_students`); ignores client `batchId`
+- STUDENT role authorized only for `/my` (not `/batch/{batchId}`)
+- BFF `GET /api/student/timetable` (Bearer via gateway-auth) and page `/student/timetable` with `data-testid` contracts
+- Nav: student “My Timetable”
+
+### Acceptance → code → tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Student sees own batch timetable from login identity | `TimetableDomainService.getMyPublishedTimetable` | `studentASeesOwnBatchOnly_domain` |
+| Student A cannot read Student B’s batch via client batch id | same + `clientBatchIdIgnored` | `studentACannotObtainStudentBBatchViaClientBatchId`, `httpStudentMyReturnsOwnBatch_andIgnoresQueryBatchId` |
+| Other college / foreign tenant yields no membership | Fake membership keyed by tenant | `otherCollegeMembershipNotVisible`, `httpOtherCollegeCannotUseStudentAIdentityAgainstTenantBMembership` |
+| Unauthenticated / unknown role denied | controller RBAC | `httpUnauthenticatedRoleCannotHitMy`, `nullContextDenied` |
+| Student forbidden on `/batch/{id}` | `TimetableController.isAuthorized` | `httpStudentForbiddenOnOtherBatchPath`, `testRBACPermissions` |
+| Missing/invalid tenant on `/my` rejected | `UserSecurityContext.fromHeaders` | `httpMissingTenantDeniedOnMy` |
+
+### Tests
+- `mvn test -pl services/academic-services/timetable-management-service -Dtest=MyTimetableSecurityTest,TimetableControllerIntegrationTest` → **pass**
+- Frontend TypeScript check (`npx tsc --noEmit`) → **0 errors**
+
+### CSV
+- View timetable (STM-10-US-004) → **completed**
 

@@ -296,9 +296,14 @@ public class TimetableControllerIntegrationTest {
         HttpURLConnection connStu = open("POST", "/api/v1/academics/timetables", "{}", "TENANT-001", "STUDENT");
         assertEquals(403, connStu.getResponseCode());
 
-        // Student accessing batch timetable -> Allowed 200
+        // Student accessing batch-by-id path -> Forbidden 403 (STM-10-US-004: use /my only)
         HttpURLConnection connStuBatch = open("GET", "/api/v1/academics/timetables/batch/BATCH-001", null, "TENANT-001", "STUDENT");
-        assertEquals(200, connStuBatch.getResponseCode());
+        assertEquals(403, connStuBatch.getResponseCode());
+
+        // Student accessing /my with non-UUID sandbox tenant -> 4xx (identity must be UUID)
+        HttpURLConnection connStuMy = open("GET", "/api/v1/academics/timetables/my", null, "TENANT-001", "STUDENT");
+        int myCode = connStuMy.getResponseCode();
+        assertTrue("expected client error for non-UUID tenant on /my, got " + myCode, myCode >= 400 && myCode < 500);
 
         // External API Key consumer writing -> Forbidden 403
         URL url = new URL(BASE_URL + "/api/v1/academics/timetables");

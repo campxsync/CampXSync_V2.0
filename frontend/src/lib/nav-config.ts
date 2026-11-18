@@ -64,6 +64,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   ],
   student: [
     { title: 'My Attendance', href: '/student', icon: ClipboardCheck },
+    { title: 'My Timetable', href: '/student/timetable', icon: Calendar },
     { title: 'Admissions & Applications', href: '/student/admissions', icon: FileText },
     { title: 'Course Registration', href: '/student/enrollment', icon: BookOpen },
     { title: 'Lifecycle Status', href: '/student/lifecycle', icon: GraduationCap },

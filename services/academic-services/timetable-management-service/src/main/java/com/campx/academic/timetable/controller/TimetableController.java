@@ -266,6 +266,22 @@ public class TimetableController implements HttpHandler {
                     return;
                 }
             }
+            // 2a. Student-owned my timetable (STM-10-US-004): /my — never trusts client batchId
+            else if ("/my".equals(path) || path.startsWith("/my?")) {
+                if (!"GET".equalsIgnoreCase(method)) {
+                    sendError(exchange, 405, "ACD_TIMETABLE_METHOD_NOT_ALLOWED", "Method not allowed", null, fullPath);
+                    return;
+                }
+                String collegeId = exchange.getRequestHeaders().getFirst("X-College-Id");
+                UserSecurityContext actor = UserSecurityContext.fromHeaders(userId, tenantId, collegeId, userRole);
+                Map<String, String> query = parseQuery(exchange.getRequestURI().getQuery());
+                String ignoredBatch = query.get("batchId");
+                if (ignoredBatch == null) {
+                    ignoredBatch = query.get("batch_id");
+                }
+                Map<String, Object> mine = domainService.getMyPublishedTimetable(actor, ignoredBatch);
+                responseJson = buildSuccessEnvelope(mine, "My timetable retrieved", traceId);
+            }
             // 2. Batch Timetable View: /batch/{batchId}
             else if (path.startsWith("/batch/")) {
                 String batchId = path.substring("/batch/".length());
@@ -558,10 +574,9 @@ public class TimetableController implements HttpHandler {
                     (path.startsWith("/faculty/") || path.startsWith("/batch/") || "/".equals(path));
         }
 
-        // Student: View published timetable
+        // Student: own timetable only (STM-10-US-004) — no client-supplied /batch/{batchId}
         if ("STUDENT".equals(role)) {
-            return "GET".equalsIgnoreCase(method) &&
-                    (path.startsWith("/batch/") || "/".equals(path));
+            return "GET".equalsIgnoreCase(method) && ("/my".equals(path) || path.startsWith("/my?"));
         }
 
         // Management: View & Export

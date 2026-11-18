@@ -31,6 +31,21 @@ Each entry: what was decided, why, which files, how to undo.
 
 ## B — View timetable (STM-10-US-004)
 
-*(in progress)*
+**Decision:** Add student-owned `GET /api/v1/academics/timetables/my` on the existing Timetable Management Service (Academic timetable service). Batch id is resolved only from authenticated actor membership (`stu.students.person_id` or active `stu.student_iam_links` → `acd.batch_students`), never from a client-supplied batch or student id. STUDENT role may call `/my` only; `/batch/{batchId}` is forbidden for students. BFF `GET /api/student/timetable` and page `/student/timetable` proxy the gateway without forwarding query batch ids. Endpoint/response shape: `{ membershipFound, batchId, entries, clientBatchIdIgnored }`.
+
+**Why:** Unblocks View timetable without inventing a new service; closes the prior IDOR risk of client batch ids (Agreement D11).
+
+**Files:**
+- `services/academic-services/timetable-management-service/.../StudentBatchMembershipPort.java`
+- `PostgresStudentBatchMembershipPort.java`, `FakeStudentBatchMembershipPort.java`
+- `TimetableDomainService.java`, `TimetableController.java`
+- `MyTimetableSecurityTest.java`
+- `frontend/src/app/api/student/timetable/route.ts`
+- `frontend/src/app/(dashboard)/student/timetable/page.tsx`
+- `frontend/src/lib/nav-config.ts`
+
+**Undo:** Revert the item commit; students again lack a safe my-timetable read.
+
+**Demo note:** Browser demo may show “no data in Dev” if membership or published slots are empty; service tests use fixtures.
 
 ---

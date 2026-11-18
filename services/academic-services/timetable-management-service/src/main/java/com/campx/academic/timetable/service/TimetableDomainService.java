@@ -3,6 +3,9 @@ package com.campx.academic.timetable.service;
 import com.campx.academic.timetable.exception.*;
 import com.campx.academic.timetable.model.*;
 import com.campx.academic.timetable.model.TimetableModels.*;
+import com.campx.academic.timetable.port.FakeStudentBatchMembershipPort;
+import com.campx.academic.timetable.port.PostgresStudentBatchMembershipPort;
+import com.campx.academic.timetable.port.StudentBatchMembershipPort;
 import com.campx.academic.timetable.repository.InMemoryTimetableRepository;
 import com.campx.academic.timetable.repository.PostgresTimetableRepository;
 import com.campx.academic.timetable.repository.TimetableRepository;
@@ -29,6 +32,7 @@ public class TimetableDomainService {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(TimetableDomainService.class);
 
     private TimetableRepository repository;
+    private StudentBatchMembershipPort studentBatchMembershipPort;
 
     public TimetableRepository getRepository() {
         return repository;
@@ -36,6 +40,16 @@ public class TimetableDomainService {
 
     public void setRepository(TimetableRepository repository) {
         this.repository = repository;
+    }
+
+    public StudentBatchMembershipPort getStudentBatchMembershipPort() {
+        return studentBatchMembershipPort;
+    }
+
+    public void setStudentBatchMembershipPort(StudentBatchMembershipPort studentBatchMembershipPort) {
+        this.studentBatchMembershipPort = studentBatchMembershipPort != null
+                ? studentBatchMembershipPort
+                : new FakeStudentBatchMembershipPort();
     }
 
     // =========================================================================
@@ -131,11 +145,18 @@ public class TimetableDomainService {
     private final Map<String, Set<String>> roomUnavailability = new ConcurrentHashMap<>();
 
     public TimetableDomainService() {
-        this(new PostgresTimetableRepository());
+        this(new PostgresTimetableRepository(), new PostgresStudentBatchMembershipPort());
     }
 
     public TimetableDomainService(TimetableRepository repository) {
+        this(repository, new FakeStudentBatchMembershipPort());
+    }
+
+    public TimetableDomainService(TimetableRepository repository, StudentBatchMembershipPort membershipPort) {
         this.repository = repository != null ? repository : new PostgresTimetableRepository();
+        this.studentBatchMembershipPort = membershipPort != null
+                ? membershipPort
+                : new FakeStudentBatchMembershipPort();
         seedDefaults();
     }
 
@@ -1024,6 +1045,72 @@ public class TimetableDomainService {
         return getPublishedEntries().stream()
                 .filter(e -> e.getTenantId().equals(tenantId) && batchId.equalsIgnoreCase(e.getBatchId()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * STM-10-US-004: student-owned "my timetable". Batch comes from membership for the
+     * authenticated actor — never from a client-supplied batch or student id.
+     * A caller-supplied {@code ignoredClientBatchId} has no effect on the result.
+     */
+    public Map<String, Object> getMyPublishedTimetable(UserSecurityContext context, String ignoredClientBatchId) {
+        if (context == null || context.getUserId() == null) {
+            throw new TimetableUnauthorizedException("Authentication required to view my timetable");
+        }
+        if (context.getTenantId() == null && !context.isPlatformScope()) {
+            throw new TimetableForbiddenException("Tenant context required to view my timetable");
+        }
+
+        Optional<UUID> membership = studentBatchMembershipPort.findActiveBatchIdForActor(context);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("studentUserId", context.getUserId().toString());
+        payload.put("tenantId", context.getTenantId() != null ? context.getTenantId().toString() : null);
+        // Explicitly discard any client-supplied batch id (IDOR hardening).
+        payload.put("clientBatchIdIgnored", ignoredClientBatchId != null && !ignoredClientBatchId.trim().isEmpty());
+
+        if (!membership.isPresent()) {
+            payload.put("membershipFound", false);
+            payload.put("batchId", null);
+            payload.put("entries", Collections.emptyList());
+            return payload;
+        }
+
+        String batchId = membership.get().toString();
+        String tenantKey = context.getTenantId() != null ? context.getTenantId().toString() : null;
+        List<TimetableEntry> entries = getPublishedBatchTimetable(batchId, tenantKey);
+        payload.put("membershipFound", true);
+        payload.put("batchId", batchId);
+        payload.put("entries", entries);
+        return payload;
+    }
+
+    /**
+     * Test/fixture helper: register a published version snapshot so {@link #getPublishedBatchTimetable}
+     * can return entries without running the full publish workflow. Idempotent per batch id.
+     */
+    public void seedPublishedBatchSnapshotForTests(String tenantId, String batchId, List<TimetableEntry> entries) {
+        String key = "SEED-" + batchId;
+        TimetableVersion version = new TimetableVersion();
+        version.setTimetableId(key);
+        version.setVersionNo(1);
+        version.setStatus(TimetableStatus.PUBLISHED);
+        List<TimetableEntry> snapshot = new ArrayList<>();
+        if (entries != null) {
+            for (TimetableEntry e : entries) {
+                TimetableEntry copy = new TimetableEntry(e);
+                if (copy.getTenantId() == null) {
+                    copy.setTenantId(tenantId);
+                }
+                if (copy.getBatchId() == null) {
+                    copy.setBatchId(batchId);
+                }
+                if (copy.getId() == null) {
+                    copy.setId("ENT-" + UUID.randomUUID().toString().substring(0, 8));
+                }
+                snapshot.add(copy);
+            }
+        }
+        version.setEntriesSnapshot(snapshot);
+        timetableVersions.put(key + ":1", version);
     }
 
     public List<TimetableEntry> getPublishedFacultyTimetable(String facultyId, String tenantId) {
