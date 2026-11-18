@@ -30,6 +30,7 @@ import {
 import { StudentWidgetGate } from '@/components/preferences/student-widget-gate';
 import { StudentShortcutsStrip } from '@/components/preferences/student-shortcuts-strip';
 import { StudentDisplayEffects } from '@/components/preferences/student-display-effects';
+import { PortalDashboardAggregatePanel } from '@/components/portal/portal-dashboard-aggregate';
 
 export const dynamic = 'force-dynamic';
 
@@ -236,6 +237,8 @@ export default async function StudentDashboardPage() {
 
       <StudentDisplayEffects userId={userId} tenantId={tenantId} />
       <StudentShortcutsStrip userId={userId} tenantId={tenantId} />
+      {/* STM-10-EN-002: BFF aggregation with timeouts, cache, partial-failure shape */}
+      <PortalDashboardAggregatePanel />
       <div
         className="flex flex-col gap-6"
         data-testid="student-dashboard-widgets"

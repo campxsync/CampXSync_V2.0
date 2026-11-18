@@ -1,7 +1,15 @@
 ﻿# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-17 (STM-10 batch 5 EN-001/`0cf5190` US-012/`0d4e6a8` US-013/`f8a7a22` US-014/`9cd4cb9`; demos STOPPED at student sign-in; **no push**)
+**Updated:** 2026-11-18 (STM-10 batch 6 start; D11 recorded; sign-in worktree removed; **no push**)
+
+## Owner decisions – STM-10 batch 6 (18-11-2026)
+
+**Approved by:** Niranjan (product owner). Final; do not re-ask.
+
+| ID | Decision |
+|---|---|
+| **D11** | Student portal reads only through existing APIs and existing database rules. No rule is relaxed for any role. |
 
 ## Owner decisions – STM-10 batch 5 (17-11-2026)
 
@@ -74,6 +82,7 @@
 | STM-10-US-012 | **completed** — durable widgets via portal BFF + StudentWidgetGate (`0d4e6a8`) |
 | STM-10-US-013 | **completed** — shortcuts via portal prefs + StudentShortcutsStrip (`f8a7a22`) |
 | STM-10-US-014 | **completed** — language/display via portal prefs + StudentDisplayEffects |
+| STM-10-EN-002 | **completed** — BFF portal-dashboard aggregation (timeouts, cache, partial failure) |
 | STM-10-US-023 | **BLOCKED** — D10 communication service missing (with STM-08/09 new-service gate) |
 
 ## Evidence highlights

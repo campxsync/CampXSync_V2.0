@@ -1622,3 +1622,41 @@ Event bus, role-configuration FLAG-002/003/007, self-request setting, live AV, S
 | Language/display persist for owning student | `display` in portal prefs | `stm10Us014_languageAndDisplayPersistAcrossReload` |
 | Other student keeps defaults | store isolation | `stm10Us014_otherStudentKeepsDefaultDisplay` |
 | Invalid locale rejected | sanitize locale | `stm10Us014_invalidLocaleRejected` |
+
+---
+
+## Entry 50 — Portal data aggregation (STM-10-EN-002) (2026-11-18)
+
+**Plain name:** Portal data aggregation with bounded calls, timeouts, caching and partial-failure handling (STM-10-EN-002)  
+**Status:** completed  
+**No push.**
+
+### Implementation
+- BFF: `frontend/src/app/api/student/portal-dashboard/route.ts` — student-only; rejects client `studentId` (IDOR); `refresh=1` bypasses cache
+- Aggregator: `frontend/src/lib/portal/dashboard-aggregator.ts` — per-call timeout (3.5s), 30s cache, parallel fan-out after `/students/me`, plain-language partial failures
+- Access policy: `frontend/src/lib/portal/portal-dashboard-access.ts`
+- UI: `PortalDashboardAggregatePanel` on student dashboard (`data-testid=student-portal-aggregate`) with retry
+- Existing APIs only (profile, link-status, preferences, documents, enrolment, lifecycle, admissions, attendance summary). No new service. No database-rule change (D11).
+
+### Acceptance ? code ? tests
+
+| Clause | Code | Test |
+|---|---|---|
+| Authenticated student gets aggregate with section statuses | `aggregateStudentPortalDashboard` + BFF GET | `stm10En002_partialFailureWhenOneServiceDown` |
+| One downstream failure leaves other sections loaded | section fan-out + summary.failed | `stm10En002_partialFailureWhenOneServiceDown` |
+| Per-call timeout fails only that section | AbortController timeout | `stm10En002_timeoutMarksSectionFailedOthersContinue` |
+| Short-lived cache; refresh bypasses | cache map + `bypassCache` | `stm10En002_shortLivedCacheHit`, `stm10En002_bypassCacheOnRefresh` |
+| Profile failure skips dependents (no foreign id) | PROFILE_UNAVAILABLE | `stm10En002_profileFailureSkipsDependentSections` |
+| Only own student id in downstream URLs | id from `/students/me` only | `stm10En002_onlyOwnStudentIdUsedInDownstreamUrls` |
+| 5xx / body never leaked to client | `sanitizeGatewayError` | `stm10En002_fiveHundredDoesNotLeakDetail`, `stm10En002_neverExposesInternalBodyText` |
+| Unauthenticated denied | `decidePortalDashboardAccess` | `stm10En002_unauthenticatedDenied` |
+| Wrong role denied | access policy | `stm10En002_wrongRoleDenied` |
+| Client-supplied studentId denied (IDOR) | access policy + BFF | `stm10En002_clientStudentIdIdorDenied` |
+
+### Tests
+- `node --experimental-strip-types --test src/lib/portal/dashboard-aggregator.test.ts src/lib/portal/portal-dashboard-access.test.ts` (from `frontend/`) ? **13/0**
+- Frontend TypeScript check (`npx tsc --noEmit`) ? **0 errors**
+
+### CSV
+- Portal data aggregation (STM-10-EN-002) ? **completed** (hash stamped after commit)
+
