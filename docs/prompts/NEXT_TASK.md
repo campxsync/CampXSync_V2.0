@@ -21,8 +21,15 @@
 
 ## Next Priority
 
-Awaiting product owner instruction for subsequent backlog wave (e.g. Academic History STM-08 or Student Service Requests STM-09 design/service approval).
+**In progress (docs only):** Admin RBAC redesign for IADM/CADM.
+
+- Draft matrix: `docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`
+- Companion outline: `docs/architecture/Security/CampXSync_Admin_RBAC_Redesign_Draft_v1.md`
+- Owner checklist in matrix §18 (D-RBAC-M01…M07). Next useful step after approval: read-only DEV coverage-map export for R03 / R04 / Tenant Admin (D-RBAC-M04).
+- **No** permission catalog, seed, or database changes from these docs.
+
+Also still available later: Academic History STM-08 or Student Service Requests STM-09 (new-service gate).
 
 ## Rules
 
-No push unless explicitly authorized by the product owner.
+No production/staging DB writes. No permission seed apply without separate owner approval.
