@@ -1,27 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#1B2A4E"/>
-  <ellipse
-    cx="32"
-    cy="32"
-    rx="26"
-    ry="11"
-    fill="none"
-    stroke="#4D8CFF"
-    stroke-width="5.5"
-    stroke-linecap="round"
-    transform="rotate(-30 32 32)"
-  />
-  <path
-    fill="#FFFFFF"
-    fill-rule="evenodd"
-    d="M15 10 32 29.5 49 10h9.5L36.5 32l22 22H49L32 34.5 15 54H5.5l22-22-22-22z"
-  />
-  <path
-    d="M8 40c9 11 39 11 48 0"
-    fill="none"
-    stroke="#4D8CFF"
-    stroke-width="5.5"
-    stroke-linecap="round"
-    transform="rotate(-30 32 32)"
-  />
+  <ellipse cx="32" cy="32" rx="26" ry="11" fill="none" stroke="#4D8CFF" stroke-width="5.5" transform="rotate(-32 32 32)"/>
+  <g fill="#FFFFFF">
+    <rect x="29" y="6" width="11" height="60" rx="1.5" transform="rotate(40 32 32)"/>
+    <rect x="29" y="6" width="11" height="60" rx="1.5" transform="rotate(-40 32 32)"/>
+  </g>
+  <path d="M10 40 C18 49, 46 49, 54 40" fill="none" stroke="#4D8CFF" stroke-width="5.5" stroke-linecap="round" transform="rotate(-32 32 32)"/>
 </svg>

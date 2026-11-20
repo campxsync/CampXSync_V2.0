@@ -198,15 +198,19 @@ h1, h2, h3, h4, h5, h6 {
 
 .brand-tagline {
   font-family: var(--font-sans);
-  font-size: 0.58rem;
+  font-size: 0.62rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.1;
   text-transform: uppercase;
-  letter-spacing: 0.165em;
+  /* Stretch to match CampXSync wordmark width */
+  letter-spacing: 0.12em;
+  width: 100%;
+  max-width: 9.6rem;
   color: transparent;
-  -webkit-text-stroke: 0.85px #a8b8d8;
-  text-stroke: 0.85px #a8b8d8;
+  -webkit-text-stroke: 0.9px #c5d0e6;
+  paint-order: stroke fill;
   white-space: nowrap;
+  overflow: visible;
 }
 
 .brand-badge {

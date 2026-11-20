@@ -1,40 +1,52 @@
-/** CampXSync Orbit X mark — official brand symbol */
+/** CampXSync Orbit X mark — matches the approved lockup */
 export default function OrbitMark({ className = '', title = 'CampXSync' }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 96 96"
+      viewBox="0 0 100 100"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label={title}
     >
       <title>{title}</title>
-      {/* Orbit ring (behind) */}
+      {/* Orbit (behind) */}
       <ellipse
-        cx="48"
-        cy="48"
-        rx="41"
-        ry="17"
+        cx="50"
+        cy="50"
+        rx="42"
+        ry="18"
         fill="none"
         stroke="#4D8CFF"
-        strokeWidth="8"
-        strokeLinecap="round"
-        transform="rotate(-30 48 48)"
+        strokeWidth="9"
+        transform="rotate(-32 50 50)"
       />
-      {/* Bold X */}
+      {/* Bold geometric X */}
+      <g fill="#FFFFFF">
+        <rect
+          x="46"
+          y="8"
+          width="18"
+          height="98"
+          rx="2"
+          transform="rotate(40 50 50)"
+        />
+        <rect
+          x="46"
+          y="8"
+          width="18"
+          height="98"
+          rx="2"
+          transform="rotate(-40 50 50)"
+        />
+      </g>
+      {/* Front orbit arc for depth */}
       <path
-        fill="#FFFFFF"
-        fillRule="evenodd"
-        d="M22.5 14.5 48 44.2 73.5 14.5h14.8L55.4 48l33 33.5H73.5L48 51.8 22.5 81.5H7.7L40.6 48 7.7 14.5z"
-      />
-      {/* Front orbit arc for depth/motion */}
-      <path
-        d="M12 60c14 16 58 16 72 0"
+        d="M14 62 C28 78, 72 78, 86 62"
         fill="none"
         stroke="#4D8CFF"
-        strokeWidth="8"
+        strokeWidth="9"
         strokeLinecap="round"
-        transform="rotate(-30 48 48)"
+        transform="rotate(-32 50 50)"
       />
     </svg>
   );
