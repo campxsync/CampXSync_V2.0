@@ -154,9 +154,9 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
 }
 
-/* Brand / Logo */
+/* Brand / Logo — Orbit X + hollow INSTITUTIONAL OS lockup */
 .brand {
-  padding: 24px;
+  padding: 20px 18px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -164,24 +164,49 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .brand-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-glow);
-  color: white;
+  background: transparent;
+  box-shadow: none;
+}
+
+.brand-orbit {
+  width: 44px;
+  height: 44px;
+  display: block;
+}
+
+.brand-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .brand-title {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.brand-tagline {
+  font-family: var(--font-sans);
+  font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.165em;
+  color: transparent;
+  -webkit-text-stroke: 0.85px #a8b8d8;
+  text-stroke: 0.85px #a8b8d8;
+  white-space: nowrap;
 }
 
 .brand-badge {

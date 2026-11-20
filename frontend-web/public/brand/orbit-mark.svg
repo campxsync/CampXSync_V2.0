@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="CampXSync">
+  <title>CampXSync</title>
+  <ellipse
+    cx="48"
+    cy="48"
+    rx="41"
+    ry="17"
+    fill="none"
+    stroke="#2B6BFF"
+    stroke-width="8"
+    stroke-linecap="round"
+    transform="rotate(-30 48 48)"
+  />
+  <path
+    fill="#1B2A4E"
+    fill-rule="evenodd"
+    d="M22.5 14.5 48 44.2 73.5 14.5h14.8L55.4 48l33 33.5H73.5L48 51.8 22.5 81.5H7.7L40.6 48 7.7 14.5z"
+  />
+  <path
+    d="M12 60c14 16 58 16 72 0"
+    fill="none"
+    stroke="#2B6BFF"
+    stroke-width="8"
+    stroke-linecap="round"
+    transform="rotate(-30 48 48)"
+  />
+</svg>
