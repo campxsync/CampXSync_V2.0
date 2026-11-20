@@ -1,4 +1,4 @@
-﻿# CampXSync — Current Progress (source of truth for status)
+# CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
 **Updated:** 2026-11-18 (STM-07 and STM-10 autonomous closing verification completed; D13 recorded; **no push**)

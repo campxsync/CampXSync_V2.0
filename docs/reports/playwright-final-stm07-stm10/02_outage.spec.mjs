@@ -25,3 +25,4 @@ export async function run({ page, base, stack, step, note }) {
   step('Portal dashboard remains usable without crash or white-screen');
   note('PASS: Outage resilience verified — dashboard container and available cards render safely');
 }
+
