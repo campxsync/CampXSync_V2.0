@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Database,
   ArrowRight,
-  Sparkles,
   Server,
   KeyRound,
   X,
@@ -27,6 +26,7 @@ import {
   FileText
 } from 'lucide-react';
 import { api, DEFAULT_CONTEXT } from './services/api';
+import OrbitMark from './assets/brand/OrbitMark';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -284,12 +284,12 @@ export default function App() {
       {/* Sidebar Navigation */}
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-icon">
-            <Sparkles size={22} />
+          <div className="brand-icon" aria-hidden="true">
+            <OrbitMark className="brand-orbit" />
           </div>
-          <div>
+          <div className="brand-copy">
             <div className="brand-title">CampXSync</div>
-            <div className="brand-badge">V2.0 MVP Live</div>
+            <div className="brand-tagline">INSTITUTIONAL OS</div>
           </div>
         </div>
 
