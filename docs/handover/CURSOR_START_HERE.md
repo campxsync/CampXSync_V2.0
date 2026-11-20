@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STM-07 and STM-10 verified and closed. Awaiting owner instructions for next wave (e.g. Academic History STM-08 or Student Service Requests STM-09).
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11, D13).
-3. Owner decisions still open: Kafka for EN-005 fan-out; commercial AV integration.
+1. `docs/prompts/NEXT_TASK.md` — STM-07/STM-10 closed. Current docs track: Admin RBAC matrix IADM/CADM v2 (`docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`).
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11, D13, IADM-D7).
+3. Owner decisions still open: RBAC coverage-map export (D-RBAC-M04); Kafka for EN-005 fan-out; commercial AV integration.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

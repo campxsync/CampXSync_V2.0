@@ -1,7 +1,20 @@
 # CampXSync — Current Progress (source of truth for status)
 
-**Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-18 (STM-07 and STM-10 autonomous closing verification completed; D13 recorded; **no push**)
+**Branch:** `feature/java-backend-integration` (docs PR branch: `cursor/admin-rbac-matrix-9790`)  
+**Updated:** 2026-11-20 (Admin RBAC matrix IADM/CADM v2 draft added — docs only)
+
+## Owner decisions – Admin RBAC / IADM-CADM (19–20-11-2026)
+
+**Approved by:** Niranjan (product owner). Design intent; catalog apply not authorized.
+
+| ID | Decision |
+|---|---|
+| **IADM-D7** | Tenant Admin narrowed to Institution Admin (R03); no `*` wildcard escape hatch. |
+| **IADM-D2 / D3** | Institute Super Admin = R03; narrow R03 to IADM boundary. |
+| **CADM-D3** | Narrow College Admin (R04) to CADM boundary. |
+| **CADM-D1** | Timetable = CADM-09 existing `:8087` service; rebuild PostgreSQL persistence; no duplicate service. |
+
+**Docs:** `docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`, `CampXSync_Admin_RBAC_Redesign_Draft_v1.md`. Coverage map + seed changes still Pending (matrix §18).
 
 ## Owner decisions – STM-07 / STM-10 closing run (18-11-2026)
 
