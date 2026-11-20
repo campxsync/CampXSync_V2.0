@@ -73,6 +73,7 @@ public class LiveG1RoleCreationExecutionTest {
 
     @Test
     public void executeAuthorizedRoleCreation() throws Exception {
+        org.junit.Assume.assumeTrue("Gated operation: G1 role creation requires explicit approval (-Dcampx.approve.g1.role=true)", "true".equalsIgnoreCase(System.getProperty("campx.approve.g1.role")));
         HikariDataSource ds = createDevDataSource();
         assertNotNull("Database credentials must be present in environment", ds);
 

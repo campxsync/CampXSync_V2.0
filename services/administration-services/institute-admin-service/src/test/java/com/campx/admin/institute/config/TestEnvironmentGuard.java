@@ -296,7 +296,7 @@ public final class TestEnvironmentGuard {
         String joinSql = "SELECT ra.user_id FROM iam.role_assignments ra "
                 + "JOIN iam.roles r ON r.id = ra.role_id "
                 + "WHERE ra.tenant_id = ? AND ra.deleted_at IS NULL "
-                + "AND r.code IN ('TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
+                + "AND r.code IN ('INSTITUTION_ADMIN', 'COLLEGE_ADMIN', 'TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
                 + "AND r.status = 'ACTIVE' AND r.deleted_at IS NULL "
                 + "ORDER BY ra.created_at ASC, ra.user_id ASC LIMIT 1";
         try (PreparedStatement ps = conn.prepareStatement(joinSql)) {
@@ -313,7 +313,7 @@ public final class TestEnvironmentGuard {
         // 2. Try finding tenant administrator via direct role_code column on iam.role_assignments
         String directSql = "SELECT ra.user_id FROM iam.role_assignments ra "
                 + "WHERE ra.tenant_id = ? AND ra.deleted_at IS NULL "
-                + "AND ra.role_code IN ('TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
+                + "AND ra.role_code IN ('INSTITUTION_ADMIN', 'COLLEGE_ADMIN', 'TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
                 + "ORDER BY ra.created_at ASC, ra.user_id ASC LIMIT 1";
         try (PreparedStatement ps = conn.prepareStatement(directSql)) {
             ps.setObject(1, tenantId);

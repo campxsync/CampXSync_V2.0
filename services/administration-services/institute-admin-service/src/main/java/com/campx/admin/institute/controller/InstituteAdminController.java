@@ -999,9 +999,11 @@ public class InstituteAdminController implements HttpHandler {
         }
         if (role != null && !role.trim().isEmpty()) {
             String upper = role.trim().toUpperCase(Locale.ROOT);
-            if (!"PLATFORM_ADMIN".equals(upper) && !"SUPER_ADMIN".equals(upper)) {
+            if (!"PLATFORM_ADMIN".equals(upper) && !"SUPER_ADMIN".equals(upper)
+                    && !"ADM01_MANAGE".equals(upper) && !"ADM01.MANAGE".equals(upper)
+                    && !"R01".equals(upper) && !"R02".equals(upper)) {
                 sendError(exchange, 403, "Forbidden", "ADM01_FORBIDDEN",
-                        "Platform administrator privileges required for tenant onboarding. Current role: " + role, exchange.getRequestURI().getPath());
+                        "Platform administrator privileges or adm01.manage required for tenant onboarding. Current role: " + role, exchange.getRequestURI().getPath());
                 return;
             }
         }

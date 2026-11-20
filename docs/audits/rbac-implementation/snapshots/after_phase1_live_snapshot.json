@@ -1,0 +1,531 @@
+{
+  "timestamp": "2026-11-20T09:35:12.679Z",
+  "tenants_count_roles": "49",
+  "role_templates_count": 38,
+  "role_templates": [
+    {
+      "code": "ACADEMIC_ADMIN",
+      "name": "Academic Admin",
+      "catalogue_id": "EXTRA",
+      "kind": "staff",
+      "scope_note": "Used by the ACD/LMS matrices but absent from the role catalogue"
+    },
+    {
+      "code": "EMPLOYEE",
+      "name": "Employee (self-service)",
+      "catalogue_id": "EXTRA",
+      "kind": "employee",
+      "scope_note": "Matrix column \"Employee/Faculty\" in HRM"
+    },
+    {
+      "code": "INSTITUTION_ADMIN",
+      "name": "Institution Admin",
+      "catalogue_id": "R03",
+      "kind": "staff",
+      "scope_note": "Institution (assign institute-wide)"
+    },
+    {
+      "code": "COLLEGE_ADMIN",
+      "name": "College Admin",
+      "catalogue_id": "R04",
+      "kind": "staff",
+      "scope_note": "College/Campus"
+    },
+    {
+      "code": "PRINCIPAL",
+      "name": "Principal",
+      "catalogue_id": "R05",
+      "kind": "staff",
+      "scope_note": "Institution"
+    },
+    {
+      "code": "VICE_PRINCIPAL",
+      "name": "Vice Principal",
+      "catalogue_id": "R06",
+      "kind": "staff",
+      "scope_note": "Institution (ASSUMED = Principal)"
+    },
+    {
+      "code": "DEAN",
+      "name": "Dean",
+      "catalogue_id": "R07",
+      "kind": "staff",
+      "scope_note": "Academic/Institution (ASSUMED = Principal on academic services)"
+    },
+    {
+      "code": "HOD",
+      "name": "Head of Department",
+      "catalogue_id": "R08",
+      "kind": "staff",
+      "scope_note": "Department (assign with department_id)"
+    },
+    {
+      "code": "PROGRAM_COORDINATOR",
+      "name": "Program Coordinator",
+      "catalogue_id": "R09",
+      "kind": "staff",
+      "scope_note": "Program/Course"
+    },
+    {
+      "code": "FACULTY",
+      "name": "Faculty",
+      "catalogue_id": "R10",
+      "kind": "faculty",
+      "scope_note": "Assigned subjects/courses/sections"
+    },
+    {
+      "code": "SECTION_COORDINATOR",
+      "name": "Class/Section Coordinator",
+      "catalogue_id": "R11",
+      "kind": "faculty",
+      "scope_note": "Assigned section (ASSUMED = Faculty)"
+    },
+    {
+      "code": "EXAM_CONTROLLER",
+      "name": "Controller of Examinations",
+      "catalogue_id": "R12",
+      "kind": "staff",
+      "scope_note": "Examination"
+    },
+    {
+      "code": "EXAM_CELL",
+      "name": "Exam Cell Officer",
+      "catalogue_id": "R13",
+      "kind": "staff",
+      "scope_note": "Examination"
+    },
+    {
+      "code": "VALUATOR",
+      "name": "Valuator/Examiner",
+      "catalogue_id": "R14",
+      "kind": "faculty",
+      "scope_note": "Assigned evaluation"
+    },
+    {
+      "code": "FINANCE_MANAGER",
+      "name": "Finance Manager",
+      "catalogue_id": "R15",
+      "kind": "staff",
+      "scope_note": "Finance"
+    },
+    {
+      "code": "ACCOUNTANT",
+      "name": "Finance Officer/Accountant",
+      "catalogue_id": "R16",
+      "kind": "staff",
+      "scope_note": "Finance"
+    },
+    {
+      "code": "HR_MANAGER",
+      "name": "HR Manager",
+      "catalogue_id": "R17",
+      "kind": "staff",
+      "scope_note": "HR"
+    },
+    {
+      "code": "HR_OFFICER",
+      "name": "HR Officer",
+      "catalogue_id": "R18",
+      "kind": "staff",
+      "scope_note": "HR"
+    },
+    {
+      "code": "COMM_MANAGER",
+      "name": "Communication Manager",
+      "catalogue_id": "R19",
+      "kind": "staff",
+      "scope_note": "Communication"
+    },
+    {
+      "code": "PLACEMENT_OFFICER",
+      "name": "Placement Officer",
+      "catalogue_id": "R20",
+      "kind": "staff",
+      "scope_note": "Placement (no module in the source inventory: base access only)"
+    },
+    {
+      "code": "LIBRARIAN",
+      "name": "Librarian",
+      "catalogue_id": "R21",
+      "kind": "staff",
+      "scope_note": "Library (no module in the source inventory: base access only)"
+    },
+    {
+      "code": "HOSTEL_WARDEN",
+      "name": "Hostel Warden",
+      "catalogue_id": "R22",
+      "kind": "staff",
+      "scope_note": "Hostel (no module in the source inventory: base access only)"
+    },
+    {
+      "code": "TRANSPORT_MANAGER",
+      "name": "Transport Manager",
+      "catalogue_id": "R23",
+      "kind": "staff",
+      "scope_note": "Transport (no module in the source inventory: base access only)"
+    },
+    {
+      "code": "FACILITY_MANAGER",
+      "name": "Facility Manager",
+      "catalogue_id": "R24",
+      "kind": "staff",
+      "scope_note": "Facilities (no module in the source inventory: base access only)"
+    },
+    {
+      "code": "STUDENT",
+      "name": "Student",
+      "catalogue_id": "R25",
+      "kind": "student",
+      "scope_note": "Own academic/financial data"
+    },
+    {
+      "code": "PARENT",
+      "name": "Parent/Guardian",
+      "catalogue_id": "R26",
+      "kind": "student",
+      "scope_note": "Linked student(s)"
+    },
+    {
+      "code": "AUDITOR",
+      "name": "Auditor",
+      "catalogue_id": "R28",
+      "kind": "staff",
+      "scope_note": "Read/Audit"
+    },
+    {
+      "code": "REPORT_USER",
+      "name": "Reporting/Analytics User",
+      "catalogue_id": "R29",
+      "kind": "staff",
+      "scope_note": "Reports"
+    },
+    {
+      "code": "GUEST",
+      "name": "Guest",
+      "catalogue_id": "R30",
+      "kind": "staff",
+      "scope_note": "Restricted read"
+    },
+    {
+      "code": "REGISTRAR",
+      "name": "Registrar",
+      "catalogue_id": "R31",
+      "kind": "staff",
+      "scope_note": "STM principal for enrolment, lifecycle, documents, and related student administration"
+    },
+    {
+      "code": "APPLICANT",
+      "name": "Applicant",
+      "catalogue_id": "R32",
+      "kind": "student",
+      "scope_note": "Pre-enrolment applicant identity; distinct from R25 Student"
+    },
+    {
+      "code": "ADMISSIONS_OFFICER",
+      "name": "Admissions Officer",
+      "catalogue_id": "R33",
+      "kind": "staff",
+      "scope_note": "STM-02 admissions operations; not STM-03 CFG by default"
+    },
+    {
+      "code": "DEPARTMENT_STAFF",
+      "name": "Department Staff",
+      "catalogue_id": "R34",
+      "kind": "staff",
+      "scope_note": "Departmental operational staff for course offerings, sections, and requests"
+    },
+    {
+      "code": "ACADEMIC_RECORDS_OFFICER",
+      "name": "Academic Records Officer",
+      "catalogue_id": "R35",
+      "kind": "staff",
+      "scope_note": "Campus academic history and permanent records maintenance (STM-08)"
+    },
+    {
+      "code": "DOCUMENT_VERIFIER",
+      "name": "Document Verifier",
+      "catalogue_id": "R36",
+      "kind": "staff",
+      "scope_note": "Assigned document review and verification (STM-06)"
+    },
+    {
+      "code": "EXTERNAL_VERIFIER",
+      "name": "External Verification Agency",
+      "catalogue_id": "R37",
+      "kind": "staff",
+      "scope_note": "External verification agency for assigned student documents only (STM-06)"
+    },
+    {
+      "code": "IAM_OPERATOR",
+      "name": "Provisioning / IAM Operator",
+      "catalogue_id": "R38",
+      "kind": "staff",
+      "scope_note": "Account linking and student/guardian provisioning operator (STM-07)"
+    },
+    {
+      "code": "FACULTY_ADVISOR",
+      "name": "Faculty Advisor",
+      "catalogue_id": "R39",
+      "kind": "faculty",
+      "scope_note": "Faculty member assigned to student advising and mentorship (STM-01, STM-03)"
+    }
+  ],
+  "grant_rules_count": 59,
+  "grant_rules": [
+    "COLLEGE_ADMIN -> ACADEMIC_ADMIN",
+    "COLLEGE_ADMIN -> ACCOUNTANT",
+    "COLLEGE_ADMIN -> COMM_MANAGER",
+    "COLLEGE_ADMIN -> EMPLOYEE",
+    "COLLEGE_ADMIN -> EXAM_CELL",
+    "COLLEGE_ADMIN -> EXAM_CONTROLLER",
+    "COLLEGE_ADMIN -> FACILITY_MANAGER",
+    "COLLEGE_ADMIN -> FACULTY",
+    "COLLEGE_ADMIN -> FINANCE_MANAGER",
+    "COLLEGE_ADMIN -> GUEST",
+    "COLLEGE_ADMIN -> HOD",
+    "COLLEGE_ADMIN -> HOSTEL_WARDEN",
+    "COLLEGE_ADMIN -> HR_MANAGER",
+    "COLLEGE_ADMIN -> HR_OFFICER",
+    "COLLEGE_ADMIN -> LIBRARIAN",
+    "COLLEGE_ADMIN -> PARENT",
+    "COLLEGE_ADMIN -> PLACEMENT_OFFICER",
+    "COLLEGE_ADMIN -> PROGRAM_COORDINATOR",
+    "COLLEGE_ADMIN -> REPORT_USER",
+    "COLLEGE_ADMIN -> SECTION_COORDINATOR",
+    "COLLEGE_ADMIN -> STUDENT",
+    "COLLEGE_ADMIN -> TRANSPORT_MANAGER",
+    "COLLEGE_ADMIN -> VALUATOR",
+    "INSTITUTION_ADMIN -> ACADEMIC_ADMIN",
+    "INSTITUTION_ADMIN -> ACADEMIC_RECORDS_OFFICER",
+    "INSTITUTION_ADMIN -> ACCOUNTANT",
+    "INSTITUTION_ADMIN -> ADMISSIONS_OFFICER",
+    "INSTITUTION_ADMIN -> AUDITOR",
+    "INSTITUTION_ADMIN -> COLLEGE_ADMIN",
+    "INSTITUTION_ADMIN -> COMM_MANAGER",
+    "INSTITUTION_ADMIN -> DEAN",
+    "INSTITUTION_ADMIN -> DEPARTMENT_STAFF",
+    "INSTITUTION_ADMIN -> DOCUMENT_VERIFIER",
+    "INSTITUTION_ADMIN -> EMPLOYEE",
+    "INSTITUTION_ADMIN -> EXAM_CELL",
+    "INSTITUTION_ADMIN -> EXAM_CONTROLLER",
+    "INSTITUTION_ADMIN -> EXTERNAL_VERIFIER",
+    "INSTITUTION_ADMIN -> FACILITY_MANAGER",
+    "INSTITUTION_ADMIN -> FACULTY",
+    "INSTITUTION_ADMIN -> FACULTY_ADVISOR",
+    "INSTITUTION_ADMIN -> FINANCE_MANAGER",
+    "INSTITUTION_ADMIN -> GUEST",
+    "INSTITUTION_ADMIN -> HOD",
+    "INSTITUTION_ADMIN -> HOSTEL_WARDEN",
+    "INSTITUTION_ADMIN -> HR_MANAGER",
+    "INSTITUTION_ADMIN -> HR_OFFICER",
+    "INSTITUTION_ADMIN -> IAM_OPERATOR",
+    "INSTITUTION_ADMIN -> LIBRARIAN",
+    "INSTITUTION_ADMIN -> PARENT",
+    "INSTITUTION_ADMIN -> PLACEMENT_OFFICER",
+    "INSTITUTION_ADMIN -> PRINCIPAL",
+    "INSTITUTION_ADMIN -> PROGRAM_COORDINATOR",
+    "INSTITUTION_ADMIN -> REGISTRAR",
+    "INSTITUTION_ADMIN -> REPORT_USER",
+    "INSTITUTION_ADMIN -> SECTION_COORDINATOR",
+    "INSTITUTION_ADMIN -> STUDENT",
+    "INSTITUTION_ADMIN -> TRANSPORT_MANAGER",
+    "INSTITUTION_ADMIN -> VALUATOR",
+    "INSTITUTION_ADMIN -> VICE_PRINCIPAL"
+  ],
+  "auditor_permissions_count": 36,
+  "auditor_permissions": [
+    "adm01.view",
+    "adm01.view.all",
+    "adm02.view",
+    "adm02.view.all",
+    "adm03.view",
+    "adm03.view.all",
+    "adm04.view",
+    "adm04.view.all",
+    "adm05.view",
+    "adm05.view.all",
+    "adm06.view",
+    "adm06.view.all",
+    "adm07.view",
+    "adm07.view.all",
+    "adm08.view",
+    "adm08.view.all",
+    "adm09.view",
+    "adm09.view.all",
+    "audit.read",
+    "audit.read.payload",
+    "cam01.view",
+    "cfg.view",
+    "core.directory.view",
+    "doc.view",
+    "fin08.view",
+    "fin08.view.all",
+    "hrm01.view",
+    "hrm02.view",
+    "hrm03.view",
+    "hrm04.view",
+    "hrm05.view",
+    "hrm07.view",
+    "hrm09.view",
+    "rpt.view",
+    "rpt.view.all",
+    "wf.view"
+  ],
+  "roles_per_code": [
+    {
+      "code": "ACADEMIC_ADMIN",
+      "count": "49"
+    },
+    {
+      "code": "ACADEMIC_RECORDS_OFFICER",
+      "count": "49"
+    },
+    {
+      "code": "ACCOUNTANT",
+      "count": "49"
+    },
+    {
+      "code": "ADMISSIONS_OFFICER",
+      "count": "49"
+    },
+    {
+      "code": "APPLICANT",
+      "count": "49"
+    },
+    {
+      "code": "AUDITOR",
+      "count": "49"
+    },
+    {
+      "code": "COLLEGE_ADMIN",
+      "count": "49"
+    },
+    {
+      "code": "COMM_MANAGER",
+      "count": "49"
+    },
+    {
+      "code": "DEAN",
+      "count": "49"
+    },
+    {
+      "code": "DEPARTMENT_STAFF",
+      "count": "49"
+    },
+    {
+      "code": "DOCUMENT_VERIFIER",
+      "count": "49"
+    },
+    {
+      "code": "EMPLOYEE",
+      "count": "49"
+    },
+    {
+      "code": "EXAM_CELL",
+      "count": "49"
+    },
+    {
+      "code": "EXAM_CONTROLLER",
+      "count": "49"
+    },
+    {
+      "code": "EXTERNAL_VERIFIER",
+      "count": "49"
+    },
+    {
+      "code": "FACILITY_MANAGER",
+      "count": "49"
+    },
+    {
+      "code": "FACULTY",
+      "count": "49"
+    },
+    {
+      "code": "FACULTY_ADVISOR",
+      "count": "49"
+    },
+    {
+      "code": "FINANCE_MANAGER",
+      "count": "49"
+    },
+    {
+      "code": "GUEST",
+      "count": "49"
+    },
+    {
+      "code": "HOD",
+      "count": "49"
+    },
+    {
+      "code": "HOSTEL_WARDEN",
+      "count": "49"
+    },
+    {
+      "code": "HR_MANAGER",
+      "count": "49"
+    },
+    {
+      "code": "HR_OFFICER",
+      "count": "49"
+    },
+    {
+      "code": "IAM_OPERATOR",
+      "count": "49"
+    },
+    {
+      "code": "INSTITUTION_ADMIN",
+      "count": "49"
+    },
+    {
+      "code": "LIBRARIAN",
+      "count": "49"
+    },
+    {
+      "code": "PARENT",
+      "count": "49"
+    },
+    {
+      "code": "PLACEMENT_OFFICER",
+      "count": "49"
+    },
+    {
+      "code": "PRINCIPAL",
+      "count": "49"
+    },
+    {
+      "code": "PROGRAM_COORDINATOR",
+      "count": "49"
+    },
+    {
+      "code": "REGISTRAR",
+      "count": "49"
+    },
+    {
+      "code": "REPORT_USER",
+      "count": "49"
+    },
+    {
+      "code": "SECTION_COORDINATOR",
+      "count": "49"
+    },
+    {
+      "code": "STUDENT",
+      "count": "49"
+    },
+    {
+      "code": "TRANSPORT_MANAGER",
+      "count": "49"
+    },
+    {
+      "code": "VALUATOR",
+      "count": "49"
+    },
+    {
+      "code": "VICE_PRINCIPAL",
+      "count": "49"
+    }
+  ],
+  "wildcard_templates": [],
+  "wildcard_roles": [],
+  "users_with_roles_count": 8
+}

@@ -24,7 +24,7 @@ public class PostgresTenantProvisioningRepositoryTest {
     public void setUp() {
         repository = new InMemoryTenantProvisioningRepository();
         tenantId = UUID.randomUUID();
-        context = UserSecurityContext.forPlatformAdmin(UUID.randomUUID()).withTenant(tenantId);
+        context = UserSecurityContext.forPlatformAdmin(UUID.randomUUID());
     }
 
     @Test

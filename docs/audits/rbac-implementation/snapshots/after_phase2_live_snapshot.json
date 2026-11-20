@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-11-20T11:40:35.097Z",
+  "role_template_permission_counts": [
+    {
+      "role_code": "AUDITOR",
+      "count": "36"
+    },
+    {
+      "role_code": "COLLEGE_ADMIN",
+      "count": "135"
+    },
+    {
+      "role_code": "COMM_MANAGER",
+      "count": "72"
+    },
+    {
+      "role_code": "DEAN",
+      "count": "153"
+    },
+    {
+      "role_code": "EXAM_CONTROLLER",
+      "count": "80"
+    },
+    {
+      "role_code": "FINANCE_MANAGER",
+      "count": "87"
+    },
+    {
+      "role_code": "HR_MANAGER",
+      "count": "73"
+    },
+    {
+      "role_code": "INSTITUTION_ADMIN",
+      "count": "54"
+    },
+    {
+      "role_code": "PRINCIPAL",
+      "count": "231"
+    },
+    {
+      "role_code": "REGISTRAR",
+      "count": "18"
+    }
+  ],
+  "dev_personas": [
+    {
+      "id": "c05a0000-0000-4000-8000-000000000005",
+      "full_name": "Dr. Dev Principal",
+      "email": "principal.demo@campxsync.test",
+      "role_code": "PRINCIPAL"
+    },
+    {
+      "id": "c07a0000-0000-4000-8000-000000000007",
+      "full_name": "Prof. Dev Dean",
+      "email": "dean.demo@campxsync.test",
+      "role_code": "DEAN"
+    }
+  ],
+  "active_users_count": 10
+}

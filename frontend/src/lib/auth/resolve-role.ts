@@ -343,7 +343,6 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       if (
         code === 'COLLEGE_ADMIN' ||
         code === 'INSTITUTION_ADMIN' ||
-        code === 'TENANT_ADMIN' ||
         code === 'PRINCIPAL' ||
         code === 'ACADEMIC_ADMIN'
       ) {

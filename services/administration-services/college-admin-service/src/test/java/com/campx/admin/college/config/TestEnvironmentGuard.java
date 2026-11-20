@@ -326,7 +326,7 @@ public final class TestEnvironmentGuard {
 
                     try (PreparedStatement psPlat = conn.prepareStatement(
                             "INSERT INTO plat.platform_admins (id, user_id, full_name, role_code, status, created_at, updated_at, row_version) " +
-                            "VALUES ('a0000000-0000-0000-0000-000000000005', 'ba77b8f7-ab32-46bd-85d2-5aade3526880', 'CampX Dev Test Admin', 'SUPER_ADMIN', 'ACTIVE', now(), now(), 1) " +
+                            "VALUES ('a0000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001', 'CampX Platform Admin', 'SUPER_ADMIN', 'ACTIVE', now(), now(), 1) " +
                             "ON CONFLICT (id) DO NOTHING")) {
                         psPlat.executeUpdate();
                     } catch (Exception ignored) {}
@@ -444,7 +444,7 @@ public final class TestEnvironmentGuard {
         String joinSql = "SELECT ra.user_id FROM iam.role_assignments ra "
                 + "JOIN iam.roles r ON r.id = ra.role_id "
                 + "WHERE ra.tenant_id = ? AND ra.deleted_at IS NULL "
-                + "AND r.code IN ('TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
+                + "AND r.code IN ('INSTITUTION_ADMIN', 'COLLEGE_ADMIN', 'TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
                 + "AND r.status = 'ACTIVE' AND r.deleted_at IS NULL "
                 + "ORDER BY ra.created_at ASC, ra.user_id ASC LIMIT 1";
         try (PreparedStatement ps = conn.prepareStatement(joinSql)) {

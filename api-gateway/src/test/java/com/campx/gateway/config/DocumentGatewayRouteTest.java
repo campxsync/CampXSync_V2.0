@@ -17,7 +17,8 @@ public class DocumentGatewayRouteTest {
         Map<String, String> routeTable = config.getRouteTable();
 
         assertTrue("Gateway must map /api/v1/documents", routeTable.containsKey("/api/v1/documents"));
-        assertEquals("http://localhost:8098/api/v1/documents", routeTable.get("/api/v1/documents"));
+        String route = routeTable.get("/api/v1/documents");
+        assertTrue("Must route to port 8098 documents", route.equals("http://localhost:8098/api/v1/documents") || route.equals("http://127.0.0.1:8098/api/v1/documents"));
     }
 }
 

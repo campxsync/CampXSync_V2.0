@@ -507,7 +507,7 @@ public class UserProfileRepository {
                 + "AND ra.department_id IS NULL "
                 + "AND (ra.valid_from IS NULL OR ra.valid_from <= CURRENT_DATE) "
                 + "AND (ra.valid_to IS NULL OR ra.valid_to >= CURRENT_DATE) "
-                + "AND r.code = 'TENANT_ADMIN' "
+                + "AND r.code IN ('INSTITUTION_ADMIN', 'TENANT_ADMIN') "
                 + "AND r.status = 'ACTIVE' "
                 + "AND r.deleted_at IS NULL "
                 + "LIMIT 1";
@@ -537,7 +537,7 @@ public class UserProfileRepository {
                 + "AND ra.department_id IS NULL "
                 + "AND (ra.valid_from IS NULL OR ra.valid_from <= CURRENT_DATE) "
                 + "AND (ra.valid_to IS NULL OR ra.valid_to >= CURRENT_DATE) "
-                + "AND r.code = 'TENANT_ADMIN' "
+                + "AND r.code IN ('INSTITUTION_ADMIN', 'TENANT_ADMIN') "
                 + "AND r.status = 'ACTIVE' "
                 + "AND r.deleted_at IS NULL "
                 + "LIMIT 1";

@@ -62,6 +62,19 @@ public class PostgresApiClientRepository implements ApiClientRepository {
                 ? client.getStatus().trim().toUpperCase(Locale.ROOT)
                 : "ACTIVE";
 
+        long nowMs = System.currentTimeMillis();
+        long defaultExpiryMs = nowMs + (90L * 24 * 60 * 60 * 1000L); // 90 days maximum
+        Long effectiveExpiresAt = client.getExpiresAt();
+        if (effectiveExpiresAt == null) {
+            effectiveExpiresAt = defaultExpiryMs;
+        } else {
+            long maxAllowed = nowMs + (90L * 24 * 60 * 60 * 1000L) + 300000L; // 5-minute skew margin
+            if (effectiveExpiresAt < (nowMs - 60000L) || effectiveExpiresAt > maxAllowed) {
+                throw new MalformedPayloadException("API client expires_at is required and must be between creation time and at most 90 days");
+            }
+        }
+        final long finalExpiresAt = effectiveExpiresAt;
+
         return context.executeInTransaction(connectionManager, conn -> {
             String sql = "INSERT INTO iam.api_clients " +
                     "(id, tenant_id, user_id, name, owner_user_id, description, status, allowed_ips, expires_at, created_at, updated_at, created_by, updated_by, row_version) " +
@@ -83,11 +96,7 @@ public class PostgresApiClientRepository implements ApiClientRepository {
                     ps.setNull(8, Types.ARRAY);
                 }
 
-                if (client.getExpiresAt() != null) {
-                    ps.setTimestamp(9, new Timestamp(client.getExpiresAt()));
-                } else {
-                    ps.setNull(9, Types.TIMESTAMP);
-                }
+                ps.setTimestamp(9, new Timestamp(finalExpiresAt));
 
                 ps.setObject(10, context.getUserId());
                 ps.setObject(11, context.getUserId());

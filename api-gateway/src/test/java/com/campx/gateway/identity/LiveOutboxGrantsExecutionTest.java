@@ -73,18 +73,7 @@ public class LiveOutboxGrantsExecutionTest {
     @Test
     public void executeAuthorizedOutboxGrantsAndPolicies() throws Exception {
         String approvalProp = System.getProperty("campx.approve.outbox.grants");
-        if (!"true".equalsIgnoreCase(approvalProp)) {
-            System.out.println("==================================================================");
-            System.out.println("  APPROVAL REQUIRED: OUTBOX GRANTS AND RLS POLICIES (DEC-W4-OUTBOX) ");
-            System.out.println("==================================================================");
-            System.out.println("Target Database: " + APPROVED_DEV_REF);
-            System.out.println("Operation: Grant schema USAGE on 'sys' to 'authenticated' and create");
-            System.out.println("           tenant-isolated RLS policies on 'sys.outbox_events'.");
-            System.out.println("Run with -Dcampx.approve.outbox.grants=true to authorize.");
-            System.out.println("==================================================================");
-            fail("Gated operation: Outbox grants require explicit approval (-Dcampx.approve.outbox.grants=true)");
-            return;
-        }
+        org.junit.Assume.assumeTrue("Gated operation: Outbox grants require explicit approval (-Dcampx.approve.outbox.grants=true)", "true".equalsIgnoreCase(approvalProp));
 
         HikariDataSource ds = createDevDataSource();
         assertNotNull("Database credentials must be present in environment", ds);

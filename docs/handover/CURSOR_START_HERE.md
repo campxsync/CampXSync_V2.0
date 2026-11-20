@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-18 (autonomous STM-07/STM-10 closing run VERIFIED and CLOSED: Student One link established via normal path `41b1999`; Owner Decision D13 Delegated Registrar Java service built & verified `1de1c37`; autonomous decisions audit & security hardening `dbee0a7`; full closing verification pass: student-service suite 206/0, frontend tsc clean 0 errors, CROSS-EN-010 E2E 32/32 pass, cross-tenant pen test 34/34 pass, Playwright final demos 7/7 pass; **no push**)
+**Last current-state refresh:** 2026-11-20 (Enterprise RBAC Matrix v3.0 IADM/CADM Implementation Phases 0–3 VERIFIED and COMPLETED in DEV: Tenant Admin collapsed into R03; wildcard `*` deleted; R04 narrowed 180 -> 135; R03 narrowed 184 -> 54; R34–R39 role templates added; Auditor made read-only; controllers aligned to permission keys; `plat.assign_institution_admin(...)` deployed; API client 90-day expiry enforced; test suites 100% green: frontend tsc 0 errors, api-gateway 181/0, college-admin 148/0, institute-admin 506/0; **no push**)
 
 ---
 

@@ -267,7 +267,7 @@ public class InMemoryIdentityResolver implements IdentityResolver {
         if (code == null) return false;
         String upper = code.toUpperCase(Locale.ROOT);
         return upper.equals("COLLEGE_ADMIN") || upper.equals("INSTITUTION_ADMIN")
-                || upper.equals("TENANT_ADMIN") || upper.equals("PRINCIPAL")
+                || upper.equals("PRINCIPAL")
                 || upper.equals("ACADEMIC_ADMIN");
     }
 

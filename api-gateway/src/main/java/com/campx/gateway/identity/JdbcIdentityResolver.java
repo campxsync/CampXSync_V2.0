@@ -375,7 +375,7 @@ public class JdbcIdentityResolver implements IdentityResolver {
             return false;
         String upper = code.toUpperCase(Locale.ROOT);
         return upper.equals("COLLEGE_ADMIN") || upper.equals("INSTITUTION_ADMIN")
-                || upper.equals("TENANT_ADMIN") || upper.equals("PRINCIPAL")
+                || upper.equals("PRINCIPAL")
                 || upper.equals("ACADEMIC_ADMIN");
     }
 
@@ -394,7 +394,10 @@ public class JdbcIdentityResolver implements IdentityResolver {
         return upper.equals("STUDENT");
     }
 
-    /** Catalogue Registrar (R31) — recognised identity only; does not grant College Admin routes. */
+    /**
+     * Catalogue Registrar (R31) — recognised identity only; does not grant College
+     * Admin routes.
+     */
     private static boolean isRegistrarRole(String code) {
         if (code == null)
             return false;

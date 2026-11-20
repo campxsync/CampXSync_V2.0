@@ -108,6 +108,8 @@ public class PostgresApiClientRepositoryTest {
         assertEquals("LMS Sync Integration Agent", created.getName());
         assertEquals("ACTIVE", created.getStatus());
         assertEquals(2, created.getAllowedIps().size());
+        assertNotNull("expires_at must be populated by default", created.getExpiresAt());
+        assertTrue("expires_at must be in future", created.getExpiresAt() > System.currentTimeMillis());
 
         // Find by ID
         Optional<ApiClient> byId = repository.findById(tenantContext, created.getId());
@@ -205,6 +207,18 @@ public class PostgresApiClientRepositoryTest {
 
         List<ApiClientGrant> grantsAfterRevoke = repository.listGrants(tenantContext, created.getId());
         assertTrue("Grant list must be empty after revocation", grantsAfterRevoke.isEmpty());
+    }
+
+    @Test(expected = com.campx.admin.institute.exception.MalformedPayloadException.class)
+    public void testCreateApiClientExceeding90DaysThrowsMalformedPayloadException() throws Exception {
+        UUID userUuid = createTestAuthUser();
+
+        ApiClient client = new ApiClient();
+        client.setUserId(userUuid.toString());
+        client.setName("Illegal Expiry Client");
+        client.setExpiresAt(System.currentTimeMillis() + (120L * 24 * 60 * 60 * 1000L)); // 120 days
+
+        repository.createApiClient(tenantContext, client);
     }
 
     @Test

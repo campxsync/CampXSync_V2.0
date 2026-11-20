@@ -128,7 +128,7 @@ export async function middleware(request: NextRequest) {
   const rawRole = (user.app_metadata?.role || '').toUpperCase();
 
   const isPlatformUser = rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
-  const isCollegeAdminUser = (rawRole === 'COLLEGE_ADMIN' || rawRole === 'INSTITUTION_ADMIN' || rawRole === 'TENANT_ADMIN' || rawRole === 'ADMIN') && !isPlatformUser;
+  const isCollegeAdminUser = (rawRole === 'COLLEGE_ADMIN' || rawRole === 'INSTITUTION_ADMIN' || rawRole === 'ADMIN') && !isPlatformUser;
   const isRegistrarUser = (rawRole === 'REGISTRAR' || rawRole === 'R31') && !isPlatformUser && !isCollegeAdminUser;
   const isFacultyUser = (rawRole === 'FACULTY' || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') && !isPlatformUser;
   const isStudentUser = rawRole === 'STUDENT' && !isPlatformUser;

@@ -36,6 +36,9 @@ public class GatewayBatchIntegrationTest {
 
     @BeforeClass
     public static void startAll() throws Exception {
+        if (System.getProperty("campx.persistence.mode") == null || "test".equalsIgnoreCase(System.getProperty("campx.persistence.mode"))) {
+            System.setProperty("campx.persistence.mode", "in_memory");
+        }
         // 1. Start ACD-04 Batch Management Service on port 8094
         batchServer = new BatchServer(BATCH_PORT, new BatchDomainService());
         batchServer.start();

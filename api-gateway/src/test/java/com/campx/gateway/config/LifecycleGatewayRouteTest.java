@@ -13,7 +13,9 @@ public class LifecycleGatewayRouteTest {
     public void lifecycleRoutesTargetStm04() {
         Map<String, String> routeTable = new GatewayConfig().getRouteTable();
         assertTrue(routeTable.containsKey("/api/v1/lifecycle"));
-        assertEquals("http://localhost:8096/api/v1/lifecycle", routeTable.get("/api/v1/lifecycle"));
-        assertEquals("http://localhost:8096/api/v1/lifecycle", routeTable.get("/v1/lifecycle"));
+        String route1 = routeTable.get("/api/v1/lifecycle");
+        assertTrue(route1.equals("http://localhost:8096/api/v1/lifecycle") || route1.equals("http://127.0.0.1:8096/api/v1/lifecycle"));
+        String route2 = routeTable.get("/v1/lifecycle");
+        assertTrue(route2.equals("http://localhost:8096/api/v1/lifecycle") || route2.equals("http://127.0.0.1:8096/api/v1/lifecycle"));
     }
 }

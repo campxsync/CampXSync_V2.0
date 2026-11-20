@@ -98,8 +98,8 @@ public class PostgresCollegeRepositoryIntegrationTest {
         assertNotNull("Must have an active user in auth.users / plat.platform_admins for testing", platformAdminUserId);
         platformAdminContext = UserSecurityContext.forPlatformAdmin(platformAdminUserId);
 
-        // 2. Resolve primary test tenant (CAMPXSYNC demo tenant where platformAdminUserId is assigned TENANT_ADMIN)
-        testTenantId = UUID.fromString("0c914bb2-f63b-472c-a99a-39977112935d");
+        // 2. Resolve primary test tenant from verified staging database
+        testTenantId = com.campx.admin.institute.config.TestEnvironmentGuard.verifySafeStagingTenant(connectionManager);
         tenantAdminContext = new UserSecurityContext(platformAdminUserId, testTenantId, false);
 
         // 3. Create secondary test tenant in core.tenants for tenant isolation tests
