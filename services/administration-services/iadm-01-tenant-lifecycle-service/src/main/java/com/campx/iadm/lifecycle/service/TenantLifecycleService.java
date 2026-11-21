@@ -337,10 +337,11 @@ public class TenantLifecycleService {
      * Fail closed — never mint a college admin profile without a login identity.
      */
     private static void assertAuthLinkedUser(Connection conn, UUID userId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM auth.users WHERE id = ?")) {
+        // authenticated cannot SELECT auth.users — use SECURITY DEFINER helper (migration 20261121000700)
+        try (PreparedStatement ps = conn.prepareStatement("SELECT plat.is_auth_linked_user(?)")) {
             ps.setObject(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
+                if (!rs.next() || !rs.getBoolean(1)) {
                     throw new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
                             "First College Admin must be a linked Auth user (SEC-11)");
                 }

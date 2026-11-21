@@ -79,4 +79,37 @@ public class PlatformConfigLiveDevTest {
     public void defaultPortIs8100() {
         assertEquals(8100, com.campx.iadm.config.server.Iadm02Server.DEFAULT_PORT);
     }
+
+    @Test
+    public void platformLockedSettingResolvesToPlatform_rolledBack() throws Exception {
+        UserSecurityContext ctx = UserSecurityContext.forPlatformAdmin(PLATFORM_ADMIN);
+        String key = "iadm02.test.lock." + (System.currentTimeMillis() % 100000);
+        try (Connection conn = DatabaseConnectionManager.getInstance().getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                ctx.applyClaimsAndRole(conn);
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO cfg.setting_definitions (setting_key, data_type, default_value, platform_locked, delegable_to_college, allowed_scopes, created_by) " +
+                                "VALUES (?, 'STRING', '\"locked-platform\"'::jsonb, true, false, '{INSTITUTE,COLLEGE}', ?)")) {
+                    ins.setString(1, key);
+                    ins.setObject(2, PLATFORM_ADMIN);
+                    ins.executeUpdate();
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT source, platform_locked, denied FROM cfg.resolve_effective_setting(?, NULL, ?)")) {
+                    ps.setObject(1, TENANT);
+                    ps.setString(2, key);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertEquals("PLATFORM", rs.getString("source"));
+                        assertTrue(rs.getBoolean("platform_locked"));
+                        assertFalse(rs.getBoolean("denied"));
+                    }
+                }
+            } finally {
+                conn.rollback();
+                conn.setAutoCommit(true);
+            }
+        }
+    }
 }

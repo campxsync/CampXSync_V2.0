@@ -29,17 +29,19 @@ public class Iadm08DomainService {
     public Map<String, Object> searchAudit(UserSecurityContext ctx, String actor, String action) {
         return ctx.executeInTransaction(db, conn -> {
             logger.debug("IADM-08 searchAudit tenantId={}", ctx.getTenantId());
+            // CADM-07 / IADM-08-US-001: fail closed — view key or platform admin only
             try {
                 ctx.checkPermission(conn, "adm01.view");
             } catch (Exception e) {
                 ctx.checkPlatformAdmin(conn);
             }
             List<Map<String, Object>> items = new ArrayList<>();
-            String sql = "SELECT id::text, action, actor_id::text, created_at::text FROM audit.events " +
-                    "WHERE tenant_id = ? AND deleted_at IS NULL ";
-            if (actor != null && !actor.isEmpty()) sql += "AND actor_id::text = ? ";
+            // audit.events columns: principal_id, event_time (no actor_id / deleted_at)
+            String sql = "SELECT id::text, action, principal_id::text, COALESCE(event_time, created_at)::text " +
+                    "FROM audit.events WHERE tenant_id = ? ";
+            if (actor != null && !actor.isEmpty()) sql += "AND principal_id::text = ? ";
             if (action != null && !action.isEmpty()) sql += "AND action = ? ";
-            sql += "ORDER BY created_at DESC LIMIT 100";
+            sql += "ORDER BY COALESCE(event_time, created_at) DESC NULLS LAST LIMIT 100";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 int i = 1;
                 ps.setObject(i++, ctx.getTenantId());
@@ -55,14 +57,10 @@ public class Iadm08DomainService {
                         items.add(row);
                     }
                 }
-            } catch (Exception ex) {
-                Map<String, Object> out = new LinkedHashMap<>();
-                out.put("items", items);
-                out.put("warning", ex.getMessage());
-                return out;
             }
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("items", items);
+            out.put("count", items.size());
             return out;
         });
     }

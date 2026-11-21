@@ -10,8 +10,8 @@ Full plan: `docs/iadm/WAVE_E_PLAN.md`
 
 | Phase | Plain language | Status |
 |---|---|---|
-| **E0** | Prove five CADM/IADM contracts live | **in progress** |
-| **E1-A** | IADM-01 lifecycle parity + SEC-11 Auth-linked College Admin | yet to pickup |
+| **E0** | Prove five CADM/IADM contracts live | **completed** — `docs/iadm/WAVE_E_CONTRACTS.md` |
+| **E1-A** | IADM-01 lifecycle parity (post-handover R03 boundary, suspend sessions) | **next** |
 | **E1-B** | IADM-02 config parity | yet to pickup |
 | **E1-C** | IADM-03 identity + IADM-08 audit/ops move | yet to pickup |
 | **E1-D** | IADM-04 billing move + IADM-06 analytics | yet to pickup |

@@ -18,6 +18,8 @@
 | `database/migrations/20261121000500_rollback__iadm_wave_d_billing_and_analytics.sql` | D |
 | `database/migrations/20261121000600_iadm_wave_cd_role_grants.sql` | C/D |
 | `database/migrations/20261121000600_rollback__iadm_wave_cd_role_grants.sql` | C/D |
+| `database/migrations/20261121000700_iadm_auth_linked_user_check.sql` | E0 / SEC-11 |
+| `database/migrations/20261121000700_rollback__iadm_auth_linked_user_check.sql` | E0 / SEC-11 |
 
 ## Services (new modules under `services/administration-services/`)
 
@@ -36,6 +38,7 @@
 
 - `docs/iadm/STEP0_REPORT.md`, `WAVE_A_REPORT.md`, `WAVE_B_REPORT.md`, `WAVE_C_REPORT.md`, `WAVE_D_REPORT.md`
 - `docs/iadm/FINDINGS.md`, `docs/iadm/FILE_LIST.md`, `docs/iadm/ENGINEERING_STANDARDS.md` (Agreement §3.2 logging/exceptions/docs)
+- `docs/iadm/WAVE_E_PLAN.md`, `docs/iadm/WAVE_E_CONTRACTS.md` (Wave E0 complete)
 - `docs/user-stories/IADM_User_Stories.md` (final backlog; DRAFT left unchanged)
 
 ## Gateway / control docs

@@ -1,52 +1,70 @@
 # IADM Wave E0 — CADM Contract Proof
 
-**Date:** 2026-11-21 · **DEV:** `azulbaxszsqxymqmlwfe` · Plan: `WAVE_E_PLAN.md`
+**Date:** 2026-11-21 · **DEV:** `azulbaxszsqxymqmlwfe` · Plan: `WAVE_E_PLAN.md`  
+**Status:** **E0 COMPLETE** (BUILD SUCCESS)
 
 ## Summary
 
-| # | Contract (plain language) | Story | Artifact | E0 status |
+| # | Contract (plain language) | Story | Evidence | E0 status |
 |---|---|---|---|---|
-| 1 | First College Admin + handover record | IADM-01-US-003/004 | `plat.college_admin_handovers` + `/api/v1/iadm/01` onboard/handover | **PARTIAL→hardening** — table [CONFIRMED]; SEC-11 Auth link enforced in Java onboard |
-| 2 | Effective configuration resolve | IADM-02-US-005 | `cfg.resolve_effective_setting` + `/api/v1/iadm/02/.../effective` | **PASS** live rolled-back resolve → `PLATFORM` [CONFIRMED: PlatformConfigLiveDevTest] |
-| 3 | Role ceiling lookup | IADM-03-US-002 | `iam.role_ceilings` + `/api/v1/iadm/03/ceilings` | **PASS** schema [CONFIRMED: `to_regclass('iam.role_ceilings')`] |
-| 4 | Shared audit read | IADM-08-US-001 | `/api/v1/iadm/08/audit/search` | **PARTIAL** — endpoint exists; deepen allowed/denied live suite in E1-C |
-| 5 | Entitlement check (fail closed) | IADM-04-US-006 | `plat.check_entitlement` + `/api/v1/iadm/04/entitlements/check` | **PASS** unknown/empty key → `allowed=false`, `UNKNOWN_ENTITLEMENT` [CONFIRMED SQL] |
+| 1 | First College Admin + handover | IADM-01-US-003/004 | `Iadm01ContractLiveDevTest` (3/0) + `plat.is_auth_linked_user` | **PASS** |
+| 2 | Effective configuration resolve | IADM-02-US-005 | `PlatformConfigLiveDevTest` (3/0) | **PASS** |
+| 3 | Role ceiling lookup | IADM-03-US-002 | `Iadm03ContractLiveDevTest` (2/0) | **PASS** |
+| 4 | Shared audit read | IADM-08-US-001 | `Iadm08ContractLiveDevTest` (3/0); audit SQL fixed | **PASS** |
+| 5 | Entitlement check (fail closed) | IADM-04-US-006 | `Iadm04ContractLiveDevTest` (4/0) | **PASS** |
+
+**Maven:** modules IADM-01/02/03/04/08 contract + existing suites → **BUILD SUCCESS** (exit 0).
 
 ## Evidence detail
 
-### 1. Handover / first College Admin
+### 1. Handover / first College Admin [CONFIRMED]
 
-- Schema: `plat.college_admin_handovers` present [CONFIRMED SQL `to_regclass`].
-- Service: `TenantLifecycleService.onboardCollege` / `completeHandover` on :8099.
-- **Wave E change:** `firstCollegeAdminUserId` required; must exist in `auth.users` (`IADM01_AUTH_USER_REQUIRED` / SEC-11). Closes FINDING-IADM-ARCH-01 for the IADM-01 path.
-- Remaining: live rolled-back onboard+handover suite with real Auth user; R03 lose college-user-admin after COMPLETED (E1-A).
+- Schema: `plat.college_admin_handovers`.
+- SEC-11: `plat.is_auth_linked_user(uuid)` SECURITY DEFINER (`20261121000700`) — `authenticated` cannot `SELECT auth.users` directly.
+- Allowed: Institution Admin (R03) `c03a0000-…` onboard + complete handover with Auth-linked College Admin `70a8ffae-…`; cleanup soft-delete.
+- Denied: College Admin (R04) lacks `adm01.manage`; fake UUID → `IADM01_AUTH_USER_REQUIRED`.
+- Test: `Iadm01ContractLiveDevTest` **3/0**.
 
-### 2. Effective config
+### 2. Effective config [CONFIRMED]
 
-- Function: `cfg.resolve_effective_setting(uuid,uuid,text)` [CONFIRMED].
-- Live test: `PlatformConfigLiveDevTest.resolveEffectiveFunctionExistsAndReturnsPlatformDefault_rolledBack` → source `PLATFORM`, denied false.
+- `cfg.resolve_effective_setting` → source `PLATFORM` for catalogue default.
+- Locked definition → `platform_locked=true`, source still `PLATFORM`.
+- Test: `PlatformConfigLiveDevTest` **3/0**.
 
-### 3. Role ceilings
+### 3. Role ceilings [CONFIRMED]
 
-- Table: `iam.role_ceilings` [CONFIRMED].
-- API: `GET/POST .../iadm/03/ceilings` with `adm09.manage` / view keys.
-- Remaining: live set/get + denied for College Admin in E1-C.
+- Allowed: R03 holds `adm09.manage`; rolled-back INSERT/SELECT on `iam.role_ceilings`.
+- Denied: Student (R25) `81dd67d3-…` lacks `adm09.manage`.
+- Test: `Iadm03ContractLiveDevTest` **2/0**.
 
-### 4. Audit search
+### 4. Audit search [CONFIRMED]
 
-- Endpoint: `GET .../iadm/08/audit/search`.
-- Remaining: wire to shared audit store with permission-key deny path evidence.
+- Fixed `Iadm08DomainService.searchAudit` to use `principal_id` / `event_time` (no `actor_id`/`deleted_at`); fail closed (no swallowed errors).
+- Allowed: R03 `searchAudit` returns `items` + `count`.
+- Denied: Student lacks `adm01.view`; domain call fails closed.
+- Test: `Iadm08ContractLiveDevTest` **3/0**.
 
-### 5. Entitlement
+### 5. Entitlement [CONFIRMED]
 
-```text
-plat.check_entitlement(tenant, '')           → allowed=false, UNKNOWN_ENTITLEMENT
-plat.check_entitlement(tenant, 'no_such_key') → allowed=false, UNKNOWN_ENTITLEMENT
-```
-[CONFIRMED via Supabase SQL on DEV]
+- SQL: unknown key → `allowed=false`, `deny_reason=UNKNOWN_ENTITLEMENT`.
+- Domain: R03 `checkEntitlement` same fail-closed.
+- Denied: Student lacks `adm01.manage` and `iadm04.view`; College Admin lacks `iadm04.view`.
+- Test: `Iadm04ContractLiveDevTest` **4/0**.
+
+## Migrations this phase
+
+| Forward | Rollback |
+|---|---|
+| `20261121000700_iadm_auth_linked_user_check.sql` | `20261121000700_rollback__iadm_auth_linked_user_check.sql` |
+
+## Remaining for E1 (not E0 blockers)
+
+- R03 lose college user-admin after COMPLETED handover (product rule depth).
+- Move monolith billing/identity handlers; stack script ports.
+- HttpContext SEC-02 Curriculum leak (E2).
 
 ## Tag legend
 
-- **CONFIRMED** — SQL or named automated test
-- **PARTIAL** — artifact exists; acceptance not fully exercised
-- **NOT FOUND** — searched and absent
+- **CONFIRMED** — named automated test or SQL run
+- **PARTIAL** — not used at E0 exit
+- **NOT FOUND** — not used at E0 exit

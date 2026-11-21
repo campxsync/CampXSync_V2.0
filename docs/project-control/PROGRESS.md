@@ -10,8 +10,8 @@
 | Item | Status |
 |---|---|
 | Wave E plan | **completed** — `docs/iadm/WAVE_E_PLAN.md` |
-| E0 Contract proof | **in progress** |
-| E1 Parity (01…08 move off monolith) | yet to pickup |
+| E0 Contract proof | **completed** — `docs/iadm/WAVE_E_CONTRACTS.md` (5/5 PASS) |
+| E1 Parity (01…08 move off monolith) | **next** — start E1-A |
 | E2 Security findings | yet to pickup |
 | E3 Stack / gateway cutover | yet to pickup |
 | CADM | **deferred** until Wave E exit |
