@@ -515,10 +515,12 @@ public class PostgresAnalyticsDashboardRepository implements AnalyticsDashboardR
                 statusCounts.put("SUSPENDED", 0);
                 statusCounts.put("OFFBOARDED", 0);
 
+                // count(DISTINCT up.id): college join must not inflate; platform RLS policy
+                // user_profiles_select_platform (iam.is_platform_admin) required for non-zero counts
                 String tenantSql = "SELECT " +
                         "t.id, t.name, t.code, t.status, t.created_at, " +
                         "count(DISTINCT c.id)::int as college_count, " +
-                        "count(up.id)::int as user_count " +
+                        "count(DISTINCT up.id)::int as user_count " +
                         "FROM core.tenants t " +
                         "LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL " +
                         "LEFT JOIN iam.user_profiles up ON up.tenant_id = t.id AND up.deleted_at IS NULL " +

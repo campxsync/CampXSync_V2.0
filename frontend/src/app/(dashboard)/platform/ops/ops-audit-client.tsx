@@ -20,6 +20,8 @@ export interface AuditEventRow {
   actorId?: string | null;
   createdAt?: string | null;
   tenantId?: string | null;
+  resource?: string | null;
+  source?: string | null;
 }
 
 export interface SelfCheckRow {
@@ -248,6 +250,7 @@ export function OpsAuditClient({
                   <p className="text-xs text-[#6B7688]">
                     actor {shortId(ev.actorId)}
                     {ev.tenantId ? ` · tenant ${shortId(ev.tenantId)}` : ''}
+                    {ev.resource ? ` · ${ev.resource}` : ''}
                   </p>
                 </li>
               ))}

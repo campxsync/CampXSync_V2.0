@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (Wave **UI-1** live desks implemented — await `APPROVED WAVE-UI-1`; US-008/US-009 **APPROVED**; Wave F still await approve)
+**Last current-state refresh:** 2026-11-21 (IADM **Rework Step 0** done; **Slice 1** Platform Operator Desk next; stop after Slice 1 for owner)
 
 ---
 
@@ -10,10 +10,10 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — Wave UI-1 STOP / Wave F STOP / then **CADM**.
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions.
-3. Evidence: Platform desks `/platform/identity`, `/platform/ops`; `docs/iadm/WAVE_F_REPORT.md`, `WAVE_E_REPORT.md`.
-4. Deferred remaining: under-18 / R27; Kafka; commercial AV.
+1. `docs/prompts/NEXT_TASK.md` — Rework Slice 1 (PD-01…PD-06 / Journey J1).
+2. `docs/project-control/PROGRESS.md` — source of truth.
+3. Spec: `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`; Step 0: `docs/iadm/REWORK_STEP0_REPORT.md`.
+4. Deferred: under-18 / R27; Kafka.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

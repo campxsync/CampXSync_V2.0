@@ -1,7 +1,20 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (Wave **UI-1** live Platform desks — STOP for `APPROVED WAVE-UI-1`; Wave F still await approve; then CADM)
+**Updated:** 2026-11-21 (IADM **Rework Step 0** complete; Slice 1 next; then owner checkpoint)
+
+## Owner decisions – IADM Rework (21-11-2026)
+
+**Authorized by:** Niranjan V.G. — desks + demo data + stricter DoD. Spec: `IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
+
+| Item | Status |
+|---|---|
+| Step 0 report | **completed** — `docs/iadm/REWORK_STEP0_REPORT.md` |
+| Screen inventory | **completed** — `docs/iadm/SCREEN_INVENTORY.md` |
+| Defects D1–D7 | **completed** (D6 partial label; full merge Slice 4) |
+| Demo seed migration | **completed** — `20261121120000_iadm_rework_step0_visibility.sql` applied DEV |
+| Slice 1 Platform Operator Desk | **in progress** |
+| Owner stop | After Slice 1 demo report |
 
 ## Owner decisions – IADM Live Platform Desks / Wave UI-1 (21-11-2026)
 

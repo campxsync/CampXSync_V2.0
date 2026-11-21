@@ -6,6 +6,7 @@ import { Shield, KeyRound, CheckCircle2, XCircle, Lock, RefreshCw, AlertCircle }
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 export interface QuorumRequest {
   requestId: string;
@@ -72,6 +73,13 @@ export function IdentityAccessClient({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [quorumTenantId, setQuorumTenantId] = useState('a0000000-0000-0000-0000-000000000001');
+  const [quorumTargetId, setQuorumTargetId] = useState('c03a0000-0000-4000-8000-000000000003');
+  const [quorumAction, setQuorumAction] = useState<'APPOINT' | 'REMOVE'>('APPOINT');
+  const [quorumReason, setQuorumReason] = useState('Appoint Institution Admin (R03)');
+  const [bgTenantId, setBgTenantId] = useState('a0000000-0000-0000-0000-000000000001');
+  const [bgReason, setBgReason] = useState('Emergency break-glass recovery');
+  const [bgMinutes, setBgMinutes] = useState(60);
 
   async function postJson(url: string, body: Record<string, unknown>) {
     setActionError(null);
@@ -202,10 +210,132 @@ export function IdentityAccessClient({
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card data-testid="quorum-start-panel">
+          <CardHeader>
+            <CardTitle className="text-base">Start Institution Admin quorum</CardTitle>
+            <CardDescription>Create an APPOINT or REMOVE request for Institution Admin (R03)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Input
+              data-testid="quorum-tenant-id"
+              placeholder="Tenant id"
+              value={quorumTenantId}
+              onChange={(e) => setQuorumTenantId(e.target.value)}
+            />
+            <Input
+              data-testid="quorum-target-user-id"
+              placeholder="Target user id"
+              value={quorumTargetId}
+              onChange={(e) => setQuorumTargetId(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={quorumAction === 'APPOINT' ? 'primary' : 'secondary'}
+                onClick={() => setQuorumAction('APPOINT')}
+              >
+                APPOINT
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={quorumAction === 'REMOVE' ? 'primary' : 'secondary'}
+                onClick={() => setQuorumAction('REMOVE')}
+              >
+                REMOVE
+              </Button>
+            </div>
+            <Input
+              data-testid="quorum-reason"
+              placeholder="Reason"
+              value={quorumReason}
+              onChange={(e) => setQuorumReason(e.target.value)}
+            />
+            <Button
+              size="sm"
+              data-testid="quorum-start-submit"
+              disabled={busyId === 'quorum-create'}
+              onClick={async () => {
+                setBusyId('quorum-create');
+                try {
+                  await postJson('/api/platform/identity/quorum/create', {
+                    tenantId: quorumTenantId,
+                    targetUserId: quorumTargetId,
+                    action: quorumAction,
+                    reason: quorumReason,
+                  });
+                  refresh();
+                } catch (e) {
+                  setActionError(e instanceof Error ? e.message : 'Quorum create failed');
+                } finally {
+                  setBusyId(null);
+                }
+              }}
+            >
+              Submit quorum request
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="bg-start-panel">
+          <CardHeader>
+            <CardTitle className="text-base">Start break-glass request</CardTitle>
+            <CardDescription>Emergency access request (approved only by R01/R02)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Input
+              data-testid="bg-tenant-id"
+              placeholder="Tenant id"
+              value={bgTenantId}
+              onChange={(e) => setBgTenantId(e.target.value)}
+            />
+            <Input
+              data-testid="bg-reason"
+              placeholder="Reason"
+              value={bgReason}
+              onChange={(e) => setBgReason(e.target.value)}
+            />
+            <Input
+              data-testid="bg-minutes"
+              type="number"
+              placeholder="Minutes (15–240)"
+              value={String(bgMinutes)}
+              onChange={(e) => setBgMinutes(Number(e.target.value) || 60)}
+            />
+            <Button
+              size="sm"
+              data-testid="bg-start-submit"
+              disabled={busyId === 'bg-create'}
+              onClick={async () => {
+                setBusyId('bg-create');
+                try {
+                  await postJson('/api/platform/identity/break-glass/create', {
+                    tenantId: bgTenantId,
+                    reason: bgReason,
+                    requestedMinutes: bgMinutes,
+                  });
+                  refresh();
+                } catch (e) {
+                  setActionError(e instanceof Error ? e.message : 'Break-glass create failed');
+                } finally {
+                  setBusyId(null);
+                }
+              }}
+            >
+              Submit break-glass request
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card data-testid="quorum-panel">
         <CardHeader>
-          <CardTitle className="text-base">Institution admin quorum</CardTitle>
-          <CardDescription>R01 + R02 dual control for COLLEGE_ADMIN grant / revoke</CardDescription>
+          <CardTitle className="text-base">Institution Admin (R03) quorum</CardTitle>
+          <CardDescription>
+            Two-person approval (Super Admin R01 + System Admin R02) to appoint or remove an Institution Admin (R03) — not College Admin
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {initialQuorum.length === 0 ? (

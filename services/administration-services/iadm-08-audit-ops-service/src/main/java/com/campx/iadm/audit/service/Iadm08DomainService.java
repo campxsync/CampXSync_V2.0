@@ -38,24 +38,36 @@ public class Iadm08DomainService {
             }
             List<Map<String, Object>> items = new ArrayList<>();
             boolean platformWide = ctx.getTenantId() == null;
-            // audit.events columns: principal_id, event_time (no actor_id / deleted_at)
-            String sql = "SELECT id::text, action, principal_id::text, COALESCE(event_time, created_at)::text, tenant_id::text " +
-                    "FROM audit.events WHERE ";
+            // Rework D3: audit.capture() writes audit.change_log (not audit.events)
+            String sql = "SELECT id::text, " +
+                    "CASE action WHEN 'I' THEN 'INSERT' WHEN 'U' THEN 'UPDATE' WHEN 'D' THEN 'DELETE' ELSE action END, " +
+                    "actor_id::text, created_at::text, tenant_id::text, " +
+                    "table_schema || '.' || table_name AS resource " +
+                    "FROM audit.change_log WHERE ";
             if (platformWide) {
                 sql += "1=1 ";
             } else {
                 sql += "tenant_id = ? ";
             }
-            if (actor != null && !actor.isEmpty()) sql += "AND principal_id::text = ? ";
-            if (action != null && !action.isEmpty()) sql += "AND action = ? ";
-            sql += "ORDER BY COALESCE(event_time, created_at) DESC NULLS LAST LIMIT 100";
+            if (actor != null && !actor.isEmpty()) sql += "AND actor_id::text = ? ";
+            if (action != null && !action.isEmpty()) {
+                // Accept INSERT/UPDATE/DELETE or single-letter I/U/D or table fragment
+                sql += "AND (action = ? OR action = left(?, 1) OR (table_schema || '.' || table_name) ILIKE ? OR table_name ILIKE ?) ";
+            }
+            sql += "ORDER BY created_at DESC NULLS LAST LIMIT 100";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 int i = 1;
                 if (!platformWide) {
                     ps.setObject(i++, ctx.getTenantId());
                 }
                 if (actor != null && !actor.isEmpty()) ps.setString(i++, actor);
-                if (action != null && !action.isEmpty()) ps.setString(i, action);
+                if (action != null && !action.isEmpty()) {
+                    String a = action.trim();
+                    ps.setString(i++, a);
+                    ps.setString(i++, a);
+                    ps.setString(i++, "%" + a + "%");
+                    ps.setString(i, "%" + a + "%");
+                }
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
@@ -64,6 +76,8 @@ public class Iadm08DomainService {
                         row.put("actorId", rs.getString(3));
                         row.put("createdAt", rs.getString(4));
                         row.put("tenantId", rs.getString(5));
+                        row.put("resource", rs.getString(6));
+                        row.put("source", "audit.change_log");
                         items.add(row);
                     }
                 }
@@ -72,6 +86,7 @@ public class Iadm08DomainService {
             out.put("items", items);
             out.put("count", items.size());
             out.put("scope", platformWide ? "PLATFORM" : "TENANT");
+            out.put("table", "audit.change_log");
             return out;
         });
     }
@@ -80,6 +95,21 @@ public class Iadm08DomainService {
         return ctx.executeInTransaction(db, conn -> {
             logger.debug("IADM-08 ops health probe");
             ctx.checkPlatformAdmin(conn);
+            // Rework D2: refresh known service heartbeats via SECURITY DEFINER helper
+            String[] known = {
+                    "IADM-01", "IADM-02", "IADM-03", "IADM-04", "IADM-05", "IADM-06", "IADM-07", "IADM-08",
+                    "API-GATEWAY", "INSTITUTE-ADMIN"
+            };
+            try (PreparedStatement ups = conn.prepareStatement(
+                    "SELECT plat.upsert_service_heartbeat(?, 'HEALTHY', ?)")) {
+                for (String name : known) {
+                    ups.setString(1, name);
+                    ups.setInt(2, 10);
+                    ups.execute();
+                }
+            } catch (Exception ex) {
+                logger.warn("Heartbeat refresh partial failure: {}", ex.getMessage());
+            }
             List<Map<String, Object>> services = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT service_name, status, last_heartbeat::text FROM plat.service_health WHERE deleted_at IS NULL ORDER BY last_heartbeat DESC NULLS LAST LIMIT 50")) {

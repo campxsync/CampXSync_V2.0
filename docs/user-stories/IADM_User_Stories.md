@@ -3,11 +3,24 @@
 **Module:** IADM = Institute Administration Module (IADM-01 … IADM-08)  
 **Date:** 2026-11-21  
 **Owner:** Niranjan V.G.  
-**Status:** FINAL for Waves A–D implementation in DEV  
+**Status:** FINAL backlog for Waves A–F; Rework Step 0 (2026-11-21) re-baselines “done”  
 **Derived from:** `IADM_Implementation_Plan_and_User_Stories_DRAFT.md` (kept unchanged), `IADM_Architecture_Design.md` v2.0, legacy ADM-01 CSV (history), RBAC Matrix v3.0, live `institute-admin-service` inventory  
+**Rework spec:** `IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`  
 **Traceability column:** legacy ADM-01 component and/or architecture §  
 
-Status: **EXISTS** | **PARTIAL** | **NEW** | **DEFERRED**  
+### Rework definition of done (2026-11-21)
+
+| Level | Meaning |
+|---|---|
+| **API-ready** | Endpoint + permission key + audit + allowed/denied tests |
+| **Screen-ready** | Admin can perform the action on a desk (not only list) |
+| **Demo-verified** | Screen-ready + demo data + persona checklist + visible in Audit search |
+
+Honesty: prior table Status `completed` means **API-ready** unless a slice/wave report records Demo-verified. Desk stories (IADM-PD-* / IADM-ID-*) are in the Rework draft until screens exist.
+
+**Contracts (not admin work):** IADM-C-01…C-05 — effective config resolve, CADM ceiling lookup, entitlement check, service audit search, auth-linked/suspend helpers.
+
+Legacy Status words in tables: **EXISTS** | **PARTIAL** | **NEW** | **DEFERRED** | **completed** (= API-ready unless noted)  
 Access letters: M manage, W write, V view, E export, AU audit read, X execute  
 
 ---

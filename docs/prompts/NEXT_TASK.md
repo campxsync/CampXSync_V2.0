@@ -1,36 +1,27 @@
 # Next Task
 
-**STATUS: Wave UI-1 live Platform desks shipped (await approve). Wave F still pending approve; then CADM. Under-18 / R27 / Kafka remain deferred.**
+**STATUS: IADM Rework Step 0 complete → Slice 1 in progress. Stop after Slice 1 for owner pattern confirmation.**
 
-**Owner:** Niranjan V.G. — `APPROVED IADM-03-US-009` + `APPROVED IADM-03-US-008` 2026-11-21; authorized IADM Live Platform Desks plan (Wave UI-1).
+**Owner:** Niranjan V.G. — Rework approved 2026-11-21 (DEV only). Spec: `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
 
 ## Just completed
 
 | ID | Status |
 |---|---|
-| IADM-03-US-009 two-person appoint | **APPROVED** — commit `128833a` |
-| IADM-03-US-008 break-glass | **APPROVED** — commit `41f46be` |
-| **Wave UI-1** Identity & Access + Ops & Audit Search | **completed** (implementation) — STOP for `APPROVED WAVE-UI-1` |
+| Wave UI-1 desks | Snapshot commit `ef3b93d` |
+| Rework Step 0 | D1–D7 fixes, screen inventory, demo seed migration `20261121120000`, reports |
 
-### Wave UI-1 evidence (DEV)
+## Now
 
-- Nav: **Identity & Access** → `/platform/identity`; **Ops & Audit Search** → `/platform/ops` (IADM Stories removed).
-- `/platform/iadm` redirects to `/platform/identity`.
-- BFF: `/api/platform/identity/**`, `/api/platform/ops/**` → Gateway → IADM-03 / IADM-08.
-- Smoke (Platform Admin test-session): quorum/break-glass/ops health/audit-search/self-check all **200**; desks render without auth errors; tsc clean.
-
-## Next authorized options
-
-1. `APPROVED WAVE-UI-1` (or `APPROVED WAVE-UI-1 COMMIT`) then Wave UI-2 (Tenant Lifecycle + Platform Config).
-2. `APPROVED WAVE-F` then CADM Step 0.
+**Slice 1 — Platform Operator Desk:** IADM-PD-01…PD-06 + Journey J1 (onboard institute → appoint Institution Admin R03 with two-person approval → admin can log in). Then write `SLICE1_DEMO_REPORT.md`, commit, **STOP**.
 
 ## Still deferred
 
-| ID | Status |
+| ID | Meaning |
 |---|---|
-| IADM-05-US-007 under-18 consent | Legal (D-RBAC-M17) |
+| IADM-05-US-007 | Under-18 guardian consent (legal) |
 | R27 / adm03 / Kafka | Unchanged |
 
 ## Rules
 
-DEV only. Permission keys. Local commits; push on request.
+DEV only. UI → BFF → Gateway → Java → Supabase. Local commits; no push unless asked.
