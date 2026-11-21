@@ -132,9 +132,10 @@ public class ResourceAccessPolicyService {
                                Permission requiredPermission) {
         if (resource == null) return false;
 
-        // 1. Super Admin and Academic Admin have default administrative allowance
+        // 1. Super Admin, Academic Admin, College Admin, Principal, Dean have default administrative allowance
         if ("SUPER_ADMIN".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole) ||
-                "ACADEMIC_ADMIN".equalsIgnoreCase(userRole) || "SYSTEM".equalsIgnoreCase(userRole)) {
+                "ACADEMIC_ADMIN".equalsIgnoreCase(userRole) || "COLLEGE_ADMIN".equalsIgnoreCase(userRole) ||
+                "PRINCIPAL".equalsIgnoreCase(userRole) || "DEAN".equalsIgnoreCase(userRole) || "SYSTEM".equalsIgnoreCase(userRole)) {
             return true;
         }
 

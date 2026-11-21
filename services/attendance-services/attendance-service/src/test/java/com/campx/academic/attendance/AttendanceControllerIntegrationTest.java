@@ -25,6 +25,7 @@ public class AttendanceControllerIntegrationTest {
 
     @BeforeClass
     public static void startServer() throws Exception {
+        System.setProperty("campx.internal.auth.enabled", "false");
         try (ServerSocket socket = new ServerSocket(0)) {
             testPort = socket.getLocalPort();
         }
@@ -38,6 +39,7 @@ public class AttendanceControllerIntegrationTest {
         if (server != null) {
             server.stop();
         }
+        System.clearProperty("campx.internal.auth.enabled");
     }
 
     private String getBaseUrl() {

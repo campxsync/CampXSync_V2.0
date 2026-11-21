@@ -1,35 +1,36 @@
 # Next Task
 
-**STATUS: Autonomous STM-07 and STM-10 run — VERIFIED AND CLOSED. All 4 Parts finished. No push.**
+**STATUS: Enterprise RBAC Matrix v3.0 (IADM/CADM) Implementation Phases 0–4 — VERIFIED AND CLOSED IN DEV. No push.**
 
-## This Run Summary (2026-11-18)
+## This Run Summary (2026-11-20 / 2026-11-21)
 
 | Plain name | Code | Status / Evidence |
 |---|---|---|
-| Student One active login link established | Part 1 / STM-07 | **completed** (`41b1999`) — `STUDENT_ONE_LOGIN_LINK_BEFORE_AFTER_2026-11-18.json` |
-| Delegated Registrar via Java service (Owner Decision D13) | Part 2 / STM-07-US-003 | **completed** (`1de1c37`) — 10/10 unit tests + Playwright demo |
-| Autonomous decisions audit & security hardening | Part 3 / STM-07 & STM-10 | **completed** (`dbee0a7`) — `AUTONOMOUS_DECISIONS_LOG.md` (Sections H, I, J) |
-| Closing verification & final demos with stack running | Part 4 | **completed** — E2E 32/32, pen test 34/34, Playwright demos 7/7 |
+| Phase 0: Verification & Mapping | Phase 0 | **completed** — `docs/audits/rbac-implementation/PHASE0_REPORT.md` |
+| Phase 1: Database Foundation | Phase 1 | **completed** (`20261120000100_rbac_phase1_database_foundation.sql`) — `PHASE1_REPORT.md` |
+| Phase 2: Narrow R04 and R03 | Phase 2 | **completed** (`20261120000200_rbac_phase2_narrow_r04_r03.sql`) — `PHASE2_REPORT.md` |
+| Phase 3: Code Alignment | Phase 3 | **completed** (`20261120000300_rbac_phase3_code_alignment.sql`) — `PHASE3_REPORT.md` |
+| Phase 4: Verify & Patch | Phase 4 | **completed** (`20261120000400_rbac_phase4_verification_and_patch.sql`) — `PHASE4_REPORT.md` |
 
-## Closing Pass Test & Demo Evidence
+## Closing Pass Test Evidence
 
-- `services/student-services/student-service`: 206 tests run, 0 failures, 0 errors.
-- Frontend compilation (`cd frontend; npx tsc --noEmit`): clean, 0 errors.
-- Cross-service E2E (`node scripts/demo/run_stm_cross_en_010_e2e.mjs`): **32/32 PASS**.
-- Cross-tenant penetration suite (`node scripts/demo/run_cross_tenant_pen_test.mjs`): **34/34 PASS**.
-- Headed/Headless Playwright final demos (`node docs/reports/playwright-final-stm07-stm10/run_final_demos.mjs`): **7/7 PASS** (`FINAL_DEMO_RUN_REPORT.json`).
+- Frontend compilation (`cd frontend; npx tsc --noEmit`): **clean, 0 errors**.
+- `services/administration-services/institute-admin-service`: **510 tests run, 0 failures, 0 errors**.
+- `services/attendance-services/attendance-service`: **38 tests run, 0 failures, 0 errors**.
+- `services/academic-services/academic-calendar-service`: **22 tests run, 0 failures, 0 errors**.
+- `services/academic-services/batch-management-service`: **50 tests run, 0 failures, 0 errors**.
+- `services/academic-services/course-management-service`: **46 tests run, 0 failures, 0 errors**.
+- `services/lms-services/learning-resource-service`: **23 tests run, 0 failures, 0 errors**.
+- Persona matrix evaluation (`scripts/dev/run_persona_matrix.cjs`): **56/56 checks (100%) PASS**.
+- Privilege escalation live test (`scripts/dev/test_task4_2.cjs`): **100% BLOCKED (PASS)**.
 
 ## Next Priority
 
-**In progress (docs only):** Admin RBAC redesign for IADM/CADM.
-
-- Draft matrix: `docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`
-- Companion outline: `docs/architecture/Security/CampXSync_Admin_RBAC_Redesign_Draft_v1.md`
-- Owner checklist in matrix §18 (D-RBAC-M01…M07). Next useful step after approval: read-only DEV coverage-map export for R03 / R04 / Tenant Admin (D-RBAC-M04).
-- **No** permission catalog, seed, or database changes from these docs.
-
-Also still available later: Academic History STM-08 or Student Service Requests STM-09 (new-service gate).
+Await owner review of `docs/audits/rbac-implementation/PHASE4_REPORT.md`.
+Available next tracks:
+1. Production preparation / staging runbooks for Enterprise RBAC migrations 1–4.
+2. Academic History (STM-08) or Student Service Requests (STM-09) (pending owner new-service gate).
 
 ## Rules
 
-No production/staging DB writes. No permission seed apply without separate owner approval.
+No production/staging DB writes. No push to remote. All work committed locally on `feature/java-backend-integration`.

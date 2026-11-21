@@ -1,16 +1,17 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-20 (Enterprise RBAC Matrix v3.0 Implementation Phases 0–3 completed and verified in DEV; 100% assertions green)
+**Updated:** 2026-11-21 (Enterprise RBAC Matrix v3.0 Implementation Phases 0–4 completed and verified in DEV; 100% assertions green)
 
-## Owner decisions – Admin RBAC / IADM-CADM (20-11-2026)
+## Owner decisions – Admin RBAC / IADM-CADM (20-11-2026 / 21-11-2026)
 
-**Approved by:** Niranjan V.G. (product owner, 2026-11-20). Baseline: `CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v3_0.md`.
+**Approved by:** Niranjan V.G. (product owner, 2026-11-20/21). Baseline: `CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v3_0.md`.
 **Implementation Status:**
 - **Phase 0 (Verify):** Key family mapping (`adm01`–`adm09`), RLS vs Java controller boundaries, Gateway identity normalization analysis, permission recount (Report: `docs/audits/rbac-implementation/PHASE0_REPORT.md`).
 - **Phase 1 (Database Foundation):** Swapped catalogue IDs fixed (R32/R33); role templates R34–R39 created across all 49 tenants; Auditor stripped of write keys (36 read-only retained); Tenant Admin collapsed into R03; wildcard `*` permissions removed (Report: `docs/audits/rbac-implementation/PHASE1_REPORT.md`).
 - **Phase 2 (Narrow R04 and R03):** "Add before remove" coverage completed for R05, R07, R31, R15, R17; R04 narrowed from 180 to 135 permissions (domain write/manage and D-RBAC-M12 sensitive finance/HR keys removed); R03 narrowed from 184 to 54 permissions (domain service keys removed); direct student/parent grant rules deleted per STM-07; Principal and Dean DEV personas seeded (Report: `docs/audits/rbac-implementation/PHASE2_REPORT.md`).
 - **Phase 3 (Code Alignment):** Controllers updated for permission keys (`adm01.manage` in IADM-01, `adm04.manage`/`acd07.approve` in CADM); `TENANT_ADMIN` removed from API Gateway and Frontend; `plat.assign_institution_admin(...)` deployed; `iam.api_clients` 90-day expiry enforced in DB constraint and Java repository; all 4 test suites pass (Report: `docs/audits/rbac-implementation/PHASE3_REPORT.md`).
+- **Phase 4 (Verify & Patch):** Student/parent role assignment verified and R03/R38 grant rules restored via migration `20261120000400_rbac_phase4_verification_and_patch.sql`; privilege escalation live tested and confirmed blocked; IADM-04 billing endpoints secured with `adm01.manage` and `BillingRbacSecurityHttpTest` added; controller allow-lists updated for Principal, Dean, HOD in batch, attendance, calendar, course, and resource services; dev admin users de-conflated and 56-cell persona matrix 100% verified; all test suites clean (Report: `docs/audits/rbac-implementation/PHASE4_REPORT.md`).
 
 | ID | Decision |
 |---|---|

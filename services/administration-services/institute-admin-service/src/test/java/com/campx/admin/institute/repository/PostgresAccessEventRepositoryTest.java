@@ -32,7 +32,7 @@ public class PostgresAccessEventRepositoryTest {
     private static UUID tenantId;
     private static UUID otherTenantId;
 
-    private static final UUID SUPER_ADMIN_UUID = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
+    private static final UUID SUPER_ADMIN_UUID = UUID.fromString("54e8308c-ada3-4065-a9fe-51814af6b971");
     private static final Set<UUID> createdEventIds = Collections.newSetFromMap(new ConcurrentHashMap<UUID, Boolean>());
 
     @BeforeClass

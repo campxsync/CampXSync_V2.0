@@ -1684,8 +1684,11 @@ public class BatchDomainService {
         }
         String role = ctx.getRole();
         if (!"COLLEGE_ADMIN".equalsIgnoreCase(role) &&
+            !"PRINCIPAL".equalsIgnoreCase(role) &&
+            !"DEAN".equalsIgnoreCase(role) &&
             !"ACADEMIC_ADMIN".equalsIgnoreCase(role) &&
             !"DEPARTMENT_HEAD".equalsIgnoreCase(role) &&
+            !"HOD".equalsIgnoreCase(role) &&
             !"SUPER_ADMIN".equalsIgnoreCase(role)) {
             throw new BatchForbiddenException("Caller role '" + role + "' is not authorized for batch assignment");
         }
@@ -1720,8 +1723,11 @@ public class BatchDomainService {
         if (ctx == null) throw new BatchForbiddenException("Missing security context");
         String role = ctx.getRole();
         if (!"COLLEGE_ADMIN".equalsIgnoreCase(role) &&
+            !"PRINCIPAL".equalsIgnoreCase(role) &&
+            !"DEAN".equalsIgnoreCase(role) &&
             !"ACADEMIC_ADMIN".equalsIgnoreCase(role) &&
             !"DEPARTMENT_HEAD".equalsIgnoreCase(role) &&
+            !"HOD".equalsIgnoreCase(role) &&
             !"SUPER_ADMIN".equalsIgnoreCase(role)) {
             throw new BatchForbiddenException("Caller role '" + role + "' is not authorized for batch assignment removal");
         }

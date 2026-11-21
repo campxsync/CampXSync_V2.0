@@ -1911,7 +1911,52 @@ public class InstituteAdminController implements HttpHandler {
     // Phase 4: Commercial & Billing Handlers (User Story Lines 23–27)
     // =========================================================================
 
+    private boolean isPlatformAdmin(HttpExchange exchange) {
+        String role = extractCallerRole(exchange);
+        if (role == null || role.trim().isEmpty()) {
+            return false;
+        }
+        String upper = role.trim().toUpperCase(Locale.ROOT);
+        return "PLATFORM_ADMIN".equals(upper) || "SUPER_ADMIN".equals(upper) || "R01".equals(upper) || "R02".equals(upper) || "SYSTEM_ADMIN".equals(upper);
+    }
+
+    private boolean checkBillingPermission(HttpExchange exchange) throws IOException {
+        String role = extractCallerRole(exchange);
+        if (role == null || role.trim().isEmpty()) {
+            sendError(exchange, 403, "Forbidden", "ADM01_FORBIDDEN",
+                    "Billing endpoints require adm01.manage or platform administrator privileges",
+                    exchange.getRequestURI().getPath());
+            return false;
+        }
+        String upper = role.trim().toUpperCase(Locale.ROOT);
+        if ("PLATFORM_ADMIN".equals(upper) || "SUPER_ADMIN".equals(upper) || "R01".equals(upper) || "R02".equals(upper) || "SYSTEM_ADMIN".equals(upper)) {
+            return true;
+        }
+        if ("INSTITUTION_ADMIN".equals(upper) || "R03".equals(upper) || "ADM01_MANAGE".equals(upper) || "ADM01.MANAGE".equals(upper)) {
+            return true;
+        }
+        String permsHeader = exchange.getRequestHeaders().getFirst("X-User-Permissions");
+        if (permsHeader != null && (permsHeader.contains("adm01.manage") || permsHeader.contains("adm01_manage"))) {
+            return true;
+        }
+        sendError(exchange, 403, "Forbidden", "ADM01_FORBIDDEN",
+                "Access denied: adm01.manage required for billing endpoints. Current role: " + role,
+                exchange.getRequestURI().getPath());
+        return false;
+    }
+
+    private boolean checkPlanManagementPermission(HttpExchange exchange) throws IOException {
+        if (!isPlatformAdmin(exchange)) {
+            sendError(exchange, 403, "Forbidden", "PLATFORM_ADMIN_REQUIRED",
+                    "Only platform administrators may create or publish commercial plans",
+                    exchange.getRequestURI().getPath());
+            return false;
+        }
+        return true;
+    }
+
     private void handleCreatePlan(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange) || !checkPlanManagementPermission(exchange)) return;
         String body = readBody(exchange);
         CommercialPlan plan = new CommercialPlan();
         plan.setPlanCode(extract(body, "planCode", null));
@@ -1931,11 +1976,13 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handlePublishPlan(HttpExchange exchange, String planCode) throws IOException {
+        if (!checkBillingPermission(exchange) || !checkPlanManagementPermission(exchange)) return;
         CommercialPlan published = domainService.publishCommercialPlan(planCode);
         sendJson(exchange, 200, "{\"planCode\":\"" + published.getPlanCode() + "\",\"published\":true,\"status\":\"PUBLISHED\"}");
     }
 
     private void handleCreateSubscription(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         String body = readBody(exchange);
         Subscription sub = new Subscription();
         sub.setTenantId(extract(body, "tenantId", null));
@@ -1950,6 +1997,7 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleListSubscriptions(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         String query = exchange.getRequestURI().getQuery();
         String tenantId = null;
         if (query != null && query.contains("tenantId=")) {
@@ -1969,6 +2017,7 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleTransitionSubscription(HttpExchange exchange, String subId) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         String body = readBody(exchange);
         String newStatus = extract(body, "status", "SUSPENDED");
         Subscription updated = domainService.transitionSubscription(subId, newStatus);
@@ -1976,6 +2025,7 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleIssueInvoice(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         String body = readBody(exchange);
         String subscriptionId = extract(body, "subscriptionId", null);
         String billingPeriod = extract(body, "billingPeriod", "2026-09");
@@ -1985,6 +2035,7 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleListInvoices(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         String query = exchange.getRequestURI().getQuery();
         String tenantId = null;
         if (query != null && query.contains("tenantId=")) {
@@ -2004,6 +2055,7 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleReconcileTransaction(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         String body = readBody(exchange);
         String gatewayTxnId = extract(body, "gatewayTransactionId", null);
         String invoiceId = extract(body, "invoiceId", null);
@@ -2020,6 +2072,7 @@ public class InstituteAdminController implements HttpHandler {
     }
 
     private void handleListTransactions(HttpExchange exchange) throws IOException {
+        if (!checkBillingPermission(exchange)) return;
         List<BillingGatewayTransaction> list = domainService.listBillingTransactions();
         StringBuilder sb = new StringBuilder("{\"transactions\":[");
         for (int i = 0; i < list.size(); i++) {

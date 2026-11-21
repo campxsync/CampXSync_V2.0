@@ -1175,13 +1175,13 @@ public class CourseDomainService {
             return;
         }
 
-        // 2. Academic Admin: Full course management
-        if ("ACADEMIC_ADMIN".equals(r)) {
+        // 2. Academic Admin, College Admin, Principal, Dean: Full course management
+        if ("ACADEMIC_ADMIN".equals(r) || "COLLEGE_ADMIN".equals(r) || "PRINCIPAL".equals(r) || "DEAN".equals(r)) {
             return;
         }
 
-        // 3. Department Head: Can view & edit department courses
-        if ("DEPARTMENT_HEAD".equals(r)) {
+        // 3. Department Head / HOD: Can view & edit department courses
+        if ("DEPARTMENT_HEAD".equals(r) || "HOD".equals(r)) {
             if ("VIEW".equals(action) || "EDIT".equals(action) || "MANAGE".equals(action)) {
                 return;
             }

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-20 (Enterprise RBAC Matrix v3.0 IADM/CADM Implementation Phases 0–3 VERIFIED and COMPLETED in DEV: Tenant Admin collapsed into R03; wildcard `*` deleted; R04 narrowed 180 -> 135; R03 narrowed 184 -> 54; R34–R39 role templates added; Auditor made read-only; controllers aligned to permission keys; `plat.assign_institution_admin(...)` deployed; API client 90-day expiry enforced; test suites 100% green: frontend tsc 0 errors, api-gateway 181/0, college-admin 148/0, institute-admin 506/0; **no push**)
+**Last current-state refresh:** 2026-11-21 (Enterprise RBAC Matrix v3.0 IADM/CADM Implementation Phases 0–4 VERIFIED and COMPLETED in DEV: Phase 4 verification & patch applied; student/parent role assignment verified and R03/R38 grant rules restored; privilege escalation live tested and blocked; billing endpoints secured in IADM-04; domain owner allow-lists updated in batch, attendance, calendar, course, and resource services; dev admin users de-conflated and 56-cell persona matrix 100% passed; test suites 100% green: frontend tsc 0 errors, institute-admin 510/0, attendance 38/0, calendar 22/0, batch 50/0, course 46/0, resource 23/0; **no push**)
 
 ---
 

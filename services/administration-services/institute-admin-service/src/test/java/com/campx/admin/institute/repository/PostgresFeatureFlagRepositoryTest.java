@@ -32,7 +32,7 @@ public class PostgresFeatureFlagRepositoryTest {
         repository = new PostgresFeatureFlagRepository(connectionManager);
 
         // Platform admin context
-        UUID adminId = UUID.fromString("ba77b8f7-ab32-46bd-85d2-5aade3526880");
+        UUID adminId = UUID.fromString("54e8308c-ada3-4065-a9fe-51814af6b971");
         platformContext = UserSecurityContext.forPlatformAdmin(adminId);
     }
 

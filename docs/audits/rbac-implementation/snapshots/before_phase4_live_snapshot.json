@@ -1,0 +1,392 @@
+{
+  "timestamp": "2026-11-21T06:47:22.748Z",
+  "grant_rules_count": 55,
+  "grant_rules": [
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "ACADEMIC_ADMIN"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "ACCOUNTANT"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "COMM_MANAGER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "EMPLOYEE"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "EXAM_CELL"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "EXAM_CONTROLLER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "FACILITY_MANAGER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "FACULTY"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "FINANCE_MANAGER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "GUEST"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "HOD"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "HOSTEL_WARDEN"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "HR_MANAGER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "HR_OFFICER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "LIBRARIAN"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "PLACEMENT_OFFICER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "PROGRAM_COORDINATOR"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "REPORT_USER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "SECTION_COORDINATOR"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "TRANSPORT_MANAGER"
+    },
+    {
+      "grantor_role": "COLLEGE_ADMIN",
+      "grantable_role": "VALUATOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "ACADEMIC_ADMIN"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "ACADEMIC_RECORDS_OFFICER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "ACCOUNTANT"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "ADMISSIONS_OFFICER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "AUDITOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "COLLEGE_ADMIN"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "COMM_MANAGER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "DEAN"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "DEPARTMENT_STAFF"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "DOCUMENT_VERIFIER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "EMPLOYEE"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "EXAM_CELL"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "EXAM_CONTROLLER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "EXTERNAL_VERIFIER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "FACILITY_MANAGER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "FACULTY"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "FACULTY_ADVISOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "FINANCE_MANAGER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "GUEST"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "HOD"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "HOSTEL_WARDEN"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "HR_MANAGER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "HR_OFFICER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "IAM_OPERATOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "LIBRARIAN"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "PLACEMENT_OFFICER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "PRINCIPAL"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "PROGRAM_COORDINATOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "REGISTRAR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "REPORT_USER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "SECTION_COORDINATOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "TRANSPORT_MANAGER"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "VALUATOR"
+    },
+    {
+      "grantor_role": "INSTITUTION_ADMIN",
+      "grantable_role": "VICE_PRINCIPAL"
+    }
+  ],
+  "platform_admins": [
+    {
+      "id": "7f902e4d-a58b-4ef4-a25a-4b5b262ceee0",
+      "user_id": "54e8308c-ada3-4065-a9fe-51814af6b971",
+      "role_code": "SUPER_ADMIN",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000005",
+      "user_id": "ba77b8f7-ab32-46bd-85d2-5aade3526880",
+      "role_code": "SUPER_ADMIN",
+      "status": "ACTIVE"
+    }
+  ],
+  "role_template_permission_counts": [
+    {
+      "role_code": "ACADEMIC_ADMIN",
+      "count": "122"
+    },
+    {
+      "role_code": "ACCOUNTANT",
+      "count": "58"
+    },
+    {
+      "role_code": "ADMISSIONS_OFFICER",
+      "count": "2"
+    },
+    {
+      "role_code": "APPLICANT",
+      "count": "1"
+    },
+    {
+      "role_code": "AUDITOR",
+      "count": "36"
+    },
+    {
+      "role_code": "COLLEGE_ADMIN",
+      "count": "135"
+    },
+    {
+      "role_code": "COMM_MANAGER",
+      "count": "72"
+    },
+    {
+      "role_code": "DEAN",
+      "count": "153"
+    },
+    {
+      "role_code": "EMPLOYEE",
+      "count": "16"
+    },
+    {
+      "role_code": "EXAM_CELL",
+      "count": "65"
+    },
+    {
+      "role_code": "EXAM_CONTROLLER",
+      "count": "80"
+    },
+    {
+      "role_code": "FACILITY_MANAGER",
+      "count": "15"
+    },
+    {
+      "role_code": "FACULTY",
+      "count": "128"
+    },
+    {
+      "role_code": "FINANCE_MANAGER",
+      "count": "87"
+    },
+    {
+      "role_code": "HOD",
+      "count": "185"
+    },
+    {
+      "role_code": "HOSTEL_WARDEN",
+      "count": "15"
+    },
+    {
+      "role_code": "HR_MANAGER",
+      "count": "73"
+    },
+    {
+      "role_code": "HR_OFFICER",
+      "count": "50"
+    },
+    {
+      "role_code": "INSTITUTION_ADMIN",
+      "count": "54"
+    },
+    {
+      "role_code": "LIBRARIAN",
+      "count": "15"
+    },
+    {
+      "role_code": "PARENT",
+      "count": "10"
+    },
+    {
+      "role_code": "PLACEMENT_OFFICER",
+      "count": "15"
+    },
+    {
+      "role_code": "PRINCIPAL",
+      "count": "231"
+    },
+    {
+      "role_code": "PROGRAM_COORDINATOR",
+      "count": "85"
+    },
+    {
+      "role_code": "REGISTRAR",
+      "count": "18"
+    },
+    {
+      "role_code": "REPORT_USER",
+      "count": "4"
+    },
+    {
+      "role_code": "SECTION_COORDINATOR",
+      "count": "127"
+    },
+    {
+      "role_code": "STUDENT",
+      "count": "30"
+    },
+    {
+      "role_code": "TRANSPORT_MANAGER",
+      "count": "15"
+    },
+    {
+      "role_code": "VALUATOR",
+      "count": "32"
+    },
+    {
+      "role_code": "VICE_PRINCIPAL",
+      "count": "173"
+    }
+  ],
+  "admin_assignments": [
+    {
+      "user_id": "70a8ffae-b5ad-4c61-a401-16f220893df4",
+      "role_code": "COLLEGE_ADMIN",
+      "tenant_id": "a0000000-0000-0000-0000-000000000001",
+      "college_id": "a0000000-0000-0000-0000-000000000002"
+    },
+    {
+      "user_id": "ba77b8f7-ab32-46bd-85d2-5aade3526880",
+      "role_code": "COLLEGE_ADMIN",
+      "tenant_id": "a0000000-0000-0000-0000-000000000001",
+      "college_id": "a0000000-0000-0000-0000-000000000002"
+    },
+    {
+      "user_id": "ba77b8f7-ab32-46bd-85d2-5aade3526880",
+      "role_code": "INSTITUTION_ADMIN",
+      "tenant_id": "a0000000-0000-0000-0000-000000000001",
+      "college_id": null
+    },
+    {
+      "user_id": "c33a407e-3bda-464e-9543-ca46a0110002",
+      "role_code": "COLLEGE_ADMIN",
+      "tenant_id": "c33a407e-3bda-464e-9543-ca46a011aead",
+      "college_id": "c33a407e-3bda-464e-9543-ca46a0110001"
+    }
+  ]
+}

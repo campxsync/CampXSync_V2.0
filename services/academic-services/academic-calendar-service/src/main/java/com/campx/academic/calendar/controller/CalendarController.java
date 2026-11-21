@@ -424,7 +424,8 @@ public class CalendarController implements HttpHandler {
         }
         String role = userRole.toUpperCase();
 
-        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role) || "ADMIN".equals(role)) {
+        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role) || "ADMIN".equals(role)
+                || "COLLEGE_ADMIN".equals(role) || "PRINCIPAL".equals(role) || "DEAN".equals(role)) {
             return true;
         }
         if ("REGISTRAR".equals(role)) {

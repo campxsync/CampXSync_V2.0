@@ -386,6 +386,10 @@ public class AttendanceController implements HttpHandler {
                     .build();
             logger.info("{}", logEntry.toJson());
             LogContext.clear();
+            if (exchange.getHttpContext() != null && exchange.getHttpContext().getAttributes() != null) {
+                exchange.getHttpContext().getAttributes().remove("campx.cachedRequestBody");
+                exchange.getHttpContext().getAttributes().remove("campx.cachedRequestBodyBytes");
+            }
         }
     }
 
@@ -637,8 +641,9 @@ public class AttendanceController implements HttpHandler {
         }
         String role = userRole.toUpperCase();
 
-        // Super Admin, Academic Admin, College Admin, Institute Admin have full administrative access
-        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role) || "COLLEGE_ADMIN".equals(role) || "INSTITUTE_ADMIN".equals(role)) {
+        // Super Admin, Academic Admin, College Admin, Institute Admin, Principal, Dean, HOD have full administrative access
+        if ("SUPER_ADMIN".equals(role) || "ACADEMIC_ADMIN".equals(role) || "COLLEGE_ADMIN".equals(role) || "INSTITUTE_ADMIN".equals(role)
+                || "PRINCIPAL".equals(role) || "DEAN".equals(role) || "HOD".equals(role)) {
             return true;
         }
 

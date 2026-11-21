@@ -742,6 +742,7 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = conn.getOutputStream()) {
             os.write(planJson.getBytes(StandardCharsets.UTF_8));
         }
@@ -756,6 +757,7 @@ public class InstituteAdminServiceTest {
                 "http://localhost:" + TEST_PORT + "/api/v1/admin/billing/plans/CAMPUS_STARTER_2026/publish");
         HttpURLConnection pubConn = (HttpURLConnection) pubUrl.openConnection();
         pubConn.setRequestMethod("POST");
+        pubConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         assertEquals(200, pubConn.getResponseCode());
         String pubResp = readResponse(pubConn);
         assertTrue(pubResp.contains("\"published\":true"));
@@ -769,6 +771,7 @@ public class InstituteAdminServiceTest {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = conn.getOutputStream()) {
             os.write(subJson.getBytes(StandardCharsets.UTF_8));
         }
@@ -787,6 +790,7 @@ public class InstituteAdminServiceTest {
         transConn.setRequestMethod("PUT");
         transConn.setDoOutput(true);
         transConn.setRequestProperty("Content-Type", "application/json");
+        transConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = transConn.getOutputStream()) {
             os.write("{\"status\":\"SUSPENDED\"}".getBytes(StandardCharsets.UTF_8));
         }
@@ -797,6 +801,7 @@ public class InstituteAdminServiceTest {
         cancelConn.setRequestMethod("PUT");
         cancelConn.setDoOutput(true);
         cancelConn.setRequestProperty("Content-Type", "application/json");
+        cancelConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = cancelConn.getOutputStream()) {
             os.write("{\"status\":\"CANCELLED\"}".getBytes(StandardCharsets.UTF_8));
         }
@@ -807,6 +812,7 @@ public class InstituteAdminServiceTest {
         reactivateConn.setRequestMethod("PUT");
         reactivateConn.setDoOutput(true);
         reactivateConn.setRequestProperty("Content-Type", "application/json");
+        reactivateConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = reactivateConn.getOutputStream()) {
             os.write("{\"status\":\"ACTIVE\"}".getBytes(StandardCharsets.UTF_8));
         }
@@ -822,6 +828,7 @@ public class InstituteAdminServiceTest {
         subConn.setRequestMethod("POST");
         subConn.setDoOutput(true);
         subConn.setRequestProperty("Content-Type", "application/json");
+        subConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = subConn.getOutputStream()) {
             os.write(subJson.getBytes(StandardCharsets.UTF_8));
         }
@@ -836,6 +843,7 @@ public class InstituteAdminServiceTest {
         invConn.setRequestMethod("POST");
         invConn.setDoOutput(true);
         invConn.setRequestProperty("Content-Type", "application/json");
+        invConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = invConn.getOutputStream()) {
             os.write(("{\"subscriptionId\":\"" + subId + "\",\"billingPeriod\":\"2026-09\"}")
                     .getBytes(StandardCharsets.UTF_8));
@@ -856,6 +864,7 @@ public class InstituteAdminServiceTest {
         txnConn.setRequestMethod("POST");
         txnConn.setDoOutput(true);
         txnConn.setRequestProperty("Content-Type", "application/json");
+        txnConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = txnConn.getOutputStream()) {
             os.write(txnJson.getBytes(StandardCharsets.UTF_8));
         }
@@ -868,6 +877,7 @@ public class InstituteAdminServiceTest {
         txnReplayConn.setRequestMethod("POST");
         txnReplayConn.setDoOutput(true);
         txnReplayConn.setRequestProperty("Content-Type", "application/json");
+        txnReplayConn.setRequestProperty("X-User-Role", "PLATFORM_ADMIN");
         try (OutputStream os = txnReplayConn.getOutputStream()) {
             os.write(txnJson.getBytes(StandardCharsets.UTF_8));
         }

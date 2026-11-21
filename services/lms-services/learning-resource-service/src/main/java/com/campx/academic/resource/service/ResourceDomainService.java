@@ -288,10 +288,14 @@ public class ResourceDomainService {
         LearningResource resource = getResourceById(resourceId);
         verifyTenant(resource, tenantId);
 
-        // Authorization check: Admin, Department Head, or Faculty owner
+        // Authorization check: Admin, Principal, Dean, College Admin, Department Head, HOD, or Faculty owner
         boolean isPublisher = "ACADEMIC_ADMIN".equalsIgnoreCase(userRole) ||
                 "SUPER_ADMIN".equalsIgnoreCase(userRole) ||
+                "COLLEGE_ADMIN".equalsIgnoreCase(userRole) ||
+                "PRINCIPAL".equalsIgnoreCase(userRole) ||
+                "DEAN".equalsIgnoreCase(userRole) ||
                 "DEPARTMENT_HEAD".equalsIgnoreCase(userRole) ||
+                "HOD".equalsIgnoreCase(userRole) ||
                 ("FACULTY".equalsIgnoreCase(userRole) && userId.equalsIgnoreCase(resource.getOwnerId()));
         if (!isPublisher) {
             throw new ResourcePublishForbiddenException("Role '" + userRole + "' is not permitted to publish academic resources");

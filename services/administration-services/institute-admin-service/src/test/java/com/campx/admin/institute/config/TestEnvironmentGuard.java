@@ -298,7 +298,7 @@ public final class TestEnvironmentGuard {
                 + "WHERE ra.tenant_id = ? AND ra.deleted_at IS NULL "
                 + "AND r.code IN ('INSTITUTION_ADMIN', 'COLLEGE_ADMIN', 'TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
                 + "AND r.status = 'ACTIVE' AND r.deleted_at IS NULL "
-                + "ORDER BY ra.created_at ASC, ra.user_id ASC LIMIT 1";
+                + "ORDER BY CASE WHEN r.code = 'SUPER_ADMIN' THEN 0 WHEN r.code = 'INSTITUTION_ADMIN' THEN 1 ELSE 2 END, ra.created_at ASC, ra.user_id ASC LIMIT 1";
         try (PreparedStatement ps = conn.prepareStatement(joinSql)) {
             ps.setObject(1, tenantId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -314,7 +314,7 @@ public final class TestEnvironmentGuard {
         String directSql = "SELECT ra.user_id FROM iam.role_assignments ra "
                 + "WHERE ra.tenant_id = ? AND ra.deleted_at IS NULL "
                 + "AND ra.role_code IN ('INSTITUTION_ADMIN', 'COLLEGE_ADMIN', 'TENANT_ADMIN', 'ADMIN', 'CAMPUS_ADMIN', 'SUPER_ADMIN') "
-                + "ORDER BY ra.created_at ASC, ra.user_id ASC LIMIT 1";
+                + "ORDER BY CASE WHEN ra.role_code = 'SUPER_ADMIN' THEN 0 WHEN ra.role_code = 'INSTITUTION_ADMIN' THEN 1 ELSE 2 END, ra.created_at ASC, ra.user_id ASC LIMIT 1";
         try (PreparedStatement ps = conn.prepareStatement(directSql)) {
             ps.setObject(1, tenantId);
             try (ResultSet rs = ps.executeQuery()) {

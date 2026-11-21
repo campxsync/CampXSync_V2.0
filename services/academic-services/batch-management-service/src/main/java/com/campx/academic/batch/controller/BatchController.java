@@ -471,7 +471,7 @@ public class BatchController implements HttpHandler {
 
             // POST /{id}/students (Enroll student - Story 23 & Relational Batch Assignment)
             if ("POST".equalsIgnoreCase(method) && "/students".equals(subPath)) {
-                assertRole(userRole, "COLLEGE_ADMIN", "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "SUPER_ADMIN");
+                assertRole(userRole, "COLLEGE_ADMIN", "PRINCIPAL", "DEAN", "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "HOD", "SUPER_ADMIN");
                 Map<String, String> stuPayload = parseSimpleJson(body);
                 String studentId = stuPayload.get("studentId");
                 String rollNo = stuPayload.get("rollNo");
@@ -515,7 +515,7 @@ public class BatchController implements HttpHandler {
 
             // DELETE /{id}/students/{studentId} (Remove student - Story 26)
             if ("DELETE".equalsIgnoreCase(method) && subPath.startsWith("/students/")) {
-                assertRole(userRole, "COLLEGE_ADMIN", "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "SUPER_ADMIN");
+                assertRole(userRole, "COLLEGE_ADMIN", "PRINCIPAL", "DEAN", "ACADEMIC_ADMIN", "DEPARTMENT_HEAD", "HOD", "SUPER_ADMIN");
                 String studentId = subPath.substring("/students/".length());
                 Map<String, String> delPayload = parseSimpleJson(body);
                 String reason = delPayload.get("reason");
