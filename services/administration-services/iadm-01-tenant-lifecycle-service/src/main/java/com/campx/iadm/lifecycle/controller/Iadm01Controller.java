@@ -116,6 +116,11 @@ public class Iadm01Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.completeHandover(ctx, collegeId, extract(body, "notes"))));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/colleges/[^/]+/user-admin-boundary/?$")) {
+                UUID collegeId = uuidFromPath(path, "/colleges/", "/user-admin-boundary");
+                sendJson(exchange, 200, toJson(service.collegeUserAdminBoundary(ctx, collegeId)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/(suspend|reactivate)/?$")) {
                 boolean suspend = path.contains("/suspend");
                 UUID tenantId = uuidFromPath(path, "/institutes/", suspend ? "/suspend" : "/reactivate");

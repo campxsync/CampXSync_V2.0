@@ -87,6 +87,21 @@ public class Iadm05Controller implements HttpHandler {
                 send(exchange, 201, toJson(service.createDsr(ctx, extract(body, "requestType"), extract(body, "subjectRef"))));
                 return;
             }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/dsr/[^/]+/execute/?$")) {
+                String id = path.substring(path.indexOf("/dsr/") + 5, path.indexOf("/execute"));
+                send(exchange, 200, toJson(service.executeDsr(ctx, UUID.fromString(id.replace("/", "")))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/retention")) {
+                send(exchange, 200, toJson(service.listRetention(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/retention")) {
+                Integer days = extractInt(body, "retentionDays");
+                send(exchange, 201, toJson(service.upsertRetention(ctx, extract(body, "policyCode"),
+                        extract(body, "entityType"), days, extract(body, "action"))));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/legal-holds")) {
                 send(exchange, 201, toJson(service.placeLegalHold(ctx, extract(body, "reason"))));
                 return;
@@ -120,6 +135,27 @@ public class Iadm05Controller implements HttpHandler {
         if (q1 < 0) return null;
         int q2 = json.indexOf('"', q1 + 1);
         return json.substring(q1 + 1, q2);
+    }
+
+    private static Integer extractInt(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            rest = rest.substring(1, q2);
+        } else {
+            int end = rest.length();
+            for (int j = 0; j < rest.length(); j++) {
+                char c = rest.charAt(j);
+                if (c == ',' || c == '}' || Character.isWhitespace(c)) { end = j; break; }
+            }
+            rest = rest.substring(0, end);
+        }
+        try { return Integer.parseInt(rest.trim()); } catch (NumberFormatException e) { return null; }
     }
 
     @SuppressWarnings("unchecked")

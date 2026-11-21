@@ -279,8 +279,272 @@ switch ($Service.ToLower()) {
         Wait-HealthCheck "http://127.0.0.1:8092/metrics"
     }
 
+    { $_ -in @("iadm-01", "iadm-01-tenant-lifecycle-service", "tenant-lifecycle") } {
+        $iadmDirName = "iadm-01-tenant-lifecycle-service"
+        $iadmMain = "com.campx.iadm.lifecycle.Iadm01Application"
+        $iadmPort = 8099
+        $iadmHealth = "http://127.0.0.1:8099/api/v1/iadm/01/health"
+        $iadmLog = "iadm-01"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-02", "iadm-02-platform-config-service", "platform-config") } {
+        $iadmDirName = "iadm-02-platform-config-service"
+        $iadmMain = "com.campx.iadm.config.Iadm02Application"
+        $iadmPort = 8100
+        $iadmHealth = "http://127.0.0.1:8100/api/v1/iadm/02/health"
+        $iadmLog = "iadm-02"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-03", "iadm-03-identity-access-service", "identity-access") } {
+        $iadmDirName = "iadm-03-identity-access-service"
+        $iadmMain = "com.campx.iadm.identity.Iadm03Application"
+        $iadmPort = 8101
+        $iadmHealth = "http://127.0.0.1:8101/api/v1/iadm/03/health"
+        $iadmLog = "iadm-03"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-04", "iadm-04-billing-entitlements-service", "billing-entitlements") } {
+        $iadmDirName = "iadm-04-billing-entitlements-service"
+        $iadmMain = "com.campx.iadm.billing.Iadm04Application"
+        $iadmPort = 8102
+        $iadmHealth = "http://127.0.0.1:8102/api/v1/iadm/04/health"
+        $iadmLog = "iadm-04"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-05", "iadm-05-data-governance-service", "data-governance") } {
+        $iadmDirName = "iadm-05-data-governance-service"
+        $iadmMain = "com.campx.iadm.privacy.Iadm05Application"
+        $iadmPort = 8103
+        $iadmHealth = "http://127.0.0.1:8103/api/v1/iadm/05/health"
+        $iadmLog = "iadm-05"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-06", "iadm-06-platform-analytics-service", "platform-analytics") } {
+        $iadmDirName = "iadm-06-platform-analytics-service"
+        $iadmMain = "com.campx.iadm.analytics.Iadm06Application"
+        $iadmPort = 8104
+        $iadmHealth = "http://127.0.0.1:8104/api/v1/iadm/06/health"
+        $iadmLog = "iadm-06"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-07", "iadm-07-security-compliance-service", "security-compliance") } {
+        $iadmDirName = "iadm-07-security-compliance-service"
+        $iadmMain = "com.campx.iadm.securitygov.Iadm07Application"
+        $iadmPort = 8105
+        $iadmHealth = "http://127.0.0.1:8105/api/v1/iadm/07/health"
+        $iadmLog = "iadm-07"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
+    { $_ -in @("iadm-08", "iadm-08-audit-ops-service", "audit-ops") } {
+        $iadmDirName = "iadm-08-audit-ops-service"
+        $iadmMain = "com.campx.iadm.audit.Iadm08Application"
+        $iadmPort = 8106
+        $iadmHealth = "http://127.0.0.1:8106/api/v1/iadm/08/health"
+        $iadmLog = "iadm-08"
+        Write-Host "1. Building $iadmDirName..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\$iadmDirName"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "$iadmDirName compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "2. Stopping port $iadmPort listener..." -ForegroundColor Cyan
+        Stop-PortListener $iadmPort
+        Start-Sleep -Milliseconds 500
+        Write-Host "3. Launching $iadmDirName..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$cp",
+            $iadmMain, "$iadmPort"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\$iadmLog.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\$iadmLog.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started $iadmDirName PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck $iadmHealth
+    }
+
     default {
-        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service" -ForegroundColor Red
+        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01..iadm-08" -ForegroundColor Red
         exit 1
     }
 }

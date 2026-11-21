@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -72,6 +73,10 @@ public class Iadm02Controller implements HttpHandler {
                     ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
                     : UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
 
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/definitions")) {
+                send(exchange, 200, toJson(service.listDefinitions(ctx)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.contains("/definitions")) {
                 boolean locked = "true".equalsIgnoreCase(extract(body, "platformLocked"));
                 boolean delegable = "true".equalsIgnoreCase(extract(body, "delegableToCollege"));
@@ -86,6 +91,12 @@ public class Iadm02Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.setInstituteValue(ctx, key, extractRaw(body, "value"))));
                 return;
             }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/college-value/?$")) {
+                String key = segment(path, "/settings/", "/college-value");
+                send(exchange, 200, toJson(service.setCollegeValue(ctx, key,
+                        UUID.fromString(extract(body, "collegeId")), extractRaw(body, "value"))));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/delegate/?$")) {
                 String key = segment(path, "/settings/", "/delegate");
                 send(exchange, 201, toJson(service.delegateSetting(ctx, key, UUID.fromString(extract(body, "collegeId")))));
@@ -97,6 +108,16 @@ public class Iadm02Controller implements HttpHandler {
                 UUID tenantId = qParamUuid(q, "tenantId");
                 UUID collegeId = qParamUuid(q, "collegeId");
                 send(exchange, 200, toJson(service.resolveEffective(ctx, tenantId, collegeId, key)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/history/?$")) {
+                String key = segment(path, "/settings/", "/history");
+                send(exchange, 200, toJson(service.settingHistory(ctx, key)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/rollback/?$")) {
+                String key = segment(path, "/settings/", "/rollback");
+                send(exchange, 200, toJson(service.rollbackSetting(ctx, key, extract(body, "versionId"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
@@ -176,6 +197,7 @@ public class Iadm02Controller implements HttpHandler {
         return rest.substring(0, end).trim();
     }
 
+    @SuppressWarnings("unchecked")
     private static String toJson(Map<String, Object> map) {
         StringBuilder sb = new StringBuilder("{");
         boolean first = true;
@@ -186,7 +208,17 @@ public class Iadm02Controller implements HttpHandler {
             Object v = e.getValue();
             if (v == null) sb.append("null");
             else if (v instanceof Number || v instanceof Boolean) sb.append(v);
-            else sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
+            else if (v instanceof List) {
+                List<?> list = (List<?>) v;
+                sb.append('[');
+                for (int i = 0; i < list.size(); i++) {
+                    if (i > 0) sb.append(',');
+                    Object item = list.get(i);
+                    if (item instanceof Map) sb.append(toJson((Map<String, Object>) item));
+                    else sb.append('"').append(String.valueOf(item).replace("\"", "\\\"")).append('"');
+                }
+                sb.append(']');
+            } else sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
         }
         return sb.append('}').toString();
     }

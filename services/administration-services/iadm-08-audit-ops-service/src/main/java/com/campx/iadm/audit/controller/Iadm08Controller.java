@@ -80,6 +80,18 @@ public class Iadm08Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.searchAudit(ctx, qp(q, "actor"), qp(q, "action"))));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/export")) {
+                send(exchange, 200, toJson(service.exportAudit(ctx, qp(q, "actor"), qp(q, "action"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/retention")) {
+                send(exchange, 200, toJson(service.auditRetention(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/ops/institute-status")) {
+                send(exchange, 200, toJson(service.instituteStatus(ctx)));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/ops/health")) {
                 send(exchange, 200, toJson(service.health(UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
                 return;

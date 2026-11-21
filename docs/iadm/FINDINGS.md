@@ -17,19 +17,17 @@
 - **Cleanup:** Unauthorized and leftover INSTITUTION_ADMIN rows for `ba77b8f7-…` deleted; user remains COLLEGE_ADMIN only.
 - **Status:** **FIXED in DEV** [CONFIRMED].
 
-### FINDING-IADM-SEC-02 — HttpContext attribute leakage (identity / body) — partial fix
+### FINDING-IADM-SEC-02 — HttpContext attribute leakage (identity / body) — FIXED (Wave E2)
 
 - **Plain language:** JDK `com.sun.net.httpserver` stores `HttpExchange.setAttribute` values on the shared `HttpContext` map, so one request’s data can leak into the next on the same path.
 - **Phase 4 fix pattern:** `AttendanceController` finally removes `campx.cachedRequestBody` / `campx.cachedRequestBodyBytes`.
-- **Identical-pattern fixes applied (same attribute keys):**
-  - `SubjectController.java` [CONFIRMED patched]
-  - `AnalyticsController.java` [CONFIRMED patched]
-- **Not identical (logged, not one-line same fix):**
-  - `InstituteAdminController` — `campx.request.body` (no finally remove) — **MEDIUM**
-  - `CollegeAdminController` — `campx.request.body`, `campx.auth.result` — **MEDIUM**
-  - `CourseController` — same — **MEDIUM**
-  - `CurriculumController` — stores `tenantId`, `userId` on shared context — **HIGH** (identity leak)
-- **Status:** Subject/Analytics fixed; others open — do not mix into unrelated story work beyond logging.
+- **Wave E2 finally-remove (CONFIRMED):**
+  - `SubjectController.java` / `AnalyticsController.java` (earlier)
+  - `CurriculumController.java` — removes `tenantId`, `userId`, `traceId`, `startTime`, `method`, `path` — **HIGH cleared**
+  - `InstituteAdminController.java` — removes `campx.request.body`
+  - `CollegeAdminController.java` — removes `campx.request.body`, `campx.auth.result`
+  - `CourseController.java` — removes `campx.request.body`, `campx.auth.result`
+- **Status:** **FIXED** [CONFIRMED] Wave E2 2026-11-21.
 
 ---
 
@@ -42,8 +40,8 @@
 ### FINDING-IADM-ARCH-01 — First College Admin Auth link (SEC-11)
 
 - Architecture notes onboarding may mint a profile without a linked Supabase Auth user. Tracked for IADM-01-US-003; do not treat current monolith as the approved protocol.
-- **Wave E (2026-11-21):** `TenantLifecycleService.onboardCollege` now requires `firstCollegeAdminUserId` and verifies `auth.users` (`IADM01_AUTH_USER_REQUIRED`). Monolith path still needs the same rule when retired.
-- **Status:** **FIXED on IADM-01 split service**; monolith parity pending E1-A cutover.
+- **Wave E (2026-11-21):** `TenantLifecycleService.onboardCollege` requires Auth-linked admin via `plat.is_auth_linked_user`. Authoritative path is `/api/v1/iadm/01` (:8099). Monolith `:8081` onboard remains legacy shim only.
+- **Status:** **FIXED** on IADM-01 (E0/E1-A).
 
 ### FINDING-IADM-RBAC-01 — PLATFORM_ADMIN / SYSTEM_ADMIN not in role_templates (MEDIUM)
 

@@ -2,6 +2,7 @@ package com.campx.iadm.identity.service;
 
 import com.campx.iadm.identity.config.DatabaseConnectionManager;
 import com.campx.iadm.identity.exception.InstituteAdminException;
+import com.campx.iadm.identity.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.identity.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -10,6 +11,8 @@ import com.campx.logger.api.AuditEvent;
 import java.sql.Array;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -140,6 +143,208 @@ public class Iadm03DomainService {
             auditMutation(ctx, "decideAccessRequest", "ACCESS_REQUEST", requestId.toString());
             return out;
         });
+    }
+
+    public Map<String, Object> assignRole(UserSecurityContext ctx, UUID userId, String roleCode, UUID collegeId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm09.manage");
+            if (userId == null || roleCode == null || roleCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM03_ASSIGN_REQUIRED", "userId and roleCode required");
+            }
+            if (collegeId != null) {
+                assertCollegeAssignableAfterHandover(ctx, conn, collegeId);
+            }
+            UUID roleId = lookupRoleId(conn, ctx.getTenantId(), roleCode.trim());
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO iam.role_assignments (id, tenant_id, user_id, role_id, college_id, granted_by, created_by) " +
+                            "VALUES (?,?,?,?,?,?,?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, ctx.getTenantId());
+                ps.setObject(3, userId);
+                ps.setObject(4, roleId);
+                ps.setObject(5, collegeId);
+                ps.setObject(6, ctx.getUserId());
+                ps.setObject(7, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("assignmentId", id.toString());
+            out.put("userId", userId.toString());
+            out.put("roleCode", roleCode.trim());
+            out.put("collegeId", collegeId == null ? null : collegeId.toString());
+            auditMutation(ctx, "assignRole", "ROLE_ASSIGNMENT", id.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> revokeRoleAssignment(UserSecurityContext ctx, UUID assignmentId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm09.manage");
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE iam.role_assignments SET deleted_at = now(), updated_at = now(), updated_by = ? " +
+                            "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL")) {
+                ps.setObject(1, ctx.getUserId());
+                ps.setObject(2, assignmentId);
+                ps.setObject(3, ctx.getTenantId());
+                if (ps.executeUpdate() == 0) {
+                    throw new InstituteAdminException(404, "IADM03_ASSIGNMENT_NOT_FOUND", "Role assignment not found");
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("assignmentId", assignmentId.toString());
+            out.put("status", "REVOKED");
+            auditMutation(ctx, "revokeRoleAssignment", "ROLE_ASSIGNMENT", assignmentId.toString());
+            return out;
+        });
+    }
+
+    /** Time-boxed role delegation into {@code iam.delegations} (Wave B / Scripts_V3.0). */
+    public Map<String, Object> createDelegation(UserSecurityContext ctx, UUID toUserId, String roleCode,
+                                               String validFromIso, String validToIso, String reason) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm09.manage");
+            if (toUserId == null || roleCode == null || roleCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM03_DELEGATION_REQUIRED", "toUserId and roleCode required");
+            }
+            UUID roleId = lookupRoleId(conn, ctx.getTenantId(), roleCode.trim());
+            Instant from = parseInstant(validFromIso, Instant.now());
+            Instant to = parseInstant(validToIso, from.plusSeconds(7L * 24 * 3600));
+            if (!to.isAfter(from)) {
+                throw new InstituteAdminException(400, "IADM03_DELEGATION_WINDOW", "validTo must be after validFrom");
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO iam.delegations (id, tenant_id, from_user_id, to_user_id, role_id, valid_from, valid_to, reason, status, created_by) " +
+                            "VALUES (?,?,?,?,?,?,?,?,'ACTIVE',?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, ctx.getTenantId());
+                ps.setObject(3, ctx.getUserId());
+                ps.setObject(4, toUserId);
+                ps.setObject(5, roleId);
+                ps.setTimestamp(6, Timestamp.from(from));
+                ps.setTimestamp(7, Timestamp.from(to));
+                ps.setString(8, reason);
+                ps.setObject(9, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("delegationId", id.toString());
+            out.put("toUserId", toUserId.toString());
+            out.put("roleCode", roleCode.trim());
+            out.put("status", "ACTIVE");
+            auditMutation(ctx, "createDelegation", "DELEGATION", id.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> listAccessReviews(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm09.view");
+            List<Map<String, Object>> items = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, cycle_name, reviewer_id::text, status, due_on::text, created_at::text " +
+                            "FROM iam.access_reviews WHERE tenant_id = ? AND deleted_at IS NULL " +
+                            "AND status IN ('PENDING','IN_PROGRESS') ORDER BY created_at DESC LIMIT 100")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getString(1));
+                        row.put("cycleName", rs.getString(2));
+                        row.put("reviewerId", rs.getString(3));
+                        row.put("status", rs.getString(4));
+                        row.put("dueOn", rs.getString(5));
+                        row.put("createdAt", rs.getString(6));
+                        items.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("items", items);
+            out.put("count", items.size());
+            return out;
+        });
+    }
+
+    public Map<String, Object> certifyAccessReview(UserSecurityContext ctx, UUID reviewId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm09.manage");
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE iam.access_reviews SET status = 'COMPLETED', completed_at = now(), reviewer_id = ?, " +
+                            "updated_at = now(), updated_by = ? " +
+                            "WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL AND status IN ('PENDING','IN_PROGRESS')")) {
+                ps.setObject(1, ctx.getUserId());
+                ps.setObject(2, ctx.getUserId());
+                ps.setObject(3, reviewId);
+                ps.setObject(4, ctx.getTenantId());
+                if (ps.executeUpdate() == 0) {
+                    throw new InstituteAdminException(404, "IADM03_REVIEW_NOT_FOUND", "Pending access review not found");
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("reviewId", reviewId.toString());
+            out.put("status", "COMPLETED");
+            auditMutation(ctx, "certifyAccessReview", "ACCESS_REVIEW", reviewId.toString());
+            return out;
+        });
+    }
+
+    private void assertCollegeAssignableAfterHandover(UserSecurityContext ctx, java.sql.Connection conn, UUID collegeId)
+            throws java.sql.SQLException {
+        boolean platformAdmin = false;
+        try {
+            ctx.checkPlatformAdmin(conn);
+            platformAdmin = true;
+        } catch (UserProfileAccessDeniedException ignored) {
+            // Institution Admin path — enforce handover gate
+        }
+        if (platformAdmin) return;
+        // Prefer SECURITY DEFINER helper (migration 20261121000800); fall back to table read
+        boolean handedOver = false;
+        try (PreparedStatement ps = conn.prepareStatement("SELECT plat.is_college_handed_over(?)")) {
+            ps.setObject(1, collegeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                handedOver = rs.next() && rs.getBoolean(1);
+            }
+        } catch (java.sql.SQLException fnMissing) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT 1 FROM plat.college_admin_handovers WHERE college_id = ? AND tenant_id = ? " +
+                            "AND status = 'COMPLETED' AND deleted_at IS NULL LIMIT 1")) {
+                ps.setObject(1, collegeId);
+                ps.setObject(2, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    handedOver = rs.next();
+                }
+            }
+        }
+        if (handedOver) {
+            throw new InstituteAdminException(403, "IADM03_HANDOVER_COMPLETE",
+                    "College admin handover complete; Institution Admin cannot assign college users");
+        }
+    }
+
+    private static UUID lookupRoleId(java.sql.Connection conn, UUID tenantId, String roleCode) throws java.sql.SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id FROM iam.roles WHERE tenant_id = ? AND code = ? AND deleted_at IS NULL LIMIT 1")) {
+            ps.setObject(1, tenantId);
+            ps.setString(2, roleCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new InstituteAdminException(404, "IADM03_ROLE_NOT_FOUND", "Role not found: " + roleCode);
+                }
+                return (UUID) rs.getObject(1);
+            }
+        }
+    }
+
+    private static Instant parseInstant(String iso, Instant fallback) {
+        if (iso == null || iso.trim().isEmpty()) return fallback;
+        try {
+            return Instant.parse(iso.trim());
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {

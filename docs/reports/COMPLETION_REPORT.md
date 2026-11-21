@@ -5,6 +5,31 @@ Historical per-wave reports remain under `docs/reports/wave-*/COMPLETION_REPORT.
 
 ---
 
+## Entry — IADM Wave E Parity & Cutover (2026-11-21)
+
+**Task ID:** IADM_WAVE_E  
+**Mode:** IMPLEMENT  
+**Branch:** `feature/java-backend-integration`  
+**Report:** `docs/iadm/WAVE_E_REPORT.md`
+
+### Scope completed
+- E0: five CADM contracts live PASS (`WAVE_E_CONTRACTS.md`).
+- E1-A: handover R03 boundary, own-tenant get, suspend session block (`20261121000800`).
+- E1-B…E: expanded split-service APIs on :8100–:8106; tracked PARTIAL gaps in WAVE_E_REPORT.
+- E2: FINDING-IADM-SEC-02 finally-remove (Curriculum + Institute/College/Course); SEC-11 FIXED; RBAC-01 OPEN (doc).
+- E3: stack scripts know 8099–8106; gateway `/api/v1/iadm/0X` authoritative; monolith `:8081` Path-C shim.
+
+### Tests
+| Module | Result |
+|---|---|
+| iadm-01 (E0 + E1-A + RBAC) | green |
+| iadm-02…08 suites | green |
+
+### Next
+CADM reconcile + Waves A–D.
+
+---
+
 ## Entry 1 â€” Repository consolidation (2026-11-14)
 
 **Task ID:** REPOSITORY_CONSOLIDATION_V2  

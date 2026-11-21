@@ -96,6 +96,39 @@ public class Iadm03Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.decideAccessRequest(ctx, UUID.fromString(id.replace("/", "")), extract(body, "decision"), extract(body, "note"))));
                 return;
             }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/role-assignments")) {
+                String college = extract(body, "collegeId");
+                UUID collegeId = (college == null || college.isEmpty()) ? null : UUID.fromString(college);
+                send(exchange, 201, toJson(service.assignRole(ctx,
+                        UUID.fromString(extract(body, "userId")), extract(body, "roleCode"), collegeId)));
+                return;
+            }
+            if (("DELETE".equalsIgnoreCase(method) && path.matches(".*/role-assignments/[^/]+/?$"))
+                    || ("POST".equalsIgnoreCase(method) && path.matches(".*/role-assignments/[^/]+/revoke/?$"))) {
+                String idPart = path.contains("/revoke")
+                        ? path.substring(path.indexOf("/role-assignments/") + 18, path.indexOf("/revoke"))
+                        : path.substring(path.lastIndexOf('/') + 1);
+                send(exchange, 200, toJson(service.revokeRoleAssignment(ctx, UUID.fromString(idPart.replace("/", "")))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/delegations")) {
+                send(exchange, 201, toJson(service.createDelegation(ctx,
+                        UUID.fromString(extract(body, "toUserId")),
+                        extract(body, "roleCode"),
+                        extract(body, "validFrom"),
+                        extract(body, "validTo"),
+                        extract(body, "reason"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/access-reviews")) {
+                send(exchange, 200, toJson(service.listAccessReviews(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/access-reviews/[^/]+/certify/?$")) {
+                String id = path.substring(path.indexOf("/access-reviews/") + 16, path.indexOf("/certify"));
+                send(exchange, 200, toJson(service.certifyAccessReview(ctx, UUID.fromString(id.replace("/", "")))));
+                return;
+            }
             send(exchange, 404, problem("IADM03_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
             tracker.markFailed(e);

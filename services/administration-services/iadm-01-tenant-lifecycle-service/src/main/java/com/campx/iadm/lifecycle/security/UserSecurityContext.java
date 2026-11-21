@@ -180,6 +180,35 @@ public class UserSecurityContext {
             ps.setString(1, claimsJson);
             ps.execute();
         }
+
+        // 3. IADM-01-US-006: block tenant-scoped sessions while institute is SUSPENDED
+        //    (platform-scoped callers with null tenant skip; platform admins may still act)
+        if (tenantId != null) {
+            assertTenantNotSuspended(conn);
+        }
+    }
+
+    /**
+     * Fail closed when the caller's institute is suspended (sessions blocked).
+     * Platform administrators are allowed through for suspend/reactivate itself.
+     */
+    private void assertTenantNotSuspended(Connection conn) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT plat.is_tenant_suspended(?)")) {
+            ps.setObject(1, tenantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getBoolean(1)) {
+                    boolean platformAdmin = false;
+                    try (PreparedStatement pa = conn.prepareStatement("SELECT iam.is_platform_admin()");
+                         ResultSet prs = pa.executeQuery()) {
+                        platformAdmin = prs.next() && prs.getBoolean(1);
+                    }
+                    if (!platformAdmin) {
+                        throw new InstituteAdminException(403, "IADM01_SUSPENDED",
+                                "Institute is suspended; sessions are blocked");
+                    }
+                }
+            }
+        }
     }
 
     /**

@@ -7,7 +7,10 @@ import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -77,6 +80,124 @@ public class Iadm07DomainService {
             out.put("findingId", id.toString());
             out.put("status", "OPEN");
             auditMutation(ctx, "iadm07.finding.create", "SECURITY_FINDING", id.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> listPolicies(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "iadm07.view");
+            List<Map<String, Object>> items = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, policy_key, policy_value::text, updated_at::text " +
+                            "FROM plat.institute_security_policies WHERE tenant_id=? AND deleted_at IS NULL " +
+                            "ORDER BY policy_key LIMIT 100")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getString(1));
+                        row.put("policyKey", rs.getString(2));
+                        row.put("policyValue", rs.getString(3));
+                        row.put("updatedAt", rs.getString(4));
+                        items.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("items", items);
+            out.put("count", items.size());
+            return out;
+        });
+    }
+
+    public Map<String, Object> listFindings(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "iadm07.view");
+            List<Map<String, Object>> items = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, title, severity, status, owner_user_id::text, created_at::text " +
+                            "FROM plat.security_findings WHERE tenant_id=? AND deleted_at IS NULL " +
+                            "ORDER BY created_at DESC NULLS LAST LIMIT 100")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getString(1));
+                        row.put("title", rs.getString(2));
+                        row.put("severity", rs.getString(3));
+                        row.put("status", rs.getString(4));
+                        row.put("ownerUserId", rs.getString(5));
+                        row.put("createdAt", rs.getString(6));
+                        items.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("items", items);
+            out.put("count", items.size());
+            return out;
+        });
+    }
+
+    public Map<String, Object> posture(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "iadm07.view");
+            Map<String, Object> openBySeverity = new LinkedHashMap<>();
+            openBySeverity.put("LOW", 0);
+            openBySeverity.put("MEDIUM", 0);
+            openBySeverity.put("HIGH", 0);
+            openBySeverity.put("CRITICAL", 0);
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT severity, count(*) FROM plat.security_findings " +
+                            "WHERE tenant_id=? AND deleted_at IS NULL AND status='OPEN' GROUP BY severity")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        openBySeverity.put(rs.getString(1), rs.getInt(2));
+                    }
+                }
+            }
+            int policyCount = 0;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM plat.institute_security_policies WHERE tenant_id=? AND deleted_at IS NULL")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) policyCount = rs.getInt(1);
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("openFindingsBySeverity", openBySeverity);
+            out.put("policyCount", policyCount);
+            return out;
+        });
+    }
+
+    /** PARTIAL: {@code plat.platform_security_minimums} absent in DEV — empty catalogue. */
+    public Map<String, Object> platformMinimums(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            List<Map<String, Object>> items = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, minimum_key, minimum_value::text FROM plat.platform_security_minimums " +
+                            "WHERE deleted_at IS NULL ORDER BY minimum_key LIMIT 100")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getString(1));
+                        row.put("minimumKey", rs.getString(2));
+                        row.put("minimumValue", rs.getString(3));
+                        items.add(row);
+                    }
+                }
+            } catch (Exception ignored) {
+                // table missing
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("items", items);
+            out.put("count", items.size());
+            out.put("partial", true);
+            out.put("note", "plat.platform_security_minimums not present in DEV migrations");
             return out;
         });
     }

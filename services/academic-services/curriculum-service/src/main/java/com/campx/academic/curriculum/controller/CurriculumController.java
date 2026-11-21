@@ -379,6 +379,14 @@ public class CurriculumController implements HttpHandler {
                     "An unexpected error occurred: " + escape(e.getMessage()), fullPath);
         } finally {
             LogContext.clear();
+            if (exchange.getHttpContext() != null && exchange.getHttpContext().getAttributes() != null) {
+                exchange.getHttpContext().getAttributes().remove("tenantId");
+                exchange.getHttpContext().getAttributes().remove("userId");
+                exchange.getHttpContext().getAttributes().remove("traceId");
+                exchange.getHttpContext().getAttributes().remove("startTime");
+                exchange.getHttpContext().getAttributes().remove("method");
+                exchange.getHttpContext().getAttributes().remove("path");
+            }
         }
     }
 

@@ -1,20 +1,20 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (IADM Waves A–D done; **Wave E Parity & Cutover** is next priority; CADM deferred until Wave E exit)
+**Updated:** 2026-11-21 (IADM **Wave E exited**; next = CADM)
 
 ## Owner decisions – IADM Wave E (21-11-2026)
 
-**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Priority: finish IADM Wave E before CADM.
+**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Priority: finish IADM Wave E before CADM. **Closed.**
 
 | Item | Status |
 |---|---|
 | Wave E plan | **completed** — `docs/iadm/WAVE_E_PLAN.md` |
 | E0 Contract proof | **completed** — `docs/iadm/WAVE_E_CONTRACTS.md` (5/5 PASS) |
-| E1 Parity (01…08 move off monolith) | **next** — start E1-A |
-| E2 Security findings | yet to pickup |
-| E3 Stack / gateway cutover | yet to pickup |
-| CADM | **deferred** until Wave E exit |
+| E1 Parity (01…08) | **completed / partially completed** — `docs/iadm/WAVE_E_REPORT.md` |
+| E2 Security findings | **completed** — SEC-02 FIXED; RBAC-01 OPEN (doc) |
+| E3 Stack / gateway cutover | **completed** — ports 8099–8106 in stack scripts |
+| CADM | **next** — reconcile + Waves A–D |
 
 ## Owner decisions – IADM Waves A–D (21-11-2026)
 

@@ -116,6 +116,79 @@ public class Iadm08DomainService {
         });
     }
 
+    public Map<String, Object> exportAudit(UserSecurityContext ctx, String actor, String action) {
+        Map<String, Object> search = searchAudit(ctx, actor, action);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("format", "json");
+        out.put("items", search.get("items"));
+        out.put("count", search.get("count"));
+        out.put("contentDisposition", "attachment; filename=\"audit-export.json\"");
+        return out;
+    }
+
+    public Map<String, Object> instituteStatus(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm01.view");
+            Map<String, Object> out = new LinkedHashMap<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, code, name, status, updated_at::text FROM core.tenants WHERE id = ? AND deleted_at IS NULL")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM08_TENANT_NOT_FOUND", "Tenant not found");
+                    }
+                    out.put("tenantId", rs.getString(1));
+                    out.put("code", rs.getString(2));
+                    out.put("name", rs.getString(3));
+                    out.put("status", rs.getString(4));
+                    out.put("updatedAt", rs.getString(5));
+                }
+            }
+            int recentEvents = 0;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT count(*) FROM plat.institute_lifecycle_events WHERE tenant_id = ? " +
+                            "AND created_at > now() - interval '30 days'")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) recentEvents = rs.getInt(1);
+                }
+            }
+            out.put("recentLifecycleEventCount", recentEvents);
+            return out;
+        });
+    }
+
+    /** PARTIAL: {@code plat.audit_retention_policy} not in DEV — return immutable defaults. */
+    public Map<String, Object> auditRetention(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            try {
+                ctx.checkPermission(conn, "adm01.view");
+            } catch (Exception e) {
+                ctx.checkPlatformAdmin(conn);
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT retention_days, mutable FROM plat.audit_retention_policy WHERE deleted_at IS NULL LIMIT 1")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        Map<String, Object> out = new LinkedHashMap<>();
+                        out.put("days", rs.getInt(1));
+                        out.put("mutable", rs.getBoolean(2));
+                        out.put("source", "plat.audit_retention_policy");
+                        return out;
+                    }
+                }
+            } catch (Exception ignored) {
+                // table missing — defaults below
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("days", 365);
+            out.put("mutable", false);
+            out.put("source", "defaults");
+            out.put("partial", true);
+            return out;
+        });
+    }
+
     private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
         String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
         String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();

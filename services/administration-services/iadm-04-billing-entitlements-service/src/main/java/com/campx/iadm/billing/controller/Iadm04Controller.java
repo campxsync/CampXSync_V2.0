@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -70,12 +71,32 @@ public class Iadm04Controller implements HttpHandler {
             UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(),
                     auth.getTenantId() == null || auth.getTenantId().isEmpty()
                             ? "a0000000-0000-0000-0000-000000000001" : auth.getTenantId());
+            String bodyStr = new String(body, StandardCharsets.UTF_8);
+            String q = exchange.getRequestURI().getQuery();
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
                 send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-04\"}");
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/plans")) {
+                send(exchange, 200, toJson(service.listPlans(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/subscriptions")) {
+                UUID tid = qParamUuid(q, "tenantId");
+                send(exchange, 200, toJson(service.listSubscriptions(ctx, tid)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/invoices")) {
+                UUID tid = qParamUuid(q, "tenantId");
+                send(exchange, 200, toJson(service.listInvoices(ctx, tid)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/plan-change-requests")) {
+                send(exchange, 201, toJson(service.createPlanChangeRequest(ctx,
+                        extract(bodyStr, "reason"), extract(bodyStr, "requestedPlanCode"))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.contains("/entitlements/check")) {
-                String q = exchange.getRequestURI().getQuery();
                 String key = null;
                 String tenant = null;
                 if (q != null) {
@@ -127,6 +148,28 @@ public class Iadm04Controller implements HttpHandler {
                 (detail == null ? "" : detail.replace("\"", "\\\"")) + "\"}";
     }
 
+    private static UUID qParamUuid(String q, String name) {
+        if (q == null) return null;
+        for (String part : q.split("&")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].equals(name) && !kv[1].isEmpty()) return UUID.fromString(kv[1]);
+        }
+        return null;
+    }
+
+    private static String extract(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        int q1 = json.indexOf('"', colon + 1);
+        if (q1 < 0) return null;
+        int q2 = json.indexOf('"', q1 + 1);
+        return json.substring(q1 + 1, q2);
+    }
+
+    @SuppressWarnings("unchecked")
     private static String toJson(Map<String, Object> r) {
         StringBuilder sb = new StringBuilder("{");
         boolean first = true;
@@ -137,7 +180,17 @@ public class Iadm04Controller implements HttpHandler {
             Object v = e.getValue();
             if (v == null) sb.append("null");
             else if (v instanceof Number || v instanceof Boolean) sb.append(v);
-            else sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
+            else if (v instanceof List) {
+                List<?> list = (List<?>) v;
+                sb.append('[');
+                for (int i = 0; i < list.size(); i++) {
+                    if (i > 0) sb.append(',');
+                    Object item = list.get(i);
+                    if (item instanceof Map) sb.append(toJson((Map<String, Object>) item));
+                    else sb.append('"').append(String.valueOf(item).replace("\"", "\\\"")).append('"');
+                }
+                sb.append(']');
+            } else sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
         }
         return sb.append('}').toString();
     }

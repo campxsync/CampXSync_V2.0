@@ -78,12 +78,29 @@ public class Iadm07Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.health(ctx)));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/policies")) {
+                send(exchange, 200, toJson(service.listPolicies(ctx)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/policies")) {
                 send(exchange, 201, toJson(service.upsertPolicy(ctx, extract(body, "policyKey"), extract(body, "policyValue"))));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/findings")) {
+                send(exchange, 200, toJson(service.listFindings(ctx)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/findings")) {
                 send(exchange, 201, toJson(service.createFinding(ctx, extract(body, "title"), extract(body, "severity"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/posture")) {
+                send(exchange, 200, toJson(service.posture(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/platform-minimums")) {
+                send(exchange, 200, toJson(service.platformMinimums(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
                 return;
             }
             send(exchange, 404, problem("IADM07_NOT_FOUND", "Route not found: " + path));
@@ -128,6 +145,7 @@ public class Iadm07Controller implements HttpHandler {
             Object v = e.getValue();
             if (v == null) sb.append("null");
             else if (v instanceof Number || v instanceof Boolean) sb.append(v);
+            else if (v instanceof Map) sb.append(toJson((Map<String, Object>) v));
             else if (v instanceof List) {
                 List<?> list = (List<?>) v;
                 sb.append('[');

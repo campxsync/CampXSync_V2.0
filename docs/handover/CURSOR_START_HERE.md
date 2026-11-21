@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (IADM Waves A–D completed and pushed on `feature/java-backend-integration`; owner priority switched to **IADM Wave E Parity & Cutover**; CADM deferred until Wave E exit)
+**Last current-state refresh:** 2026-11-21 (IADM **Wave E exited** on `feature/java-backend-integration`; next = **CADM**; evidence in `docs/iadm/WAVE_E_REPORT.md`)
 
 ---
 
@@ -10,10 +10,10 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **IADM Wave E (Parity & Cutover)**; plan in `docs/iadm/WAVE_E_PLAN.md`.
+1. `docs/prompts/NEXT_TASK.md` — **CADM** (IADM Wave E complete).
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions.
-3. IADM evidence: `docs/iadm/STEP0_REPORT.md`, `WAVE_A`…`D_REPORT.md`, `ENGINEERING_STANDARDS.md`, `FILE_LIST.md`, `FINDINGS.md`.
-4. After Wave E exit: CADM reconcile + Waves A–D. Deferred elsewhere: D-RBAC-M04 coverage map; Kafka; commercial AV.
+3. IADM evidence: `docs/iadm/WAVE_E_REPORT.md`, `WAVE_E_CONTRACTS.md`, `STEP0`/`WAVE_A`…`D_REPORT.md`, `ENGINEERING_STANDARDS.md`, `FILE_LIST.md`, `FINDINGS.md`.
+4. Deferred elsewhere: break-glass / two-person appoint / under-18 consent / R27; Kafka; commercial AV.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

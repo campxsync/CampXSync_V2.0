@@ -103,9 +103,25 @@ public class TenantLifecycleService {
     public Map<String, Object> getInstitute(UserSecurityContext ctx, UUID tenantId) {
         return ctx.executeInTransaction(db, conn -> {
             ctx.checkPermission(conn, "adm01.view");
+            UUID requested = tenantId != null ? tenantId : ctx.getTenantId();
+            // IADM-01-US-005: Institution Admin may only view own institute (platform admins may cross-read)
+            if (!ctx.isPlatformScope() && ctx.getTenantId() != null && requested != null
+                    && !requested.equals(ctx.getTenantId())) {
+                boolean platform = false;
+                try {
+                    ctx.checkPlatformAdmin(conn);
+                    platform = true;
+                } catch (UserProfileAccessDeniedException ignored) {
+                    // not platform
+                }
+                if (!platform) {
+                    throw new InstituteAdminException(403, "IADM01_OWN_TENANT_ONLY",
+                            "Institution Admin may only view own institute profile");
+                }
+            }
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT id, code, name, status, created_at, updated_at FROM core.tenants WHERE id = ? AND deleted_at IS NULL")) {
-                ps.setObject(1, tenantId != null ? tenantId : ctx.getTenantId());
+                ps.setObject(1, requested);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) throw new InstituteAdminException(404, "IADM01_NOT_FOUND", "Institute not found");
                     Map<String, Object> out = new LinkedHashMap<>();
@@ -187,17 +203,41 @@ public class TenantLifecycleService {
                     if (!rs.next()) {
                         throw new InstituteAdminException(404, "IADM01_HANDOVER_NOT_FOUND", "No handover record for college");
                     }
+                    // IADM-01-US-004: after COMPLETED, R03 loses direct college user-admin
+                    // (enforced by plat.is_college_handed_over / IADM-03 assignRole gate)
                     appendEvent(conn, tenantId, "HANDOVER", ctx.getUserId(), "Handover completed to College Admin (R04)",
-                            "{\"collegeId\":\"" + collegeId + "\"}");
+                            "{\"collegeId\":\"" + collegeId + "\",\"r03CollegeUserAdmin\":\"REVOKED\"}");
                     Map<String, Object> out = new LinkedHashMap<>();
                     out.put("handoverId", rs.getObject("id").toString());
                     out.put("collegeId", collegeId.toString());
                     out.put("firstCollegeAdminUserId", rs.getObject("first_college_admin_user_id").toString());
                     out.put("status", "COMPLETED");
+                    out.put("r03CollegeUserAdmin", "REVOKED");
                     auditMutation(ctx, "completeHandover", "COLLEGE", collegeId.toString());
                     return out;
                 }
             }
+        });
+    }
+
+    /**
+     * IADM-01-US-004 read-back: whether Institution Admin may still assign college-scoped users.
+     */
+    public Map<String, Object> collegeUserAdminBoundary(UserSecurityContext ctx, UUID collegeId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm01.view");
+            boolean handedOver;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT plat.is_college_handed_over(?)")) {
+                ps.setObject(1, collegeId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    handedOver = rs.next() && rs.getBoolean(1);
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("collegeId", collegeId.toString());
+            out.put("handedOver", handedOver);
+            out.put("r03CollegeUserAdminAllowed", !handedOver);
+            return out;
         });
     }
 
@@ -207,8 +247,9 @@ public class TenantLifecycleService {
             if (reason == null || reason.trim().isEmpty()) {
                 throw new InstituteAdminException(400, "IADM01_REASON_REQUIRED", "Reason is required");
             }
-            String status = "suspend".equalsIgnoreCase(action) ? "SUSPENDED" : "ACTIVE";
-            String event = "SUSPENDED".equals(status) ? "SUSPEND" : "REACTIVATE";
+            boolean suspending = "suspend".equalsIgnoreCase(action);
+            String status = suspending ? "SUSPENDED" : "ACTIVE";
+            String event = suspending ? "SUSPEND" : "REACTIVATE";
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE core.tenants SET status = ?, updated_at = now(), updated_by = ? WHERE id = ? AND deleted_at IS NULL")) {
                 ps.setString(1, status);
@@ -218,11 +259,23 @@ public class TenantLifecycleService {
                     throw new InstituteAdminException(404, "IADM01_NOT_FOUND", "Institute not found");
                 }
             }
-            appendEvent(conn, tenantId, event, ctx.getUserId(), reason, "{}");
+            // IADM-01-US-006: record session block so suspended tenants fail closed on subsequent ops
+            try (PreparedStatement blk = conn.prepareStatement(
+                    "INSERT INTO plat.tenant_session_blocks (tenant_id, blocked, reason, actor_id, created_by) VALUES (?,?,?,?,?)")) {
+                blk.setObject(1, tenantId);
+                blk.setBoolean(2, suspending);
+                blk.setString(3, reason);
+                blk.setObject(4, ctx.getUserId());
+                blk.setObject(5, ctx.getUserId());
+                blk.executeUpdate();
+            }
+            appendEvent(conn, tenantId, event, ctx.getUserId(), reason,
+                    "{\"sessionsBlocked\":" + suspending + "}");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("tenantId", tenantId.toString());
             out.put("status", status);
             out.put("reason", reason);
+            out.put("sessionsBlocked", suspending);
             auditMutation(ctx, action, "TENANT", tenantId.toString());
             return out;
         });
@@ -301,10 +354,10 @@ public class TenantLifecycleService {
 
     public List<Map<String, Object>> lifecycleHistory(UserSecurityContext ctx, UUID tenantId) {
         return ctx.executeInTransaction(db, conn -> {
+            // IADM-01-US-008: Auditor (R28) via adm01.view; platform admin fallback
             try {
                 ctx.checkPermission(conn, "adm01.view");
             } catch (UserProfileAccessDeniedException ex) {
-                // Auditor (R28) / platform path
                 ctx.checkPlatformAdmin(conn);
             }
             UUID tid = tenantId != null ? tenantId : ctx.getTenantId();

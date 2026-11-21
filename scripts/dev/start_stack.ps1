@@ -33,7 +33,7 @@ try {
 }
 
 # 2. Stop old listeners on core + academic ports
-$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 3000)
+$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 3000) + (8099..8106)
 foreach ($p in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
     if ($conns) {
@@ -80,6 +80,42 @@ $iamProc = Start-Process -FilePath "java" -ArgumentList @(
 ) -WorkingDirectory $iamDir -RedirectStandardOutput "$logDir\adm-01.log" -RedirectStandardError "$logDir\adm-01.err" -WindowStyle Minimized -PassThru
 
 Write-Host "ADM-01 launched with PID $($iamProc.Id)" -ForegroundColor DarkGray
+
+# 3a1. Launch IADM microservices on ports 8099..8106
+$iadmServices = @(
+    @{ Port = 8099; Dir = "iadm-01-tenant-lifecycle-service"; Main = "com.campx.iadm.lifecycle.Iadm01Application"; Log = "iadm-01"; Name = "IADM-01 Tenant Lifecycle" },
+    @{ Port = 8100; Dir = "iadm-02-platform-config-service"; Main = "com.campx.iadm.config.Iadm02Application"; Log = "iadm-02"; Name = "IADM-02 Platform Config" },
+    @{ Port = 8101; Dir = "iadm-03-identity-access-service"; Main = "com.campx.iadm.identity.Iadm03Application"; Log = "iadm-03"; Name = "IADM-03 Identity Access" },
+    @{ Port = 8102; Dir = "iadm-04-billing-entitlements-service"; Main = "com.campx.iadm.billing.Iadm04Application"; Log = "iadm-04"; Name = "IADM-04 Billing Entitlements" },
+    @{ Port = 8103; Dir = "iadm-05-data-governance-service"; Main = "com.campx.iadm.privacy.Iadm05Application"; Log = "iadm-05"; Name = "IADM-05 Data Governance" },
+    @{ Port = 8104; Dir = "iadm-06-platform-analytics-service"; Main = "com.campx.iadm.analytics.Iadm06Application"; Log = "iadm-06"; Name = "IADM-06 Platform Analytics" },
+    @{ Port = 8105; Dir = "iadm-07-security-compliance-service"; Main = "com.campx.iadm.securitygov.Iadm07Application"; Log = "iadm-07"; Name = "IADM-07 Security Compliance" },
+    @{ Port = 8106; Dir = "iadm-08-audit-ops-service"; Main = "com.campx.iadm.audit.Iadm08Application"; Log = "iadm-08"; Name = "IADM-08 Audit Ops" }
+)
+$iadmDirs = @{}
+$iadmCps = @{}
+$iadmMains = @{}
+$iadmLogs = @{}
+foreach ($svc in $iadmServices) {
+    Write-Host "Starting $($svc.Name) on port $($svc.Port) (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+    $svcDir = "$baseDir\services\administration-services\$($svc.Dir)"
+    $svcCp = (Get-Content "$svcDir\classpath.txt" -Raw).Trim()
+    $iadmDirs[$svc.Port] = $svcDir
+    $iadmCps[$svc.Port] = $svcCp
+    $iadmMains[$svc.Port] = $svc.Main
+    $iadmLogs[$svc.Port] = $svc.Log
+    $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+        "-Xms32m",
+        "-Xmx96m",
+        "-Dcampx.persistence.mode=postgres",
+        "-Dcampx.internal.auth.enabled=true",
+        "-cp",
+        "target\classes;$svcCp",
+        $svc.Main,
+        "$($svc.Port)"
+    ) -WorkingDirectory $svcDir -RedirectStandardOutput "$logDir\$($svc.Log).log" -RedirectStandardError "$logDir\$($svc.Log).err" -WindowStyle Minimized -PassThru
+    Write-Host "$($svc.Name) launched with PID $($iadmProc.Id)" -ForegroundColor DarkGray
+}
 
 # Path C + STM-07 IAM role port client base (student-service)
 $env:CAMPX_IAM_DELEGATION_BASE_URL = "http://127.0.0.1:8081"
@@ -355,6 +391,80 @@ while ($true) {
             "com.campx.admin.institute.InstituteAdminApplication", "8081"
         ) -WorkingDirectory $iamDir -RedirectStandardOutput "$logDir\adm-01.log" -RedirectStandardError "$logDir\adm-01.err" -WindowStyle Minimized
     } "Institute Admin"
+
+    # Watch IADM services (8099..8106)
+    Ensure-Service 8099 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8099])",
+            $iadmMains[8099], "8099"
+        ) -WorkingDirectory $iadmDirs[8099] -RedirectStandardOutput "$logDir\$($iadmLogs[8099]).log" -RedirectStandardError "$logDir\$($iadmLogs[8099]).err" -WindowStyle Minimized
+    } "IADM-01"
+    Ensure-Service 8100 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8100])",
+            $iadmMains[8100], "8100"
+        ) -WorkingDirectory $iadmDirs[8100] -RedirectStandardOutput "$logDir\$($iadmLogs[8100]).log" -RedirectStandardError "$logDir\$($iadmLogs[8100]).err" -WindowStyle Minimized
+    } "IADM-02"
+    Ensure-Service 8101 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8101])",
+            $iadmMains[8101], "8101"
+        ) -WorkingDirectory $iadmDirs[8101] -RedirectStandardOutput "$logDir\$($iadmLogs[8101]).log" -RedirectStandardError "$logDir\$($iadmLogs[8101]).err" -WindowStyle Minimized
+    } "IADM-03"
+    Ensure-Service 8102 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8102])",
+            $iadmMains[8102], "8102"
+        ) -WorkingDirectory $iadmDirs[8102] -RedirectStandardOutput "$logDir\$($iadmLogs[8102]).log" -RedirectStandardError "$logDir\$($iadmLogs[8102]).err" -WindowStyle Minimized
+    } "IADM-04"
+    Ensure-Service 8103 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8103])",
+            $iadmMains[8103], "8103"
+        ) -WorkingDirectory $iadmDirs[8103] -RedirectStandardOutput "$logDir\$($iadmLogs[8103]).log" -RedirectStandardError "$logDir\$($iadmLogs[8103]).err" -WindowStyle Minimized
+    } "IADM-05"
+    Ensure-Service 8104 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8104])",
+            $iadmMains[8104], "8104"
+        ) -WorkingDirectory $iadmDirs[8104] -RedirectStandardOutput "$logDir\$($iadmLogs[8104]).log" -RedirectStandardError "$logDir\$($iadmLogs[8104]).err" -WindowStyle Minimized
+    } "IADM-06"
+    Ensure-Service 8105 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8105])",
+            $iadmMains[8105], "8105"
+        ) -WorkingDirectory $iadmDirs[8105] -RedirectStandardOutput "$logDir\$($iadmLogs[8105]).log" -RedirectStandardError "$logDir\$($iadmLogs[8105]).err" -WindowStyle Minimized
+    } "IADM-07"
+    Ensure-Service 8106 {
+        Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m", "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp", "target\classes;$($iadmCps[8106])",
+            $iadmMains[8106], "8106"
+        ) -WorkingDirectory $iadmDirs[8106] -RedirectStandardOutput "$logDir\$($iadmLogs[8106]).log" -RedirectStandardError "$logDir\$($iadmLogs[8106]).err" -WindowStyle Minimized
+    } "IADM-08"
 
     # Watch Student Domain Service (8093)
     Ensure-Service 8093 {

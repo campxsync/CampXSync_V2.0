@@ -1,6 +1,6 @@
-# IADM Waves A–D — File Inventory
+# IADM Waves A–E — File Inventory
 
-**Date:** 2026-11-21 · Branch `feature/java-backend-integration` · No push
+**Date:** 2026-11-21 · Branch `feature/java-backend-integration` · Local commits; push on request
 
 ## Migrations (+ rollbacks)
 
@@ -20,6 +20,8 @@
 | `database/migrations/20261121000600_rollback__iadm_wave_cd_role_grants.sql` | C/D |
 | `database/migrations/20261121000700_iadm_auth_linked_user_check.sql` | E0 / SEC-11 |
 | `database/migrations/20261121000700_rollback__iadm_auth_linked_user_check.sql` | E0 / SEC-11 |
+| `database/migrations/20261121000800_iadm_wave_e_handover_and_suspend.sql` | E1-A |
+| `database/migrations/20261121000800_rollback__iadm_wave_e_handover_and_suspend.sql` | E1-A |
 
 ## Services (new modules under `services/administration-services/`)
 
@@ -38,14 +40,15 @@
 
 - `docs/iadm/STEP0_REPORT.md`, `WAVE_A_REPORT.md`, `WAVE_B_REPORT.md`, `WAVE_C_REPORT.md`, `WAVE_D_REPORT.md`
 - `docs/iadm/FINDINGS.md`, `docs/iadm/FILE_LIST.md`, `docs/iadm/ENGINEERING_STANDARDS.md` (Agreement §3.2 logging/exceptions/docs)
-- `docs/iadm/WAVE_E_PLAN.md`, `docs/iadm/WAVE_E_CONTRACTS.md` (Wave E0 complete)
+- `docs/iadm/WAVE_E_PLAN.md`, `WAVE_E_CONTRACTS.md`, `WAVE_E_REPORT.md` (Wave E exit)
 - `docs/user-stories/IADM_User_Stories.md` (final backlog; DRAFT left unchanged)
 
-## Gateway / control docs
+## Gateway / control docs / stack
 
-- `api-gateway/src/main/java/com/campx/gateway/config/GatewayConfig.java` — IADM routes 01–08
+- `api-gateway/.../GatewayConfig.java` — IADM routes 01–08 (authoritative vs `/api/v1/admin` shim)
+- `scripts/dev/start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1` — ports 8099–8106
 - `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`, `docs/handover/CURSOR_START_HERE.md`
-- Context-leak identical fixes (Step 0.2): SubjectController, AnalyticsController (see FINDINGS SEC-02)
+- SEC-02 finally-remove: Curriculum, InstituteAdmin, CollegeAdmin, Course (+ Subject/Analytics earlier)
 
 ## Not committed (noise / out of scope)
 

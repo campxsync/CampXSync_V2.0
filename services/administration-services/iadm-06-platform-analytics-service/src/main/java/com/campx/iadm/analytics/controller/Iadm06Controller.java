@@ -77,6 +77,19 @@ public class Iadm06Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.health(ctx)));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage/by-college")) {
+                send(exchange, 200, toJson(service.usageByCollege(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage/export")) {
+                send(exchange, 200, toJson(service.usageExport(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage/platform")) {
+                send(exchange, 200, toJson(service.usagePlatform(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage")) {
                 send(exchange, 200, toJson(service.usageSummary(ctx)));
                 return;

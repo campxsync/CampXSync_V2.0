@@ -3,7 +3,7 @@ $ErrorActionPreference = "SilentlyContinue"
 
 Write-Host "Stopping CampXSync stack services..." -ForegroundColor Yellow
 
-$targetPorts = @(8080, 8098, 3000) + (8081..8097)
+$targetPorts = @(8080, 8098, 3000) + (8081..8106)
 
 foreach ($port in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue

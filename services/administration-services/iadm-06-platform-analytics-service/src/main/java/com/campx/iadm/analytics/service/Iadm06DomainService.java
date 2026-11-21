@@ -59,6 +59,73 @@ public class Iadm06DomainService {
         });
     }
 
+    /**
+     * PARTIAL: {@code plat.usage_metrics} has no {@code college_id}; GROUP BY {@code dimension} as college proxy.
+     */
+    public Map<String, Object> usageByCollege(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "iadm06.view");
+            List<Map<String, Object>> rows = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT COALESCE(dimension, 'UNKNOWN') AS college_key, metric_name, COALESCE(SUM(metric_value),0) AS total " +
+                            "FROM plat.usage_metrics WHERE tenant_id=? AND deleted_at IS NULL " +
+                            "GROUP BY COALESCE(dimension, 'UNKNOWN'), metric_name " +
+                            "ORDER BY college_key, metric_name LIMIT 200")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("collegeId", rs.getString(1));
+                        row.put("metricName", rs.getString(2));
+                        row.put("total", rs.getBigDecimal(3));
+                        rows.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("tenantId", ctx.getTenantId().toString());
+            out.put("items", rows);
+            out.put("count", rows.size());
+            out.put("partial", true);
+            out.put("note", "Grouped by usage_metrics.dimension; college_id column absent");
+            return out;
+        });
+    }
+
+    public Map<String, Object> usageExport(UserSecurityContext ctx) {
+        Map<String, Object> summary = usageSummary(ctx);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("format", "json");
+        out.put("usageSummary", summary);
+        out.put("contentDisposition", "attachment; filename=\"usage-export.json\"");
+        return out;
+    }
+
+    public Map<String, Object> usagePlatform(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            List<Map<String, Object>> rows = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT tenant_id::text, metric_name, COALESCE(SUM(metric_value),0) AS total " +
+                            "FROM plat.usage_metrics WHERE deleted_at IS NULL " +
+                            "GROUP BY tenant_id, metric_name ORDER BY tenant_id, metric_name LIMIT 500")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("tenantId", rs.getString(1));
+                        row.put("metricName", rs.getString(2));
+                        row.put("total", rs.getBigDecimal(3));
+                        rows.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("items", rows);
+            out.put("count", rows.size());
+            return out;
+        });
+    }
+
     private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
         String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
         String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();

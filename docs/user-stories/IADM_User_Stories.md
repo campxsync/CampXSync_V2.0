@@ -33,14 +33,14 @@ Port: **8099** · Gateway: `/api/v1/iadm/01`
 
 | ID | Story | Acceptance criteria | Access | Status | Traceability |
 |---|---|---|---|---|---|
-| IADM-01-US-001 | As Super Admin (R01), I register a new institute so that it gets its own isolated tenant. | Name, code, region; unique code; tenant row; audit; duplicate rejected | R01 M | PARTIAL | ADM01_institutes; Arch §5.1 |
-| IADM-01-US-002 | As Super Admin (R01), I appoint the first Institution Admin (R03). | Uses `plat.assign_institution_admin`; caller from `auth.uid()` not request field; audit; no self-appointment | R01 M | EXISTS | Arch §5.1; Matrix §21.1 / D-RBAC-M23; Step 0.1 fixed |
-| IADM-01-US-003 | As Institution Admin (R03), I register a college under my institute with first College Admin (R04). | Creates college, first College Admin, handover record; atomic; audit; Auth-linked admin (SEC-11) | R03 M | PARTIAL | ADM01_colleges / tenant_provisioning; Arch §5.1 handover |
-| IADM-01-US-004 | As Institution Admin (R03), I record handover of a college to its College Admin. | Handover record; after handover R03 loses direct college user admin; Auditor visible | R03 M | NEW | Arch §5.1; CADM-02 contract |
-| IADM-01-US-005 | As Institution Admin (R03), I view my institute profile and lifecycle status. | Status + dates; own institute only | R03 V | PARTIAL | ADM01_institutes |
-| IADM-01-US-006 | As Super Admin (R01), I suspend or reactivate an institute. | Reason required; sessions blocked while suspended; reversible; audit | R01 M | NEW | ADM01_institutes; Matrix §21.1 guard 4 |
-| IADM-01-US-007 | As Institution Admin (R03), I request suspension/decommission/export; Super Admin decides. | R03 request only; decision stored; destructive needs R01 | R03 request, R01 M | NEW | Matrix §21.1 guard 4 |
-| IADM-01-US-008 | As Auditor (R28), I view institute lifecycle history read-only. | Timeline; no write path | R28 V | NEW | Arch §5.1 |
+| IADM-01-US-001 | As Super Admin (R01), I register a new institute so that it gets its own isolated tenant. | Name, code, region; unique code; tenant row; audit; duplicate rejected | R01 M | completed | ADM01_institutes; Arch §5.1; :8099 |
+| IADM-01-US-002 | As Super Admin (R01), I appoint the first Institution Admin (R03). | Uses `plat.assign_institution_admin`; caller from `auth.uid()` not request field; audit; no self-appointment | R01 M | completed | Arch §5.1; Matrix §21.1 / D-RBAC-M23; Step 0.1 fixed |
+| IADM-01-US-003 | As Institution Admin (R03), I register a college under my institute with first College Admin (R04). | Creates college, first College Admin, handover record; atomic; audit; Auth-linked admin (SEC-11) | R03 M | completed | :8099 + `plat.is_auth_linked_user` |
+| IADM-01-US-004 | As Institution Admin (R03), I record handover of a college to its College Admin. | Handover record; after handover R03 loses direct college user admin; Auditor visible | R03 M | completed | `plat.is_college_handed_over`; IADM-03 gate |
+| IADM-01-US-005 | As Institution Admin (R03), I view my institute profile and lifecycle status. | Status + dates; own institute only | R03 V | completed | `IADM01_OWN_TENANT_ONLY` |
+| IADM-01-US-006 | As Super Admin (R01), I suspend or reactivate an institute. | Reason required; sessions blocked while suspended; reversible; audit | R01 M | completed | `plat.is_tenant_suspended` + session blocks |
+| IADM-01-US-007 | As Institution Admin (R03), I request suspension/decommission/export; Super Admin decides. | R03 request only; decision stored; destructive needs R01 | R03 request, R01 M | completed | Matrix §21.1 guard 4 |
+| IADM-01-US-008 | As Auditor (R28), I view institute lifecycle history read-only. | Timeline; no write path | R28 V | completed | Arch §5.1; `adm01.view` |
 
 ---
 
