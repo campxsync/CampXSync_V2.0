@@ -31,24 +31,23 @@
 
 ## Owner decisions – Break-glass IADM-03-US-008 (21-11-2026)
 
-**Policy frozen** (not build-authorized). Detail: `docs/iadm/FINDINGS.md` → OWNER-DEC-BG-01.
+**Implemented** after `APPROVED IADM-03-US-009`. Detail: OWNER-DEC-BG-01 / migration `20261121001300`.
 
 | Gate | Decision |
 |---|---|
 | Request | R03 / R04 / R05 / R31 + R01 / R02; authenticated; anonymous no |
 | Approve | **R01 & R02 only** |
-| Build | Await `AUTHORIZE IADM-03-US-008` |
+| Build | **completed** — `Iadm03BreakGlassLiveDevTest` PASS; await `APPROVED IADM-03-US-008` |
 
 ## Owner decisions – Two-person appoint IADM-03-US-009 (21-11-2026)
 
-**Authorized and implemented** (await story approval). Detail: OWNER-DEC-TP-01 / migration `20261121001200`.
+**APPROVED** by owner 2026-11-21. Detail: OWNER-DEC-TP-01 / migration `20261121001200` / commit `128833a`.
 
 | Gate | Decision |
 |---|---|
 | Quorum | **R01 + R02** (two different people; requestor ≠ approver) |
 | Scope | Appoint **and** remove Institution Admin (R03) |
-| Build | **completed** — live `Iadm03QuorumLiveDevTest` PASS; FINDING-RBAC-07 FIXED in DEV |
-| Next | Await `APPROVED IADM-03-US-009` then implement IADM-03-US-008 (also authorized) |
+| Build | **completed + approved** — FINDING-RBAC-07 FIXED in DEV |
 
 ## Owner decisions – CADM (21-11-2026)
 

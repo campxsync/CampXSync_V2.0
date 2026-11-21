@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (IADM-03-US-009 implemented — await `APPROVED IADM-03-US-009`; then US-008; Wave F still await approve)
+**Last current-state refresh:** 2026-11-21 (US-009 **APPROVED**; US-008 implemented — await `APPROVED IADM-03-US-008`; Wave F still await approve)
 
 ---
 
@@ -13,7 +13,7 @@ Read and follow only:
 1. `docs/prompts/NEXT_TASK.md` — Wave F STOP / then **CADM**.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions.
 3. Evidence: `docs/iadm/WAVE_F_REPORT.md`, `WAVE_E_REPORT.md`, `WAVE_E_CONTRACTS.md`, `IADM_User_Stories.md`.
-4. Deferred: break-glass (**authorized**, OWNER-DEC-BG-01 — after US-009 approve) / two-person (**implemented**, await approve) / under-18 / R27; Kafka; commercial AV.
+4. Deferred remaining: under-18 / R27; Kafka; commercial AV. Break-glass + two-person built (US-008 await approve).
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

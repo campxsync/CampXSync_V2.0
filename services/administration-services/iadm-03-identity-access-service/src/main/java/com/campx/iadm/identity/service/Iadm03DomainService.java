@@ -332,6 +332,347 @@ public class Iadm03DomainService {
         }
     }
 
+    /**
+     * IADM-03-US-008 / OWNER-DEC-BG-01: stakeholder requests break-glass for a tenant.
+     */
+    public Map<String, Object> requestBreakGlass(UserSecurityContext ctx, UUID tenantId, String reason, Integer minutes) {
+        return ctx.executeInTransaction(db, conn -> {
+            if (tenantId == null) {
+                throw new InstituteAdminException(400, "IADM03_BG_REQUIRED", "tenantId required");
+            }
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM03_BG_REASON", "reason required");
+            }
+            int mins = minutes == null ? 60 : minutes.intValue();
+            if (mins < 15 || mins > 240) {
+                throw new InstituteAdminException(400, "IADM03_BG_MINUTES", "requestedMinutes must be 15–240");
+            }
+            String role;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT plat.break_glass_requester_role(?, ?)")) {
+                ps.setObject(1, tenantId);
+                ps.setObject(2, ctx.getUserId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next() || rs.getString(1) == null) {
+                        throw new InstituteAdminException(403, "IADM03_BG_REQUESTER",
+                                "Only R03/R04/R05/R31 or R01/R02 may request break-glass for this tenant");
+                    }
+                    role = rs.getString(1);
+                }
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.break_glass_requests " +
+                            "(id, tenant_id, requested_by, requester_role, reason, requested_minutes, status, created_by) " +
+                            "VALUES (?,?,?,?,?,?,'PENDING',?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, ctx.getUserId());
+                ps.setString(4, role);
+                ps.setString(5, reason.trim());
+                ps.setInt(6, mins);
+                ps.setObject(7, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", id.toString());
+            out.put("tenantId", tenantId.toString());
+            out.put("status", "PENDING");
+            out.put("requesterRole", role);
+            out.put("requestedMinutes", mins);
+            auditMutation(ctx, "requestBreakGlass", "BREAK_GLASS", id.toString());
+            return out;
+        });
+    }
+
+    /**
+     * Approve (R01/R02) opens a time-boxed session; reject leaves no session.
+     */
+    public Map<String, Object> decideBreakGlass(UserSecurityContext ctx, UUID requestId, String decision, String note) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            String track = platformAdminTrack(conn, ctx.getUserId());
+            if (track == null || (!"R01".equals(track) && !"R02".equals(track))) {
+                throw new InstituteAdminException(403, "IADM03_BG_APPROVER", "Only R01 or R02 may approve break-glass");
+            }
+            if (requestId == null) {
+                throw new InstituteAdminException(400, "IADM03_BG_REQUIRED", "requestId required");
+            }
+            boolean approve = decision != null && decision.toUpperCase().startsWith("APP");
+            UUID tenantId;
+            String reason;
+            int mins;
+            UUID requestedBy;
+            try (PreparedStatement sel = conn.prepareStatement(
+                    "SELECT tenant_id, reason, requested_minutes, requested_by FROM plat.break_glass_requests " +
+                            "WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL")) {
+                sel.setObject(1, requestId);
+                try (ResultSet rs = sel.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM03_BG_NOT_FOUND", "Pending break-glass request not found");
+                    }
+                    tenantId = (UUID) rs.getObject(1);
+                    reason = rs.getString(2);
+                    mins = rs.getInt(3);
+                    requestedBy = (UUID) rs.getObject(4);
+                }
+            }
+            // College stakeholders cannot approve; platform only (already checked). Self-request by R01/R02 may self-approve
+            // for platform ops — still audited. OWNER-DEC-BG-01: R03/R04 cannot approve (enforced by track).
+
+            UUID sessionId = null;
+            Timestamp expiresAt = null;
+            String status = approve ? "APPROVED" : "REJECTED";
+            if (approve) {
+                sessionId = UUID.randomUUID();
+                expiresAt = Timestamp.from(Instant.now().plusSeconds(mins * 60L));
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO plat.break_glass_sessions " +
+                                "(id, tenant_id, request_id, opened_by, opener_track, reason, expires_at, created_by) " +
+                                "VALUES (?,?,?,?,?,?,?,?)")) {
+                    ins.setObject(1, sessionId);
+                    ins.setObject(2, tenantId);
+                    ins.setObject(3, requestId);
+                    ins.setObject(4, ctx.getUserId());
+                    ins.setString(5, track);
+                    ins.setString(6, reason);
+                    ins.setTimestamp(7, expiresAt);
+                    ins.setObject(8, ctx.getUserId());
+                    ins.executeUpdate();
+                }
+                appendBreakGlassAction(conn, sessionId, tenantId, ctx.getUserId(), "SESSION_OPENED",
+                        "{\"requestId\":\"" + requestId + "\",\"expiresAt\":\"" + expiresAt.toInstant() + "\"," +
+                                "\"requestedBy\":\"" + requestedBy + "\"}");
+            }
+            try (PreparedStatement upd = conn.prepareStatement(
+                    "UPDATE plat.break_glass_requests SET status = ?, decided_by = ?, decision_note = ?, " +
+                            "decided_at = now(), session_id = ?, updated_by = ?, updated_at = now() " +
+                            "WHERE id = ? AND status = 'PENDING'")) {
+                upd.setString(1, status);
+                upd.setObject(2, ctx.getUserId());
+                upd.setString(3, note);
+                upd.setObject(4, sessionId);
+                upd.setObject(5, ctx.getUserId());
+                upd.setObject(6, requestId);
+                if (upd.executeUpdate() == 0) {
+                    throw new InstituteAdminException(409, "IADM03_BG_RACE", "Request already decided");
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", requestId.toString());
+            out.put("status", status);
+            out.put("tenantId", tenantId.toString());
+            out.put("decidedTrack", track);
+            if (sessionId != null) {
+                out.put("sessionId", sessionId.toString());
+                out.put("expiresAt", expiresAt.toInstant().toString());
+            }
+            auditMutation(ctx, "decideBreakGlass", "BREAK_GLASS", requestId.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> closeBreakGlassSession(UserSecurityContext ctx, UUID sessionId, String closeReason) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            String track = platformAdminTrack(conn, ctx.getUserId());
+            if (track == null) {
+                throw new InstituteAdminException(403, "IADM03_BG_APPROVER", "Only R01/R02 may close break-glass");
+            }
+            UUID tenantId;
+            try (PreparedStatement sel = conn.prepareStatement(
+                    "SELECT tenant_id FROM plat.break_glass_sessions " +
+                            "WHERE id = ? AND closed_at IS NULL AND deleted_at IS NULL")) {
+                sel.setObject(1, sessionId);
+                try (ResultSet rs = sel.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM03_BG_SESSION", "Active session not found");
+                    }
+                    tenantId = (UUID) rs.getObject(1);
+                }
+            }
+            try (PreparedStatement upd = conn.prepareStatement(
+                    "UPDATE plat.break_glass_sessions SET closed_at = now(), closed_by = ?, close_reason = ?, " +
+                            "updated_by = ?, updated_at = now() WHERE id = ? AND closed_at IS NULL")) {
+                upd.setObject(1, ctx.getUserId());
+                upd.setString(2, closeReason == null ? "CLOSED" : closeReason);
+                upd.setObject(3, ctx.getUserId());
+                upd.setObject(4, sessionId);
+                upd.executeUpdate();
+            }
+            appendBreakGlassAction(conn, sessionId, tenantId, ctx.getUserId(), "SESSION_CLOSED",
+                    "{\"reason\":\"" + (closeReason == null ? "CLOSED" : closeReason.replace("\"", "'")) + "\"}");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("sessionId", sessionId.toString());
+            out.put("status", "CLOSED");
+            auditMutation(ctx, "closeBreakGlassSession", "BREAK_GLASS", sessionId.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> recordBreakGlassAction(UserSecurityContext ctx, UUID sessionId,
+                                                      String actionType, String detailJson) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            String track = platformAdminTrack(conn, ctx.getUserId());
+            if (track == null) {
+                throw new InstituteAdminException(403, "IADM03_BG_APPROVER", "Only R01/R02 during active session");
+            }
+            String type = actionType == null ? "" : actionType.trim().toUpperCase();
+            if (!"RECOVERY_NOTE".equals(type) && !"EMERGENCY_APPOINT_QUORUM".equals(type) && !"STATUS_CHECK".equals(type)) {
+                throw new InstituteAdminException(400, "IADM03_BG_ACTION",
+                        "actionType must be RECOVERY_NOTE, EMERGENCY_APPOINT_QUORUM, or STATUS_CHECK");
+            }
+            UUID tenantId;
+            Timestamp expiresAt;
+            Timestamp closedAt;
+            try (PreparedStatement sel = conn.prepareStatement(
+                    "SELECT tenant_id, expires_at, closed_at FROM plat.break_glass_sessions " +
+                            "WHERE id = ? AND deleted_at IS NULL")) {
+                sel.setObject(1, sessionId);
+                try (ResultSet rs = sel.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM03_BG_SESSION", "Session not found");
+                    }
+                    tenantId = (UUID) rs.getObject(1);
+                    expiresAt = rs.getTimestamp(2);
+                    closedAt = rs.getTimestamp(3);
+                }
+            }
+            if (closedAt != null || expiresAt.before(Timestamp.from(Instant.now()))) {
+                throw new InstituteAdminException(403, "IADM03_BG_EXPIRED", "Break-glass session closed or expired");
+            }
+            String detail = (detailJson == null || detailJson.trim().isEmpty() || "null".equals(detailJson.trim()))
+                    ? "{}" : detailJson.trim();
+            if ("EMERGENCY_APPOINT_QUORUM".equals(type)) {
+                // Opens US-009 quorum request in-session; does not bypass two-person rule
+                String target = extractJsonString(detail, "targetUserId");
+                String qReason = extractJsonString(detail, "reason");
+                if (target == null || target.isEmpty()) {
+                    throw new InstituteAdminException(400, "IADM03_BG_TARGET", "detail.targetUserId required");
+                }
+                UUID targetId = UUID.fromString(target);
+                if (targetId.equals(ctx.getUserId())) {
+                    throw new InstituteAdminException(403, "IADM03_QUORUM_SELF", "Cannot target self");
+                }
+                UUID qid = UUID.randomUUID();
+                String qText = (qReason == null || qReason.isEmpty())
+                        ? "Break-glass emergency appoint " + sessionId : qReason;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO plat.institution_admin_quorum_requests " +
+                                "(id, tenant_id, target_user_id, action, status, reason, requested_by, requested_track, created_by) " +
+                                "VALUES (?,?,?,'APPOINT','PENDING',?,?,?,?)")) {
+                    ps.setObject(1, qid);
+                    ps.setObject(2, tenantId);
+                    ps.setObject(3, targetId);
+                    ps.setString(4, qText);
+                    ps.setObject(5, ctx.getUserId());
+                    ps.setString(6, track);
+                    ps.setObject(7, ctx.getUserId());
+                    ps.executeUpdate();
+                }
+                detail = "{\"quorumRequestId\":\"" + qid + "\",\"targetUserId\":\"" + target + "\"}";
+            }
+            UUID actionId = appendBreakGlassAction(conn, sessionId, tenantId, ctx.getUserId(), type, detail);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("actionId", actionId.toString());
+            out.put("sessionId", sessionId.toString());
+            out.put("actionType", type);
+            out.put("tenantId", tenantId.toString());
+            auditMutation(ctx, "recordBreakGlassAction", "BREAK_GLASS", actionId.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> listBreakGlass(UserSecurityContext ctx, UUID tenantId) {
+        return ctx.executeInTransaction(db, conn -> {
+            boolean platform;
+            try {
+                ctx.checkPlatformAdmin(conn);
+                platform = true;
+            } catch (UserProfileAccessDeniedException e) {
+                platform = false;
+            }
+            if (!platform && (ctx.getTenantId() == null || (tenantId != null && !tenantId.equals(ctx.getTenantId())))) {
+                throw new InstituteAdminException(403, "IADM03_BG_TENANT", "Tenant stakeholders may only list own tenant");
+            }
+            UUID filter = tenantId != null ? tenantId : ctx.getTenantId();
+            List<Map<String, Object>> requests = new ArrayList<>();
+            String sql = "SELECT id, tenant_id, requested_by, requester_role, reason, requested_minutes, status, " +
+                    "session_id, decided_by, decided_at, created_at FROM plat.break_glass_requests " +
+                    "WHERE deleted_at IS NULL ";
+            if (filter != null) sql += "AND tenant_id = ? ";
+            sql += "ORDER BY created_at DESC LIMIT 100";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                if (filter != null) ps.setObject(1, filter);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("requestId", rs.getObject(1).toString());
+                        row.put("tenantId", rs.getObject(2).toString());
+                        row.put("requestedBy", rs.getObject(3).toString());
+                        row.put("requesterRole", rs.getString(4));
+                        row.put("reason", rs.getString(5));
+                        row.put("requestedMinutes", rs.getInt(6));
+                        row.put("status", rs.getString(7));
+                        row.put("sessionId", rs.getObject(8) == null ? null : rs.getObject(8).toString());
+                        row.put("decidedBy", rs.getObject(9) == null ? null : rs.getObject(9).toString());
+                        row.put("decidedAt", rs.getTimestamp(10));
+                        row.put("createdAt", rs.getTimestamp(11));
+                        requests.add(row);
+                    }
+                }
+            }
+            List<Map<String, Object>> sessions = new ArrayList<>();
+            String ssql = "SELECT id, tenant_id, request_id, opened_by, opener_track, reason, expires_at, closed_at " +
+                    "FROM plat.break_glass_sessions WHERE deleted_at IS NULL ";
+            if (filter != null) ssql += "AND tenant_id = ? ";
+            ssql += "ORDER BY created_at DESC LIMIT 50";
+            try (PreparedStatement ps = conn.prepareStatement(ssql)) {
+                if (filter != null) ps.setObject(1, filter);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("sessionId", rs.getObject(1).toString());
+                        row.put("tenantId", rs.getObject(2).toString());
+                        row.put("requestId", rs.getObject(3).toString());
+                        row.put("openedBy", rs.getObject(4).toString());
+                        row.put("openerTrack", rs.getString(5));
+                        row.put("reason", rs.getString(6));
+                        Timestamp exp = rs.getTimestamp(7);
+                        row.put("expiresAt", exp == null ? null : exp.toInstant().toString());
+                        Timestamp closed = rs.getTimestamp(8);
+                        boolean active = closed == null && exp != null && exp.after(Timestamp.from(Instant.now()));
+                        row.put("active", active);
+                        row.put("closedAt", closed);
+                        sessions.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requests", requests);
+            out.put("sessions", sessions);
+            return out;
+        });
+    }
+
+    private static UUID appendBreakGlassAction(Connection conn, UUID sessionId, UUID tenantId, UUID actor,
+                                               String actionType, String detailJson) throws java.sql.SQLException {
+        UUID id = UUID.randomUUID();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO plat.break_glass_actions (id, session_id, tenant_id, actor_id, action_type, detail, created_by) " +
+                        "VALUES (?,?,?,?,?,?::jsonb,?)")) {
+            ps.setObject(1, id);
+            ps.setObject(2, sessionId);
+            ps.setObject(3, tenantId);
+            ps.setObject(4, actor);
+            ps.setString(5, actionType);
+            ps.setString(6, detailJson == null ? "{}" : detailJson);
+            ps.setObject(7, actor);
+            ps.executeUpdate();
+        }
+        return id;
+    }
+
     public Map<String, Object> createAccessRequest(UserSecurityContext ctx, String type, String reason, String payloadJson) {
         return ctx.executeInTransaction(db, conn -> {
             UUID id = UUID.randomUUID();

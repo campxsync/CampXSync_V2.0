@@ -30,6 +30,8 @@
 | `database/migrations/20261121001100_rollback__iadm_wave_f_pending_close.sql` | F-pending |
 | `database/migrations/20261121001200_iadm_03_us009_two_person_quorum.sql` | IADM-03-US-009 |
 | `database/migrations/20261121001200_rollback__iadm_03_us009_two_person_quorum.sql` | IADM-03-US-009 |
+| `database/migrations/20261121001300_iadm_03_us008_break_glass.sql` | IADM-03-US-008 |
+| `database/migrations/20261121001300_rollback__iadm_03_us008_break_glass.sql` | IADM-03-US-008 |
 
 ## Services (new modules under `services/administration-services/`)
 

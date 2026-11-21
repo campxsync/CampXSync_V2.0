@@ -69,10 +69,20 @@ public class Iadm03Controller implements HttpHandler {
             tracker.step("authenticated");
 
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
-            boolean quorumOp = path.contains("/institution-admin-quorum");
+            boolean platformPath = path.contains("/institution-admin-quorum") || path.contains("/break-glass");
             UserSecurityContext ctx;
-            if (quorumOp) {
-                ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
+            if (platformPath) {
+                // Break-glass request may be tenant stakeholder (needs tenant) or platform (optional tenant)
+                if (path.contains("/break-glass") && auth.getTenantId() != null && !auth.getTenantId().trim().isEmpty()
+                        && !path.contains("/break-glass-requests/") && !path.contains("/break-glass-sessions/")) {
+                    try {
+                        ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+                    } catch (Exception ignored) {
+                        ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
+                    }
+                } else {
+                    ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
+                }
             } else {
                 ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
             }
@@ -108,6 +118,50 @@ public class Iadm03Controller implements HttpHandler {
                         UUID.fromString(id.replace("/", "")),
                         extract(body, "decision"),
                         extract(body, "note"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/break-glass")) {
+                String tenant = null;
+                String q = exchange.getRequestURI().getQuery();
+                if (q != null && q.contains("tenantId=")) {
+                    int i = q.indexOf("tenantId=") + 9;
+                    int end = q.indexOf('&', i);
+                    tenant = end < 0 ? q.substring(i) : q.substring(i, end);
+                }
+                UUID tenantId = (tenant == null || tenant.isEmpty()) ? null : UUID.fromString(tenant);
+                send(exchange, 200, toJson(service.listBreakGlass(ctx, tenantId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/break-glass-requests")) {
+                String mins = extract(body, "requestedMinutes");
+                Integer minutes = (mins == null || mins.isEmpty()) ? null : Integer.valueOf(mins);
+                send(exchange, 201, toJson(service.requestBreakGlass(ctx,
+                        UUID.fromString(extract(body, "tenantId")),
+                        extract(body, "reason"),
+                        minutes)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/break-glass-requests/") && path.endsWith("/decide")) {
+                String id = path.substring(path.indexOf("/break-glass-requests/") + 22, path.indexOf("/decide"));
+                send(exchange, 200, toJson(service.decideBreakGlass(ctx,
+                        UUID.fromString(id.replace("/", "")),
+                        extract(body, "decision"),
+                        extract(body, "note"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/break-glass-sessions/") && path.endsWith("/close")) {
+                String id = path.substring(path.indexOf("/break-glass-sessions/") + 22, path.indexOf("/close"));
+                send(exchange, 200, toJson(service.closeBreakGlassSession(ctx,
+                        UUID.fromString(id.replace("/", "")),
+                        extract(body, "reason"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/break-glass-sessions/") && path.endsWith("/actions")) {
+                String id = path.substring(path.indexOf("/break-glass-sessions/") + 22, path.indexOf("/actions"));
+                send(exchange, 201, toJson(service.recordBreakGlassAction(ctx,
+                        UUID.fromString(id.replace("/", "")),
+                        extract(body, "actionType"),
+                        extractRaw(body, "detail"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/roles")) {

@@ -79,10 +79,10 @@ Keys: `adm08.*`, `adm09.*` · Port **8101** · `/api/v1/iadm/03`
 | IADM-03-US-005 | Time-boxed delegations | Scope + expiry enforced | R03 M | completed | create/list/revoke |
 | IADM-03-US-006 | Access review certify/revoke | Existing access-review tables; immediate revoke | R03 M | completed | REVOKE soft-deletes assignment |
 | IADM-03-US-007 | Auditor view role changes/delegations/reviews | No write | R28 V | completed | `adm09.view` lists |
-| IADM-03-US-008 | Break-glass tenant recovery | Reason + expiry; audited | R01/R02 approve | DEFERRED | Policy frozen 2026-11-21 (see below); Matrix §21.1 guard 5; §22.5 — await `AUTHORIZE IADM-03-US-008` |
+| IADM-03-US-008 | Break-glass tenant recovery | Reason + expiry; audited | R01/R02 approve | completed | OWNER-DEC-BG-01; migration `20261121001300`; request/decide/session/actions |
 | IADM-03-US-009 | Two-person appoint/remove Institution Admin | Two different people: R01 + R02 | R01/R02 | completed | OWNER-DEC-TP-01; `plat.institution_admin_quorum_requests`; migration `20261121001200`; IADM-01 appoint → quorum request |
 
-**IADM-03-US-008 owner policy (frozen 2026-11-21, OWNER-DEC-BG-01):** Request = authenticated R03/R04/R05/R31 + R01/R02 (anonymous no). Approve/open session = **R01 & R02 only**. Reason + expiry + full audit. Build only after `AUTHORIZE IADM-03-US-008`.
+**IADM-03-US-008 owner policy (OWNER-DEC-BG-01, built 2026-11-21):** Request = authenticated R03/R04/R05/R31 + R01/R02 (anonymous no). Approve/open session = **R01 & R02 only**. Reason + expiry (15–240 min) + `plat.break_glass_actions` audit. API: `/break-glass-requests`, `/decide`, `/break-glass-sessions/{id}/actions|close`.
 
 **IADM-03-US-009 owner policy (OWNER-DEC-TP-01, built 2026-11-21):** Appoint/remove Institution Admin (R03) requires **two different people**: one **R01** and one **R02** (requestor ≠ approver). API: `POST/GET /api/v1/iadm/03/institution-admin-quorum-requests` + `.../{id}/decide`.
 

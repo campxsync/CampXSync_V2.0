@@ -5,6 +5,28 @@ Historical per-wave reports remain under `docs/reports/wave-*/COMPLETION_REPORT.
 
 ---
 
+## Entry — IADM-03-US-008 Break-glass tenant recovery (2026-11-21)
+
+**Task ID:** IADM-03-US-008  
+**Policy:** OWNER-DEC-BG-01  
+**Migration:** `20261121001300_iadm_03_us008_break_glass.sql` applied on DEV.  
+**Prerequisite:** `APPROVED IADM-03-US-009`.
+
+### Scope
+- Tables `plat.break_glass_requests` / `sessions` / `actions` + `plat.break_glass_requester_role`
+- Request: R03/R04/R05/R31 + R01/R02; Approve/open: R01/R02 only; 15–240 min; audited actions
+- Emergency appoint during session opens US-009 quorum (does not bypass two-person)
+
+### Tests
+| Module | Result |
+|---|---|
+| `iadm-03` BreakGlass + Quorum + Port + Contract + Policy | **10/10 PASS** |
+
+### Next
+Await `APPROVED IADM-03-US-008`.
+
+---
+
 ## Entry — IADM-03-US-009 Two-person R03 appoint/remove (2026-11-21)
 
 **Task ID:** IADM-03-US-009  
@@ -31,8 +53,8 @@ Historical per-wave reports remain under `docs/reports/wave-*/COMPLETION_REPORT.
 | Appoint + remove | Live appoint then remove via quorum |
 | No self-approve | `IADM03_QUORUM_SELF_APPROVE` |
 
-### Next
-Await `APPROVED IADM-03-US-009` then build authorized IADM-03-US-008 (break-glass).
+### Owner approval
+`APPROVED IADM-03-US-009` 2026-11-21.
 
 ---
 

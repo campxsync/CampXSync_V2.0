@@ -43,16 +43,16 @@
 - **Wave E (2026-11-21):** `TenantLifecycleService.onboardCollege` requires Auth-linked admin via `plat.is_auth_linked_user`. Authoritative path is `/api/v1/iadm/01` (:8099). Monolith `:8081` onboard remains legacy shim only.
 - **Status:** **FIXED** on IADM-01 (E0/E1-A).
 
-### OWNER-DEC-BG-01 — Break-glass (IADM-03-US-008) policy frozen (2026-11-21)
+### OWNER-DEC-BG-01 — Break-glass (IADM-03-US-008) implemented (2026-11-21)
 
-**Owner:** Niranjan V.G. — accepted recommendation; **not yet authorized to implement**.
+**Owner:** Niranjan V.G. — policy locked then authorized after `APPROVED IADM-03-US-009`.
 
 | Gate | Rule |
 |---|---|
-| Request | Authenticated users with a stake in that tenant: **R03, R04, R05, R31**, plus **R01, R02**. Optional ops-ticket path later. **Anonymous = no.** |
-| Approve / open session | **R01 and R02 only** (platform). R03/R04 may request and see status — **not** approve. |
-| Session | Reason required; time-boxed expiry; every elevated action audited; auto-expire. |
-| Build gate | Remains **DEFERRED** until explicit `AUTHORIZE IADM-03-US-008`. |
+| Request | Authenticated **R03, R04, R05, R31**, plus **R01, R02**. **Anonymous = no.** |
+| Approve / open session | **R01 and R02 only**. R03/R04 may request and see status — **not** approve. |
+| Session | Reason required; 15–240 min; `plat.break_glass_actions` audit; close/expire enforced. |
+| Build | **completed** — migration `20261121001300`; `Iadm03BreakGlassLiveDevTest` PASS |
 
 ### OWNER-DEC-TP-01 — Two-person R03 appoint/remove (IADM-03-US-009) policy frozen (2026-11-21)
 
@@ -63,8 +63,7 @@
 | Action | Appoint or remove Institution Admin (R03) |
 | Quorum | **Two different people**: one **R01 (Super Admin)** and one **R02 (System Admin)** |
 | Separation | Requestor ≠ approver (same person cannot complete both steps) |
-| Today | Single-signer `plat.assign_institution_admin` remains accepted DEV risk (FINDING-RBAC-07) until built |
-| Build gate | **AUTHORIZED and implemented** 2026-11-21 — see IADM-03-US-009 |
+| Build | **completed** 2026-11-21 — `APPROVED IADM-03-US-009` |
 
 ### FINDING-IADM-RBAC-01 — PLATFORM_ADMIN / SYSTEM_ADMIN not in role_templates (MEDIUM)
 
