@@ -26,6 +26,8 @@
 | `database/migrations/20261121000900_rollback__iadm_wave_f_partial_close.sql` | F |
 | `database/migrations/20261121001000_iadm_wave_f_audit_retention_rls.sql` | F |
 | `database/migrations/20261121001000_rollback__iadm_wave_f_audit_retention_rls.sql` | F |
+| `database/migrations/20261121001100_iadm_wave_f_pending_close.sql` | F-pending |
+| `database/migrations/20261121001100_rollback__iadm_wave_f_pending_close.sql` | F-pending |
 
 ## Services (new modules under `services/administration-services/`)
 

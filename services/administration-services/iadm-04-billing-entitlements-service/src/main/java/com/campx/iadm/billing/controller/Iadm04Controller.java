@@ -111,9 +111,43 @@ public class Iadm04Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.listSubscriptions(ctx, tid)));
                 return;
             }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/subscriptions")) {
+                String tenant = extract(bodyStr, "tenantId");
+                send(exchange, 201, toJson(service.assignSubscription(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        tenant == null || tenant.isEmpty() ? null : UUID.fromString(tenant),
+                        extract(bodyStr, "planCode"), extract(bodyStr, "status"),
+                        extract(bodyStr, "startDate"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/subscriptions/[^/]+/transition/?$")) {
+                String id = pathSegmentBefore(path, "/transition");
+                send(exchange, 200, toJson(service.transitionSubscription(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        UUID.fromString(id), extract(bodyStr, "status"))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/invoices")) {
                 UUID tid = qParamUuid(q, "tenantId");
                 send(exchange, 200, toJson(service.listInvoices(ctx, tid)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/invoices")) {
+                String tenant = extract(bodyStr, "tenantId");
+                String sub = extract(bodyStr, "subscriptionId");
+                send(exchange, 201, toJson(service.issueInvoice(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        tenant == null || tenant.isEmpty() ? null : UUID.fromString(tenant),
+                        sub == null || sub.isEmpty() ? null : UUID.fromString(sub),
+                        extractDecimal(bodyStr, "amount"), extract(bodyStr, "currencyCode"),
+                        extract(bodyStr, "invoiceNumber"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/invoices/[^/]+/reconcile/?$")) {
+                String id = pathSegmentBefore(path, "/reconcile");
+                send(exchange, 200, toJson(service.reconcileInvoice(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        UUID.fromString(id), extract(bodyStr, "action"))));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/plan-change-requests")) {

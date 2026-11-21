@@ -117,7 +117,8 @@ public class Iadm05DomainService {
     }
 
     /**
-     * Thin CRUD on {@code cfg.data_retention_policies} — {@code plat.retention_policies} absent in DEV.
+     * IADM-05-US-001: institute retention on {@code plat.institute_retention_policies}
+     * with floor from {@code plat.retention_minimums}.
      */
     public Map<String, Object> listRetention(UserSecurityContext ctx) {
         return ctx.executeInTransaction(db, conn -> {
@@ -125,7 +126,9 @@ public class Iadm05DomainService {
             List<Map<String, Object>> items = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT id::text, policy_code, entity_type, retention_days, action " +
-                            "FROM cfg.data_retention_policies WHERE deleted_at IS NULL ORDER BY policy_code LIMIT 100")) {
+                            "FROM plat.institute_retention_policies " +
+                            "WHERE tenant_id=? AND deleted_at IS NULL ORDER BY policy_code LIMIT 100")) {
+                ps.setObject(1, ctx.getTenantId());
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
@@ -141,7 +144,7 @@ public class Iadm05DomainService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("items", items);
             out.put("count", items.size());
-            out.put("source", "cfg.data_retention_policies");
+            out.put("source", "plat.institute_retention_policies");
             return out;
         });
     }
@@ -154,35 +157,68 @@ public class Iadm05DomainService {
                 throw new InstituteAdminException(400, "IADM05_RETENTION_REQUIRED", "policyCode required");
             }
             int days = retentionDays == null ? 365 : retentionDays;
-            String act = action == null || action.isEmpty() ? "ARCHIVE" : action;
-            String entity = entityType == null || entityType.isEmpty() ? "GENERIC" : entityType;
+            if (days <= 0) {
+                throw new InstituteAdminException(400, "IADM05_RETENTION_DAYS", "retentionDays must be > 0");
+            }
+            String act = action == null || action.isEmpty() ? "ARCHIVE" : action.trim().toUpperCase();
+            if (!("ARCHIVE".equals(act) || "DELETE".equals(act) || "ANONYMIZE".equals(act))) {
+                throw new InstituteAdminException(400, "IADM05_RETENTION_ACTION",
+                        "action must be ARCHIVE, DELETE, or ANONYMIZE");
+            }
+            String entity = entityType == null || entityType.isEmpty() ? "GENERIC" : entityType.trim();
+            int minDays = 0;
+            try (PreparedStatement min = conn.prepareStatement(
+                    "SELECT min_days FROM plat.retention_minimums WHERE entity_type=? AND deleted_at IS NULL")) {
+                min.setString(1, entity);
+                try (ResultSet rs = min.executeQuery()) {
+                    if (rs.next()) minDays = rs.getInt(1);
+                }
+            }
+            if (minDays == 0) {
+                try (PreparedStatement min = conn.prepareStatement(
+                        "SELECT min_days FROM plat.retention_minimums WHERE entity_type='GENERIC' AND deleted_at IS NULL")) {
+                    try (ResultSet rs = min.executeQuery()) {
+                        if (rs.next()) minDays = rs.getInt(1);
+                    }
+                }
+            }
+            if (minDays > 0 && days < minDays) {
+                throw new InstituteAdminException(400, "IADM05_BELOW_MINIMUM",
+                        "retentionDays " + days + " is below platform minimum " + minDays + " for " + entity);
+            }
+            String code = policyCode.trim();
             try (PreparedStatement upd = conn.prepareStatement(
-                    "UPDATE cfg.data_retention_policies SET entity_type=?, retention_days=?, action=?, " +
-                            "updated_at=now(), updated_by=? WHERE policy_code=? AND deleted_at IS NULL")) {
+                    "UPDATE plat.institute_retention_policies SET entity_type=?, retention_days=?, action=?, " +
+                            "updated_at=now(), updated_by=? " +
+                            "WHERE tenant_id=? AND policy_code=? AND deleted_at IS NULL")) {
                 upd.setString(1, entity);
                 upd.setInt(2, days);
                 upd.setString(3, act);
                 upd.setObject(4, ctx.getUserId());
-                upd.setString(5, policyCode.trim());
+                upd.setObject(5, ctx.getTenantId());
+                upd.setString(6, code);
                 if (upd.executeUpdate() == 0) {
                     try (PreparedStatement ins = conn.prepareStatement(
-                            "INSERT INTO cfg.data_retention_policies (policy_code, entity_type, retention_days, action, created_by) " +
-                                    "VALUES (?,?,?,?,?)")) {
-                        ins.setString(1, policyCode.trim());
-                        ins.setString(2, entity);
-                        ins.setInt(3, days);
-                        ins.setString(4, act);
-                        ins.setObject(5, ctx.getUserId());
+                            "INSERT INTO plat.institute_retention_policies " +
+                                    "(tenant_id, policy_code, entity_type, retention_days, action, created_by) " +
+                                    "VALUES (?,?,?,?,?,?)")) {
+                        ins.setObject(1, ctx.getTenantId());
+                        ins.setString(2, code);
+                        ins.setString(3, entity);
+                        ins.setInt(4, days);
+                        ins.setString(5, act);
+                        ins.setObject(6, ctx.getUserId());
                         ins.executeUpdate();
                     }
                 }
             }
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("policyCode", policyCode.trim());
+            out.put("policyCode", code);
             out.put("entityType", entity);
             out.put("retentionDays", days);
             out.put("action", act);
-            auditMutation(ctx, "iadm05.retention.upsert", "RETENTION_POLICY", policyCode.trim());
+            out.put("platformMinimumDays", minDays);
+            auditMutation(ctx, "iadm05.retention.upsert", "RETENTION_POLICY", code);
             return out;
         });
     }

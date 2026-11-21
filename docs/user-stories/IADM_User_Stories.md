@@ -120,7 +120,7 @@ Port **8103** · `/api/v1/iadm/05` · New keys `iadm05.*` created when built. Do
 
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
-| IADM-05-US-001 | Retention rules ≥ platform minimum | R03 W | partially completed | CRUD on `cfg.data_retention_policies`; no separate days floor table |
+| IADM-05-US-001 | Retention rules ≥ platform minimum | R03 W | completed | `plat.institute_retention_policies` ≥ `plat.retention_minimums` |
 | IADM-05-US-002 | Privacy notice / consent purpose versions | R03 W | completed | `cfg.data_classifications` proxy |
 | IADM-05-US-003 | Data-subject requests | R03 W | completed | create/list DSR |
 | IADM-05-US-004 | College Admin execute assigned tasks | R04 X | completed | college-scoped execute |
@@ -138,10 +138,10 @@ Port **8102** · `/api/v1/iadm/04` · Keep `adm01.manage` until `iadm04.*` creat
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
 | IADM-04-US-001 | Create/publish/retire plans | R01 M | completed | :8102 plan mutations |
-| IADM-04-US-002 | Assign subscription + state transitions | R01 M | partially completed | reads + plan-change; full assign SM still thin |
+| IADM-04-US-002 | Assign subscription + state transitions | R01 M | completed | assign + legal transitions; `Iadm04PendingCloseLiveDevTest` |
 | IADM-04-US-003 | View own plan/subscription/entitlements | R03 V | completed | `/subscription/mine` |
 | IADM-04-US-004 | Request plan change/add-on | R03 W limited | completed | `plat.plan_change_requests` |
-| IADM-04-US-005 | Issue invoices / reconcile | R01 M | partially completed | invoice list on split; issue/reconcile thin |
+| IADM-04-US-005 | Issue invoices / reconcile | R01 M | completed | issue ISSUED + reconcile PAID/VOID |
 | IADM-04-US-006 | Entitlement check API | internal | completed | E0 PASS |
 | IADM-04-US-007 | Auditor billing read-only | R28 V | completed | `iadm04.view` |
 

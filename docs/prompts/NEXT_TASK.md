@@ -24,9 +24,9 @@ Report: `docs/iadm/WAVE_F_REPORT.md` · Plan: `docs/iadm/WAVE_F_PLAN.md`
 
 Break-glass, two-person appoint, under-18 consent, R27/adm03, Kafka.
 
-## Tracked thin gaps (optional follow-on)
+## Non-deferred IADM stories
 
-IADM-04-US-002 subscription assign SM · IADM-04-US-005 invoice issue · IADM-05-US-001 retention floor table.
+**0 pending.** Only DEFERRED remain (break-glass, two-person appoint, under-18).
 
 ## Rules
 

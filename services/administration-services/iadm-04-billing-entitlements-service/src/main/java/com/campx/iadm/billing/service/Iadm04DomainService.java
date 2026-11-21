@@ -245,7 +245,21 @@ public class Iadm04DomainService {
                 throw new InstituteAdminException(400, "IADM04_DECISION", "decision must be APPROVE or REJECT");
             }
             String status = "APPROVE".equals(dec) ? "APPROVED" : "REJECTED";
-            int updated;
+            UUID tenantId = null;
+            String requestedPlan = null;
+            try (PreparedStatement sel = conn.prepareStatement(
+                    "SELECT tenant_id, requested_plan_code FROM plat.plan_change_requests " +
+                            "WHERE id=? AND status='PENDING' AND deleted_at IS NULL")) {
+                sel.setObject(1, requestId);
+                try (ResultSet rs = sel.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM04_PLAN_CHANGE_NOT_FOUND",
+                                "Pending plan-change request not found");
+                    }
+                    tenantId = (UUID) rs.getObject(1);
+                    requestedPlan = rs.getString(2);
+                }
+            }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE plat.plan_change_requests SET status=?, decided_by=?, decided_at=now(), decision_note=?, " +
                             "updated_at=now(), updated_by=? " +
@@ -255,16 +269,38 @@ public class Iadm04DomainService {
                 ps.setString(3, note);
                 ps.setObject(4, ctx.getUserId());
                 ps.setObject(5, requestId);
-                updated = ps.executeUpdate();
+                if (ps.executeUpdate() == 0) {
+                    throw new InstituteAdminException(404, "IADM04_PLAN_CHANGE_NOT_FOUND",
+                            "Pending plan-change request not found");
+                }
             }
-            if (updated == 0) {
-                throw new InstituteAdminException(404, "IADM04_PLAN_CHANGE_NOT_FOUND",
-                        "Pending plan-change request not found");
+            String appliedSubscriptionId = null;
+            if ("APPROVED".equals(status) && requestedPlan != null) {
+                UUID planId = lookupPublishedPlanId(conn, requestedPlan.trim().toUpperCase(Locale.ROOT));
+                try (PreparedStatement cancel = conn.prepareStatement(
+                        "UPDATE plat.subscriptions SET status='CANCELLED', updated_at=now(), updated_by=? " +
+                                "WHERE tenant_id=? AND deleted_at IS NULL AND status IN ('TRIAL','ACTIVE','PAST_DUE')")) {
+                    cancel.setObject(1, ctx.getUserId());
+                    cancel.setObject(2, tenantId);
+                    cancel.executeUpdate();
+                }
+                UUID subId = UUID.randomUUID();
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO plat.subscriptions (id, tenant_id, plan_id, start_date, status, auto_renew, created_by) " +
+                                "VALUES (?,?,?, CURRENT_DATE, 'ACTIVE', true, ?)")) {
+                    ins.setObject(1, subId);
+                    ins.setObject(2, tenantId);
+                    ins.setObject(3, planId);
+                    ins.setObject(4, ctx.getUserId());
+                    ins.executeUpdate();
+                }
+                appliedSubscriptionId = subId.toString();
             }
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("requestId", requestId.toString());
             out.put("status", status);
             out.put("decision", dec);
+            if (appliedSubscriptionId != null) out.put("subscriptionId", appliedSubscriptionId);
             auditMutation(ctx, "iadm04.plan_change.decide", "PLAN_CHANGE_REQUEST", requestId.toString());
             return out;
         });
@@ -423,6 +459,259 @@ public class Iadm04DomainService {
             auditMutation(ctx, auditAction, "SUBSCRIPTION_PLAN", code);
             return out;
         });
+    }
+
+    /**
+     * IADM-04-US-002: assign a published plan to a tenant as TRIAL or ACTIVE.
+     */
+    public Map<String, Object> assignSubscription(UserSecurityContext ctx, UUID tenantId, String planCode,
+                                                  String status, String startDateIso) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (tenantId == null) {
+                throw new InstituteAdminException(400, "IADM04_TENANT_REQUIRED", "tenantId required");
+            }
+            if (planCode == null || planCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM04_PLAN_CODE_REQUIRED", "planCode required");
+            }
+            String st = status == null || status.trim().isEmpty() ? "ACTIVE" : status.trim().toUpperCase(Locale.ROOT);
+            if (!"TRIAL".equals(st) && !"ACTIVE".equals(st)) {
+                throw new InstituteAdminException(400, "IADM04_SUB_STATUS",
+                        "Initial status must be TRIAL or ACTIVE");
+            }
+            UUID planId = lookupPublishedPlanId(conn, planCode.trim().toUpperCase(Locale.ROOT));
+            java.sql.Date start = parseDateOrToday(startDateIso);
+            // Soft-cancel any prior ACTIVE/TRIAL for tenant before assign
+            try (PreparedStatement cancel = conn.prepareStatement(
+                    "UPDATE plat.subscriptions SET status='CANCELLED', updated_at=now(), updated_by=? " +
+                            "WHERE tenant_id=? AND deleted_at IS NULL AND status IN ('TRIAL','ACTIVE','PAST_DUE')")) {
+                cancel.setObject(1, ctx.getUserId());
+                cancel.setObject(2, tenantId);
+                cancel.executeUpdate();
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.subscriptions (id, tenant_id, plan_id, start_date, status, auto_renew, created_by) " +
+                            "VALUES (?,?,?,?,?, true, ?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, planId);
+                ps.setDate(4, start);
+                ps.setString(5, st);
+                ps.setObject(6, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("subscriptionId", id.toString());
+            out.put("tenantId", tenantId.toString());
+            out.put("planCode", planCode.trim().toUpperCase(Locale.ROOT));
+            out.put("status", st);
+            out.put("startDate", start.toString());
+            auditMutation(ctx, "iadm04.subscription.assign", "SUBSCRIPTION", id.toString());
+            return out;
+        });
+    }
+
+    /**
+     * IADM-04-US-002: legal status transitions on an existing subscription.
+     * Allowed: TRIAL→ACTIVE, ACTIVE→PAST_DUE|SUSPENDED|CANCELLED,
+     * PAST_DUE→ACTIVE|SUSPENDED|CANCELLED, SUSPENDED→ACTIVE|CANCELLED.
+     */
+    public Map<String, Object> transitionSubscription(UserSecurityContext ctx, UUID subscriptionId, String newStatus) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (subscriptionId == null || newStatus == null || newStatus.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM04_TRANSITION_REQUIRED",
+                        "subscriptionId and status required");
+            }
+            String target = newStatus.trim().toUpperCase(Locale.ROOT);
+            String current;
+            UUID tenantId;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT status, tenant_id FROM plat.subscriptions WHERE id=? AND deleted_at IS NULL")) {
+                ps.setObject(1, subscriptionId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM04_SUB_NOT_FOUND", "Subscription not found");
+                    }
+                    current = rs.getString(1);
+                    tenantId = (UUID) rs.getObject(2);
+                }
+            }
+            if (!isAllowedSubscriptionTransition(current, target)) {
+                throw new InstituteAdminException(400, "IADM04_ILLEGAL_TRANSITION",
+                        "Cannot transition " + current + " → " + target);
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE plat.subscriptions SET status=?, updated_at=now(), updated_by=? " +
+                            "WHERE id=? AND deleted_at IS NULL")) {
+                ps.setString(1, target);
+                ps.setObject(2, ctx.getUserId());
+                ps.setObject(3, subscriptionId);
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("subscriptionId", subscriptionId.toString());
+            out.put("tenantId", tenantId.toString());
+            out.put("fromStatus", current);
+            out.put("status", target);
+            auditMutation(ctx, "iadm04.subscription.transition", "SUBSCRIPTION", subscriptionId.toString());
+            return out;
+        });
+    }
+
+    /**
+     * IADM-04-US-005: issue DRAFT→ISSUED invoice (or create ISSUED) for a subscription.
+     */
+    public Map<String, Object> issueInvoice(UserSecurityContext ctx, UUID tenantId, UUID subscriptionId,
+                                            BigDecimal amount, String currencyCode, String invoiceNumber) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (tenantId == null || subscriptionId == null) {
+                throw new InstituteAdminException(400, "IADM04_INVOICE_REQUIRED",
+                        "tenantId and subscriptionId required");
+            }
+            BigDecimal amt = amount == null ? BigDecimal.ZERO : amount;
+            if (amt.compareTo(BigDecimal.ZERO) < 0) {
+                throw new InstituteAdminException(400, "IADM04_INVOICE_AMOUNT", "amount must be >= 0");
+            }
+            // Verify subscription belongs to tenant
+            try (PreparedStatement chk = conn.prepareStatement(
+                    "SELECT 1 FROM plat.subscriptions WHERE id=? AND tenant_id=? AND deleted_at IS NULL")) {
+                chk.setObject(1, subscriptionId);
+                chk.setObject(2, tenantId);
+                try (ResultSet rs = chk.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM04_SUB_NOT_FOUND",
+                                "Subscription not found for tenant");
+                    }
+                }
+            }
+            String currency = currencyCode == null || currencyCode.trim().isEmpty()
+                    ? "INR" : currencyCode.trim().toUpperCase(Locale.ROOT);
+            if (currency.length() > 3) currency = currency.substring(0, 3);
+            String number = invoiceNumber == null || invoiceNumber.trim().isEmpty()
+                    ? "INV-" + System.currentTimeMillis() : invoiceNumber.trim();
+            UUID id = UUID.randomUUID();
+            java.sql.Date today = new java.sql.Date(System.currentTimeMillis());
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.invoices " +
+                            "(id, tenant_id, subscription_id, invoice_number, issued_on, due_date, amount, " +
+                            "currency_code, status, created_by) VALUES (?,?,?,?,?,?,?,?, 'ISSUED', ?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, subscriptionId);
+                ps.setString(4, number);
+                ps.setDate(5, today);
+                ps.setDate(6, today);
+                ps.setBigDecimal(7, amt);
+                ps.setString(8, currency);
+                ps.setObject(9, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("invoiceId", id.toString());
+            out.put("invoiceNumber", number);
+            out.put("status", "ISSUED");
+            out.put("amount", amt);
+            out.put("currencyCode", currency);
+            out.put("tenantId", tenantId.toString());
+            out.put("subscriptionId", subscriptionId.toString());
+            auditMutation(ctx, "iadm04.invoice.issue", "INVOICE", id.toString());
+            return out;
+        });
+    }
+
+    /**
+     * IADM-04-US-005: reconcile — mark ISSUED invoice PAID (or VOID).
+     */
+    public Map<String, Object> reconcileInvoice(UserSecurityContext ctx, UUID invoiceId, String action) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (invoiceId == null) {
+                throw new InstituteAdminException(400, "IADM04_INVOICE_ID", "invoiceId required");
+            }
+            String act = action == null ? "PAID" : action.trim().toUpperCase(Locale.ROOT);
+            if (!"PAID".equals(act) && !"VOID".equals(act)) {
+                throw new InstituteAdminException(400, "IADM04_RECONCILE_ACTION",
+                        "action must be PAID or VOID");
+            }
+            String current;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT status FROM plat.invoices WHERE id=? AND deleted_at IS NULL")) {
+                ps.setObject(1, invoiceId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM04_INVOICE_NOT_FOUND", "Invoice not found");
+                    }
+                    current = rs.getString(1);
+                }
+            }
+            if ("PAID".equals(act) && !"ISSUED".equals(current) && !"DRAFT".equals(current)) {
+                throw new InstituteAdminException(400, "IADM04_ILLEGAL_INVOICE_TRANSITION",
+                        "Cannot mark " + current + " as PAID");
+            }
+            if ("VOID".equals(act) && "PAID".equals(current)) {
+                throw new InstituteAdminException(400, "IADM04_ILLEGAL_INVOICE_TRANSITION",
+                        "Cannot VOID a PAID invoice");
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE plat.invoices SET status=?, paid_at=CASE WHEN ?='PAID' THEN now() ELSE paid_at END, " +
+                            "updated_at=now(), updated_by=? WHERE id=? AND deleted_at IS NULL")) {
+                ps.setString(1, act);
+                ps.setString(2, act);
+                ps.setObject(3, ctx.getUserId());
+                ps.setObject(4, invoiceId);
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("invoiceId", invoiceId.toString());
+            out.put("fromStatus", current);
+            out.put("status", act);
+            auditMutation(ctx, "iadm04.invoice.reconcile", "INVOICE", invoiceId.toString());
+            return out;
+        });
+    }
+
+    private static UUID lookupPublishedPlanId(java.sql.Connection conn, String planCode) throws java.sql.SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id FROM plat.subscription_plans WHERE plan_code=? AND deleted_at IS NULL AND is_published=true")) {
+            ps.setString(1, planCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new InstituteAdminException(404, "IADM04_PLAN_NOT_FOUND",
+                            "Published plan not found: " + planCode);
+                }
+                return (UUID) rs.getObject(1);
+            }
+        }
+    }
+
+    private static boolean isAllowedSubscriptionTransition(String from, String to) {
+        if (from == null || to == null || from.equals(to)) return false;
+        switch (from) {
+            case "TRIAL":
+                return "ACTIVE".equals(to) || "CANCELLED".equals(to);
+            case "ACTIVE":
+                return "PAST_DUE".equals(to) || "SUSPENDED".equals(to) || "CANCELLED".equals(to);
+            case "PAST_DUE":
+                return "ACTIVE".equals(to) || "SUSPENDED".equals(to) || "CANCELLED".equals(to);
+            case "SUSPENDED":
+                return "ACTIVE".equals(to) || "CANCELLED".equals(to);
+            default:
+                return false;
+        }
+    }
+
+    private static java.sql.Date parseDateOrToday(String iso) {
+        if (iso == null || iso.trim().isEmpty()) {
+            return new java.sql.Date(System.currentTimeMillis());
+        }
+        try {
+            return java.sql.Date.valueOf(iso.trim().substring(0, Math.min(10, iso.trim().length())));
+        } catch (IllegalArgumentException e) {
+            throw new InstituteAdminException(400, "IADM04_DATE", "startDate must be YYYY-MM-DD");
+        }
     }
 
     private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
