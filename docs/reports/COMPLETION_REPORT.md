@@ -5,6 +5,37 @@ Historical per-wave reports remain under `docs/reports/wave-*/COMPLETION_REPORT.
 
 ---
 
+## Entry — IADM-03-US-009 Two-person R03 appoint/remove (2026-11-21)
+
+**Task ID:** IADM-03-US-009  
+**Policy:** OWNER-DEC-TP-01 (R01 + R02; requestor ≠ approver)  
+**Migration:** `20261121001200_iadm_03_us009_two_person_quorum.sql` applied on DEV.
+
+### Scope
+- Table `plat.institution_admin_quorum_requests` + `plat.platform_admin_track()`
+- IADM-03 APIs: request / list / decide quorum appoint|remove
+- IADM-01 `appoint-admin` opens quorum request only (no single-signer assign)
+- FINDING-RBAC-07 marked FIXED in DEV
+
+### Tests
+| Module | Result |
+|---|---|
+| `iadm-03` (`Iadm03QuorumLiveDevTest`, Port, Contract, Policy) | **8/8 PASS** |
+| `iadm-01` (Contract, WaveE1A, LiveDev, Rbac) | **12/12 PASS** |
+
+### Acceptance → evidence
+| Clause | Evidence |
+|---|---|
+| Two different people | Live: R01 request + R02 approve; same-track reject |
+| R01 + R02 tracks | `plat.platform_admin_track` SUPER_ADMIN→R01, SYSTEM_ADMIN→R02 |
+| Appoint + remove | Live appoint then remove via quorum |
+| No self-approve | `IADM03_QUORUM_SELF_APPROVE` |
+
+### Next
+Await `APPROVED IADM-03-US-009` then build authorized IADM-03-US-008 (break-glass).
+
+---
+
 ## Entry — IADM Wave F PARTIAL Close (2026-11-21)
 
 **Task ID:** IADM_WAVE_F  

@@ -68,6 +68,10 @@ public class TenantLifecycleService {
         });
     }
 
+    /**
+     * IADM-01-US-002 + IADM-03-US-009: first/any Institution Admin appoint opens a two-person
+     * quorum request (R01+R02). Direct single-signer assign is no longer used from this API.
+     */
     public Map<String, Object> appointInstitutionAdmin(UserSecurityContext ctx, UUID tenantId, UUID userId) {
         return ctx.executeInTransaction(db, conn -> {
             ctx.checkPlatformAdmin(conn);
@@ -77,25 +81,45 @@ public class TenantLifecycleService {
             if (userId.equals(ctx.getUserId())) {
                 throw new InstituteAdminException(403, "IADM01_SELF_APPOINT", "Cannot appoint self as Institution Admin");
             }
-            // Caller identity from auth.uid() via SET LOCAL ROLE + jwt claims; p_assigned_by ignored by DB
-            UUID assignmentId;
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT plat.assign_institution_admin(?, ?, ?)")) {
-                ps.setObject(1, tenantId);
-                ps.setObject(2, userId);
-                ps.setObject(3, ctx.getUserId()); // ignored by hardened function
+            String reason = "IADM-01 appoint-admin → two-person quorum (OWNER-DEC-TP-01)";
+            String track;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT plat.platform_admin_track(?)")) {
+                ps.setObject(1, ctx.getUserId());
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) throw new InstituteAdminException(500, "IADM01_APPOINT", "No assignment returned");
-                    assignmentId = (UUID) rs.getObject(1);
+                    if (!rs.next() || rs.getString(1) == null) {
+                        throw new InstituteAdminException(403, "IADM01_QUORUM_TRACK",
+                                "Caller must be R01 or R02 on plat.platform_admins");
+                    }
+                    track = rs.getString(1);
                 }
             }
-            appendEvent(conn, tenantId, "APPOINT", ctx.getUserId(), "Appointed Institution Admin (R03)",
-                    "{\"userId\":\"" + userId + "\",\"assignmentId\":\"" + assignmentId + "\"}");
+            UUID requestId = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.institution_admin_quorum_requests " +
+                            "(id, tenant_id, target_user_id, action, status, reason, requested_by, requested_track, created_by) " +
+                            "VALUES (?,?,?,'APPOINT','PENDING',?,?,?,?)")) {
+                ps.setObject(1, requestId);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, userId);
+                ps.setString(4, reason);
+                ps.setObject(5, ctx.getUserId());
+                ps.setString(6, track);
+                ps.setObject(7, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            appendEvent(conn, tenantId, "APPOINT", ctx.getUserId(),
+                    "Institution Admin appoint queued for R01+R02 quorum (pending second signature)",
+                    "{\"userId\":\"" + userId + "\",\"requestId\":\"" + requestId + "\",\"requestedTrack\":\"" + track + "\",\"status\":\"PENDING\"}");
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("assignmentId", assignmentId.toString());
+            out.put("requestId", requestId.toString());
+            out.put("status", "PENDING");
+            out.put("action", "APPOINT");
             out.put("tenantId", tenantId.toString());
             out.put("userId", userId.toString());
-            auditMutation(ctx, "appointInstitutionAdmin", "TENANT", tenantId.toString());
+            out.put("requestedTrack", track);
+            out.put("quorum", "R01+R02");
+            out.put("decideVia", "/api/v1/iadm/03/institution-admin-quorum-requests/{requestId}/decide");
+            auditMutation(ctx, "appointInstitutionAdminQuorumRequest", "TENANT", tenantId.toString());
             return out;
         });
     }

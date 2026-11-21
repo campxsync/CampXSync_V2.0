@@ -69,9 +69,45 @@ public class Iadm03Controller implements HttpHandler {
             tracker.step("authenticated");
 
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
-            UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+            boolean quorumOp = path.contains("/institution-admin-quorum");
+            UserSecurityContext ctx;
+            if (quorumOp) {
+                ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
+            } else {
+                ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
                 send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-03\"}");
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/institution-admin-quorum-requests")) {
+                String tenant = extract(body, "tenantId");
+                if (tenant == null || tenant.isEmpty()) {
+                    String q = exchange.getRequestURI().getQuery();
+                    if (q != null && q.contains("tenantId=")) {
+                        int i = q.indexOf("tenantId=") + 9;
+                        int end = q.indexOf('&', i);
+                        tenant = end < 0 ? q.substring(i) : q.substring(i, end);
+                    }
+                }
+                UUID tenantId = (tenant == null || tenant.isEmpty()) ? null : UUID.fromString(tenant);
+                send(exchange, 200, toJson(service.listInstitutionAdminQuorum(ctx, tenantId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/institution-admin-quorum-requests")) {
+                send(exchange, 201, toJson(service.requestInstitutionAdminQuorum(ctx,
+                        UUID.fromString(extract(body, "tenantId")),
+                        UUID.fromString(extract(body, "targetUserId")),
+                        extract(body, "action"),
+                        extract(body, "reason"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/institution-admin-quorum-requests/") && path.endsWith("/decide")) {
+                String id = path.substring(path.indexOf("/institution-admin-quorum-requests/") + 35, path.indexOf("/decide"));
+                send(exchange, 200, toJson(service.decideInstitutionAdminQuorum(ctx,
+                        UUID.fromString(id.replace("/", "")),
+                        extract(body, "decision"),
+                        extract(body, "note"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/roles")) {

@@ -26,8 +26,29 @@
 | Wave F plan | **completed** — `docs/iadm/WAVE_F_PLAN.md` |
 | Wave F report | **completed** — `docs/iadm/WAVE_F_REPORT.md` |
 | Migrations | `20261121000900`, `20261121001000` applied on DEV |
-| Deferred stories | unchanged (break-glass, two-person, under-18, R27, Kafka) |
+| Deferred stories | break-glass **policy frozen** (OWNER-DEC-BG-01); two-person **policy frozen** (OWNER-DEC-TP-01); under-18 / R27 / Kafka unchanged |
 | CADM | starts after `APPROVED WAVE-F` |
+
+## Owner decisions – Break-glass IADM-03-US-008 (21-11-2026)
+
+**Policy frozen** (not build-authorized). Detail: `docs/iadm/FINDINGS.md` → OWNER-DEC-BG-01.
+
+| Gate | Decision |
+|---|---|
+| Request | R03 / R04 / R05 / R31 + R01 / R02; authenticated; anonymous no |
+| Approve | **R01 & R02 only** |
+| Build | Await `AUTHORIZE IADM-03-US-008` |
+
+## Owner decisions – Two-person appoint IADM-03-US-009 (21-11-2026)
+
+**Authorized and implemented** (await story approval). Detail: OWNER-DEC-TP-01 / migration `20261121001200`.
+
+| Gate | Decision |
+|---|---|
+| Quorum | **R01 + R02** (two different people; requestor ≠ approver) |
+| Scope | Appoint **and** remove Institution Admin (R03) |
+| Build | **completed** — live `Iadm03QuorumLiveDevTest` PASS; FINDING-RBAC-07 FIXED in DEV |
+| Next | Await `APPROVED IADM-03-US-009` then implement IADM-03-US-008 (also authorized) |
 
 ## Owner decisions – CADM (21-11-2026)
 

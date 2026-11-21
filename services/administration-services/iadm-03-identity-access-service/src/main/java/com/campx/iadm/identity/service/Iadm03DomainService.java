@@ -112,6 +112,226 @@ public class Iadm03DomainService {
         });
     }
 
+    /**
+     * IADM-03-US-009 / OWNER-DEC-TP-01: R01 or R02 requests appoint/remove of Institution Admin.
+     */
+    public Map<String, Object> requestInstitutionAdminQuorum(UserSecurityContext ctx, UUID tenantId,
+                                                             UUID targetUserId, String action, String reason) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (tenantId == null || targetUserId == null) {
+                throw new InstituteAdminException(400, "IADM03_QUORUM_REQUIRED", "tenantId and targetUserId required");
+            }
+            String act = action == null ? "" : action.trim().toUpperCase();
+            if (!"APPOINT".equals(act) && !"REMOVE".equals(act)) {
+                throw new InstituteAdminException(400, "IADM03_QUORUM_ACTION", "action must be APPOINT or REMOVE");
+            }
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM03_QUORUM_REASON", "reason required");
+            }
+            if (targetUserId.equals(ctx.getUserId())) {
+                throw new InstituteAdminException(403, "IADM03_QUORUM_SELF", "Cannot target self as Institution Admin change");
+            }
+            String track = platformAdminTrack(conn, ctx.getUserId());
+            if (track == null) {
+                throw new InstituteAdminException(403, "IADM03_QUORUM_TRACK",
+                        "Caller must be R01 (SUPER_ADMIN/PLATFORM_ADMIN) or R02 (SYSTEM_ADMIN)");
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.institution_admin_quorum_requests " +
+                            "(id, tenant_id, target_user_id, action, status, reason, requested_by, requested_track, created_by) " +
+                            "VALUES (?,?,?,?,'PENDING',?,?,?,?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, tenantId);
+                ps.setObject(3, targetUserId);
+                ps.setString(4, act);
+                ps.setString(5, reason.trim());
+                ps.setObject(6, ctx.getUserId());
+                ps.setString(7, track);
+                ps.setObject(8, ctx.getUserId());
+                ps.executeUpdate();
+            } catch (java.sql.SQLException dup) {
+                if (dup.getMessage() != null && dup.getMessage().toLowerCase().contains("uq_iaqr_pending")) {
+                    throw new InstituteAdminException(409, "IADM03_QUORUM_PENDING",
+                            "A pending request already exists for this tenant/target/action");
+                }
+                throw dup;
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", id.toString());
+            out.put("tenantId", tenantId.toString());
+            out.put("targetUserId", targetUserId.toString());
+            out.put("action", act);
+            out.put("status", "PENDING");
+            out.put("requestedTrack", track);
+            auditMutation(ctx, "requestInstitutionAdminQuorum", "IA_QUORUM", id.toString());
+            return out;
+        });
+    }
+
+    /**
+     * IADM-03-US-009: complementary track (R01↔R02) decides; on APPROVE executes appoint/remove.
+     */
+    public Map<String, Object> decideInstitutionAdminQuorum(UserSecurityContext ctx, UUID requestId,
+                                                            String decision, String note) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (requestId == null) {
+                throw new InstituteAdminException(400, "IADM03_QUORUM_REQUIRED", "requestId required");
+            }
+            String track = platformAdminTrack(conn, ctx.getUserId());
+            if (track == null) {
+                throw new InstituteAdminException(403, "IADM03_QUORUM_TRACK",
+                        "Caller must be R01 or R02 on plat.platform_admins");
+            }
+            String status = decision != null && decision.toUpperCase().startsWith("APP") ? "APPROVED" : "REJECTED";
+
+            UUID tenantId;
+            UUID targetUserId;
+            String action;
+            String requestedTrack;
+            UUID requestedBy;
+            try (PreparedStatement sel = conn.prepareStatement(
+                    "SELECT tenant_id, target_user_id, action, requested_track, requested_by " +
+                            "FROM plat.institution_admin_quorum_requests " +
+                            "WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL")) {
+                sel.setObject(1, requestId);
+                try (ResultSet rs = sel.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM03_QUORUM_NOT_FOUND", "Pending quorum request not found");
+                    }
+                    tenantId = (UUID) rs.getObject(1);
+                    targetUserId = (UUID) rs.getObject(2);
+                    action = rs.getString(3);
+                    requestedTrack = rs.getString(4);
+                    requestedBy = (UUID) rs.getObject(5);
+                }
+            }
+            if (requestedBy.equals(ctx.getUserId())) {
+                throw new InstituteAdminException(403, "IADM03_QUORUM_SELF_APPROVE",
+                        "Requestor cannot approve their own Institution Admin change");
+            }
+            if (track.equals(requestedTrack)) {
+                throw new InstituteAdminException(403, "IADM03_QUORUM_SAME_TRACK",
+                        "Approver must be the complementary track (R01 requests need R02; R02 requests need R01)");
+            }
+            if (!("R01".equals(requestedTrack) && "R02".equals(track))
+                    && !("R02".equals(requestedTrack) && "R01".equals(track))) {
+                throw new InstituteAdminException(403, "IADM03_QUORUM_PAIR", "Quorum requires one R01 and one R02");
+            }
+
+            UUID assignmentId = null;
+            if ("APPROVED".equals(status)) {
+                if ("APPOINT".equals(action)) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "SELECT plat.assign_institution_admin(?, ?, ?)")) {
+                        ps.setObject(1, tenantId);
+                        ps.setObject(2, targetUserId);
+                        ps.setObject(3, ctx.getUserId());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (!rs.next()) {
+                                throw new InstituteAdminException(500, "IADM03_QUORUM_APPOINT", "No assignment returned");
+                            }
+                            assignmentId = (UUID) rs.getObject(1);
+                        }
+                    }
+                } else if ("REMOVE".equals(action)) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE iam.role_assignments ra SET deleted_at = now(), updated_by = ?, updated_at = now() " +
+                                    "FROM iam.roles r " +
+                                    "WHERE ra.role_id = r.id AND ra.tenant_id = ? AND ra.user_id = ? " +
+                                    "AND r.code = 'INSTITUTION_ADMIN' AND ra.deleted_at IS NULL " +
+                                    "RETURNING ra.id")) {
+                        ps.setObject(1, ctx.getUserId());
+                        ps.setObject(2, tenantId);
+                        ps.setObject(3, targetUserId);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                assignmentId = (UUID) rs.getObject(1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            try (PreparedStatement upd = conn.prepareStatement(
+                    "UPDATE plat.institution_admin_quorum_requests SET status = ?, decided_by = ?, decided_track = ?, " +
+                            "decision_note = ?, decided_at = now(), assignment_id = ?, updated_by = ?, updated_at = now() " +
+                            "WHERE id = ? AND status = 'PENDING'")) {
+                upd.setString(1, status);
+                upd.setObject(2, ctx.getUserId());
+                upd.setString(3, track);
+                upd.setString(4, note);
+                upd.setObject(5, assignmentId);
+                upd.setObject(6, ctx.getUserId());
+                upd.setObject(7, requestId);
+                if (upd.executeUpdate() == 0) {
+                    throw new InstituteAdminException(409, "IADM03_QUORUM_RACE", "Request was already decided");
+                }
+            }
+
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", requestId.toString());
+            out.put("status", status);
+            out.put("action", action);
+            out.put("requestedTrack", requestedTrack);
+            out.put("decidedTrack", track);
+            out.put("tenantId", tenantId.toString());
+            out.put("targetUserId", targetUserId.toString());
+            if (assignmentId != null) out.put("assignmentId", assignmentId.toString());
+            auditMutation(ctx, "decideInstitutionAdminQuorum", "IA_QUORUM", requestId.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> listInstitutionAdminQuorum(UserSecurityContext ctx, UUID tenantId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            List<Map<String, Object>> items = new ArrayList<>();
+            String sql = "SELECT id, tenant_id, target_user_id, action, status, reason, requested_by, requested_track, " +
+                    "decided_by, decided_track, decided_at, assignment_id, created_at " +
+                    "FROM plat.institution_admin_quorum_requests WHERE deleted_at IS NULL ";
+            if (tenantId != null) sql += "AND tenant_id = ? ";
+            sql += "ORDER BY created_at DESC LIMIT 100";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                if (tenantId != null) ps.setObject(1, tenantId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("requestId", rs.getObject(1).toString());
+                        row.put("tenantId", rs.getObject(2).toString());
+                        row.put("targetUserId", rs.getObject(3).toString());
+                        row.put("action", rs.getString(4));
+                        row.put("status", rs.getString(5));
+                        row.put("reason", rs.getString(6));
+                        row.put("requestedBy", rs.getObject(7) == null ? null : rs.getObject(7).toString());
+                        row.put("requestedTrack", rs.getString(8));
+                        row.put("decidedBy", rs.getObject(9) == null ? null : rs.getObject(9).toString());
+                        row.put("decidedTrack", rs.getString(10));
+                        row.put("decidedAt", rs.getTimestamp(11));
+                        row.put("assignmentId", rs.getObject(12) == null ? null : rs.getObject(12).toString());
+                        row.put("createdAt", rs.getTimestamp(13));
+                        items.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requests", items);
+            return out;
+        });
+    }
+
+    private static String platformAdminTrack(Connection conn, UUID userId) throws java.sql.SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT plat.platform_admin_track(?)")) {
+            ps.setObject(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                return rs.getString(1);
+            }
+        }
+    }
+
     public Map<String, Object> createAccessRequest(UserSecurityContext ctx, String type, String reason, String payloadJson) {
         return ctx.executeInTransaction(db, conn -> {
             UUID id = UUID.randomUUID();

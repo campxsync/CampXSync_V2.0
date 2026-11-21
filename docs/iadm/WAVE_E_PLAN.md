@@ -17,8 +17,8 @@
 
 | ID | Plain language | Why |
 |---|---|---|
-| IADM-03-US-008 | Break-glass tenant recovery | Matrix §22.5 / owner defer |
-| IADM-03-US-009 | Two-person appoint Institution Admin | FINDING-RBAC-07 |
+| IADM-03-US-008 | Break-glass tenant recovery | Matrix §22.5; **policy frozen** 2026-11-21 (OWNER-DEC-BG-01) — not authorized to build yet |
+| IADM-03-US-009 | Two-person appoint Institution Admin | **implemented** 2026-11-21 (OWNER-DEC-TP-01; migration `20261121001200`) — await story approval |
 | IADM-05-US-007 | Guardian-consent under-18 | D-RBAC-M17 legal |
 | IADM-D5 / adm03 / R27 | API client issuing | Dormant by matrix |
 | Kafka | Event bus | Deferred platform-wide |
