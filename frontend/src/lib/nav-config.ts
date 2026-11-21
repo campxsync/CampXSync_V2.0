@@ -11,6 +11,8 @@ import {
   BookOpen,
   FileText,
   Link2,
+  Shield,
+  Activity,
   LucideIcon,
 } from 'lucide-react';
 import { UserRole } from './auth/resolve-role';
@@ -27,6 +29,8 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Dashboard', href: '/platform', icon: LayoutDashboard },
     { title: 'Institutes & Tenancies', href: '/platform/institutes', icon: Building2 },
     { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
+    { title: 'Identity & Access', href: '/platform/identity', icon: Shield },
+    { title: 'Ops & Audit Search', href: '/platform/ops', icon: Activity },
     { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],

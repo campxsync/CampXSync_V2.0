@@ -154,7 +154,15 @@ export function extractAccessTokenFromCookies(cookieStore: { getAll: () => Array
     .sort((a, b) => a.name.localeCompare(b.name));
 
   if (authChunks.length > 0) {
-    const rawVal = authChunks.map(c => c.value).join('');
+    let rawVal = authChunks.map(c => c.value).join('');
+    // Supabase SSR may store session as base64-<json>
+    if (rawVal.startsWith('base64-')) {
+      try {
+        rawVal = Buffer.from(rawVal.slice('base64-'.length), 'base64').toString('utf8');
+      } catch {
+        /* keep rawVal */
+      }
+    }
     try {
       const parsed = JSON.parse(rawVal);
       if (Array.isArray(parsed) && parsed.length > 0) {

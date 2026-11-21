@@ -1,7 +1,21 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (IADM **Wave F** implemented — STOP for `APPROVED WAVE-F`; then CADM)
+**Updated:** 2026-11-21 (Wave **UI-1** live Platform desks — STOP for `APPROVED WAVE-UI-1`; Wave F still await approve; then CADM)
+
+## Owner decisions – IADM Live Platform Desks / Wave UI-1 (21-11-2026)
+
+**Authorized by:** Niranjan V.G. — plan *IADM Live Platform Desks* (replace status catalog with working Platform Admin desks).
+
+| Item | Status |
+|---|---|
+| Nav | **completed** — Identity & Access + Ops & Audit Search; IADM Stories removed; `/platform/iadm` → `/platform/identity` |
+| `/platform/identity` + BFF | **completed** — quorum list/decide, break-glass list/decide/close via IADM-03 |
+| `/platform/ops` + BFF | **completed** — ops health, audit search (platform scope), self-check via IADM-08 |
+| Platform HMAC empty-tenant | **completed** — IADM-03/08 verifiers allow empty `X-Tenant-Id` for platform admins |
+| Smoke | **completed** — Platform Admin test-session BFF + pages HTTP 200; `npx tsc --noEmit` clean |
+| Owner approval | **await** `APPROVED WAVE-UI-1` (or `… COMMIT`) |
+| Wave UI-2 | Tenant Lifecycle + Platform Config — not started |
 
 ## Owner decisions – IADM Wave E (21-11-2026)
 

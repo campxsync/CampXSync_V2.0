@@ -37,15 +37,23 @@ public class Iadm08DomainService {
                 ctx.checkPlatformAdmin(conn);
             }
             List<Map<String, Object>> items = new ArrayList<>();
+            boolean platformWide = ctx.getTenantId() == null;
             // audit.events columns: principal_id, event_time (no actor_id / deleted_at)
-            String sql = "SELECT id::text, action, principal_id::text, COALESCE(event_time, created_at)::text " +
-                    "FROM audit.events WHERE tenant_id = ? ";
+            String sql = "SELECT id::text, action, principal_id::text, COALESCE(event_time, created_at)::text, tenant_id::text " +
+                    "FROM audit.events WHERE ";
+            if (platformWide) {
+                sql += "1=1 ";
+            } else {
+                sql += "tenant_id = ? ";
+            }
             if (actor != null && !actor.isEmpty()) sql += "AND principal_id::text = ? ";
             if (action != null && !action.isEmpty()) sql += "AND action = ? ";
             sql += "ORDER BY COALESCE(event_time, created_at) DESC NULLS LAST LIMIT 100";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 int i = 1;
-                ps.setObject(i++, ctx.getTenantId());
+                if (!platformWide) {
+                    ps.setObject(i++, ctx.getTenantId());
+                }
                 if (actor != null && !actor.isEmpty()) ps.setString(i++, actor);
                 if (action != null && !action.isEmpty()) ps.setString(i, action);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -55,6 +63,7 @@ public class Iadm08DomainService {
                         row.put("action", rs.getString(2));
                         row.put("actorId", rs.getString(3));
                         row.put("createdAt", rs.getString(4));
+                        row.put("tenantId", rs.getString(5));
                         items.add(row);
                     }
                 }
@@ -62,6 +71,7 @@ public class Iadm08DomainService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("items", items);
             out.put("count", items.size());
+            out.put("scope", platformWide ? "PLATFORM" : "TENANT");
             return out;
         });
     }

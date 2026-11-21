@@ -70,13 +70,14 @@ public class Iadm08Controller implements HttpHandler {
             LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId());
             tracker.step("authenticated");
 
-            UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+            // Platform admins often have no tenant claim; use platform scope for ops/search.
+            boolean platformScoped = auth.getTenantId() == null || auth.getTenantId().trim().isEmpty();
+            UserSecurityContext ctx = platformScoped
+                    ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
+                    : UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
             String q = exchange.getRequestURI().getQuery();
-            if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
-                send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-08\"}");
-                return;
-            }
+            // More specific paths before bare /health (ops/health also endsWith /health)
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/search")) {
                 send(exchange, 200, toJson(service.searchAudit(ctx, qp(q, "actor"), qp(q, "action"))));
                 return;
@@ -117,6 +118,10 @@ public class Iadm08Controller implements HttpHandler {
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/self-check")) {
                 send(exchange, 200, toJson(service.auditSelfCheck(UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/api/v1/iadm/08/health") || path.equals("/health"))) {
+                send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-08\"}");
                 return;
             }
             send(exchange, 404, problem("IADM08_NOT_FOUND", "Route not found: " + path));
