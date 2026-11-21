@@ -22,8 +22,11 @@ Historical per-wave reports remain under `docs/reports/wave-*/COMPLETION_REPORT.
 |---|---|
 | `iadm-03` BreakGlass + Quorum + Port + Contract + Policy | **10/10 PASS** |
 
-### Next
-Await `APPROVED IADM-03-US-008`.
+### Owner approval
+`APPROVED IADM-03-US-008` 2026-11-21.
+
+### Browser demo desk
+`/platform/iadm` — story catalog + live Gateway health probe for IADM-01…08.
 
 ---
 

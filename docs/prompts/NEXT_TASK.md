@@ -1,15 +1,15 @@
 # Next Task
 
-**STATUS: IADM-03-US-008 implemented — await `APPROVED IADM-03-US-008`. Wave F still pending approve; then CADM.**
+**STATUS: IADM-03-US-008 APPROVED. Wave F still pending approve; then CADM. Under-18 / R27 / Kafka remain deferred.**
 
-**Owner:** Niranjan V.G. — `APPROVED IADM-03-US-009` 2026-11-21; US-008 built next.
+**Owner:** Niranjan V.G. — `APPROVED IADM-03-US-009` + `APPROVED IADM-03-US-008` 2026-11-21.
 
 ## Just completed
 
 | ID | Status |
 |---|---|
 | IADM-03-US-009 two-person appoint | **APPROVED** — commit `128833a` |
-| IADM-03-US-008 break-glass | **Implemented** — await `APPROVED IADM-03-US-008` (OWNER-DEC-BG-01; migration `20261121001300`) |
+| IADM-03-US-008 break-glass | **APPROVED** — commit `41f46be` (OWNER-DEC-BG-01; migration `20261121001300`) |
 
 ## Still deferred
 

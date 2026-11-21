@@ -37,7 +37,7 @@
 |---|---|
 | Request | R03 / R04 / R05 / R31 + R01 / R02; authenticated; anonymous no |
 | Approve | **R01 & R02 only** |
-| Build | **completed** — `Iadm03BreakGlassLiveDevTest` PASS; await `APPROVED IADM-03-US-008` |
+| Build | **APPROVED** 2026-11-21 — `Iadm03BreakGlassLiveDevTest` PASS; commit `41f46be` |
 
 ## Owner decisions – Two-person appoint IADM-03-US-009 (21-11-2026)
 
