@@ -53,14 +53,14 @@ Port: **8100** · Gateway: `/api/v1/iadm/02`
 
 | ID | Story | Acceptance criteria | Access | Status | Traceability |
 |---|---|---|---|---|---|
-| IADM-02-US-001 | As Super Admin (R01), I define the configuration catalogue (type, default, scope, lock, delegable). | Missing scope/flag fails closed; audit on change | R01 M | PARTIAL | ADM01_global_settings; Arch §5.2 |
-| IADM-02-US-002 | As System Admin (R02) or Super Admin (R01), I set platform defaults and locks. | Locked values cannot be overridden; version recorded | R01/R02 M | PARTIAL | ADM01_global_policies / feature_flags |
-| IADM-02-US-003 | As Institution Admin (R03), I set institute-level values only for allow-listed settings. | Non-allow-listed → 403; type validated | R03 W | PARTIAL | ADM01_global_settings; Arch §5.2 |
-| IADM-02-US-004 | As Institution Admin (R03), I delegate selected college-level settings and lock the rest. | Only `delegable_to_college`; per-college delegation; locked stays locked | R03 W | NEW | Arch §5.2 authority rules |
-| IADM-02-US-005 | As any service, I resolve effective value (platform > institute > college). | Single API; locked wins; ambiguity deny; tenant-isolated; precedence tests | internal | NEW | Arch §5.2; CADM-01 contract; extends `cfg.effective_setting` |
-| IADM-02-US-006 | As College Admin (R04), I see effective value and inherited/locked/delegated flags. | Read-only; cannot override IADM | R04 V | NEW | CADM-01 contract |
-| IADM-02-US-007 | As R01/R03, I view setting history and roll back. | Who/when/old/new; rollback = new version + audit | R01 M, R03 W | PARTIAL | ADM01_configuration_versions |
-| IADM-02-US-008 | As Auditor (R28), I view configuration and history read-only. | No write path | R28 V | NEW | Arch §5.2 |
+| IADM-02-US-001 | As Super Admin (R01), I define the configuration catalogue (type, default, scope, lock, delegable). | Missing scope/flag fails closed; audit on change | R01 M | completed | :8100 Wave F |
+| IADM-02-US-002 | As System Admin (R02) or Super Admin (R01), I set platform defaults and locks. | Locked values cannot be overridden; version recorded | R01/R02 M | completed | `cfg.setting_value_versions` |
+| IADM-02-US-003 | As Institution Admin (R03), I set institute-level values only for allow-listed settings. | Non-allow-listed → 403; type validated | R03 W | completed | `IADM02_TYPE_MISMATCH` |
+| IADM-02-US-004 | As Institution Admin (R03), I delegate selected college-level settings and lock the rest. | Only `delegable_to_college`; per-college delegation; locked stays locked | R03 W | completed | :8100 Wave F |
+| IADM-02-US-005 | As any service, I resolve effective value (platform > institute > college). | Single API; locked wins; ambiguity deny; tenant-isolated; precedence tests | internal | completed | CADM-01 E0 PASS |
+| IADM-02-US-006 | As College Admin (R04), I see effective value and inherited/locked/delegated flags. | Read-only; cannot override IADM | R04 V | completed | effective flags |
+| IADM-02-US-007 | As R01/R03, I view setting history and roll back. | Who/when/old/new; rollback = new version + audit | R01 M, R03 W | completed | `Iadm02WaveFLiveDevTest` |
+| IADM-02-US-008 | As Auditor (R28), I view configuration and history read-only. | No write path | R28 V | completed | `adm05.view` |
 
 ---
 
@@ -72,13 +72,13 @@ Keys: `adm08.*`, `adm09.*` · Port **8101** · `/api/v1/iadm/03`
 
 | ID | Story | Acceptance | Access | Status | Traceability |
 |---|---|---|---|---|---|
-| IADM-03-US-001 | View role catalogue + permissions for institute | Read-only; plain names | R03 V | PARTIAL | ADM01_roles / permissions |
-| IADM-03-US-002 | Set role ceilings for College Admin | CADM-03 cannot exceed; ceiling ≤ R03 holds | R03 M | NEW | Arch §5.3; CADM-03 contract |
-| IADM-03-US-003 | Assign/remove roles per grant table §21.1 | No self-grant; no above-own; audit; Student/Parent via STM-07 | R03 M | PARTIAL | ADM01_role_bindings; Matrix §21.1 |
-| IADM-03-US-004 | College Admin requests role/ceiling change; R03 decides | Request + decision stored; no self-approve | R04 request, R03 M | NEW | Matrix §21.1 |
-| IADM-03-US-005 | Time-boxed delegations | Scope + expiry enforced | R03 M | PARTIAL | ADM01 / delegations |
-| IADM-03-US-006 | Access review certify/revoke | Existing access-review tables; immediate revoke | R03 M | PARTIAL | ADM01_access_reviews |
-| IADM-03-US-007 | Auditor view role changes/delegations/reviews | No write | R28 V | NEW | Arch §5.3 |
+| IADM-03-US-001 | View role catalogue + permissions for institute | Read-only; plain names | R03 V | completed | roles + permissions join |
+| IADM-03-US-002 | Set role ceilings for College Admin | CADM-03 cannot exceed; ceiling ≤ R03 holds | R03 M | completed | ceiling gate on assign |
+| IADM-03-US-003 | Assign/remove roles per grant table §21.1 | No self-grant; no above-own; audit; Student/Parent via STM-07 | R03 M | completed | `iam.role_grant_rules` |
+| IADM-03-US-004 | College Admin requests role/ceiling change; R03 decides | Request + decision stored; no self-approve | R04 request, R03 M | completed | decide applies ROLE_ASSIGN |
+| IADM-03-US-005 | Time-boxed delegations | Scope + expiry enforced | R03 M | completed | create/list/revoke |
+| IADM-03-US-006 | Access review certify/revoke | Existing access-review tables; immediate revoke | R03 M | completed | REVOKE soft-deletes assignment |
+| IADM-03-US-007 | Auditor view role changes/delegations/reviews | No write | R28 V | completed | `adm09.view` lists |
 | IADM-03-US-008 | Break-glass tenant recovery | Reason + expiry; audited | R01 | DEFERRED | Matrix §21.1 guard 5; §22.5 |
 | IADM-03-US-009 | Two-person appoint/remove Institution Admin | Two different people | R01 | DEFERRED | Matrix §21.7; FINDING-RBAC-07 |
 
@@ -90,12 +90,12 @@ Keys: shared audit view · Port **8106** · `/api/v1/iadm/08` · One shared appe
 
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
-| IADM-08-US-001 | Search audit trail own institute | R03 V | PARTIAL | ADM01_audit_logs; CADM-07 contract |
-| IADM-08-US-002 | Auditor view/export evidence | R28 V/AU/E | PARTIAL | ADM01_audit_logs |
-| IADM-08-US-003 | Manage audit retention/archival (no edit/delete records) | R01/R02 M | PARTIAL | Matrix §21.2 |
-| IADM-08-US-004 | View service health | R01/R02 M | NEW | ADM01_platform_health |
-| IADM-08-US-005 | Institute operational status | R03 V | NEW | Arch §5.8 |
-| IADM-08-US-006 | Audit self-check (no update/delete possible) | R02 | NEW | Arch §5.8 |
+| IADM-08-US-001 | Search audit trail own institute | R03 V | completed | CADM-07 E0 PASS |
+| IADM-08-US-002 | Auditor view/export evidence | R28 V/AU/E | completed | `/audit/export` |
+| IADM-08-US-003 | Manage audit retention/archival (no edit/delete records) | R01/R02 M | completed | `audit.retention_policies` + RLS |
+| IADM-08-US-004 | View service health | R01/R02 M | completed | `/ops/health` |
+| IADM-08-US-005 | Institute operational status | R03 V | completed | `/ops/institute-status` |
+| IADM-08-US-006 | Audit self-check (no update/delete possible) | R02 | completed | `audit.self_check_immutable` |
 
 ---
 
@@ -105,12 +105,12 @@ Port **8105** · `/api/v1/iadm/07`
 
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
-| IADM-07-US-001 | Institute security policy ≥ platform minimum | R03 W | NEW | Arch §5.7 |
-| IADM-07-US-002 | View compliance posture | R03 V | NEW | Arch §5.7 |
-| IADM-07-US-003 | Track security findings | R03 W | NEW | Arch §5.7 |
-| IADM-07-US-004 | Platform security minimums + cross-institute posture | R01/R02 M | NEW | Arch §5.7 |
-| IADM-07-US-005 | College Admin view own college posture | R04 V | NEW | Arch §5.7 |
-| IADM-07-US-006 | Auditor read-only | R28 V | NEW | Arch §5.7 |
+| IADM-07-US-001 | Institute security policy ≥ platform minimum | R03 W | completed | `IADM07_BELOW_MINIMUM` |
+| IADM-07-US-002 | View compliance posture | R03 V | completed | `/posture` |
+| IADM-07-US-003 | Track security findings | R03 W | completed | create/list findings |
+| IADM-07-US-004 | Platform security minimums + cross-institute posture | R01/R02 M | completed | `plat.platform_security_minimums` |
+| IADM-07-US-005 | College Admin view own college posture | R04 V | completed | `/posture/college` |
+| IADM-07-US-006 | Auditor read-only | R28 V | completed | view keys |
 
 ---
 
@@ -120,14 +120,14 @@ Port **8103** · `/api/v1/iadm/05` · New keys `iadm05.*` created when built. Do
 
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
-| IADM-05-US-001 | Retention rules ≥ platform minimum | R03 W | NEW | ADM01_data_retention_policies |
-| IADM-05-US-002 | Privacy notice / consent purpose versions | R03 W | NEW | ADM01_data_classifications |
-| IADM-05-US-003 | Data-subject requests | R03 W | NEW | ADM01_export_requests |
-| IADM-05-US-004 | College Admin execute assigned tasks | R04 X | NEW | Arch §5.5 |
-| IADM-05-US-005 | Instruct domain services erase/export; track completion | internal | NEW | Arch §5.5 |
-| IADM-05-US-006 | Legal hold blocks erasure | R03 W | NEW | Arch §5.5 |
+| IADM-05-US-001 | Retention rules ≥ platform minimum | R03 W | partially completed | CRUD on `cfg.data_retention_policies`; no separate days floor table |
+| IADM-05-US-002 | Privacy notice / consent purpose versions | R03 W | completed | `cfg.data_classifications` proxy |
+| IADM-05-US-003 | Data-subject requests | R03 W | completed | create/list DSR |
+| IADM-05-US-004 | College Admin execute assigned tasks | R04 X | completed | college-scoped execute |
+| IADM-05-US-005 | Instruct domain services erase/export; track completion | internal | completed | IN_PROGRESS→COMPLETED notes |
+| IADM-05-US-006 | Legal hold blocks erasure | R03 W | completed | `IADM05_LEGAL_HOLD` |
 | IADM-05-US-007 | Guardian-consent rules under-18 | R03 W | DEFERRED | D-RBAC-M17 legal check |
-| IADM-05-US-008 | Auditor read-only | R28 V | NEW | Arch §5.5 |
+| IADM-05-US-008 | Auditor read-only | R28 V | completed | `iadm05.view` |
 
 ---
 
@@ -137,13 +137,13 @@ Port **8102** · `/api/v1/iadm/04` · Keep `adm01.manage` until `iadm04.*` creat
 
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
-| IADM-04-US-001 | Create/publish/retire plans | R01 M | EXISTS | ADM01_subscription_plans |
-| IADM-04-US-002 | Assign subscription + state transitions | R01 M | EXISTS | ADM01_subscriptions |
-| IADM-04-US-003 | View own plan/subscription/entitlements | R03 V | PARTIAL | Arch §5.4 |
-| IADM-04-US-004 | Request plan change/add-on | R03 W limited | NEW | Arch §5.4 |
-| IADM-04-US-005 | Issue invoices / reconcile | R01 M | EXISTS | ADM01_invoices / gateway_transactions |
-| IADM-04-US-006 | Entitlement check API | internal | PARTIAL | CADM/all-services contract |
-| IADM-04-US-007 | Auditor billing read-only | R28 V | NEW | Arch §5.4 |
+| IADM-04-US-001 | Create/publish/retire plans | R01 M | completed | :8102 plan mutations |
+| IADM-04-US-002 | Assign subscription + state transitions | R01 M | partially completed | reads + plan-change; full assign SM still thin |
+| IADM-04-US-003 | View own plan/subscription/entitlements | R03 V | completed | `/subscription/mine` |
+| IADM-04-US-004 | Request plan change/add-on | R03 W limited | completed | `plat.plan_change_requests` |
+| IADM-04-US-005 | Issue invoices / reconcile | R01 M | partially completed | invoice list on split; issue/reconcile thin |
+| IADM-04-US-006 | Entitlement check API | internal | completed | E0 PASS |
+| IADM-04-US-007 | Auditor billing read-only | R28 V | completed | `iadm04.view` |
 
 ---
 
@@ -153,11 +153,11 @@ Port **8104** · `/api/v1/iadm/06`
 
 | ID | Story | Access | Status | Traceability |
 |---|---|---|---|---|
-| IADM-06-US-001 | Platform-wide usage aggregates | R01 M/E | NEW | Arch §5.6 |
-| IADM-06-US-002 | Institute usage by college aggregates | R03 V/E | NEW | Arch §5.6 |
-| IADM-06-US-003 | Export aggregate reports | R01/R03 E | NEW | Arch §5.6 |
-| IADM-06-US-004 | Metering feed to IADM-04 | internal | NEW | ADM01_usage_metrics |
-| IADM-06-US-005 | Auditor read-only | R28 V | NEW | Arch §5.6 |
+| IADM-06-US-001 | Platform-wide usage aggregates | R01 M/E | completed | `/usage/platform` |
+| IADM-06-US-002 | Institute usage by college aggregates | R03 V/E | completed | `college_id` column |
+| IADM-06-US-003 | Export aggregate reports | R01/R03 E | completed | `/usage/export` |
+| IADM-06-US-004 | Metering feed to IADM-04 | internal | completed | `POST /usage/ingest` |
+| IADM-06-US-005 | Auditor read-only | R28 V | completed | `iadm06.view` |
 
 ---
 

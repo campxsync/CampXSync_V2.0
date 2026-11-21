@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -77,8 +78,32 @@ public class Iadm04Controller implements HttpHandler {
                 send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-04\"}");
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/subscription/mine")) {
+                send(exchange, 200, toJson(service.getSubscriptionMine(ctx)));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/plans")) {
                 send(exchange, 200, toJson(service.listPlans(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/plans")) {
+                BigDecimal price = extractDecimal(bodyStr, "price");
+                send(exchange, 201, toJson(service.createPlan(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        extract(bodyStr, "planCode"), extract(bodyStr, "name"),
+                        extract(bodyStr, "billingCycle"), price, extract(bodyStr, "currencyCode"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/plans/[^/]+/publish/?$")) {
+                String code = pathSegmentBefore(path, "/publish");
+                send(exchange, 200, toJson(service.publishPlan(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()), code)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/plans/[^/]+/retire/?$")) {
+                String code = pathSegmentBefore(path, "/retire");
+                send(exchange, 200, toJson(service.retirePlan(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()), code)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/subscriptions")) {
@@ -93,7 +118,16 @@ public class Iadm04Controller implements HttpHandler {
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/plan-change-requests")) {
                 send(exchange, 201, toJson(service.createPlanChangeRequest(ctx,
-                        extract(bodyStr, "reason"), extract(bodyStr, "requestedPlanCode"))));
+                        extract(bodyStr, "reason"), extract(bodyStr, "requestedPlanCode"),
+                        extract(bodyStr, "requestType"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/plan-change-requests/[^/]+/decide/?$")) {
+                String id = path.substring(path.indexOf("/plan-change-requests/") + 22, path.indexOf("/decide"));
+                send(exchange, 200, toJson(service.decidePlanChange(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        UUID.fromString(id.replace("/", "")),
+                        extract(bodyStr, "decision"), extract(bodyStr, "decisionNote"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.contains("/entitlements/check")) {
@@ -157,6 +191,13 @@ public class Iadm04Controller implements HttpHandler {
         return null;
     }
 
+    private static String pathSegmentBefore(String path, String suffix) {
+        int end = path.lastIndexOf(suffix);
+        String head = path.substring(0, end);
+        int slash = head.lastIndexOf('/');
+        return head.substring(slash + 1);
+    }
+
     private static String extract(String json, String key) {
         if (json == null) return null;
         String needle = "\"" + key + "\"";
@@ -167,6 +208,27 @@ public class Iadm04Controller implements HttpHandler {
         if (q1 < 0) return null;
         int q2 = json.indexOf('"', q1 + 1);
         return json.substring(q1 + 1, q2);
+    }
+
+    private static BigDecimal extractDecimal(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            rest = rest.substring(1, q2);
+        } else {
+            int end = rest.length();
+            for (int j = 0; j < rest.length(); j++) {
+                char c = rest.charAt(j);
+                if (c == ',' || c == '}' || Character.isWhitespace(c)) { end = j; break; }
+            }
+            rest = rest.substring(0, end);
+        }
+        try { return new BigDecimal(rest.trim()); } catch (NumberFormatException e) { return null; }
     }
 
     @SuppressWarnings("unchecked")
@@ -180,6 +242,7 @@ public class Iadm04Controller implements HttpHandler {
             Object v = e.getValue();
             if (v == null) sb.append("null");
             else if (v instanceof Number || v instanceof Boolean) sb.append(v);
+            else if (v instanceof Map) sb.append(toJson((Map<String, Object>) v));
             else if (v instanceof List) {
                 List<?> list = (List<?>) v;
                 sb.append('[');

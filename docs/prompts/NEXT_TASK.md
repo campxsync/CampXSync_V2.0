@@ -1,28 +1,33 @@
 # Next Task
 
-**STATUS: CADM next — IADM Wave E exited 2026-11-21.**
+**STATUS: IADM Wave F ready for approval — then CADM.**
 
-**Approved by:** Niranjan V.G. (product owner) — IADM Wave E before CADM (complete).
+**Owner:** Niranjan V.G. — PARTIAL close before CADM (2026-11-21).
 
-## Wave E exit
+## Wave F exit
 
-Full report: `docs/iadm/WAVE_E_REPORT.md` · Contracts: `docs/iadm/WAVE_E_CONTRACTS.md`
+Report: `docs/iadm/WAVE_F_REPORT.md` · Plan: `docs/iadm/WAVE_F_PLAN.md`
 
 | Phase | Status |
 |---|---|
-| E0 Contracts | completed |
-| E1-A…E1-E parity | completed / partially completed (tracked gaps in WAVE_E_REPORT) |
-| E2 Findings | completed (RBAC-01 documented OPEN) |
-| E3 Stack cutover | completed |
+| F0–F2 | completed |
+| F3–F4 | completed / partially completed (3 tracked gaps in report) |
+| F5 | completed — suites green |
 
-## Next authorized work
+**Await:** `APPROVED WAVE-F` or `APPROVED WAVE-F COMMIT`.
 
-**CADM implementation:** reconcile CADM stories, then Waves A–D (needs IADM contracts — now proven).
+## After Wave F approval
 
-## Still deferred (no work)
+**CADM** Step 0 reconcile → Waves A–D (IADM contracts in `WAVE_E_CONTRACTS.md`).
 
-Break-glass (IADM-03-US-008), two-person appoint (US-009), guardian-consent under-18 (IADM-05-US-007), API client R27 / adm03, Kafka.
+## Still deferred
+
+Break-glass, two-person appoint, under-18 consent, R27/adm03, Kafka.
+
+## Tracked thin gaps (optional follow-on)
+
+IADM-04-US-002 subscription assign SM · IADM-04-US-005 invoice issue · IADM-05-US-001 retention floor table.
 
 ## Rules
 
-DEV Supabase only. Permission keys. New migrations + rollbacks. `campx-logger` / §3.2. Local commits; push only on request. Circuit breaker after 3 identical failures.
+DEV only. Permission keys. Local commits; push on request.

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (IADM **Wave E exited** on `feature/java-backend-integration`; next = **CADM**; evidence in `docs/iadm/WAVE_E_REPORT.md`)
+**Last current-state refresh:** 2026-11-21 (IADM **Wave F** done — await `APPROVED WAVE-F`; then CADM)
 
 ---
 
@@ -10,10 +10,10 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **CADM** (IADM Wave E complete).
+1. `docs/prompts/NEXT_TASK.md` — Wave F STOP / then **CADM**.
 2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions.
-3. IADM evidence: `docs/iadm/WAVE_E_REPORT.md`, `WAVE_E_CONTRACTS.md`, `STEP0`/`WAVE_A`…`D_REPORT.md`, `ENGINEERING_STANDARDS.md`, `FILE_LIST.md`, `FINDINGS.md`.
-4. Deferred elsewhere: break-glass / two-person appoint / under-18 consent / R27; Kafka; commercial AV.
+3. Evidence: `docs/iadm/WAVE_F_REPORT.md`, `WAVE_E_REPORT.md`, `WAVE_E_CONTRACTS.md`, `IADM_User_Stories.md`.
+4. Deferred: break-glass / two-person appoint / under-18 consent / R27; Kafka; commercial AV.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

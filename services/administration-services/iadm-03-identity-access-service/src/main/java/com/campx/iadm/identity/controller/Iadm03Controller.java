@@ -88,12 +88,17 @@ public class Iadm03Controller implements HttpHandler {
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/access-requests")) {
-                send(exchange, 201, toJson(service.createAccessRequest(ctx, extract(body, "requestType"), extract(body, "reason"))));
+                send(exchange, 201, toJson(service.createAccessRequest(ctx, extract(body, "requestType"),
+                        extract(body, "reason"), extractRaw(body, "payload"))));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.contains("/access-requests/") && path.endsWith("/decide")) {
                 String id = path.substring(path.indexOf("/access-requests/") + 17, path.indexOf("/decide"));
                 send(exchange, 200, toJson(service.decideAccessRequest(ctx, UUID.fromString(id.replace("/", "")), extract(body, "decision"), extract(body, "note"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/role-assignments")) {
+                send(exchange, 200, toJson(service.listRoleAssignments(ctx)));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/role-assignments")) {
@@ -111,6 +116,10 @@ public class Iadm03Controller implements HttpHandler {
                 send(exchange, 200, toJson(service.revokeRoleAssignment(ctx, UUID.fromString(idPart.replace("/", "")))));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/delegations")) {
+                send(exchange, 200, toJson(service.listDelegations(ctx)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/delegations")) {
                 send(exchange, 201, toJson(service.createDelegation(ctx,
                         UUID.fromString(extract(body, "toUserId")),
@@ -120,13 +129,21 @@ public class Iadm03Controller implements HttpHandler {
                         extract(body, "reason"))));
                 return;
             }
+            if (("DELETE".equalsIgnoreCase(method) && path.matches(".*/delegations/[^/]+/?$"))
+                    || ("POST".equalsIgnoreCase(method) && path.matches(".*/delegations/[^/]+/revoke/?$"))) {
+                String idPart = path.contains("/revoke")
+                        ? path.substring(path.indexOf("/delegations/") + 13, path.indexOf("/revoke"))
+                        : path.substring(path.lastIndexOf('/') + 1);
+                send(exchange, 200, toJson(service.revokeDelegation(ctx, UUID.fromString(idPart.replace("/", "")))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/access-reviews")) {
                 send(exchange, 200, toJson(service.listAccessReviews(ctx)));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/access-reviews/[^/]+/certify/?$")) {
                 String id = path.substring(path.indexOf("/access-reviews/") + 16, path.indexOf("/certify"));
-                send(exchange, 200, toJson(service.certifyAccessReview(ctx, UUID.fromString(id.replace("/", "")))));
+                send(exchange, 200, toJson(service.certifyAccessReview(ctx, UUID.fromString(id.replace("/", "")), body)));
                 return;
             }
             send(exchange, 404, problem("IADM03_NOT_FOUND", "Route not found: " + path));
@@ -169,6 +186,35 @@ public class Iadm03Controller implements HttpHandler {
         if (q1 < 0) return null;
         int q2 = json.indexOf('"', q1 + 1);
         return json.substring(q1 + 1, q2);
+    }
+
+    private static String extractRaw(String json, String key) {
+        if (json == null) return "null";
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return "null";
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            return "\"" + rest.substring(1, q2) + "\"";
+        }
+        if (rest.startsWith("{") || rest.startsWith("[")) {
+            char open = rest.charAt(0);
+            char close = open == '{' ? '}' : ']';
+            int depth = 0;
+            for (int j = 0; j < rest.length(); j++) {
+                char c = rest.charAt(j);
+                if (c == open) depth++;
+                else if (c == close) {
+                    depth--;
+                    if (depth == 0) return rest.substring(0, j + 1);
+                }
+            }
+        }
+        int end = rest.indexOf(',');
+        if (end < 0) end = rest.indexOf('}');
+        return rest.substring(0, end).trim();
     }
 
     @SuppressWarnings("unchecked")

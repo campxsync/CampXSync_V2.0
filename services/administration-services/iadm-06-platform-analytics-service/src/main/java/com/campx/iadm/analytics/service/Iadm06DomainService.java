@@ -1,17 +1,22 @@
 package com.campx.iadm.analytics.service;
 
 import com.campx.iadm.analytics.config.DatabaseConnectionManager;
+import com.campx.iadm.analytics.exception.InstituteAdminException;
 import com.campx.iadm.analytics.security.UserSecurityContext;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
 
+import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Domain service for IADM-06 Platform Analytics &amp; Usage (usage metrics / aggregates).
@@ -59,18 +64,16 @@ public class Iadm06DomainService {
         });
     }
 
-    /**
-     * PARTIAL: {@code plat.usage_metrics} has no {@code college_id}; GROUP BY {@code dimension} as college proxy.
-     */
+    /** Groups usage by {@code plat.usage_metrics.college_id}. */
     public Map<String, Object> usageByCollege(UserSecurityContext ctx) {
         return ctx.executeInTransaction(db, conn -> {
             ctx.checkPermission(conn, "iadm06.view");
             List<Map<String, Object>> rows = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT COALESCE(dimension, 'UNKNOWN') AS college_key, metric_name, COALESCE(SUM(metric_value),0) AS total " +
+                    "SELECT college_id::text, metric_name, COALESCE(SUM(metric_value),0) AS total " +
                             "FROM plat.usage_metrics WHERE tenant_id=? AND deleted_at IS NULL " +
-                            "GROUP BY COALESCE(dimension, 'UNKNOWN'), metric_name " +
-                            "ORDER BY college_key, metric_name LIMIT 200")) {
+                            "GROUP BY college_id, metric_name " +
+                            "ORDER BY college_id NULLS LAST, metric_name LIMIT 200")) {
                 ps.setObject(1, ctx.getTenantId());
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -86,19 +89,90 @@ public class Iadm06DomainService {
             out.put("tenantId", ctx.getTenantId().toString());
             out.put("items", rows);
             out.put("count", rows.size());
-            out.put("partial", true);
-            out.put("note", "Grouped by usage_metrics.dimension; college_id column absent");
+            return out;
+        });
+    }
+
+    /**
+     * Metering feed: insert {@code plat.usage_metrics} row for later billing/entitlement used_value.
+     */
+    public Map<String, Object> ingestUsage(UserSecurityContext ctx, String metricName, BigDecimal value,
+                                           UUID collegeId, String recordedOn) {
+        return ctx.executeInTransaction(db, conn -> {
+            try {
+                ctx.checkPermission(conn, "iadm06.write");
+            } catch (Exception e) {
+                ctx.checkPlatformAdmin(conn);
+            }
+            if (metricName == null || metricName.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM06_METRIC_REQUIRED", "metricName required");
+            }
+            if (value == null) {
+                throw new InstituteAdminException(400, "IADM06_VALUE_REQUIRED", "value required");
+            }
+            LocalDate on;
+            try {
+                on = recordedOn == null || recordedOn.trim().isEmpty()
+                        ? LocalDate.now() : LocalDate.parse(recordedOn.trim());
+            } catch (Exception e) {
+                throw new InstituteAdminException(400, "IADM06_RECORDED_ON", "recordedOn must be YYYY-MM-DD");
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.usage_metrics " +
+                            "(id, tenant_id, metric_name, metric_value, recorded_on, college_id, created_by, row_version) " +
+                            "VALUES (?,?,?,?,?,?,?,1)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, ctx.getTenantId());
+                ps.setString(3, metricName.trim());
+                ps.setBigDecimal(4, value);
+                ps.setDate(5, Date.valueOf(on));
+                ps.setObject(6, collegeId);
+                ps.setObject(7, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", id.toString());
+            out.put("metricName", metricName.trim());
+            out.put("value", value);
+            out.put("collegeId", collegeId == null ? null : collegeId.toString());
+            out.put("recordedOn", on.toString());
+            auditMutation(ctx, "iadm06.usage.ingest", "USAGE_METRIC", id.toString());
             return out;
         });
     }
 
     public Map<String, Object> usageExport(UserSecurityContext ctx) {
-        Map<String, Object> summary = usageSummary(ctx);
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("format", "json");
-        out.put("usageSummary", summary);
-        out.put("contentDisposition", "attachment; filename=\"usage-export.json\"");
-        return out;
+        return ctx.executeInTransaction(db, conn -> {
+            try {
+                ctx.checkPermission(conn, "iadm06.export");
+            } catch (Exception e) {
+                ctx.checkPermission(conn, "iadm06.view");
+            }
+            List<Map<String, Object>> rows = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT metric_name, COALESCE(SUM(metric_value),0) AS total " +
+                            "FROM plat.usage_metrics WHERE tenant_id=? AND deleted_at IS NULL " +
+                            "GROUP BY metric_name ORDER BY metric_name LIMIT 100")) {
+                ps.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("metricName", rs.getString(1));
+                        row.put("total", rs.getBigDecimal(2));
+                        rows.add(row);
+                    }
+                }
+            }
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("tenantId", ctx.getTenantId().toString());
+            summary.put("metrics", rows);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("format", "json");
+            out.put("usageSummary", summary);
+            out.put("contentDisposition", "attachment; filename=\"usage-export.json\"");
+            return out;
+        });
     }
 
     public Map<String, Object> usagePlatform(UserSecurityContext ctx) {

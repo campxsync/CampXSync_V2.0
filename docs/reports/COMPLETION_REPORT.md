@@ -5,6 +5,23 @@ Historical per-wave reports remain under `docs/reports/wave-*/COMPLETION_REPORT.
 
 ---
 
+## Entry — IADM Wave F PARTIAL Close (2026-11-21)
+
+**Task ID:** IADM_WAVE_F  
+**Report:** `docs/iadm/WAVE_F_REPORT.md`  
+**Migrations:** `20261121000900`, `20261121001000` on DEV.
+
+### Scope
+Closed non-deferred IADM-02…08 acceptance depth (versions/rollback, grant-table assign, plan-change, college usage, security mins, audit retention RLS). Three thin gaps tracked (subscription assign SM, invoice issue, retention floor table). Deferred stories untouched.
+
+### Tests
+`iadm-02`…`08` Maven suites green (incl. `Iadm02WaveFLiveDevTest`).
+
+### Next
+`APPROVED WAVE-F` → CADM Step 0.
+
+---
+
 ## Entry — IADM Wave E Parity & Cutover (2026-11-21)
 
 **Task ID:** IADM_WAVE_E  

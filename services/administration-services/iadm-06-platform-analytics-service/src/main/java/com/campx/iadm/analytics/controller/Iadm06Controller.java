@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,7 @@ public class Iadm06Controller implements HttpHandler {
             LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId());
             tracker.step("authenticated");
 
+            String body = new String(bodyBytes, StandardCharsets.UTF_8);
             UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(),
                     auth.getTenantId() == null || auth.getTenantId().isEmpty()
                             ? "a0000000-0000-0000-0000-000000000001" : auth.getTenantId());
@@ -88,6 +90,15 @@ public class Iadm06Controller implements HttpHandler {
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage/platform")) {
                 send(exchange, 200, toJson(service.usagePlatform(
                         UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/usage/ingest")) {
+                BigDecimal value = extractDecimal(body, "value");
+                UUID collegeId = null;
+                String collegeRaw = extract(body, "collegeId");
+                if (collegeRaw != null && !collegeRaw.isEmpty()) collegeId = UUID.fromString(collegeRaw);
+                send(exchange, 201, toJson(service.ingestUsage(ctx, extract(body, "metricName"), value,
+                        collegeId, extract(body, "recordedOn"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage")) {
@@ -113,6 +124,39 @@ public class Iadm06Controller implements HttpHandler {
         }
     }
 
+    private static String extract(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        int q1 = json.indexOf('"', colon + 1);
+        if (q1 < 0) return null;
+        int q2 = json.indexOf('"', q1 + 1);
+        return json.substring(q1 + 1, q2);
+    }
+
+    private static BigDecimal extractDecimal(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            rest = rest.substring(1, q2);
+        } else {
+            int end = rest.length();
+            for (int j = 0; j < rest.length(); j++) {
+                char c = rest.charAt(j);
+                if (c == ',' || c == '}' || Character.isWhitespace(c)) { end = j; break; }
+            }
+            rest = rest.substring(0, end);
+        }
+        try { return new BigDecimal(rest.trim()); } catch (NumberFormatException e) { return null; }
+    }
+
     @SuppressWarnings("unchecked")
     private static String toJson(Map<String, Object> map) {
         StringBuilder sb = new StringBuilder("{");
@@ -124,6 +168,7 @@ public class Iadm06Controller implements HttpHandler {
             Object v = e.getValue();
             if (v == null) sb.append("null");
             else if (v instanceof Number || v instanceof Boolean) sb.append(v);
+            else if (v instanceof Map) sb.append(toJson((Map<String, Object>) v));
             else if (v instanceof List) {
                 List<?> list = (List<?>) v;
                 sb.append('[');

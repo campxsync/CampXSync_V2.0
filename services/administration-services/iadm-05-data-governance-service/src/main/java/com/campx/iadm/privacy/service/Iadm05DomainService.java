@@ -10,9 +10,13 @@ import com.campx.logger.api.AuditEvent;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -24,6 +28,8 @@ import java.util.UUID;
 public class Iadm05DomainService {
 
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm05DomainService.class);
+    private static final Set<String> VALID_SENSITIVITIES =
+            new HashSet<>(Arrays.asList("LOW", "MEDIUM", "HIGH", "RESTRICTED"));
 
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
 
@@ -181,13 +187,107 @@ public class Iadm05DomainService {
         });
     }
 
-    public Map<String, Object> executeDsr(UserSecurityContext ctx, UUID dsrId) {
+    /**
+     * Privacy notices proxy via {@code cfg.data_classifications}
+     * (columns: classification_code, sensitivity_level, encryption_required — no name/description).
+     */
+    public Map<String, Object> listPrivacyNotices(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "iadm05.view");
+            List<Map<String, Object>> items = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, classification_code, sensitivity_level, encryption_required, created_at::text " +
+                            "FROM cfg.data_classifications WHERE deleted_at IS NULL " +
+                            "ORDER BY classification_code LIMIT 100")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        String code = rs.getString(2);
+                        String sens = rs.getString(3);
+                        row.put("id", rs.getString(1));
+                        row.put("classificationCode", code);
+                        row.put("name", code);
+                        row.put("description", sens);
+                        row.put("sensitivityLevel", sens);
+                        row.put("encryptionRequired", rs.getBoolean(4));
+                        row.put("createdAt", rs.getString(5));
+                        items.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("items", items);
+            out.put("count", items.size());
+            out.put("source", "cfg.data_classifications");
+            return out;
+        });
+    }
+
+    public Map<String, Object> createPrivacyNotice(UserSecurityContext ctx, String classificationCode,
+                                                   String name, String description, String sensitivityLevel,
+                                                   Boolean encryptionRequired) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "iadm05.write");
+            if (classificationCode == null || classificationCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM05_NOTICE_CODE", "classificationCode required");
+            }
+            String code = classificationCode.trim().toUpperCase(Locale.ROOT);
+            String sens = sensitivityLevel;
+            if (sens == null || sens.trim().isEmpty()) {
+                if (name != null && VALID_SENSITIVITIES.contains(name.trim().toUpperCase(Locale.ROOT))) {
+                    sens = name.trim().toUpperCase(Locale.ROOT);
+                } else if (description != null && VALID_SENSITIVITIES.contains(description.trim().toUpperCase(Locale.ROOT))) {
+                    sens = description.trim().toUpperCase(Locale.ROOT);
+                } else {
+                    sens = "MEDIUM";
+                }
+            } else {
+                sens = sens.trim().toUpperCase(Locale.ROOT);
+            }
+            if (!VALID_SENSITIVITIES.contains(sens)) {
+                throw new InstituteAdminException(400, "IADM05_SENSITIVITY",
+                        "sensitivityLevel must be LOW|MEDIUM|HIGH|RESTRICTED");
+            }
+            boolean encrypt = encryptionRequired != null && encryptionRequired;
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO cfg.data_classifications " +
+                            "(id, classification_code, sensitivity_level, encryption_required, created_by, updated_by, row_version) " +
+                            "VALUES (?,?,?,?,?,?,1)")) {
+                ps.setObject(1, id);
+                ps.setString(2, code);
+                ps.setString(3, sens);
+                ps.setBoolean(4, encrypt);
+                ps.setObject(5, ctx.getUserId());
+                ps.setObject(6, ctx.getUserId());
+                ps.executeUpdate();
+            } catch (java.sql.SQLException e) {
+                if ("23505".equals(e.getSQLState())) {
+                    throw new InstituteAdminException(409, "IADM05_NOTICE_EXISTS", "classificationCode exists");
+                }
+                throw e;
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", id.toString());
+            out.put("classificationCode", code);
+            out.put("name", name == null || name.isEmpty() ? code : name);
+            out.put("description", description == null || description.isEmpty() ? sens : description);
+            out.put("sensitivityLevel", sens);
+            out.put("encryptionRequired", encrypt);
+            auditMutation(ctx, "iadm05.notice.create", "DATA_CLASSIFICATION", code);
+            return out;
+        });
+    }
+
+    public Map<String, Object> executeDsr(UserSecurityContext ctx, UUID dsrId, UUID callerCollegeId) {
         return ctx.executeInTransaction(db, conn -> {
             ctx.checkPermission(conn, "iadm05.execute");
             String requestType;
             String status;
+            UUID assignedCollegeId;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT request_type, status FROM plat.data_subject_requests " +
+                    "SELECT request_type, status, assigned_college_id " +
+                            "FROM plat.data_subject_requests " +
                             "WHERE id=? AND tenant_id=? AND deleted_at IS NULL")) {
                 ps.setObject(1, dsrId);
                 ps.setObject(2, ctx.getTenantId());
@@ -197,9 +297,18 @@ public class Iadm05DomainService {
                     }
                     requestType = rs.getString(1);
                     status = rs.getString(2);
+                    assignedCollegeId = (UUID) rs.getObject(3);
                 }
             }
-            if ("ERASURE".equalsIgnoreCase(requestType) || "ERASE".equalsIgnoreCase(requestType)) {
+            if (assignedCollegeId != null) {
+                if (callerCollegeId == null || !assignedCollegeId.equals(callerCollegeId)) {
+                    throw new InstituteAdminException(403, "IADM05_COLLEGE_SCOPE",
+                            "DSR assigned to a different college");
+                }
+            }
+            boolean erasure = "ERASURE".equalsIgnoreCase(requestType) || "ERASE".equalsIgnoreCase(requestType)
+                    || "DELETE".equalsIgnoreCase(requestType);
+            if (erasure) {
                 try (PreparedStatement hold = conn.prepareStatement(
                         "SELECT 1 FROM plat.legal_holds WHERE tenant_id=? AND active=true AND deleted_at IS NULL LIMIT 1")) {
                     hold.setObject(1, ctx.getTenantId());
@@ -211,8 +320,19 @@ public class Iadm05DomainService {
                     }
                 }
             }
-            String next = "OPEN".equalsIgnoreCase(status) || "ON_HOLD".equalsIgnoreCase(status)
-                    ? "IN_PROGRESS" : "COMPLETED";
+            // US-005 thin: OPEN/ON_HOLD -> IN_PROGRESS (domain instruct note); else COMPLETED
+            String next;
+            String executionNote;
+            if ("OPEN".equalsIgnoreCase(status) || "ON_HOLD".equalsIgnoreCase(status)) {
+                next = "IN_PROGRESS";
+                executionNote = "DOMAIN_INSTRUCT:" + requestType + ":handlers_notified";
+            } else if ("IN_PROGRESS".equalsIgnoreCase(status)) {
+                next = "COMPLETED";
+                executionNote = "DOMAIN_TRACK:" + requestType + ":completed";
+            } else {
+                next = "COMPLETED";
+                executionNote = "DOMAIN_TRACK:" + requestType + ":already_" + status;
+            }
             try (PreparedStatement upd = conn.prepareStatement(
                     "UPDATE plat.data_subject_requests SET status=?, updated_at=now(), updated_by=? " +
                             "WHERE id=? AND tenant_id=? AND deleted_at IS NULL")) {
@@ -225,7 +345,10 @@ public class Iadm05DomainService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("requestId", dsrId.toString());
             out.put("requestType", requestType);
+            out.put("previousStatus", status);
             out.put("status", next);
+            out.put("executionNote", executionNote);
+            out.put("assignedCollegeId", assignedCollegeId == null ? null : assignedCollegeId.toString());
             auditMutation(ctx, "iadm05.dsr.execute", "DATA_SUBJECT_REQUEST", dsrId.toString());
             return out;
         });

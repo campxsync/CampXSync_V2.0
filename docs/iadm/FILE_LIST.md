@@ -22,6 +22,10 @@
 | `database/migrations/20261121000700_rollback__iadm_auth_linked_user_check.sql` | E0 / SEC-11 |
 | `database/migrations/20261121000800_iadm_wave_e_handover_and_suspend.sql` | E1-A |
 | `database/migrations/20261121000800_rollback__iadm_wave_e_handover_and_suspend.sql` | E1-A |
+| `database/migrations/20261121000900_iadm_wave_f_partial_close.sql` | F |
+| `database/migrations/20261121000900_rollback__iadm_wave_f_partial_close.sql` | F |
+| `database/migrations/20261121001000_iadm_wave_f_audit_retention_rls.sql` | F |
+| `database/migrations/20261121001000_rollback__iadm_wave_f_audit_retention_rls.sql` | F |
 
 ## Services (new modules under `services/administration-services/`)
 
@@ -41,6 +45,7 @@
 - `docs/iadm/STEP0_REPORT.md`, `WAVE_A_REPORT.md`, `WAVE_B_REPORT.md`, `WAVE_C_REPORT.md`, `WAVE_D_REPORT.md`
 - `docs/iadm/FINDINGS.md`, `docs/iadm/FILE_LIST.md`, `docs/iadm/ENGINEERING_STANDARDS.md` (Agreement §3.2 logging/exceptions/docs)
 - `docs/iadm/WAVE_E_PLAN.md`, `WAVE_E_CONTRACTS.md`, `WAVE_E_REPORT.md` (Wave E exit)
+- `docs/iadm/WAVE_F_PLAN.md`, `WAVE_F_REPORT.md` (Wave F PARTIAL close)
 - `docs/user-stories/IADM_User_Stories.md` (final backlog; DRAFT left unchanged)
 
 ## Gateway / control docs / stack

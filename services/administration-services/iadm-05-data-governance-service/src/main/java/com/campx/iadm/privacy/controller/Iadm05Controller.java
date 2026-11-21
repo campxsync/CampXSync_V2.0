@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -89,7 +90,25 @@ public class Iadm05Controller implements HttpHandler {
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/dsr/[^/]+/execute/?$")) {
                 String id = path.substring(path.indexOf("/dsr/") + 5, path.indexOf("/execute"));
-                send(exchange, 200, toJson(service.executeDsr(ctx, UUID.fromString(id.replace("/", "")))));
+                UUID collegeId = null;
+                String collegeRaw = extract(body, "collegeId");
+                if (collegeRaw == null || collegeRaw.isEmpty()) {
+                    String q = exchange.getRequestURI().getQuery();
+                    collegeRaw = qParam(q, "collegeId");
+                }
+                if (collegeRaw != null && !collegeRaw.isEmpty()) collegeId = UUID.fromString(collegeRaw);
+                send(exchange, 200, toJson(service.executeDsr(ctx, UUID.fromString(id.replace("/", "")), collegeId)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/privacy-notices") || path.endsWith("/notices"))) {
+                send(exchange, 200, toJson(service.listPrivacyNotices(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && (path.endsWith("/privacy-notices") || path.endsWith("/notices"))) {
+                Boolean encrypt = extractBoolean(body, "encryptionRequired");
+                send(exchange, 201, toJson(service.createPrivacyNotice(ctx,
+                        extract(body, "classificationCode"), extract(body, "name"),
+                        extract(body, "description"), extract(body, "sensitivityLevel"), encrypt)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/retention")) {
@@ -137,6 +156,15 @@ public class Iadm05Controller implements HttpHandler {
         return json.substring(q1 + 1, q2);
     }
 
+    private static String qParam(String q, String name) {
+        if (q == null) return null;
+        for (String part : q.split("&")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].equals(name) && !kv[1].isEmpty()) return kv[1];
+        }
+        return null;
+    }
+
     private static Integer extractInt(String json, String key) {
         if (json == null) return null;
         String needle = "\"" + key + "\"";
@@ -156,6 +184,24 @@ public class Iadm05Controller implements HttpHandler {
             rest = rest.substring(0, end);
         }
         try { return Integer.parseInt(rest.trim()); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static Boolean extractBoolean(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim().toLowerCase(Locale.ROOT);
+        if (rest.startsWith("true")) return true;
+        if (rest.startsWith("false")) return false;
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            String v = rest.substring(1, q2);
+            if ("true".equalsIgnoreCase(v)) return true;
+            if ("false".equalsIgnoreCase(v)) return false;
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

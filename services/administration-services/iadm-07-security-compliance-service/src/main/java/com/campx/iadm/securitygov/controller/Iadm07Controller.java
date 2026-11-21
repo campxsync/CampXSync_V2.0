@@ -94,13 +94,18 @@ public class Iadm07Controller implements HttpHandler {
                 send(exchange, 201, toJson(service.createFinding(ctx, extract(body, "title"), extract(body, "severity"))));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/posture/college")) {
+                String q = exchange.getRequestURI().getQuery();
+                UUID collegeId = qParamUuid(q, "collegeId");
+                send(exchange, 200, toJson(service.postureByCollege(ctx, collegeId)));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/posture")) {
                 send(exchange, 200, toJson(service.posture(ctx)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/platform-minimums")) {
-                send(exchange, 200, toJson(service.platformMinimums(
-                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
+                send(exchange, 200, toJson(service.platformMinimums(ctx)));
                 return;
             }
             send(exchange, 404, problem("IADM07_NOT_FOUND", "Route not found: " + path));
@@ -122,12 +127,34 @@ public class Iadm07Controller implements HttpHandler {
         }
     }
 
+    private static UUID qParamUuid(String q, String name) {
+        if (q == null) return null;
+        for (String part : q.split("&")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].equals(name) && !kv[1].isEmpty()) return UUID.fromString(kv[1]);
+        }
+        return null;
+    }
+
     private static String extract(String json, String key) {
         if (json == null) return null;
         String needle = "\"" + key + "\"";
         int i = json.indexOf(needle);
         if (i < 0) return null;
         int colon = json.indexOf(':', i + needle.length());
+        // Allow raw JSON object for policyValue (not only quoted string)
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("{")) {
+            int depth = 0;
+            for (int j = 0; j < rest.length(); j++) {
+                char c = rest.charAt(j);
+                if (c == '{') depth++;
+                else if (c == '}') {
+                    depth--;
+                    if (depth == 0) return rest.substring(0, j + 1);
+                }
+            }
+        }
         int q1 = json.indexOf('"', colon + 1);
         if (q1 < 0) return null;
         int q2 = json.indexOf('"', q1 + 1);

@@ -71,6 +71,7 @@ public class Iadm08Controller implements HttpHandler {
             tracker.step("authenticated");
 
             UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+            String body = new String(bodyBytes, StandardCharsets.UTF_8);
             String q = exchange.getRequestURI().getQuery();
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
                 send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-08\"}");
@@ -86,6 +87,24 @@ public class Iadm08Controller implements HttpHandler {
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/retention")) {
                 send(exchange, 200, toJson(service.auditRetention(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/audit/retention")) {
+                String days = extract(body, "retentionDays");
+                if (days == null || days.isEmpty()) days = extract(body, "days");
+                Integer retentionDays = null;
+                if (days != null && !days.isEmpty()) {
+                    try { retentionDays = Integer.parseInt(days.trim()); } catch (NumberFormatException ignored) {}
+                }
+                Boolean legalHold = null;
+                String hold = extract(body, "legalHold");
+                if (hold != null) legalHold = "true".equalsIgnoreCase(hold);
+                send(exchange, 200, toJson(service.upsertAuditRetention(
+                        UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()),
+                        extract(body, "entityType"),
+                        retentionDays,
+                        extract(body, "action"),
+                        legalHold)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/ops/institute-status")) {
@@ -126,6 +145,29 @@ public class Iadm08Controller implements HttpHandler {
             if (kv.length == 2 && kv[0].equals(name)) return kv[1];
         }
         return null;
+    }
+
+    private static String extract(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            return q2 < 0 ? null : rest.substring(1, q2);
+        }
+        int end = rest.length();
+        for (int j = 0; j < rest.length(); j++) {
+            char c = rest.charAt(j);
+            if (c == ',' || c == '}' || c == ']') {
+                end = j;
+                break;
+            }
+        }
+        String lit = rest.substring(0, end).trim();
+        return "null".equalsIgnoreCase(lit) ? null : lit;
     }
 
     @SuppressWarnings("unchecked")

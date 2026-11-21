@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * IADM-08 Audit, Health &amp; Operations — shared audit store and ops probes (CADM-07 contract).
@@ -158,7 +159,9 @@ public class Iadm08DomainService {
         });
     }
 
-    /** PARTIAL: {@code plat.audit_retention_policy} not in DEV — return immutable defaults. */
+    /**
+     * Read audit retention rows from {@code audit.retention_policies} (Wave F — not plat.audit_retention_policy).
+     */
     public Map<String, Object> auditRetention(UserSecurityContext ctx) {
         return ctx.executeInTransaction(db, conn -> {
             try {
@@ -166,25 +169,89 @@ public class Iadm08DomainService {
             } catch (Exception e) {
                 ctx.checkPlatformAdmin(conn);
             }
+            List<Map<String, Object>> items = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT retention_days, mutable FROM plat.audit_retention_policy WHERE deleted_at IS NULL LIMIT 1")) {
+                    "SELECT id::text, entity_type, retention_days, action, legal_hold, updated_at::text " +
+                            "FROM audit.retention_policies WHERE tenant_id = ? AND deleted_at IS NULL " +
+                            "ORDER BY entity_type LIMIT 100")) {
+                ps.setObject(1, ctx.getTenantId());
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        Map<String, Object> out = new LinkedHashMap<>();
-                        out.put("days", rs.getInt(1));
-                        out.put("mutable", rs.getBoolean(2));
-                        out.put("source", "plat.audit_retention_policy");
-                        return out;
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getString(1));
+                        row.put("entityType", rs.getString(2));
+                        row.put("retentionDays", rs.getInt(3));
+                        row.put("action", rs.getString(4));
+                        row.put("legalHold", rs.getBoolean(5));
+                        row.put("updatedAt", rs.getString(6));
+                        items.add(row);
                     }
                 }
-            } catch (Exception ignored) {
-                // table missing — defaults below
             }
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("days", 365);
-            out.put("mutable", false);
-            out.put("source", "defaults");
-            out.put("partial", true);
+            out.put("items", items);
+            out.put("count", items.size());
+            out.put("source", "audit.retention_policies");
+            return out;
+        });
+    }
+
+    /** Platform-admin upsert into {@code audit.retention_policies} by tenant + entity_type. */
+    public Map<String, Object> upsertAuditRetention(UserSecurityContext ctx, String entityType, Integer retentionDays,
+                                                   String action, Boolean legalHold) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (entityType == null || entityType.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM08_RETENTION_ENTITY", "entityType required");
+            }
+            if (retentionDays == null || retentionDays <= 0) {
+                throw new InstituteAdminException(400, "IADM08_RETENTION_DAYS", "retentionDays must be > 0");
+            }
+            String act = (action == null || action.trim().isEmpty()) ? "ARCHIVE" : action.trim().toUpperCase();
+            if (!("ARCHIVE".equals(act) || "DELETE".equals(act) || "ANONYMIZE".equals(act))) {
+                throw new InstituteAdminException(400, "IADM08_RETENTION_ACTION",
+                        "action must be ARCHIVE, DELETE, or ANONYMIZE");
+            }
+            boolean hold = legalHold != null && legalHold;
+            String entity = entityType.trim();
+            UUID id = null;
+            try (PreparedStatement upd = conn.prepareStatement(
+                    "UPDATE audit.retention_policies SET retention_days = ?, action = ?, legal_hold = ?, " +
+                            "updated_at = now(), updated_by = ? " +
+                            "WHERE tenant_id = ? AND entity_type = ? AND deleted_at IS NULL RETURNING id")) {
+                upd.setInt(1, retentionDays);
+                upd.setString(2, act);
+                upd.setBoolean(3, hold);
+                upd.setObject(4, ctx.getUserId());
+                upd.setObject(5, ctx.getTenantId());
+                upd.setString(6, entity);
+                try (ResultSet rs = upd.executeQuery()) {
+                    if (rs.next()) id = (UUID) rs.getObject(1);
+                }
+            }
+            if (id == null) {
+                id = UUID.randomUUID();
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO audit.retention_policies (id, tenant_id, entity_type, retention_days, action, legal_hold, created_by) " +
+                                "VALUES (?,?,?,?,?,?,?)")) {
+                    ins.setObject(1, id);
+                    ins.setObject(2, ctx.getTenantId());
+                    ins.setString(3, entity);
+                    ins.setInt(4, retentionDays);
+                    ins.setString(5, act);
+                    ins.setBoolean(6, hold);
+                    ins.setObject(7, ctx.getUserId());
+                    ins.executeUpdate();
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", id.toString());
+            out.put("entityType", entity);
+            out.put("retentionDays", retentionDays);
+            out.put("action", act);
+            out.put("legalHold", hold);
+            out.put("source", "audit.retention_policies");
+            auditMutation(ctx, "upsertAuditRetention", "AUDIT_RETENTION", id.toString());
             return out;
         });
     }

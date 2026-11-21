@@ -7,18 +7,18 @@ import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.AuditEvent;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * IADM-04 — entitlement check is the CADM/all-services contract.
- * <p>
- * Read-only domain surface; {@link CampXLogger} is available for future mutation audit (Agreement &#167;3.2).
+ * IADM-04 — subscription, billing, and entitlement domain (Agreement &#167;3.2).
  */
 public class Iadm04DomainService {
 
@@ -169,19 +169,259 @@ public class Iadm04DomainService {
         });
     }
 
-    /**
-     * PARTIAL: {@code plat.plan_change_requests} does not exist in DEV.
-     * {@code plat.institute_lifecycle_requests} CHECK rejects PLAN_CHANGE — return 501.
-     */
-    public Map<String, Object> createPlanChangeRequest(UserSecurityContext ctx, String reason, String requestedPlanCode) {
-        return ctx.executeInTransaction(db, conn -> {
+    private void requireBillingWrite(UserSecurityContext ctx, java.sql.Connection conn) throws java.sql.SQLException {
+        try {
+            ctx.checkPermission(conn, "iadm04.write");
+        } catch (Exception e) {
             try {
-                ctx.checkPermission(conn, "iadm04.write");
-            } catch (Exception e) {
                 ctx.checkPermission(conn, "adm01.write");
+            } catch (Exception e2) {
+                ctx.checkPermission(conn, "adm01.manage");
             }
-            throw new InstituteAdminException(501, "IADM04_PLAN_CHANGE_UNAVAILABLE",
-                    "plat.plan_change_requests missing; institute_lifecycle_requests cannot store PLAN_CHANGE");
+        }
+    }
+
+    /**
+     * Persists a PENDING plan-change / add-on request into {@code plat.plan_change_requests}.
+     */
+    public Map<String, Object> createPlanChangeRequest(UserSecurityContext ctx, String reason,
+                                                       String requestedPlanCode, String requestType) {
+        return ctx.executeInTransaction(db, conn -> {
+            requireBillingWrite(ctx, conn);
+            if (requestedPlanCode == null || requestedPlanCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM04_PLAN_CODE_REQUIRED", "requestedPlanCode required");
+            }
+            String type = requestType == null || requestType.trim().isEmpty()
+                    ? "PLAN_CHANGE" : requestType.trim().toUpperCase(Locale.ROOT);
+            if (!"PLAN_CHANGE".equals(type) && !"ADD_ON".equals(type)) {
+                throw new InstituteAdminException(400, "IADM04_REQUEST_TYPE", "requestType must be PLAN_CHANGE or ADD_ON");
+            }
+            String currentPlan = null;
+            try (PreparedStatement cur = conn.prepareStatement(
+                    "SELECT sp.plan_code FROM plat.subscriptions s " +
+                            "JOIN plat.subscription_plans sp ON sp.id = s.plan_id AND sp.deleted_at IS NULL " +
+                            "WHERE s.tenant_id=? AND s.deleted_at IS NULL " +
+                            "ORDER BY s.updated_at DESC NULLS LAST LIMIT 1")) {
+                cur.setObject(1, ctx.getTenantId());
+                try (ResultSet rs = cur.executeQuery()) {
+                    if (rs.next()) currentPlan = rs.getString(1);
+                }
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.plan_change_requests " +
+                            "(id, tenant_id, requested_by, current_plan_code, requested_plan_code, request_type, status, reason, created_by) " +
+                            "VALUES (?,?,?,?,?,?, 'PENDING', ?, ?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, ctx.getTenantId());
+                ps.setObject(3, ctx.getUserId());
+                ps.setString(4, currentPlan);
+                ps.setString(5, requestedPlanCode.trim());
+                ps.setString(6, type);
+                ps.setString(7, reason);
+                ps.setObject(8, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", id.toString());
+            out.put("status", "PENDING");
+            out.put("requestedPlanCode", requestedPlanCode.trim());
+            out.put("requestType", type);
+            out.put("currentPlanCode", currentPlan);
+            auditMutation(ctx, "iadm04.plan_change.create", "PLAN_CHANGE_REQUEST", id.toString());
+            return out;
+        });
+    }
+
+    /** Platform admin APPROVE / REJECT for a pending plan-change request. */
+    public Map<String, Object> decidePlanChange(UserSecurityContext ctx, UUID requestId, String decision, String note) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (requestId == null) {
+                throw new InstituteAdminException(400, "IADM04_REQUEST_ID", "requestId required");
+            }
+            String dec = decision == null ? "" : decision.trim().toUpperCase(Locale.ROOT);
+            if (!"APPROVE".equals(dec) && !"REJECT".equals(dec)) {
+                throw new InstituteAdminException(400, "IADM04_DECISION", "decision must be APPROVE or REJECT");
+            }
+            String status = "APPROVE".equals(dec) ? "APPROVED" : "REJECTED";
+            int updated;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE plat.plan_change_requests SET status=?, decided_by=?, decided_at=now(), decision_note=?, " +
+                            "updated_at=now(), updated_by=? " +
+                            "WHERE id=? AND status='PENDING' AND deleted_at IS NULL")) {
+                ps.setString(1, status);
+                ps.setObject(2, ctx.getUserId());
+                ps.setString(3, note);
+                ps.setObject(4, ctx.getUserId());
+                ps.setObject(5, requestId);
+                updated = ps.executeUpdate();
+            }
+            if (updated == 0) {
+                throw new InstituteAdminException(404, "IADM04_PLAN_CHANGE_NOT_FOUND",
+                        "Pending plan-change request not found");
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", requestId.toString());
+            out.put("status", status);
+            out.put("decision", dec);
+            auditMutation(ctx, "iadm04.plan_change.decide", "PLAN_CHANGE_REQUEST", requestId.toString());
+            return out;
+        });
+    }
+
+    /** Aggregate: own subscription + plan + entitlement keys for the caller tenant. */
+    public Map<String, Object> getSubscriptionMine(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            requireBillingView(ctx, conn);
+            UUID tid = ctx.getTenantId();
+            Map<String, Object> subscription = null;
+            UUID planId = null;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id::text, plan_id, status, start_date::text, end_date::text " +
+                            "FROM plat.subscriptions WHERE tenant_id=? AND deleted_at IS NULL " +
+                            "ORDER BY updated_at DESC NULLS LAST LIMIT 1")) {
+                ps.setObject(1, tid);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        subscription = new LinkedHashMap<>();
+                        subscription.put("id", rs.getString(1));
+                        planId = (UUID) rs.getObject(2);
+                        subscription.put("planId", planId == null ? null : planId.toString());
+                        subscription.put("status", rs.getString(3));
+                        subscription.put("startDate", rs.getString(4));
+                        subscription.put("endDate", rs.getString(5));
+                    }
+                }
+            }
+            Map<String, Object> plan = null;
+            List<String> entitlementKeys = new ArrayList<>();
+            if (planId != null) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id::text, plan_code, name, billing_cycle, price, currency_code, is_published " +
+                                "FROM plat.subscription_plans WHERE id=? AND deleted_at IS NULL")) {
+                    ps.setObject(1, planId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            plan = new LinkedHashMap<>();
+                            plan.put("id", rs.getString(1));
+                            plan.put("planCode", rs.getString(2));
+                            plan.put("name", rs.getString(3));
+                            plan.put("billingCycle", rs.getString(4));
+                            plan.put("price", rs.getBigDecimal(5));
+                            plan.put("currencyCode", rs.getString(6));
+                            plan.put("published", rs.getBoolean(7));
+                        }
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT entitlement_key FROM plat.plan_entitlements " +
+                                "WHERE plan_id=? AND deleted_at IS NULL AND is_enabled=true ORDER BY entitlement_key")) {
+                    ps.setObject(1, planId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) entitlementKeys.add(rs.getString(1));
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("tenantId", tid.toString());
+            out.put("subscription", subscription);
+            out.put("plan", plan);
+            out.put("entitlementKeys", entitlementKeys);
+            return out;
+        });
+    }
+
+    /** Platform admin: create draft plan in {@code plat.subscription_plans}. */
+    public Map<String, Object> createPlan(UserSecurityContext ctx, String planCode, String name,
+                                          String billingCycle, BigDecimal price, String currencyCode) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (planCode == null || planCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM04_PLAN_CODE_REQUIRED", "planCode required");
+            }
+            if (name == null || name.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM04_PLAN_NAME_REQUIRED", "name required");
+            }
+            String code = planCode.trim().toUpperCase(Locale.ROOT);
+            String cycle = billingCycle == null || billingCycle.trim().isEmpty()
+                    ? "MONTHLY" : billingCycle.trim().toUpperCase(Locale.ROOT);
+            if (!"MONTHLY".equals(cycle) && !"QUARTERLY".equals(cycle) && !"ANNUALLY".equals(cycle)) {
+                cycle = "MONTHLY";
+            }
+            String currency = currencyCode == null || currencyCode.trim().isEmpty()
+                    ? "INR" : currencyCode.trim().toUpperCase(Locale.ROOT);
+            if (currency.length() > 3) currency = currency.substring(0, 3);
+            BigDecimal amt = price == null ? BigDecimal.ZERO : price;
+            try (PreparedStatement check = conn.prepareStatement(
+                    "SELECT 1 FROM plat.subscription_plans WHERE plan_code=? AND deleted_at IS NULL")) {
+                check.setString(1, code);
+                try (ResultSet rs = check.executeQuery()) {
+                    if (rs.next()) {
+                        throw new InstituteAdminException(409, "IADM04_PLAN_EXISTS", "planCode already exists");
+                    }
+                }
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.subscription_plans " +
+                            "(id, plan_code, name, billing_cycle, price, currency_code, is_published, created_by, row_version) " +
+                            "VALUES (?,?,?,?,?,?, false, ?, 1)")) {
+                ps.setObject(1, id);
+                ps.setString(2, code);
+                ps.setString(3, name.trim());
+                ps.setString(4, cycle);
+                ps.setBigDecimal(5, amt);
+                ps.setString(6, currency);
+                ps.setObject(7, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", id.toString());
+            out.put("planCode", code);
+            out.put("name", name.trim());
+            out.put("billingCycle", cycle);
+            out.put("price", amt);
+            out.put("currencyCode", currency);
+            out.put("published", false);
+            auditMutation(ctx, "iadm04.plan.create", "SUBSCRIPTION_PLAN", code);
+            return out;
+        });
+    }
+
+    public Map<String, Object> publishPlan(UserSecurityContext ctx, String planCode) {
+        return setPlanPublished(ctx, planCode, true, "iadm04.plan.publish");
+    }
+
+    public Map<String, Object> retirePlan(UserSecurityContext ctx, String planCode) {
+        return setPlanPublished(ctx, planCode, false, "iadm04.plan.retire");
+    }
+
+    private Map<String, Object> setPlanPublished(UserSecurityContext ctx, String planCode,
+                                                 boolean published, String auditAction) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (planCode == null || planCode.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM04_PLAN_CODE_REQUIRED", "planCode required");
+            }
+            String code = planCode.trim().toUpperCase(Locale.ROOT);
+            int updated;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE plat.subscription_plans SET is_published=?, updated_at=now(), updated_by=?, " +
+                            "row_version = row_version + 1 WHERE plan_code=? AND deleted_at IS NULL")) {
+                ps.setBoolean(1, published);
+                ps.setObject(2, ctx.getUserId());
+                ps.setString(3, code);
+                updated = ps.executeUpdate();
+            }
+            if (updated == 0) {
+                throw new InstituteAdminException(404, "IADM04_PLAN_NOT_FOUND", "Plan not found: " + code);
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("planCode", code);
+            out.put("published", published);
+            auditMutation(ctx, auditAction, "SUBSCRIPTION_PLAN", code);
+            return out;
         });
     }
 

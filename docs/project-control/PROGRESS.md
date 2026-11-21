@@ -1,11 +1,11 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (IADM **Wave E exited**; next = CADM)
+**Updated:** 2026-11-21 (IADM **Wave F** implemented — STOP for `APPROVED WAVE-F`; then CADM)
 
 ## Owner decisions – IADM Wave E (21-11-2026)
 
-**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Priority: finish IADM Wave E before CADM. **Closed.**
+**Approved by:** Niranjan V.G. (product owner) — `APPROVED WAVE-E` 2026-11-21 (no push). **Closed.**
 
 | Item | Status |
 |---|---|
@@ -14,7 +14,24 @@
 | E1 Parity (01…08) | **completed / partially completed** — `docs/iadm/WAVE_E_REPORT.md` |
 | E2 Security findings | **completed** — SEC-02 FIXED; RBAC-01 OPEN (doc) |
 | E3 Stack / gateway cutover | **completed** — ports 8099–8106 in stack scripts |
-| CADM | **next** — reconcile + Waves A–D |
+| Owner approval | **APPROVED WAVE-E** — local `3cf3aa6` (ahead of origin; not pushed) |
+| CADM | **deferred** until Wave F exit (PARTIAL stories first) |
+
+## Owner decisions – IADM Wave F (21-11-2026)
+
+**Authorized by:** Niranjan V.G. — complete remaining non-deferred IADM PARTIAL/NEW before CADM. **Implementation done — await approval.**
+
+| Item | Status |
+|---|---|
+| Wave F plan | **completed** — `docs/iadm/WAVE_F_PLAN.md` |
+| Wave F report | **completed** — `docs/iadm/WAVE_F_REPORT.md` |
+| Migrations | `20261121000900`, `20261121001000` applied on DEV |
+| Deferred stories | unchanged (break-glass, two-person, under-18, R27, Kafka) |
+| CADM | starts after `APPROVED WAVE-F` |
+
+## Owner decisions – CADM (21-11-2026)
+
+**Parked.** Re-authorize after Wave F. Contracts remain ready in `WAVE_E_CONTRACTS.md`.
 
 ## Owner decisions – IADM Waves A–D (21-11-2026)
 

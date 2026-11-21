@@ -82,8 +82,20 @@ public class Iadm02Controller implements HttpHandler {
                 boolean delegable = "true".equalsIgnoreCase(extract(body, "delegableToCollege"));
                 Map<String, Object> r = service.upsertDefinition(ctx, extract(body, "settingKey"),
                         extract(body, "dataType") == null ? "STRING" : extract(body, "dataType"),
-                        extract(body, "defaultValue"), locked, delegable, new String[]{"INSTITUTE", "COLLEGE"});
+                        extractRaw(body, "defaultValue"), locked, delegable, extractStringArray(body, "allowedScopes"));
                 send(exchange, 201, toJson(r));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/setting-delegations")) {
+                send(exchange, 200, toJson(service.listDelegations(ctx)));
+                return;
+            }
+            if (("DELETE".equalsIgnoreCase(method) && path.matches(".*/setting-delegations/[^/]+/?$"))
+                    || ("POST".equalsIgnoreCase(method) && path.matches(".*/setting-delegations/[^/]+/revoke/?$"))) {
+                String idPart = path.contains("/revoke")
+                        ? path.substring(path.indexOf("/setting-delegations/") + 21, path.indexOf("/revoke"))
+                        : path.substring(path.lastIndexOf('/') + 1);
+                send(exchange, 200, toJson(service.revokeDelegation(ctx, UUID.fromString(idPart.replace("/", "")))));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/institute-value/?$")) {
@@ -192,9 +204,53 @@ public class Iadm02Controller implements HttpHandler {
             int q2 = rest.indexOf('"', 1);
             return "\"" + rest.substring(1, q2) + "\"";
         }
+        if (rest.startsWith("{") || rest.startsWith("[")) {
+            return extractBalanced(rest);
+        }
         int end = rest.indexOf(',');
         if (end < 0) end = rest.indexOf('}');
         return rest.substring(0, end).trim();
+    }
+
+    /** Parses {@code "allowedScopes":["INSTITUTE","COLLEGE"]} — missing/empty → empty array (fail-closed). */
+    private static String[] extractStringArray(String json, String key) {
+        if (json == null) return new String[0];
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return new String[0];
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (!rest.startsWith("[")) return new String[0];
+        int end = rest.indexOf(']');
+        if (end < 0) return new String[0];
+        String inner = rest.substring(1, end).trim();
+        if (inner.isEmpty()) return new String[0];
+        java.util.List<String> out = new java.util.ArrayList<>();
+        int pos = 0;
+        while (pos < inner.length()) {
+            int q1 = inner.indexOf('"', pos);
+            if (q1 < 0) break;
+            int q2 = inner.indexOf('"', q1 + 1);
+            if (q2 < 0) break;
+            out.add(inner.substring(q1 + 1, q2));
+            pos = q2 + 1;
+        }
+        return out.toArray(new String[0]);
+    }
+
+    private static String extractBalanced(String rest) {
+        char open = rest.charAt(0);
+        char close = open == '{' ? '}' : ']';
+        int depth = 0;
+        for (int i = 0; i < rest.length(); i++) {
+            char c = rest.charAt(i);
+            if (c == open) depth++;
+            else if (c == close) {
+                depth--;
+                if (depth == 0) return rest.substring(0, i + 1);
+            }
+        }
+        return rest;
     }
 
     @SuppressWarnings("unchecked")
