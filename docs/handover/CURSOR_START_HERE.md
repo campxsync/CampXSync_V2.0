@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (Enterprise RBAC Matrix v3.0 IADM/CADM Implementation Phases 0–4 VERIFIED and COMPLETED in DEV: Phase 4 verification & patch applied; student/parent role assignment verified and R03/R38 grant rules restored; privilege escalation live tested and blocked; billing endpoints secured in IADM-04; domain owner allow-lists updated in batch, attendance, calendar, course, and resource services; dev admin users de-conflated and 56-cell persona matrix 100% passed; test suites 100% green: frontend tsc 0 errors, institute-admin 510/0, attendance 38/0, calendar 22/0, batch 50/0, course 46/0, resource 23/0; **no push**)
+**Last current-state refresh:** 2026-11-21 (IADM Step 0 + Waves A–D completed in DEV: eight microservices on ports 8099–8106; gateway `/api/v1/iadm/01`–`08`; migrations `20261121000100`–`00600` applied; appointment fn uses `auth.uid()`; entitlement fail-closed confirmed; backlog `docs/user-stories/IADM_User_Stories.md`; reports under `docs/iadm/`; **next = CADM Waves A–D**; **no push**)
 
 ---
 
@@ -10,9 +10,10 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STM-07/STM-10 closed. Current docs track: Admin RBAC matrix IADM/CADM v2 (`docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`).
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11, D13, IADM-D7).
-3. Owner decisions still open: RBAC coverage-map export (D-RBAC-M04); Kafka for EN-005 fan-out; commercial AV integration.
+1. `docs/prompts/NEXT_TASK.md` — **CADM implementation: reconcile CADM stories, then Waves A–D (needs IADM contracts)**.
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. IADM Waves A–D closure).
+3. IADM evidence: `docs/iadm/STEP0_REPORT.md`, `WAVE_A`…`D_REPORT.md`, `FILE_LIST.md`, `FINDINGS.md`.
+4. Owner decisions still open elsewhere: RBAC coverage-map export (D-RBAC-M04); Kafka for EN-005 fan-out; commercial AV integration.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

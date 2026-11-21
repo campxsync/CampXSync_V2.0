@@ -2,7 +2,8 @@
 
 **Status:** ACTIVE  
 **Last Updated:** 2026-11-21  
-**Context:** Captured during Phases 0–4 of Enterprise RBAC (IADM & CADM) implementation in DEV.
+**Context:** Captured during Phases 0–4 of Enterprise RBAC (IADM & CADM) implementation in DEV.  
+**IADM Wave companion:** Also see `docs/iadm/FINDINGS.md` (SEC-01 fixed; SEC-02 partial; RBAC-01 platform role_template gap).
 
 ---
 

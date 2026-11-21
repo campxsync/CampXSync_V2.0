@@ -54,6 +54,12 @@ public class GatewayConfig {
         // IADM split services (Wave A): keep /api/v1/admin on :8081 during move
         routeTable.put("/api/v1/iadm/01", "http://localhost:8099/api/v1/iadm/01");
         routeTable.put("/api/v1/iadm/02", "http://localhost:8100/api/v1/iadm/02");
+        routeTable.put("/api/v1/iadm/03", "http://localhost:8101/api/v1/iadm/03");
+        routeTable.put("/api/v1/iadm/04", "http://localhost:8102/api/v1/iadm/04");
+        routeTable.put("/api/v1/iadm/05", "http://localhost:8103/api/v1/iadm/05");
+        routeTable.put("/api/v1/iadm/06", "http://localhost:8104/api/v1/iadm/06");
+        routeTable.put("/api/v1/iadm/07", "http://localhost:8105/api/v1/iadm/07");
+        routeTable.put("/api/v1/iadm/08", "http://localhost:8106/api/v1/iadm/08");
         routeTable.put("/api/v1/admin/internal/delegations",
                 "http://localhost:8081/api/v1/admin/internal/delegations");
         routeTable.put("/api/v1/admin/internal/roles",

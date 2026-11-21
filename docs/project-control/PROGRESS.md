@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (IADM Step 0 + Wave A completed in DEV; Waves B–D in progress; no push)
+**Updated:** 2026-11-21 (IADM Step 0 + Waves A–D completed in DEV; next = CADM; no push)
 
 ## Owner decisions – IADM Waves A–D (21-11-2026)
 
@@ -12,9 +12,11 @@
 | Step 0 preflight (appointment fn, context leak, backlog, inventory, keys, ports) | **completed** — `docs/iadm/STEP0_REPORT.md` |
 | Final backlog | **completed** — `docs/user-stories/IADM_User_Stories.md` (DRAFT unchanged) |
 | Wave A IADM-01 (:8099) + IADM-02 (:8100) | **completed** — `docs/iadm/WAVE_A_REPORT.md` |
-| Wave B IADM-03 + IADM-08 | in progress |
-| Wave C IADM-07 + IADM-05 | yet to pickup |
-| Wave D IADM-04 + IADM-06 | yet to pickup |
+| Wave B IADM-03 (:8101) + IADM-08 (:8106) | **completed** — `docs/iadm/WAVE_B_REPORT.md` |
+| Wave C IADM-05 (:8103) + IADM-07 (:8105) | **completed** — `docs/iadm/WAVE_C_REPORT.md` |
+| Wave D IADM-04 (:8102) + IADM-06 (:8104) | **completed** — `docs/iadm/WAVE_D_REPORT.md` |
+| File / migration inventory | **completed** — `docs/iadm/FILE_LIST.md` |
+| Next authorized task | **CADM** — reconcile CADM stories, then Waves A–D (needs IADM contracts) |
 
 ## Owner decisions – Admin RBAC / IADM-CADM (20-11-2026 / 21-11-2026)
 

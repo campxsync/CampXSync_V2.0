@@ -42,3 +42,10 @@
 ### FINDING-IADM-ARCH-01 — First College Admin Auth link (SEC-11)
 
 - Architecture notes onboarding may mint a profile without a linked Supabase Auth user. Tracked for IADM-01-US-003; do not treat current monolith as the approved protocol.
+
+### FINDING-IADM-RBAC-01 — PLATFORM_ADMIN / SYSTEM_ADMIN not in role_templates (MEDIUM)
+
+- **Plain language:** Super Admin (R01) and System Admin (R02) are not rows in `iam.role_templates`. Migration `20261121000600` inserted `role_template_permissions` for codes `PLATFORM_ADMIN` / `SYSTEM_ADMIN`, but `iam.resync_system_roles()` only seeds codes that exist in templates — so those template rows do not become live `iam.role_permissions`.
+- **CONFIRMED:** Live grants for `iadm0*` appear on `INSTITUTION_ADMIN` and `AUDITOR` only after resync. Platform admins continue to use `iam.is_platform_admin()` in Java/`UserSecurityContext`.
+- **Action:** Do not invent PLATFORM_ADMIN/SYSTEM_ADMIN system roles without an owner design decision. Prefer `is_platform_admin()` for R01/R02 until matrix names a template code.
+- **Status:** OPEN (documented; no silent role invention).
