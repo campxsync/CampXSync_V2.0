@@ -7,13 +7,16 @@
 
 | Nav label | Route | Data shown | Source endpoint | Actions | List-only? |
 |---|---|---|---|---|---|
-| Dashboard | `/platform` | Institutes by status, role templates, **total platform users**, recent prefs | Gateway `GET /api/v1/academics/analytics/dashboard?role=platform_admin` (ACD-10 analytics `:8092`); prefs via ADM-01 | Links: Onboard, Customize Dashboard | Mostly view; counters should open lists (Slice 1 PD-01) |
-| Institutes & Tenancies | `/platform/institutes` | Searchable institute cards (name, code, status, college/user counts) | Same analytics dashboard institutes array | Open row (limited); Onboard CTA | Mostly list; detail/suspend = Slice 1 PD-03 |
-| Onboard Institute | `/platform/institutes/new` | Multi-step wizard (name, code, plan, first admin) | BFF `POST /api/platform/onboard-tenant` → Gateway `/api/v1/admin/onboard-tenant` (monolith `:8081` / IADM-01 path) | Create (may be gated) | No — wizard exists; J1 quorum wiring = Slice 1 PD-04/06 |
-| Identity & Access | `/platform/identity` | Pending Institution Admin (R03) quorum, break-glass requests/sessions | BFF `/api/platform/identity/**` → IADM-03 `:8101` | **Start** quorum / break-glass; approve/reject; close session | No (after Step 0 D5) |
+| Dashboard | `/platform` | Institutes by status, role templates, **total platform users**, **pending lifecycle**, **pending R03 quorum** | Analytics dashboard + IADM-01 lifecycle list + IADM-03 quorum list | Links: Onboard, Lifecycle inbox, Identity, Customize | No — counters open lists (Slice 1 PD-01) |
+| Institutes & Tenancies | `/platform/institutes` | Searchable institute rows (name, code, status, college/user counts) | Analytics dashboard institutes array | Row → detail; Onboard CTA | No — opens PD-03 detail |
+| Onboard Institute | `/platform/institutes/new` | Wizard: details → plan/college → appoint Institution Admin (R03) existing UUID or invite email → review | BFF `POST /api/platform/institutes` + `.../appoint-admin` → IADM-01 `:8099` | Register + start R03 quorum | No (Slice 1 PD-04) |
+| Tenant Lifecycle | `/platform/lifecycle` | Pending suspend/decommission/export requests | BFF `/api/platform/lifecycle` → IADM-01 lifecycle-requests | Approve / Reject | No (Slice 1 PD-05) |
+| Identity & Access | `/platform/identity` | Pending Institution Admin (R03) quorum, break-glass requests/sessions | BFF `/api/platform/identity/**` → IADM-03 `:8101` | **Start** quorum / break-glass; approve/reject; close session | No (PD-06) |
 | Ops & Audit Search | `/platform/ops` | Service health, audit self-check, audit search results | BFF `/api/platform/ops/**` → IADM-08 `:8106` | Search filters; refresh | Search/act on ops; retention UI later (Slice 4) |
 | Student Account Provisioning | `/college/account-provisioning` | Student Module IAM link / provisioning desk | STM-07 student services via college BFF | Student link flows | **Not IADM** — left in place; labelled Student Module (default decision) |
 | Platform Audit (legacy) | `/platform/audit` | Legacy audit list via `/api/v1/admin/audit-logs` | Gateway → monolith `:8081` with spoofable header pattern (deviation) | View | Duplicate of Ops search; merge planned PD-14 (Slice 4) |
+
+**Institute detail (not a nav root):** `/platform/institutes/[id]` — profile + Suspend/Reactivate (reason required) + link to appoint R03 (Slice 1 PD-03).
 
 **Redirect:** `/platform/iadm` → `/platform/identity` (status catalog removed).
 

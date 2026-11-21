@@ -29,6 +29,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Dashboard', href: '/platform', icon: LayoutDashboard },
     { title: 'Institutes & Tenancies', href: '/platform/institutes', icon: Building2 },
     { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
+    { title: 'Tenant Lifecycle', href: '/platform/lifecycle', icon: History },
     { title: 'Identity & Access', href: '/platform/identity', icon: Shield },
     { title: 'Ops & Audit Search', href: '/platform/ops', icon: Activity },
     { title: 'Student Account Provisioning', href: '/college/account-provisioning', icon: Link2 },

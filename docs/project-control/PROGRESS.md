@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (IADM **Rework Step 0** complete; Slice 1 next; then owner checkpoint)
+**Updated:** 2026-11-21 (IADM Rework **Slice 1** complete — STOP for owner pattern confirm)
 
 ## Owner decisions – IADM Rework (21-11-2026)
 
@@ -13,8 +13,9 @@
 | Screen inventory | **completed** — `docs/iadm/SCREEN_INVENTORY.md` |
 | Defects D1–D7 | **completed** (D6 partial label; full merge Slice 4) |
 | Demo seed migration | **completed** — `20261121120000_iadm_rework_step0_visibility.sql` applied DEV |
-| Slice 1 Platform Operator Desk | **in progress** |
-| Owner stop | After Slice 1 demo report |
+| Slice 1 Platform Operator Desk | **completed (await owner)** — `docs/iadm/SLICE1_DEMO_REPORT.md`; PD-01…PD-06 screens + J1 path; Demo-verified Partial until owner visual confirm |
+| Owner stop | **NOW** — reply `APPROVED SLICE1` or `CHANGES SLICE1: …` |
+| Slice 2 Institution Admin Desk | blocked until Slice 1 approved |
 
 ## Owner decisions – IADM Live Platform Desks / Wave UI-1 (21-11-2026)
 

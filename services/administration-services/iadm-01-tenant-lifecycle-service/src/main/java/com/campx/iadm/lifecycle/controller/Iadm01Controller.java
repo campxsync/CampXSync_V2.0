@@ -79,14 +79,16 @@ public class Iadm01Controller implements HttpHandler {
             tracker.step("authenticated");
 
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
+            boolean noTenant = auth.getTenantId() == null || auth.getTenantId().trim().isEmpty();
             boolean platformOp = path.endsWith("/institutes") && "POST".equalsIgnoreCase(method)
                     || path.contains("/appoint-admin")
                     || path.contains("/suspend") || path.contains("/reactivate")
-                    || path.contains("/lifecycle-requests/") && path.endsWith("/decide");
-            UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
-            if (platformOp && (auth.getTenantId() == null || auth.getTenantId().trim().isEmpty())) {
-                ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
-            }
+                    || (path.contains("/lifecycle-requests") && ("GET".equalsIgnoreCase(method) || path.endsWith("/decide")))
+                    || ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$"))
+                    || path.contains("/lifecycle-history");
+            UserSecurityContext ctx = (platformOp && noTenant)
+                    ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
+                    : UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
 
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/?$")) {
                 Map<String, Object> r = service.registerInstitute(ctx, extract(body, "code"), extract(body, "name"), extract(body, "region"));
@@ -100,7 +102,10 @@ public class Iadm01Controller implements HttpHandler {
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/appoint-admin/?$")) {
                 UUID tenantId = uuidFromPath(path, "/institutes/", "/appoint-admin");
-                Map<String, Object> r = service.appointInstitutionAdmin(ctx, tenantId, UUID.fromString(extract(body, "userId")));
+                String userIdRaw = extract(body, "userId");
+                String email = extract(body, "email");
+                UUID userId = (userIdRaw == null || userIdRaw.trim().isEmpty()) ? null : UUID.fromString(userIdRaw.trim());
+                Map<String, Object> r = service.appointInstitutionAdmin(ctx, tenantId, userId, email);
                 sendJson(exchange, 200, toJson(r));
                 return;
             }
@@ -129,6 +134,17 @@ public class Iadm01Controller implements HttpHandler {
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/lifecycle-requests/?$")) {
                 sendJson(exchange, 201, toJson(service.createLifecycleRequest(ctx, extract(body, "requestType"), extract(body, "reason"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/lifecycle-requests")) {
+                String q = exchange.getRequestURI().getQuery();
+                String status = null;
+                if (q != null && q.contains("status=")) {
+                    int i = q.indexOf("status=") + 7;
+                    int end = q.indexOf('&', i);
+                    status = end < 0 ? q.substring(i) : q.substring(i, end);
+                }
+                sendJson(exchange, 200, toJson(service.listLifecycleRequests(ctx, status)));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/lifecycle-requests/[^/]+/decide/?$")) {

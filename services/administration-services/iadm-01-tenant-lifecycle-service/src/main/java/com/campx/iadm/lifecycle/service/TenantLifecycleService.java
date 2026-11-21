@@ -72,15 +72,30 @@ public class TenantLifecycleService {
      * IADM-01-US-002 + IADM-03-US-009: first/any Institution Admin appoint opens a two-person
      * quorum request (R01+R02). Direct single-signer assign is no longer used from this API.
      */
+    /**
+     * Start two-person appointment of Institution Admin (R03).
+     * Accepts an existing login {@code userId} or resolves {@code email} via
+     * {@code iam.user_profiles} + {@code plat.is_auth_linked_user} (invite-by-email path).
+     */
     public Map<String, Object> appointInstitutionAdmin(UserSecurityContext ctx, UUID tenantId, UUID userId) {
+        return appointInstitutionAdmin(ctx, tenantId, userId, null);
+    }
+
+    public Map<String, Object> appointInstitutionAdmin(UserSecurityContext ctx, UUID tenantId, UUID userId, String email) {
         return ctx.executeInTransaction(db, conn -> {
             ctx.checkPlatformAdmin(conn);
-            if (tenantId == null || userId == null) {
-                throw new InstituteAdminException(400, "IADM01_VALIDATION", "tenantId and userId required");
+            UUID target = userId;
+            if (target == null && email != null && !email.trim().isEmpty()) {
+                target = resolveAuthLinkedUserByEmail(conn, email.trim());
             }
-            if (userId.equals(ctx.getUserId())) {
+            if (tenantId == null || target == null) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION",
+                        "tenantId and userId (or auth-linked email) required");
+            }
+            if (target.equals(ctx.getUserId())) {
                 throw new InstituteAdminException(403, "IADM01_SELF_APPOINT", "Cannot appoint self as Institution Admin");
             }
+            assertAuthLinkedUser(conn, target);
             String reason = "IADM-01 appoint-admin → two-person quorum (OWNER-DEC-TP-01)";
             String track;
             try (PreparedStatement ps = conn.prepareStatement("SELECT plat.platform_admin_track(?)")) {
@@ -100,7 +115,7 @@ public class TenantLifecycleService {
                             "VALUES (?,?,?,'APPOINT','PENDING',?,?,?,?)")) {
                 ps.setObject(1, requestId);
                 ps.setObject(2, tenantId);
-                ps.setObject(3, userId);
+                ps.setObject(3, target);
                 ps.setString(4, reason);
                 ps.setObject(5, ctx.getUserId());
                 ps.setString(6, track);
@@ -109,13 +124,13 @@ public class TenantLifecycleService {
             }
             appendEvent(conn, tenantId, "APPOINT", ctx.getUserId(),
                     "Institution Admin appoint queued for R01+R02 quorum (pending second signature)",
-                    "{\"userId\":\"" + userId + "\",\"requestId\":\"" + requestId + "\",\"requestedTrack\":\"" + track + "\",\"status\":\"PENDING\"}");
+                    "{\"userId\":\"" + target + "\",\"requestId\":\"" + requestId + "\",\"requestedTrack\":\"" + track + "\",\"status\":\"PENDING\"}");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("requestId", requestId.toString());
             out.put("status", "PENDING");
             out.put("action", "APPOINT");
             out.put("tenantId", tenantId.toString());
-            out.put("userId", userId.toString());
+            out.put("userId", target.toString());
             out.put("requestedTrack", track);
             out.put("quorum", "R01+R02");
             out.put("decideVia", "/api/v1/iadm/03/institution-admin-quorum-requests/{requestId}/decide");
@@ -124,9 +139,28 @@ public class TenantLifecycleService {
         });
     }
 
+    /** Resolve invite-by-email to a profile that already has a Supabase Auth login. */
+    private static UUID resolveAuthLinkedUserByEmail(Connection conn, String email) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id FROM iam.user_profiles WHERE lower(email) = lower(?) AND deleted_at IS NULL ORDER BY updated_at DESC NULLS LAST LIMIT 1")) {
+            ps.setString(1, email);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new InstituteAdminException(404, "IADM01_INVITE_USER_NOT_FOUND",
+                            "No profile for that email. Complete Auth invite / signup first, then appoint.");
+                }
+                return (UUID) rs.getObject(1);
+            }
+        }
+    }
+
     public Map<String, Object> getInstitute(UserSecurityContext ctx, UUID tenantId) {
         return ctx.executeInTransaction(db, conn -> {
-            ctx.checkPermission(conn, "adm01.view");
+            try {
+                ctx.checkPermission(conn, "adm01.view");
+            } catch (UserProfileAccessDeniedException ex) {
+                ctx.checkPlatformAdmin(conn);
+            }
             UUID requested = tenantId != null ? tenantId : ctx.getTenantId();
             // IADM-01-US-005: Institution Admin may only view own institute (platform admins may cross-read)
             if (!ctx.isPlatformScope() && ctx.getTenantId() != null && requested != null
@@ -336,6 +370,46 @@ public class TenantLifecycleService {
         });
     }
 
+    /** Platform Operator inbox: pending (and recent) institute lifecycle requests. */
+    public Map<String, Object> listLifecycleRequests(UserSecurityContext ctx, String statusFilter) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            List<Map<String, Object>> items = new ArrayList<>();
+            String sql = "SELECT id, tenant_id, request_type, status, reason, requested_by, decided_by, decided_at, created_at " +
+                    "FROM plat.institute_lifecycle_requests WHERE deleted_at IS NULL ";
+            if (statusFilter != null && !statusFilter.trim().isEmpty() && !"ALL".equalsIgnoreCase(statusFilter)) {
+                sql += "AND status = ? ";
+            }
+            sql += "ORDER BY created_at DESC LIMIT 100";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                if (statusFilter != null && !statusFilter.trim().isEmpty() && !"ALL".equalsIgnoreCase(statusFilter)) {
+                    ps.setString(1, statusFilter.trim().toUpperCase());
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("requestId", rs.getObject(1).toString());
+                        row.put("tenantId", rs.getObject(2).toString());
+                        row.put("requestType", rs.getString(3));
+                        row.put("status", rs.getString(4));
+                        row.put("reason", rs.getString(5));
+                        row.put("requestedBy", rs.getObject(6) == null ? null : rs.getObject(6).toString());
+                        row.put("decidedBy", rs.getObject(7) == null ? null : rs.getObject(7).toString());
+                        Timestamp decided = rs.getTimestamp(8);
+                        row.put("decidedAt", decided == null ? null : decided.toInstant().toString());
+                        Timestamp created = rs.getTimestamp(9);
+                        row.put("createdAt", created == null ? null : created.toInstant().toString());
+                        items.add(row);
+                    }
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requests", items);
+            out.put("count", items.size());
+            return out;
+        });
+    }
+
     public Map<String, Object> decideLifecycleRequest(UserSecurityContext ctx, UUID requestId, String decision, String note) {
         return ctx.executeInTransaction(db, conn -> {
             ctx.checkPlatformAdmin(conn);
@@ -420,7 +494,7 @@ public class TenantLifecycleService {
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next() || !rs.getBoolean(1)) {
                     throw new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
-                            "First College Admin must be a linked Auth user (SEC-11)");
+                            "Target must be a linked Supabase Auth user (plat.is_auth_linked_user / SEC-11)");
                 }
             }
         }

@@ -20,6 +20,19 @@ Honesty: prior table Status `completed` means **API-ready** unless a slice/wave 
 
 **Contracts (not admin work):** IADM-C-01…C-05 — effective config resolve, CADM ceiling lookup, entitlement check, service audit search, auth-linked/suspend helpers.
 
+### Desk story status (Rework slices)
+
+| Desk ID | Meaning | API-ready | Screen-ready | Demo-verified | Notes |
+|---|---|---|---|---|---|
+| IADM-PD-01 | Platform dashboard | Yes | Yes | Partial | Pending lifecycle/quorum KPIs (Slice 1) |
+| IADM-PD-02 | Institutes list | Yes | Yes | Partial | Rows link to detail |
+| IADM-PD-03 | Institute detail suspend/reactivate | Yes | Yes | Partial | `/platform/institutes/[id]` |
+| IADM-PD-04 | Onboard + appoint R03 | Yes | Yes | Partial | IADM-01 register + appoint; J1 E2E Partial |
+| IADM-PD-05 | Lifecycle inbox | Yes | Yes | Partial | `/platform/lifecycle` |
+| IADM-PD-06 | Two-person R03 appointment | Yes | Yes | Partial | Identity desk + wizard |
+| IADM-ID-01…ID-15 | Institution Admin desk | Mixed API | No | No | Slice 2+ |
+| IADM-AU-01 | Auditor desk | API | No | No | Slice 4 |
+
 Legacy Status words in tables: **EXISTS** | **PARTIAL** | **NEW** | **DEFERRED** | **completed** (= API-ready unless noted)  
 Access letters: M manage, W write, V view, E export, AU audit read, X execute  
 

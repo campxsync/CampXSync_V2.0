@@ -19,15 +19,15 @@ Personas (no passwords in this file — use `.env.audit`):
 | S0-D4 | R01 → Identity & Access | Quorum panel text says Institution Admin (R03), not College Admin | CONFIRMED label fix in UI |
 | S0-D5 | R01 → Identity | Start quorum / start break-glass forms present; pending demo rows visible | CONFIRMED pending quorum + start panels |
 
-## Slice 1 — Journey J1 (fill during Slice 1)
+## Slice 1 — Journey J1
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| J1-1 | R01 opens Onboard Institute | Wizard completes / institute appears | pending |
-| J1-2 | R01 starts Institution Admin (R03) appointment | Quorum PENDING | pending |
-| J1-3 | R02 approves (different person) | APPROVED; assignment created | pending |
-| J1-4 | New Institution Admin logs in | Sees Institution Admin desk (or interim home) | pending |
-| J1-deny | Student opens `/platform/identity` | Access denied | pending |
+| J1-1 | R01 opens Onboard Institute → register + appoint R03 | Institute in registry; success panel with tenantId | CONFIRMED path UI→BFF→IADM-01; owner visual confirm pending — see SLICE1_DEMO_REPORT |
+| J1-2 | R01 starts Institution Admin (R03) appointment | Quorum PENDING on Identity | CONFIRMED `appoint-admin` → `plat.institution_admin_quorum_requests` |
+| J1-3 | R02 approves (different person) | APPROVED; assignment created | Screen-ready; second-signer persona demo Partial |
+| J1-4 | New Institution Admin logs in | Sees Institution Admin desk (or interim home) | Partial — R03 desk = Slice 2 |
+| J1-deny | Student opens `/platform/identity` or `/platform/lifecycle` | Access denied | CONFIRMED page role guard |
 
 ## Later slices
 

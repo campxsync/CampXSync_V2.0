@@ -1,6 +1,6 @@
 # Next Task
 
-**STATUS: IADM Rework Step 0 complete → Slice 1 in progress. Stop after Slice 1 for owner pattern confirmation.**
+**STATUS: STOP — IADM Rework Slice 1 complete. Awaiting owner pattern confirmation.**
 
 **Owner:** Niranjan V.G. — Rework approved 2026-11-21 (DEV only). Spec: `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
 
@@ -9,11 +9,19 @@
 | ID | Status |
 |---|---|
 | Wave UI-1 desks | Snapshot commit `ef3b93d` |
-| Rework Step 0 | D1–D7 fixes, screen inventory, demo seed migration `20261121120000`, reports |
+| Rework Step 0 | Commit `0c3b666` — D1–D7, inventory, seed, reports |
+| **Slice 1** Platform Operator Desk | PD-01…PD-06 + J1 path — `docs/iadm/SLICE1_DEMO_REPORT.md` |
 
-## Now
+## Owner action required
 
-**Slice 1 — Platform Operator Desk:** IADM-PD-01…PD-06 + Journey J1 (onboard institute → appoint Institution Admin R03 with two-person approval → admin can log in). Then write `SLICE1_DEMO_REPORT.md`, commit, **STOP**.
+Reply one of:
+
+- `APPROVED SLICE1` — continue **Slice 2** (Institution Admin Desk ID-01…ID-06, Journeys J2/J3)
+- `CHANGES SLICE1: <feedback>` — rework before Slice 2
+
+## After approval
+
+**Slice 2 — Institution Admin Desk:** IADM-ID-01…ID-06 + J2/J3.
 
 ## Still deferred
 

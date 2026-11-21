@@ -155,16 +155,19 @@ public class GatewayHmacVerifier {
                     "Missing required X-Gateway-Signature header");
         }
 
-        // 4. Validate identity headers are present and valid UUID format
-        if (userId == null || userId.trim().isEmpty() || tenantId == null || tenantId.trim().isEmpty()) {
+        // 4. userId required; tenantId may be empty for platform operators (R01/R02)
+        if (userId == null || userId.trim().isEmpty()) {
             logger.warn("[GatewayHmacVerifier] Missing identity headers: userId={}, tenantId={}", userId, tenantId);
             return VerificationResult.failure(401, "Unauthorized", "IADM01_MISSING_INTERNAL_AUTH",
-                    "Missing required identity headers X-User-Id or X-Tenant-Id");
+                    "Missing required identity header X-User-Id");
         }
 
+        String effectiveTenant = tenantId == null ? "" : tenantId.trim();
         try {
             UUID.fromString(userId.trim());
-            UUID.fromString(tenantId.trim());
+            if (!effectiveTenant.isEmpty()) {
+                UUID.fromString(effectiveTenant);
+            }
         } catch (IllegalArgumentException e) {
             logger.warn("[GatewayHmacVerifier] Invalid UUID format in identity headers");
             return VerificationResult.failure(401, "Unauthorized", "IADM01_MISSING_INTERNAL_AUTH",
@@ -174,7 +177,7 @@ public class GatewayHmacVerifier {
         // 5. Recalculate body SHA-256 and reconstruct canonical payload
         String bodySha256 = GatewayHmacProtocol.sha256Hex(bodyBytes);
         String canonicalPayload = GatewayHmacProtocol.buildCanonicalPayload(
-                tsHeader.trim(), method, path, userId.trim(), tenantId.trim(), bodySha256);
+                tsHeader.trim(), method, path, userId.trim(), effectiveTenant, bodySha256);
 
         // 6. Calculate expected HMAC-SHA256 and perform constant-time verification
         String expectedSignature = GatewayHmacProtocol.calculateHmac(canonicalPayload, internalSecret);

@@ -65,6 +65,17 @@
 | Separation | Requestor ≠ approver (same person cannot complete both steps) |
 | Build | **completed** 2026-11-21 — `APPROVED IADM-03-US-009` |
 
+### FINDING-IADM-REWORK-01 — Student Account Provisioning left on Platform nav (2026-11-21)
+
+- **Plain language:** Platform desk still shows **Student Account Provisioning** (`/college/account-provisioning`) — this is Student Module (STM) IAM linking, not IADM institute admin work.
+- **Default:** Leave in place; labelled Student Module; later owner decision whether to remove from Platform nav.
+- **Status:** OPEN (product decision).
+
+### FINDING-IADM-REWORK-02 — Invite-by-email for R03 uses Auth-linked profiles only (2026-11-21)
+
+- **Plain language:** Onboard / appoint Institution Admin (R03) “invite by email” resolves `iam.user_profiles` email and requires `plat.is_auth_linked_user` — no new invite tool. If the person has not completed Supabase Auth signup/link, appoint fails closed with `IADM01_INVITE_USER_NOT_FOUND` / `IADM01_AUTH_USER_REQUIRED`.
+- **Status:** Documented default (Slice 1).
+
 ### FINDING-IADM-RBAC-01 — PLATFORM_ADMIN / SYSTEM_ADMIN not in role_templates (MEDIUM)
 
 - **Plain language:** Super Admin (R01) and System Admin (R02) are not rows in `iam.role_templates`. Migration `20261121000600` inserted `role_template_permissions` for codes `PLATFORM_ADMIN` / `SYSTEM_ADMIN`, but `iam.resync_system_roles()` only seeds codes that exist in templates — so those template rows do not become live `iam.role_permissions`.

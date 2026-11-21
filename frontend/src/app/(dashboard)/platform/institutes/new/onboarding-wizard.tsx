@@ -30,6 +30,9 @@ interface OnboardingFormState {
   plan: 'ENTERPRISE' | 'GROWTH' | 'STANDARD' | 'TRIAL';
   collegeName: string;
   collegeCode: string;
+  /** Institution Admin (R03) appointment — existing login UUID or invite email */
+  appointMode: 'EXISTING' | 'INVITE';
+  adminUserId: string;
   adminName: string;
   adminEmail: string;
   adminPhone: string;
@@ -58,23 +61,24 @@ export function OnboardingWizard() {
     plan: 'ENTERPRISE',
     collegeName: '',
     collegeCode: '',
+    appointMode: 'INVITE',
+    adminUserId: '',
     adminName: '',
     adminEmail: '',
     adminPhone: '',
   });
 
   const [sagaSteps, setSagaSteps] = useState<SagaStepState[]>([
-    { step: 1, name: 'CREATE_TENANT', title: '1. Create Institute in Onboarding Status', status: 'PENDING' },
-    { step: 2, name: 'SEED_CONFIG', title: '2. Seed Tenant Config & 30 System Roles', status: 'PENDING' },
-    { step: 3, name: 'PROVISION_ADMIN', title: '3. Provision First College Administrator', status: 'PENDING' },
-    { step: 4, name: 'GRANT_ROLE', title: '4. Grant COLLEGE_ADMIN Role Assignment', status: 'PENDING' },
-    { step: 5, name: 'ACTIVATE_NODE', title: '5. Activate Institutional Tenancy Node', status: 'PENDING' },
+    { step: 1, name: 'CREATE_TENANT', title: '1. Register institute (IADM-01)', status: 'PENDING' },
+    { step: 2, name: 'APPOINT_R03', title: '2. Start Institution Admin (R03) quorum', status: 'PENDING' },
+    { step: 3, name: 'QUORUM_PENDING', title: '3. Await second platform signature (R01+R02)', status: 'PENDING' },
+    { step: 4, name: 'AUDIT', title: '4. Appointment appears in Audit search', status: 'PENDING' },
+    { step: 5, name: 'LOGIN', title: '5. Institution Admin can log in after approve', status: 'PENDING' },
   ]);
 
   const updateField = (field: keyof OnboardingFormState, value: string) => {
     setFormData((prev) => {
-      const next = { ...prev, [field]: value };
-      // Auto-suggest subdomain and college code if empty
+      const next = { ...prev, [field]: value } as OnboardingFormState;
       if (field === 'tenantCode' && !prev.subdomain) {
         next.subdomain = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
       }
@@ -115,14 +119,18 @@ export function OnboardingWizard() {
         return false;
       }
     } else if (currentStep === 3) {
-      if (!formData.adminName.trim() || formData.adminName.length < 2) {
-        setErrorMessage('First College Administrator name is required.');
-        return false;
-      }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.adminEmail.trim())) {
-        setErrorMessage('A valid administrator email is required.');
-        return false;
+      if (formData.appointMode === 'EXISTING') {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(formData.adminUserId.trim())) {
+          setErrorMessage('Existing login requires a valid user UUID (Auth-linked profile id).');
+          return false;
+        }
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.adminEmail.trim())) {
+          setErrorMessage('Invite-by-email requires a valid email that already completed Auth signup/link.');
+          return false;
+        }
       }
     }
     setErrorMessage(null);
@@ -146,51 +154,84 @@ export function OnboardingWizard() {
     setIsSubmitting(true);
     setErrorMessage(null);
     setFailedStepNum(null);
-    setStep(5); // Move to saga progress view
+    setStep(5);
 
-    // Simulate animated step progression for UI responsiveness
     setSagaSteps((prev) =>
-      prev.map((s, idx) => (idx === 0 ? { ...s, status: 'IN_PROGRESS' } : { ...s, status: 'PENDING' }))
+      prev.map((s, idx) => (idx === 0 ? { ...s, status: 'IN_PROGRESS' } : { ...s, status: 'PENDING' })),
     );
 
     try {
-      const payload = {
-        ...formData,
-        subdomain: formData.subdomain.trim() || formData.tenantCode.toLowerCase(),
-      };
-
-      const res = await fetch('/api/platform/onboard-tenant', {
+      // PD-04 live path: IADM-01 register + appoint Institution Admin (R03) quorum
+      const regRes = await fetch('/api/platform/institutes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          code: formData.tenantCode.trim(),
+          name: formData.tenantName.trim(),
+          region: formData.plan,
+        }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const failStep = data.failedStep || 1;
-        setFailedStepNum(failStep);
+      const regData = await regRes.json().catch(() => ({}));
+      if (!regRes.ok) {
+        setFailedStepNum(1);
         setSagaSteps((prev) =>
-          prev.map((s) => {
-            if (s.step === failStep) return { ...s, status: 'FAILED' };
-            if (s.step < failStep) return { ...s, status: 'COMPLETED' };
-            return { ...s, status: 'PENDING' };
-          })
+          prev.map((s) => (s.step === 1 ? { ...s, status: 'FAILED' } : s)),
         );
-        setErrorMessage(data.detail || data.title || 'Institutional onboarding saga failed.');
+        setErrorMessage(regData.detail || regData.errorCode || 'Institute registration failed');
         setIsSubmitting(false);
         return;
       }
 
-      // Mark saga steps completed per backend report
+      const tenantId = regData.tenantId as string;
       setSagaSteps((prev) =>
-        prev.map((s) => ({
-          ...s,
-          status: data.gated && s.step === 5 ? 'GATED' : 'COMPLETED',
-        }))
+        prev.map((s) =>
+          s.step === 1 ? { ...s, status: 'COMPLETED' } : s.step === 2 ? { ...s, status: 'IN_PROGRESS' } : s,
+        ),
       );
 
-      setSuccessData(data);
+      const appointBody =
+        formData.appointMode === 'EXISTING'
+          ? { userId: formData.adminUserId.trim() }
+          : { email: formData.adminEmail.trim() };
+      const apRes = await fetch(`/api/platform/institutes/${tenantId}/appoint-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appointBody),
+      });
+      const apData = await apRes.json().catch(() => ({}));
+      if (!apRes.ok) {
+        setFailedStepNum(2);
+        setSagaSteps((prev) =>
+          prev.map((s) => {
+            if (s.step === 1) return { ...s, status: 'COMPLETED' };
+            if (s.step === 2) return { ...s, status: 'FAILED' };
+            return s;
+          }),
+        );
+        setErrorMessage(apData.detail || apData.errorCode || 'Institution Admin appointment failed');
+        setSuccessData({ tenantId, code: formData.tenantCode, appointError: apData });
+        setIsSubmitting(false);
+        return;
+      }
+
+      setSagaSteps((prev) =>
+        prev.map((s) => {
+          if (s.step <= 2) return { ...s, status: 'COMPLETED' };
+          if (s.step === 3) return { ...s, status: 'GATED' };
+          return { ...s, status: 'PENDING' };
+        }),
+      );
+      setSuccessData({
+        tenantId,
+        code: formData.tenantCode,
+        name: formData.tenantName,
+        plan: formData.plan,
+        quorumRequestId: apData.requestId,
+        appointStatus: apData.status,
+        decideVia: apData.decideVia,
+        message:
+          'Institute registered. Institution Admin (R03) appointment is PENDING two-person quorum — open Identity & Access for the second signature.',
+      });
     } catch (err: any) {
       setErrorMessage(err.message || 'Network error communicating with platform service.');
       setSagaSteps((prev) => prev.map((s, idx) => (idx === 0 ? { ...s, status: 'FAILED' } : s)));
@@ -210,10 +251,10 @@ export function OnboardingWizard() {
       {/* Step Indicator */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { num: 1, label: 'Tenant Identity', icon: Building2 },
-          { num: 2, label: 'Primary College', icon: GraduationCap },
-          { num: 3, label: 'Administrator', icon: UserCheck },
-          { num: 4, label: 'Review & Saga', icon: CheckCircle2 },
+          { num: 1, label: 'Institute details', icon: Building2 },
+          { num: 2, label: 'Plan & college', icon: GraduationCap },
+          { num: 3, label: 'Appoint R03', icon: UserCheck },
+          { num: 4, label: 'Review & confirm', icon: CheckCircle2 },
         ].map(({ num, label, icon: Icon }) => (
           <div
             key={num}
@@ -398,52 +439,76 @@ export function OnboardingWizard() {
 
       {/* Step 3: Administrator */}
       {step === 3 && (
-        <Card>
+        <Card data-testid="onboard-appoint-r03">
           <CardHeader>
-            <CardTitle>Step 3: First College Administrator</CardTitle>
+            <CardTitle>Step 3: Appoint Institution Admin (R03)</CardTitle>
             <CardDescription>
-              Provision the root institutional administrator account with COLLEGE_ADMIN privileges.
+              Choose an existing Auth-linked login or invite by email (must already exist in Supabase Auth /
+              plat.is_auth_linked_user). Starts a two-person quorum (R01+R02) — not College Admin.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Administrator Full Name <span className="text-[#D64545]">*</span>
-              </label>
-              <Input
-                data-testid="onboard-admin-name"
-                placeholder="e.g. Dr. Rajesh Kumar"
-                value={formData.adminName}
-                onChange={(e) => updateField('adminName', e.target.value)}
-              />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant={formData.appointMode === 'INVITE' ? 'primary' : 'secondary'}
+                data-testid="onboard-mode-invite"
+                onClick={() => updateField('appointMode', 'INVITE')}
+              >
+                Invite by email
+              </Button>
+              <Button
+                size="sm"
+                variant={formData.appointMode === 'EXISTING' ? 'primary' : 'secondary'}
+                data-testid="onboard-mode-existing"
+                onClick={() => updateField('appointMode', 'EXISTING')}
+              >
+                Existing login (UUID)
+              </Button>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Administrator Email Address <span className="text-[#D64545]">*</span>
-              </label>
-              <Input
-                data-testid="onboard-admin-email"
-                type="email"
-                placeholder="e.g. admin.xavier@campxsync.edu"
-                value={formData.adminEmail}
-                onChange={(e) => updateField('adminEmail', e.target.value)}
-              />
-              <p className="text-[11px] text-[#6B7688] mt-1">
-                Must be an active institutional email. Receives root credential invite and RBAC assignments.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
-                Contact Phone Number (Optional)
-              </label>
-              <Input
-                placeholder="e.g. +91 98765 43210"
-                value={formData.adminPhone}
-                onChange={(e) => updateField('adminPhone', e.target.value)}
-              />
-            </div>
+            {formData.appointMode === 'EXISTING' ? (
+              <div>
+                <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                  Target user UUID <span className="text-[#D64545]">*</span>
+                </label>
+                <Input
+                  data-testid="onboard-admin-user-id"
+                  placeholder="e.g. c03a0000-0000-4000-8000-000000000003"
+                  value={formData.adminUserId}
+                  onChange={(e) => updateField('adminUserId', e.target.value)}
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                    Display name (optional)
+                  </label>
+                  <Input
+                    data-testid="onboard-admin-name"
+                    placeholder="e.g. Dr. Rajesh Kumar"
+                    value={formData.adminName}
+                    onChange={(e) => updateField('adminName', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#0B1F3A] mb-1">
+                    Invite email <span className="text-[#D64545]">*</span>
+                  </label>
+                  <Input
+                    data-testid="onboard-admin-email"
+                    type="email"
+                    placeholder="e.g. institution.admin@campxsync.edu"
+                    value={formData.adminEmail}
+                    onChange={(e) => updateField('adminEmail', e.target.value)}
+                  />
+                  <p className="text-[11px] text-[#6B7688] mt-1">
+                    Profile must already be Auth-linked. Quorum completes appointment after second signature.
+                  </p>
+                </div>
+              </>
+            )}
           </CardContent>
           <CardFooter className="flex justify-between border-t border-[#E3E8EF] pt-4">
             <Button variant="outline" size="sm" onClick={handlePrev}>
@@ -460,9 +525,9 @@ export function OnboardingWizard() {
       {step === 4 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 4: Review & Launch Onboarding Saga</CardTitle>
+            <CardTitle>Step 4: Review & confirm</CardTitle>
             <CardDescription>
-              Please verify the institutional parameters before triggering the multi-step ADM provisioning saga.
+              Registers the institute via IADM-01 and starts Institution Admin (R03) two-person appointment.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -512,23 +577,26 @@ export function OnboardingWizard() {
                 </div>
               </div>
 
-              {/* Administrator Summary */}
               <div className="p-4 space-y-2">
                 <span className="text-xs font-semibold text-[#0B1F3A] uppercase tracking-wider flex items-center gap-1.5">
-                  <UserCheck className="h-3.5 w-3.5 text-[#1F6FEB]" /> First College Administrator
+                  <UserCheck className="h-3.5 w-3.5 text-[#1F6FEB]" /> Institution Admin (R03)
                 </span>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-[#6B7688] block text-[11px]">Administrator</span>
-                    <span className="font-semibold text-[#0B1F3A]">{formData.adminName}</span>
+                    <span className="text-[#6B7688] block text-[11px]">Mode</span>
+                    <span className="font-semibold text-[#0B1F3A]">
+                      {formData.appointMode === 'EXISTING' ? 'Existing login' : 'Invite by email'}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-[#6B7688] block text-[11px]">Admin Email</span>
-                    <span className="font-mono font-semibold text-[#0B1F3A]">{formData.adminEmail}</span>
+                    <span className="text-[#6B7688] block text-[11px]">Target</span>
+                    <span className="font-mono font-semibold text-[#0B1F3A]">
+                      {formData.appointMode === 'EXISTING' ? formData.adminUserId : formData.adminEmail}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-[#6B7688] block text-[11px]">RBAC Role</span>
-                    <span className="font-semibold text-[#1F6FEB]">COLLEGE_ADMIN (Root Access)</span>
+                    <span className="text-[#6B7688] block text-[11px]">Approval</span>
+                    <span className="font-semibold text-[#1F6FEB]">Two-person quorum (R01+R02)</span>
                   </div>
                 </div>
               </div>
@@ -536,10 +604,11 @@ export function OnboardingWizard() {
 
             <div className="p-3 rounded-[6px] border border-[#B8D3FC] bg-[#E8F0FE]/40 text-xs text-[#0B1F3A]">
               <p className="font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-[#1F6FEB]" /> Automated ADM Saga Execution
+                <ShieldCheck className="h-4 w-4 text-[#1F6FEB]" /> IADM-01 → IADM-03 quorum
               </p>
               <p className="text-[11px] text-[#6B7688] mt-1">
-                Submitting will initiate the 5-step transactional provisioning saga: initializing the tenant node in ONBOARDING status, generating system roles, provisioning administrator credentials, granting RBAC permissions, and activating the tenant.
+                Confirm registers the institute, then opens a PENDING Institution Admin appointment. A second
+                platform admin must approve on Identity & Access before the R03 login is active.
               </p>
             </div>
           </CardContent>
@@ -556,7 +625,7 @@ export function OnboardingWizard() {
               ) : (
                 <>
                   <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                  Confirm & Launch Onboarding Saga
+                  Confirm & register institute
                 </>
               )}
             </Button>
@@ -570,9 +639,9 @@ export function OnboardingWizard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>ADM Onboarding Saga Execution</CardTitle>
+                <CardTitle>Onboard progress (IADM-01 / J1)</CardTitle>
                 <CardDescription>
-                  Tracking multi-step institutional provisioning workflow
+                  Register institute, then Institution Admin (R03) quorum
                 </CardDescription>
               </div>
               {isSubmitting && (
@@ -635,7 +704,7 @@ export function OnboardingWizard() {
                             : isFailed
                             ? 'Saga stopped. Error preserved; retry available.'
                             : isGated
-                            ? 'Validated in simulation. Staging write gated awaiting approval.'
+                            ? 'Waiting for second platform admin (R01+R02) on Identity & Access.'
                             : inProgress
                             ? 'Executing transactional operation...'
                             : 'Queued in dependency order.'}
@@ -675,15 +744,21 @@ export function OnboardingWizard() {
               </div>
             )}
 
-            {/* Success Summary if Completed */}
             {successData && !successData.gated && (
-              <div className="p-4 rounded-[8px] border border-[#B2E6CE] bg-[#EAF8F1] text-xs text-[#0B1F3A] space-y-1">
+              <div
+                className="p-4 rounded-[8px] border border-[#B2E6CE] bg-[#EAF8F1] text-xs text-[#0B1F3A] space-y-2"
+                data-testid="onboard-j1-success"
+              >
                 <p className="font-semibold text-[#1E9E6A] flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" /> Institute Onboarded Successfully
+                  <CheckCircle2 className="h-4 w-4" /> Institute registered — R03 quorum pending
                 </p>
-                <p className="text-[11px] text-[#6B7688]">
-                  {successData.message}
-                </p>
+                <p className="text-[11px] text-[#6B7688]">{successData.message}</p>
+                {successData.tenantId && (
+                  <p className="font-mono text-[11px]">tenantId: {successData.tenantId}</p>
+                )}
+                {successData.quorumRequestId && (
+                  <p className="font-mono text-[11px]">quorumRequestId: {successData.quorumRequestId}</p>
+                )}
               </div>
             )}
           </CardContent>
@@ -694,19 +769,19 @@ export function OnboardingWizard() {
                   <ArrowLeft className="mr-1.5 h-4 w-4" /> Edit Parameters
                 </Button>
                 <Button variant="primary" size="sm" onClick={handleRetry}>
-                  <RefreshCw className="mr-1.5 h-4 w-4" /> Retry Onboarding Saga
+                  <RefreshCw className="mr-1.5 h-4 w-4" /> Retry
                 </Button>
               </>
             ) : (
               <>
-                <Link href="/platform">
+                <Link href="/platform/institutes">
                   <Button variant="outline" size="sm">
-                    Return to Dashboard
+                    Institutes registry
                   </Button>
                 </Link>
-                <Link href="/platform/institutes">
-                  <Button variant="primary" size="sm">
-                    View in Registry <ArrowRight className="ml-1.5 h-4 w-4" />
+                <Link href="/platform/identity">
+                  <Button variant="primary" size="sm" data-testid="onboard-goto-identity">
+                    Complete quorum on Identity <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                 </Link>
               </>
