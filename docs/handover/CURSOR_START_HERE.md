@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (IADM Step 0 + Waves A–D completed in DEV: eight microservices on ports 8099–8106; gateway `/api/v1/iadm/01`–`08`; migrations `20261121000100`–`00600` applied; appointment fn uses `auth.uid()`; entitlement fail-closed confirmed; backlog `docs/user-stories/IADM_User_Stories.md`; reports under `docs/iadm/`; **next = CADM Waves A–D**; **no push**)
+**Last current-state refresh:** 2026-11-21 (IADM Waves A–D completed and pushed on `feature/java-backend-integration`; owner priority switched to **IADM Wave E Parity & Cutover**; CADM deferred until Wave E exit)
 
 ---
 
@@ -10,10 +10,10 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **CADM implementation: reconcile CADM stories, then Waves A–D (needs IADM contracts)**.
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. IADM Waves A–D closure).
-3. IADM evidence: `docs/iadm/STEP0_REPORT.md`, `WAVE_A`…`D_REPORT.md`, `FILE_LIST.md`, `FINDINGS.md`.
-4. Owner decisions still open elsewhere: RBAC coverage-map export (D-RBAC-M04); Kafka for EN-005 fan-out; commercial AV integration.
+1. `docs/prompts/NEXT_TASK.md` — **IADM Wave E (Parity & Cutover)**; plan in `docs/iadm/WAVE_E_PLAN.md`.
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions.
+3. IADM evidence: `docs/iadm/STEP0_REPORT.md`, `WAVE_A`…`D_REPORT.md`, `ENGINEERING_STANDARDS.md`, `FILE_LIST.md`, `FINDINGS.md`.
+4. After Wave E exit: CADM reconcile + Waves A–D. Deferred elsewhere: D-RBAC-M04 coverage map; Kafka; commercial AV.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

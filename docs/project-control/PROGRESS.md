@@ -1,11 +1,24 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (IADM Step 0 + Waves A–D completed in DEV; next = CADM; no push)
+**Updated:** 2026-11-21 (IADM Waves A–D done; **Wave E Parity & Cutover** is next priority; CADM deferred until Wave E exit)
+
+## Owner decisions – IADM Wave E (21-11-2026)
+
+**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Priority: finish IADM Wave E before CADM.
+
+| Item | Status |
+|---|---|
+| Wave E plan | **completed** — `docs/iadm/WAVE_E_PLAN.md` |
+| E0 Contract proof | **in progress** |
+| E1 Parity (01…08 move off monolith) | yet to pickup |
+| E2 Security findings | yet to pickup |
+| E3 Stack / gateway cutover | yet to pickup |
+| CADM | **deferred** until Wave E exit |
 
 ## Owner decisions – IADM Waves A–D (21-11-2026)
 
-**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Scope: reconcile IADM stories + implement Waves A–D in DEV only.
+**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Scope: reconcile IADM stories + implement Waves A–D in DEV only. **Closed.**
 
 | Item | Status |
 |---|---|
@@ -16,7 +29,7 @@
 | Wave C IADM-05 (:8103) + IADM-07 (:8105) | **completed** — `docs/iadm/WAVE_C_REPORT.md` |
 | Wave D IADM-04 (:8102) + IADM-06 (:8104) | **completed** — `docs/iadm/WAVE_D_REPORT.md` |
 | File / migration inventory | **completed** — `docs/iadm/FILE_LIST.md` |
-| Next authorized task | **CADM** — reconcile CADM stories, then Waves A–D (needs IADM contracts) |
+| Logging / §3.2 pass | **completed** — `docs/iadm/ENGINEERING_STANDARDS.md`; commit `ffc4a18` |
 
 ## Owner decisions – Admin RBAC / IADM-CADM (20-11-2026 / 21-11-2026)
 

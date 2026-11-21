@@ -1,34 +1,32 @@
 # Next Task
 
-**STATUS: CADM implementation — reconcile CADM stories, then Waves A–D (needs IADM contracts).**  
-Owner: Niranjan V.G. Prior IADM Waves A–D approval was 2026-11-21 and is now closed for this branch (local only; no push).
+**STATUS: IADM Wave E (Parity & Cutover) — owner priority 2026-11-21. CADM deferred until Wave E exit.**
 
-## Completed this run (2026-11-21) — IADM
+**Approved by:** Niranjan V.G. (product owner) — implement IADM Wave E before CADM.
 
-| Plain name | Code | Status / Evidence |
+## Plan
+
+Full plan: `docs/iadm/WAVE_E_PLAN.md`
+
+| Phase | Plain language | Status |
 |---|---|---|
-| Step 0 Preflight | Step 0 | **completed** — `docs/iadm/STEP0_REPORT.md`, `docs/user-stories/IADM_User_Stories.md` |
-| Appointment fn hardening (`auth.uid()`) | IADM-01-US-002 / 0.1 | **completed** — `20261121000100_iadm_assign_institution_admin_auth_uid.sql` |
-| Wave A: Institute lifecycle + Platform config | IADM-01 / IADM-02 | **completed** — ports 8099/8100; `WAVE_A_REPORT.md` |
-| Wave B: Identity & Access + Audit/Ops | IADM-03 / IADM-08 | **completed** — ports 8101/8106; `WAVE_B_REPORT.md` |
-| Wave C: Data Governance + Security | IADM-05 / IADM-07 | **completed** — ports 8103/8105; `WAVE_C_REPORT.md` |
-| Wave D: Billing/Entitlements + Analytics | IADM-04 / IADM-06 | **completed** — ports 8102/8104; `WAVE_D_REPORT.md` |
-| Inventory | — | `docs/iadm/FILE_LIST.md`, `docs/iadm/FINDINGS.md` |
+| **E0** | Prove five CADM/IADM contracts live | **in progress** |
+| **E1-A** | IADM-01 lifecycle parity + SEC-11 Auth-linked College Admin | yet to pickup |
+| **E1-B** | IADM-02 config parity | yet to pickup |
+| **E1-C** | IADM-03 identity + IADM-08 audit/ops move | yet to pickup |
+| **E1-D** | IADM-04 billing move + IADM-06 analytics | yet to pickup |
+| **E1-E** | IADM-05 privacy + IADM-07 security depth | yet to pickup |
+| **E2** | Security findings (HttpContext leak, SEC-11) | yet to pickup |
+| **E3** | Stack scripts + gateway cutover off monolith | yet to pickup |
 
-## IADM contracts CADM may call
+## Still deferred (no work)
 
-1. First College Admin + handover (IADM-01).
-2. Effective configuration resolve platform > institute > college (IADM-02).
-3. Role ceiling lookup (IADM-03).
-4. Shared audit read (IADM-08).
-5. Entitlement check `plat.check_entitlement` / `GET /api/v1/iadm/04/entitlements/check` (IADM-04) — fail closed [CONFIRMED].
+Break-glass (IADM-03-US-008), two-person appoint (US-009), guardian-consent under-18 (IADM-05-US-007), API client R27 / adm03, Kafka.
 
-## This next task (CADM)
+## After Wave E exit
 
-1. Reconcile CADM draft/legacy stories into a final backlog (same pattern as IADM).
-2. Implement CADM Waves A–D in DEV only, consuming the IADM contracts above.
-3. No production; no push; local commits per story group on `feature/java-backend-integration`.
+Set next task to: **CADM implementation: reconcile CADM stories, then Waves A–D (needs IADM contracts)**.
 
 ## Rules
 
-No production/staging DB writes. No push to remote. Do not invent PLATFORM_ADMIN/SYSTEM_ADMIN role_template codes (FINDING-IADM-RBAC-01).
+DEV Supabase only. Permission keys. New migrations + rollbacks. `campx-logger` / §3.2. Local commits per phase cluster; push only on request. Circuit breaker after 3 identical failures.

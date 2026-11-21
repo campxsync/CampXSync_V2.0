@@ -127,6 +127,15 @@ public class TenantLifecycleService {
             ctx.checkPermission(conn, "adm01.manage");
             UUID tenantId = ctx.getTenantId();
             if (tenantId == null) throw new InstituteAdminException(400, "IADM01_VALIDATION", "tenant required");
+            if (collegeCode == null || collegeCode.trim().isEmpty() || collegeName == null || collegeName.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION", "collegeCode and collegeName are required");
+            }
+            // SEC-11 / FINDING-IADM-ARCH-01: first College Admin (R04) must be Auth-linked
+            if (firstCollegeAdminUserId == null) {
+                throw new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
+                        "First College Admin userId is required and must exist in auth.users");
+            }
+            assertAuthLinkedUser(conn, firstCollegeAdminUserId);
             assertTenantActive(conn, tenantId);
             UUID collegeId = UUID.randomUUID();
             try (PreparedStatement ins = conn.prepareStatement(
@@ -134,29 +143,23 @@ public class TenantLifecycleService {
                             "VALUES (?, ?, ?, ?, 'ACTIVE', 'ACTIVE', ?)")) {
                 ins.setObject(1, collegeId);
                 ins.setObject(2, tenantId);
-                ins.setString(3, collegeCode);
-                ins.setString(4, collegeName);
+                ins.setString(3, collegeCode.trim());
+                ins.setString(4, collegeName.trim());
                 ins.setObject(5, ctx.getUserId());
                 ins.executeUpdate();
             }
-            // Assign COLLEGE_ADMIN role to first admin if provided
-            if (firstCollegeAdminUserId != null) {
-                UUID roleId = lookupRole(conn, tenantId, "COLLEGE_ADMIN");
-                try (PreparedStatement ra = conn.prepareStatement(
-                        "INSERT INTO iam.role_assignments (tenant_id, user_id, role_id, college_id, created_by) " +
-                                "VALUES (?, ?, ?, ?, ?)")) {
-                    ra.setObject(1, tenantId);
-                    ra.setObject(2, firstCollegeAdminUserId);
-                    ra.setObject(3, roleId);
-                    ra.setObject(4, collegeId);
-                    ra.setObject(5, ctx.getUserId());
-                    ra.executeUpdate();
-                }
+            UUID roleId = lookupRole(conn, tenantId, "COLLEGE_ADMIN");
+            try (PreparedStatement ra = conn.prepareStatement(
+                    "INSERT INTO iam.role_assignments (tenant_id, user_id, role_id, college_id, created_by) " +
+                            "VALUES (?, ?, ?, ?, ?)")) {
+                ra.setObject(1, tenantId);
+                ra.setObject(2, firstCollegeAdminUserId);
+                ra.setObject(3, roleId);
+                ra.setObject(4, collegeId);
+                ra.setObject(5, ctx.getUserId());
+                ra.executeUpdate();
             }
-            UUID handoverId = null;
-            if (firstCollegeAdminUserId != null) {
-                handoverId = insertHandover(conn, tenantId, collegeId, firstCollegeAdminUserId, ctx.getUserId(), "PENDING");
-            }
+            UUID handoverId = insertHandover(conn, tenantId, collegeId, firstCollegeAdminUserId, ctx.getUserId(), "PENDING");
             appendEvent(conn, tenantId, "HANDOVER", ctx.getUserId(), "College onboarded",
                     "{\"collegeId\":\"" + collegeId + "\"}");
             Map<String, Object> out = new LinkedHashMap<>();
@@ -327,6 +330,22 @@ public class TenantLifecycleService {
             }
             return rows;
         });
+    }
+
+    /**
+     * SEC-11: first College Admin must already exist in Supabase Auth ({@code auth.users}).
+     * Fail closed — never mint a college admin profile without a login identity.
+     */
+    private static void assertAuthLinkedUser(Connection conn, UUID userId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM auth.users WHERE id = ?")) {
+            ps.setObject(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
+                            "First College Admin must be a linked Auth user (SEC-11)");
+                }
+            }
+        }
     }
 
     private static void assertTenantActive(Connection conn, UUID tenantId) throws SQLException {

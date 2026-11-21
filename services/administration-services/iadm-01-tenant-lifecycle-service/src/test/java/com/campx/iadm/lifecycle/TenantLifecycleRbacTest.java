@@ -30,4 +30,12 @@ public class TenantLifecycleRbacTest {
         InstituteAdminException ex = new InstituteAdminException(403, "IADM01_SELF_APPOINT", "Cannot appoint self");
         assertEquals("IADM01_SELF_APPOINT", ex.getErrorCode());
     }
+
+    @Test
+    public void firstCollegeAdminWithoutAuthUserUsesSec11ErrorCode() {
+        InstituteAdminException ex = new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
+                "First College Admin must be a linked Auth user (SEC-11)");
+        assertEquals(400, ex.getStatus());
+        assertEquals("IADM01_AUTH_USER_REQUIRED", ex.getErrorCode());
+    }
 }

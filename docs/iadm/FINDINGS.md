@@ -42,6 +42,8 @@
 ### FINDING-IADM-ARCH-01 — First College Admin Auth link (SEC-11)
 
 - Architecture notes onboarding may mint a profile without a linked Supabase Auth user. Tracked for IADM-01-US-003; do not treat current monolith as the approved protocol.
+- **Wave E (2026-11-21):** `TenantLifecycleService.onboardCollege` now requires `firstCollegeAdminUserId` and verifies `auth.users` (`IADM01_AUTH_USER_REQUIRED`). Monolith path still needs the same rule when retired.
+- **Status:** **FIXED on IADM-01 split service**; monolith parity pending E1-A cutover.
 
 ### FINDING-IADM-RBAC-01 — PLATFORM_ADMIN / SYSTEM_ADMIN not in role_templates (MEDIUM)
 
