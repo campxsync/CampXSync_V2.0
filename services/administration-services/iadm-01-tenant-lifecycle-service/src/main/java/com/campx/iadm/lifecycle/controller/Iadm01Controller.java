@@ -5,6 +5,10 @@ import com.campx.iadm.lifecycle.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.lifecycle.security.GatewayHmacVerifier;
 import com.campx.iadm.lifecycle.security.UserSecurityContext;
 import com.campx.iadm.lifecycle.service.TenantLifecycleService;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.FlowTracker;
+import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -19,8 +23,14 @@ import java.util.UUID;
 
 /**
  * HTTP ingress for IADM-01 (port 8099) under /api/v1/iadm/01.
+ * <p>
+ * Verifies gateway HMAC, maps domain exceptions to problem JSON, and records request flows through
+ * {@link CampXLogger} per Agreement &#167;3.2. Unexpected failures return a generic message; tokens
+ * and credentials are never logged or echoed in responses.
  */
 public class Iadm01Controller implements HttpHandler {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm01Controller.class);
 
     private final TenantLifecycleService service;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
@@ -33,20 +43,41 @@ public class Iadm01Controller implements HttpHandler {
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "*");
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        String correlationId = header(exchange, "X-Correlation-Id");
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = header(exchange, "X-Trace-Id");
+        }
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        LogContext.put(LogContext.KEY_SERVICE, "IADM-01");
+        LogContext.put(LogContext.KEY_TRACE_ID, correlationId);
+
         byte[] bodyBytes = readAll(exchange.getRequestBody());
+        FlowTracker tracker = logger.flow(method + " " + path, correlationId);
         try {
-            if ("OPTIONS".equalsIgnoreCase(method)) {
-                exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-                exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-                exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "*");
-                exchange.sendResponseHeaders(204, -1);
-                return;
-            }
             GatewayHmacVerifier.VerificationResult auth = hmacVerifier.verify(exchange, method, path, bodyBytes);
             if (!auth.isSuccess()) {
+                logger.warn("IADM-01 auth failed path={} code={} correlationId={}", path, auth.getErrorCode(), correlationId);
                 sendJson(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage()));
                 return;
             }
+            if (auth.getUserId() != null && !auth.getUserId().trim().isEmpty()) {
+                LogContext.put(LogContext.KEY_USER_ID, auth.getUserId().trim());
+            }
+            if (auth.getTenantId() != null && !auth.getTenantId().trim().isEmpty()) {
+                LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId().trim());
+            }
+            tracker.step("authenticated");
+
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
             boolean platformOp = path.endsWith("/institutes") && "POST".equalsIgnoreCase(method)
                     || path.contains("/appoint-admin")
@@ -112,14 +143,33 @@ public class Iadm01Controller implements HttpHandler {
             }
             sendJson(exchange, 404, problem("IADM01_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-01 forbidden correlationId=" + correlationId + " message=" + e.getMessage());
             sendJson(exchange, 403, problem("IADM01_FORBIDDEN", e.getMessage()));
         } catch (InstituteAdminException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-01 domain rejection code={} correlationId={}", e.getErrorCode(), correlationId);
             sendJson(exchange, e.getStatus(), problem(e.getErrorCode(), e.getMessage()));
         } catch (IllegalArgumentException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-01 validation correlationId=" + correlationId + " message=" + e.getMessage());
             sendJson(exchange, 400, problem("IADM01_VALIDATION", e.getMessage()));
         } catch (Exception e) {
-            sendJson(exchange, 500, problem("IADM01_INTERNAL", e.getMessage()));
+            tracker.markFailed(e);
+            logger.error("IADM-01 request failed correlationId=" + correlationId, e);
+            sendJson(exchange, 500, problem("IADM01_INTERNAL", "Request could not be completed"));
+        } finally {
+            tracker.close();
+            LogContext.clear();
         }
+    }
+
+    private static String header(HttpExchange exchange, String name) {
+        String value = exchange.getRequestHeaders().getFirst(name);
+        if (value == null) {
+            value = exchange.getRequestHeaders().getFirst(name.toLowerCase());
+        }
+        return value;
     }
 
     private static UUID uuidFromPath(String path, String startToken, String endToken) {

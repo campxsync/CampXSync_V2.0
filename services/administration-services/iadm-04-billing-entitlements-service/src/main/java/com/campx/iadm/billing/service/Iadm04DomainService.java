@@ -2,6 +2,9 @@ package com.campx.iadm.billing.service;
 
 import com.campx.iadm.billing.config.DatabaseConnectionManager;
 import com.campx.iadm.billing.security.UserSecurityContext;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.AuditEvent;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,8 +12,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** IADM-04 — entitlement check is the CADM/all-services contract. */
+/**
+ * IADM-04 — entitlement check is the CADM/all-services contract.
+ * <p>
+ * Read-only domain surface; {@link CampXLogger} is available for future mutation audit (Agreement &#167;3.2).
+ */
 public class Iadm04DomainService {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm04DomainService.class);
+
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
 
     public Map<String, Object> health(UserSecurityContext ctx) {
@@ -50,5 +60,15 @@ public class Iadm04DomainService {
                 }
             }
         });
+    }
+
+    @SuppressWarnings("unused")
+    private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
+        String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
+        String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();
+        logger.info("IADM-04 action={} tenantId={} resourceType={} resourceId={}", action, tenant, resourceType, resourceId);
+        logger.audit(AuditEvent.builder().action(action).tenantId(tenant).principalId(user)
+                .resourceType(resourceType).resourceId(resourceId == null ? "N/A" : resourceId)
+                .status("SUCCESS").severity("INFO").description(action).build());
     }
 }

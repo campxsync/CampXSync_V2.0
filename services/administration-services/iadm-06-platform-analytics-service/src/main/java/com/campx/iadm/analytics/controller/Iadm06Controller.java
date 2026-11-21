@@ -5,6 +5,10 @@ import com.campx.iadm.analytics.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.analytics.security.GatewayHmacVerifier;
 import com.campx.iadm.analytics.security.UserSecurityContext;
 import com.campx.iadm.analytics.service.Iadm06DomainService;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.FlowTracker;
+import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -15,41 +19,84 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * IADM-06 Platform Analytics & Usage. Port 8104 · Gateway /api/v1/iadm/06
+ * HTTP ingress for IADM-06 Platform Analytics &amp; Usage (port 8104, gateway {@code /api/v1/iadm/06}).
+ * <p>
+ * Uses {@link CampXLogger} and {@link FlowTracker} per Agreement §3.2. Domain failures map to
+ * problem JSON; unexpected failures are logged and return a generic message without leaking
+ * internals. Never logs tokens, passwords, or JWTs.
  */
 public class Iadm06Controller implements HttpHandler {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm06Controller.class);
+
     private final Iadm06DomainService service;
     private final GatewayHmacVerifier hmac = new GatewayHmacVerifier();
 
-    public Iadm06Controller(Iadm06DomainService service) { this.service = service; }
+    public Iadm06Controller(Iadm06DomainService service) {
+        this.service = service;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
         byte[] bodyBytes = readAll(exchange.getRequestBody());
+
+        String correlationId = exchange.getRequestHeaders().getFirst("X-Correlation-Id");
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+        }
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        LogContext.put(LogContext.KEY_SERVICE, "IADM-06");
+        LogContext.put(LogContext.KEY_TRACE_ID, correlationId);
+        FlowTracker tracker = logger.flow(method + " " + path, correlationId);
         try {
-            if ("OPTIONS".equalsIgnoreCase(method)) { exchange.sendResponseHeaders(204, -1); return; }
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
             GatewayHmacVerifier.VerificationResult auth = hmac.verify(exchange, method, path, bodyBytes);
-            if (!auth.isSuccess()) { send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage())); return; }
+            if (!auth.isSuccess()) {
+                logger.warn("IADM-06 HMAC/auth rejected path={} status={}", path, auth.getStatus());
+                send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage()));
+                return;
+            }
+            LogContext.put(LogContext.KEY_USER_ID, auth.getUserId());
+            LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId());
+            tracker.step("authenticated");
+
             UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(),
                     auth.getTenantId() == null || auth.getTenantId().isEmpty()
                             ? "a0000000-0000-0000-0000-000000000001" : auth.getTenantId());
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
-                send(exchange, 200, toJson(service.health(ctx))); return;
+                send(exchange, 200, toJson(service.health(ctx)));
+                return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage")) {
-                send(exchange, 200, toJson(service.usageSummary(ctx))); return;
+                send(exchange, 200, toJson(service.usageSummary(ctx)));
+                return;
             }
             send(exchange, 404, problem("IADM06_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-06 access denied path={} message={}", path, e.getMessage());
             send(exchange, 403, problem("IADM06_FORBIDDEN", e.getMessage()));
         } catch (InstituteAdminException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-06 domain failure path={} code={} status={}", path, e.getErrorCode(), e.getStatus());
             send(exchange, e.getStatus(), problem(e.getErrorCode(), e.getMessage()));
         } catch (Exception e) {
-            send(exchange, 500, problem("IADM06_INTERNAL", e.getMessage()));
+            tracker.markFailed(e);
+            logger.error("IADM-06 unhandled failure path=" + path + " correlationId=" + correlationId, e);
+            send(exchange, 500, problem("IADM06_INTERNAL", "Request could not be completed"));
+        } finally {
+            tracker.close();
+            LogContext.clear();
         }
     }
 
@@ -87,12 +134,15 @@ public class Iadm06Controller implements HttpHandler {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(status, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 
     private static byte[] readAll(InputStream in) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        byte[] buf = new byte[4096]; int n;
+        byte[] buf = new byte[4096];
+        int n;
         while ((n = in.read(buf)) >= 0) bos.write(buf, 0, n);
         return bos.toByteArray();
     }

@@ -35,7 +35,7 @@
 ## Docs
 
 - `docs/iadm/STEP0_REPORT.md`, `WAVE_A_REPORT.md`, `WAVE_B_REPORT.md`, `WAVE_C_REPORT.md`, `WAVE_D_REPORT.md`
-- `docs/iadm/FINDINGS.md`, `docs/iadm/FILE_LIST.md`
+- `docs/iadm/FINDINGS.md`, `docs/iadm/FILE_LIST.md`, `docs/iadm/ENGINEERING_STANDARDS.md` (Agreement §3.2 logging/exceptions/docs)
 - `docs/user-stories/IADM_User_Stories.md` (final backlog; DRAFT left unchanged)
 
 ## Gateway / control docs

@@ -5,6 +5,10 @@ import com.campx.iadm.privacy.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.privacy.security.GatewayHmacVerifier;
 import com.campx.iadm.privacy.security.UserSecurityContext;
 import com.campx.iadm.privacy.service.Iadm05DomainService;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.FlowTracker;
+import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -15,58 +19,105 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * IADM-05 Data Governance & Privacy (plain language: privacy / DSR / legal hold APIs).
- * Port 8103 · Gateway /api/v1/iadm/05
+ * HTTP ingress for IADM-05 Data Governance &amp; Privacy (port 8103, gateway {@code /api/v1/iadm/05}).
+ * <p>
+ * Uses {@link CampXLogger} and {@link FlowTracker} per Agreement §3.2. Correlation flows from
+ * {@code X-Correlation-Id} or {@code X-Trace-Id}. Domain failures map to problem JSON with safe
+ * messages; unexpected failures are logged and never expose raw exception text. Tokens, passwords,
+ * and JWTs are never logged.
  */
 public class Iadm05Controller implements HttpHandler {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm05Controller.class);
+
     private final Iadm05DomainService service;
     private final GatewayHmacVerifier hmac = new GatewayHmacVerifier();
 
-    public Iadm05Controller(Iadm05DomainService service) { this.service = service; }
+    public Iadm05Controller(Iadm05DomainService service) {
+        this.service = service;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
         byte[] bodyBytes = readAll(exchange.getRequestBody());
+
+        String correlationId = exchange.getRequestHeaders().getFirst("X-Correlation-Id");
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+        }
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        LogContext.put(LogContext.KEY_SERVICE, "IADM-05");
+        LogContext.put(LogContext.KEY_TRACE_ID, correlationId);
+        FlowTracker tracker = logger.flow(method + " " + path, correlationId);
         try {
-            if ("OPTIONS".equalsIgnoreCase(method)) { exchange.sendResponseHeaders(204, -1); return; }
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
             GatewayHmacVerifier.VerificationResult auth = hmac.verify(exchange, method, path, bodyBytes);
-            if (!auth.isSuccess()) { send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage())); return; }
+            if (!auth.isSuccess()) {
+                logger.warn("IADM-05 HMAC/auth rejected path={} status={}", path, auth.getStatus());
+                send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage()));
+                return;
+            }
+            LogContext.put(LogContext.KEY_USER_ID, auth.getUserId());
+            LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId());
+            tracker.step("authenticated");
+
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
             UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(),
                     auth.getTenantId() == null || auth.getTenantId().isEmpty()
                             ? "a0000000-0000-0000-0000-000000000001" : auth.getTenantId());
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
-                send(exchange, 200, toJson(service.health(ctx))); return;
+                send(exchange, 200, toJson(service.health(ctx)));
+                return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/dsr")) {
-                send(exchange, 200, toJson(service.listDsr(ctx))); return;
+                send(exchange, 200, toJson(service.listDsr(ctx)));
+                return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/dsr")) {
-                send(exchange, 201, toJson(service.createDsr(ctx, extract(body, "requestType"), extract(body, "subjectRef")))); return;
+                send(exchange, 201, toJson(service.createDsr(ctx, extract(body, "requestType"), extract(body, "subjectRef"))));
+                return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/legal-holds")) {
-                send(exchange, 201, toJson(service.placeLegalHold(ctx, extract(body, "reason")))); return;
+                send(exchange, 201, toJson(service.placeLegalHold(ctx, extract(body, "reason"))));
+                return;
             }
             send(exchange, 404, problem("IADM05_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-05 access denied path={} message={}", path, e.getMessage());
             send(exchange, 403, problem("IADM05_FORBIDDEN", e.getMessage()));
         } catch (InstituteAdminException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-05 domain failure path={} code={} status={}", path, e.getErrorCode(), e.getStatus());
             send(exchange, e.getStatus(), problem(e.getErrorCode(), e.getMessage()));
         } catch (Exception e) {
-            send(exchange, 500, problem("IADM05_INTERNAL", e.getMessage()));
+            tracker.markFailed(e);
+            logger.error("IADM-05 unhandled failure path=" + path + " correlationId=" + correlationId, e);
+            send(exchange, 500, problem("IADM05_INTERNAL", "Request could not be completed"));
+        } finally {
+            tracker.close();
+            LogContext.clear();
         }
     }
 
     private static String extract(String json, String key) {
         if (json == null) return null;
         String needle = "\"" + key + "\"";
-        int i = json.indexOf(needle); if (i < 0) return null;
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
         int colon = json.indexOf(':', i + needle.length());
-        int q1 = json.indexOf('"', colon + 1); if (q1 < 0) return null;
+        int q1 = json.indexOf('"', colon + 1);
+        if (q1 < 0) return null;
         int q2 = json.indexOf('"', q1 + 1);
         return json.substring(q1 + 1, q2);
     }
@@ -105,12 +156,15 @@ public class Iadm05Controller implements HttpHandler {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(status, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 
     private static byte[] readAll(InputStream in) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        byte[] buf = new byte[4096]; int n;
+        byte[] buf = new byte[4096];
+        int n;
         while ((n = in.read(buf)) >= 0) bos.write(buf, 0, n);
         return bos.toByteArray();
     }

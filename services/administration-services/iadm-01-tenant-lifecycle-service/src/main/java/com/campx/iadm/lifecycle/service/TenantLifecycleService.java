@@ -4,6 +4,9 @@ import com.campx.iadm.lifecycle.config.DatabaseConnectionManager;
 import com.campx.iadm.lifecycle.exception.InstituteAdminException;
 import com.campx.iadm.lifecycle.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.lifecycle.security.UserSecurityContext;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.AuditEvent;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,10 +20,14 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * IADM-01 Institute & Tenant Lifecycle domain service.
- * Permission keys: adm01.manage / adm01.write / adm01.view (never role names).
+ * IADM-01 Institute &amp; Tenant Lifecycle domain service.
+ * <p>
+ * Permission keys: adm01.manage / adm01.write / adm01.view (never role names). Successful mutations
+ * are audited through {@link CampXLogger} per Agreement &#167;3.2.
  */
 public class TenantLifecycleService {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(TenantLifecycleService.class);
 
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
 
@@ -56,6 +63,7 @@ public class TenantLifecycleService {
             out.put("name", name.trim());
             out.put("status", "ACTIVE");
             out.put("region", region);
+            auditMutation(ctx, "registerInstitute", "TENANT", id.toString());
             return out;
         });
     }
@@ -87,6 +95,7 @@ public class TenantLifecycleService {
             out.put("assignmentId", assignmentId.toString());
             out.put("tenantId", tenantId.toString());
             out.put("userId", userId.toString());
+            auditMutation(ctx, "appointInstitutionAdmin", "TENANT", tenantId.toString());
             return out;
         });
     }
@@ -155,6 +164,7 @@ public class TenantLifecycleService {
             out.put("tenantId", tenantId.toString());
             out.put("handoverId", handoverId != null ? handoverId.toString() : null);
             out.put("firstCollegeAdminUserId", firstCollegeAdminUserId != null ? firstCollegeAdminUserId.toString() : null);
+            auditMutation(ctx, "onboardCollege", "COLLEGE", collegeId.toString());
             return out;
         });
     }
@@ -181,6 +191,7 @@ public class TenantLifecycleService {
                     out.put("collegeId", collegeId.toString());
                     out.put("firstCollegeAdminUserId", rs.getObject("first_college_admin_user_id").toString());
                     out.put("status", "COMPLETED");
+                    auditMutation(ctx, "completeHandover", "COLLEGE", collegeId.toString());
                     return out;
                 }
             }
@@ -209,6 +220,7 @@ public class TenantLifecycleService {
             out.put("tenantId", tenantId.toString());
             out.put("status", status);
             out.put("reason", reason);
+            auditMutation(ctx, action, "TENANT", tenantId.toString());
             return out;
         });
     }
@@ -239,6 +251,7 @@ public class TenantLifecycleService {
             out.put("requestId", id.toString());
             out.put("status", "PENDING");
             out.put("requestType", requestType);
+            auditMutation(ctx, "createLifecycleRequest", "LIFECYCLE_REQUEST", id.toString());
             return out;
         });
     }
@@ -276,6 +289,7 @@ public class TenantLifecycleService {
                     out.put("requestId", requestId.toString());
                     out.put("status", status);
                     out.put("tenantId", tenantId.toString());
+                    auditMutation(ctx, "decideLifecycleRequest", "LIFECYCLE_REQUEST", requestId.toString());
                     return out;
                 }
             }
@@ -376,5 +390,14 @@ public class TenantLifecycleService {
 
     private static String escape(String s) {
         return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
+        String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
+        String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();
+        logger.info("IADM-01 action={} tenantId={} resourceType={} resourceId={}", action, tenant, resourceType, resourceId);
+        logger.audit(AuditEvent.builder().action(action).tenantId(tenant).principalId(user)
+                .resourceType(resourceType).resourceId(resourceId == null ? "N/A" : resourceId)
+                .status("SUCCESS").severity("INFO").description(action).build());
     }
 }

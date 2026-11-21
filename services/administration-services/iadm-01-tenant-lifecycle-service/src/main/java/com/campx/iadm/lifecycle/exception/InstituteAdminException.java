@@ -1,7 +1,7 @@
 package com.campx.iadm.lifecycle.exception;
 
 /**
- * Base runtime exception for the ADM-01 Institute Admin Service.
+ * Base domain exception for this IADM microservice (permission failures, validation, conflicts).
  * <p>
  * Associates an HTTP response status code and a semantic machine-readable error code
  * formatted for RFC 7807 problem details responses.

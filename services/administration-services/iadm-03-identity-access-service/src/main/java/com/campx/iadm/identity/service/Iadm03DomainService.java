@@ -3,6 +3,9 @@ package com.campx.iadm.identity.service;
 import com.campx.iadm.identity.config.DatabaseConnectionManager;
 import com.campx.iadm.identity.exception.InstituteAdminException;
 import com.campx.iadm.identity.security.UserSecurityContext;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.AuditEvent;
 
 import java.sql.Array;
 import java.sql.PreparedStatement;
@@ -15,8 +18,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** IADM-03 Platform Identity & Access — keys adm08/adm09. Ceilings = CADM-03 contract. */
+/**
+ * IADM-03 Platform Identity &amp; Access — keys adm08/adm09. Ceilings = CADM-03 contract.
+ * <p>
+ * Write operations audit through {@link CampXLogger} per Agreement &#167;3.2.
+ */
 public class Iadm03DomainService {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm03DomainService.class);
+
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
 
     public Map<String, Object> listRoles(UserSecurityContext ctx) {
@@ -58,6 +68,7 @@ public class Iadm03DomainService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("ceilingId", id.toString());
             out.put("roleCode", roleCode);
+            auditMutation(ctx, "setCeiling", "ROLE_CEILING", id.toString());
             return out;
         });
     }
@@ -100,6 +111,7 @@ public class Iadm03DomainService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("requestId", id.toString());
             out.put("status", "PENDING");
+            auditMutation(ctx, "createAccessRequest", "ACCESS_REQUEST", id.toString());
             return out;
         });
     }
@@ -125,7 +137,17 @@ public class Iadm03DomainService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("requestId", requestId.toString());
             out.put("status", status);
+            auditMutation(ctx, "decideAccessRequest", "ACCESS_REQUEST", requestId.toString());
             return out;
         });
+    }
+
+    private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
+        String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
+        String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();
+        logger.info("IADM-03 action={} tenantId={} resourceType={} resourceId={}", action, tenant, resourceType, resourceId);
+        logger.audit(AuditEvent.builder().action(action).tenantId(tenant).principalId(user)
+                .resourceType(resourceType).resourceId(resourceId == null ? "N/A" : resourceId)
+                .status("SUCCESS").severity("INFO").description(action).build());
     }
 }

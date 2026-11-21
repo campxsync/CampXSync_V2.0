@@ -3,6 +3,9 @@ package com.campx.iadm.audit.service;
 import com.campx.iadm.audit.config.DatabaseConnectionManager;
 import com.campx.iadm.audit.exception.InstituteAdminException;
 import com.campx.iadm.audit.security.UserSecurityContext;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.AuditEvent;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,13 +14,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** IADM-08 Audit, Health & Operations — shared audit store only; CADM-07 contract. */
+/**
+ * IADM-08 Audit, Health &amp; Operations — shared audit store and ops probes (CADM-07 contract).
+ * <p>
+ * Platform-admin reads with {@link CampXLogger} debug tracing per Agreement §3.2.
+ * Never log tokens, passwords, or JWTs.
+ */
 public class Iadm08DomainService {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm08DomainService.class);
+
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
 
     public Map<String, Object> searchAudit(UserSecurityContext ctx, String actor, String action) {
         return ctx.executeInTransaction(db, conn -> {
-            // Prefer audit view permission; fall back to platform admin
+            logger.debug("IADM-08 searchAudit tenantId={}", ctx.getTenantId());
             try {
                 ctx.checkPermission(conn, "adm01.view");
             } catch (Exception e) {
@@ -45,7 +56,6 @@ public class Iadm08DomainService {
                     }
                 }
             } catch (Exception ex) {
-                // If audit.events shape differs, return empty with note (fail soft for read probe)
                 Map<String, Object> out = new LinkedHashMap<>();
                 out.put("items", items);
                 out.put("warning", ex.getMessage());
@@ -59,6 +69,7 @@ public class Iadm08DomainService {
 
     public Map<String, Object> health(UserSecurityContext ctx) {
         return ctx.executeInTransaction(db, conn -> {
+            logger.debug("IADM-08 ops health probe");
             ctx.checkPlatformAdmin(conn);
             List<Map<String, Object>> services = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
@@ -86,6 +97,7 @@ public class Iadm08DomainService {
 
     public Map<String, Object> auditSelfCheck(UserSecurityContext ctx) {
         return ctx.executeInTransaction(db, conn -> {
+            logger.debug("IADM-08 auditSelfCheck");
             ctx.checkPlatformAdmin(conn);
             List<Map<String, Object>> checks = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
@@ -104,5 +116,14 @@ public class Iadm08DomainService {
             out.put("checks", checks);
             return out;
         });
+    }
+
+    private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
+        String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
+        String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();
+        logger.info("IADM-08 action={} tenantId={} resourceType={} resourceId={}", action, tenant, resourceType, resourceId);
+        logger.audit(AuditEvent.builder().action(action).tenantId(tenant).principalId(user)
+                .resourceType(resourceType).resourceId(resourceId == null ? "N/A" : resourceId)
+                .status("SUCCESS").severity("INFO").description(action).build());
     }
 }

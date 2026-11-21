@@ -5,6 +5,10 @@ import com.campx.iadm.audit.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.audit.security.GatewayHmacVerifier;
 import com.campx.iadm.audit.security.UserSecurityContext;
 import com.campx.iadm.audit.service.Iadm08DomainService;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.FlowTracker;
+import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -15,42 +19,91 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+/**
+ * HTTP ingress for IADM-08 Audit, Health &amp; Operations (gateway {@code /api/v1/iadm/08}).
+ * <p>
+ * Uses {@link CampXLogger} and {@link FlowTracker} per Agreement §3.2. Read-only audit and ops
+ * probes; domain failures map to problem JSON and unexpected failures return a generic 500 message.
+ * Never logs tokens, passwords, or JWTs.
+ */
 public class Iadm08Controller implements HttpHandler {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm08Controller.class);
+
     private final Iadm08DomainService service;
     private final GatewayHmacVerifier hmac = new GatewayHmacVerifier();
-    public Iadm08Controller(Iadm08DomainService service) { this.service = service; }
+
+    public Iadm08Controller(Iadm08DomainService service) {
+        this.service = service;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
         byte[] bodyBytes = readAll(exchange.getRequestBody());
+
+        String correlationId = exchange.getRequestHeaders().getFirst("X-Correlation-Id");
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+        }
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        LogContext.put(LogContext.KEY_SERVICE, "IADM-08");
+        LogContext.put(LogContext.KEY_TRACE_ID, correlationId);
+        FlowTracker tracker = logger.flow(method + " " + path, correlationId);
         try {
-            if ("OPTIONS".equalsIgnoreCase(method)) { exchange.sendResponseHeaders(204, -1); return; }
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
             GatewayHmacVerifier.VerificationResult auth = hmac.verify(exchange, method, path, bodyBytes);
-            if (!auth.isSuccess()) { send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage())); return; }
+            if (!auth.isSuccess()) {
+                logger.warn("IADM-08 HMAC/auth rejected path={} status={}", path, auth.getStatus());
+                send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage()));
+                return;
+            }
+            LogContext.put(LogContext.KEY_USER_ID, auth.getUserId());
+            LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId());
+            tracker.step("authenticated");
+
             UserSecurityContext ctx = UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
             String q = exchange.getRequestURI().getQuery();
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
-                send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-08\"}"); return;
+                send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-08\"}");
+                return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/search")) {
-                send(exchange, 200, toJson(service.searchAudit(ctx, qp(q, "actor"), qp(q, "action")))); return;
+                send(exchange, 200, toJson(service.searchAudit(ctx, qp(q, "actor"), qp(q, "action"))));
+                return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/ops/health")) {
-                send(exchange, 200, toJson(service.health(UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())))); return;
+                send(exchange, 200, toJson(service.health(UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
+                return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit/self-check")) {
-                send(exchange, 200, toJson(service.auditSelfCheck(UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())))); return;
+                send(exchange, 200, toJson(service.auditSelfCheck(UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId()))));
+                return;
             }
             send(exchange, 404, problem("IADM08_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-08 access denied path={} message={}", path, e.getMessage());
             send(exchange, 403, problem("IADM08_FORBIDDEN", e.getMessage()));
         } catch (InstituteAdminException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-08 domain failure path={} code={} status={}", path, e.getErrorCode(), e.getStatus());
             send(exchange, e.getStatus(), problem(e.getErrorCode(), e.getMessage()));
         } catch (Exception e) {
-            send(exchange, 500, problem("IADM08_INTERNAL", e.getMessage()));
+            tracker.markFailed(e);
+            logger.error("IADM-08 unhandled failure path=" + path + " correlationId=" + correlationId, e);
+            send(exchange, 500, problem("IADM08_INTERNAL", "Request could not be completed"));
+        } finally {
+            tracker.close();
+            LogContext.clear();
         }
     }
 
@@ -97,12 +150,15 @@ public class Iadm08Controller implements HttpHandler {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(status, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 
     private static byte[] readAll(InputStream in) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        byte[] buf = new byte[4096]; int n;
+        byte[] buf = new byte[4096];
+        int n;
         while ((n = in.read(buf)) >= 0) bos.write(buf, 0, n);
         return bos.toByteArray();
     }

@@ -3,6 +3,9 @@ package com.campx.iadm.config.service;
 import com.campx.iadm.config.config.DatabaseConnectionManager;
 import com.campx.iadm.config.exception.InstituteAdminException;
 import com.campx.iadm.config.security.UserSecurityContext;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.AuditEvent;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,10 +14,15 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * IADM-02 Platform Configuration & Policy.
- * Keys: adm05.manage / adm05.write / adm05.view.
+ * IADM-02 Platform Configuration &amp; Policy.
+ * <p>
+ * Keys: adm05.manage / adm05.write / adm05.view. Mutations emit structured audit events via
+ * {@link CampXLogger} (Agreement &#167;3.2).
  */
 public class PlatformConfigService {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(PlatformConfigService.class);
+
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
 
     public Map<String, Object> upsertDefinition(UserSecurityContext ctx, String key, String dataType,
@@ -69,6 +77,7 @@ public class PlatformConfigService {
             out.put("settingKey", key);
             out.put("platformLocked", platformLocked);
             out.put("delegableToCollege", delegable);
+            auditMutation(ctx, "upsertDefinition", "SETTING_DEFINITION", key);
             return out;
         });
     }
@@ -112,6 +121,7 @@ public class PlatformConfigService {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("settingKey", key);
             out.put("scope", "INSTITUTE");
+            auditMutation(ctx, "setInstituteValue", "SETTING_VALUE", key);
             return out;
         });
     }
@@ -149,6 +159,7 @@ public class PlatformConfigService {
             out.put("settingKey", key);
             out.put("collegeId", collegeId.toString());
             out.put("active", true);
+            auditMutation(ctx, "delegateSetting", "SETTING_DELEGATION", id.toString());
             return out;
         });
     }
@@ -177,5 +188,14 @@ public class PlatformConfigService {
                 }
             }
         });
+    }
+
+    private void auditMutation(UserSecurityContext ctx, String action, String resourceType, String resourceId) {
+        String tenant = ctx.getTenantId() == null ? null : ctx.getTenantId().toString();
+        String user = ctx.getUserId() == null ? null : ctx.getUserId().toString();
+        logger.info("IADM-02 action={} tenantId={} resourceType={} resourceId={}", action, tenant, resourceType, resourceId);
+        logger.audit(AuditEvent.builder().action(action).tenantId(tenant).principalId(user)
+                .resourceType(resourceType).resourceId(resourceId == null ? "N/A" : resourceId)
+                .status("SUCCESS").severity("INFO").description(action).build());
     }
 }

@@ -5,6 +5,10 @@ import com.campx.iadm.config.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.config.security.GatewayHmacVerifier;
 import com.campx.iadm.config.security.UserSecurityContext;
 import com.campx.iadm.config.service.PlatformConfigService;
+import com.campx.logger.CampXLogger;
+import com.campx.logger.CampXLoggerFactory;
+import com.campx.logger.api.FlowTracker;
+import com.campx.logger.context.LogContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -16,27 +20,53 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * HTTP ingress for IADM-02 platform configuration routes.
+ * <p>
+ * Gateway-authenticated adapter with {@link CampXLogger} flow tracing (Agreement &#167;3.2).
+ * Domain failures surface safe messages; internal errors return a generic completion failure.
+ */
 public class Iadm02Controller implements HttpHandler {
+
+    private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm02Controller.class);
+
     private final PlatformConfigService service;
     private final GatewayHmacVerifier hmac = new GatewayHmacVerifier();
 
-    public Iadm02Controller(PlatformConfigService service) { this.service = service; }
+    public Iadm02Controller(PlatformConfigService service) {
+        this.service = service;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        String correlationId = resolveCorrelationId(exchange);
+        LogContext.put(LogContext.KEY_SERVICE, "IADM-02");
+        LogContext.put(LogContext.KEY_TRACE_ID, correlationId);
+
         byte[] bodyBytes = readAll(exchange.getRequestBody());
+        FlowTracker tracker = logger.flow(method + " " + path, correlationId);
         try {
-            if ("OPTIONS".equalsIgnoreCase(method)) {
-                exchange.sendResponseHeaders(204, -1);
-                return;
-            }
             GatewayHmacVerifier.VerificationResult auth = hmac.verify(exchange, method, path, bodyBytes);
             if (!auth.isSuccess()) {
+                logger.warn("IADM-02 auth failed path={} code={} correlationId={}", path, auth.getErrorCode(), correlationId);
                 send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage()));
                 return;
             }
+            if (auth.getUserId() != null && !auth.getUserId().trim().isEmpty()) {
+                LogContext.put(LogContext.KEY_USER_ID, auth.getUserId().trim());
+            }
+            if (auth.getTenantId() != null && !auth.getTenantId().trim().isEmpty()) {
+                LogContext.put(LogContext.KEY_TENANT_ID, auth.getTenantId().trim());
+            }
+            tracker.step("authenticated");
+
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
             UserSecurityContext ctx = path.contains("/definitions")
                     ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
@@ -75,12 +105,32 @@ public class Iadm02Controller implements HttpHandler {
             }
             send(exchange, 404, problem("IADM02_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-02 forbidden correlationId=" + correlationId);
             send(exchange, 403, problem("IADM02_FORBIDDEN", e.getMessage()));
         } catch (InstituteAdminException e) {
+            tracker.markFailed(e);
+            logger.warn("IADM-02 domain rejection code={} correlationId={}", e.getErrorCode(), correlationId);
             send(exchange, e.getStatus(), problem(e.getErrorCode(), e.getMessage()));
         } catch (Exception e) {
-            send(exchange, 500, problem("IADM02_INTERNAL", e.getMessage()));
+            tracker.markFailed(e);
+            logger.error("IADM-02 request failed correlationId=" + correlationId, e);
+            send(exchange, 500, problem("IADM02_INTERNAL", "Request could not be completed"));
+        } finally {
+            tracker.close();
+            LogContext.clear();
         }
+    }
+
+    private static String resolveCorrelationId(HttpExchange exchange) {
+        String correlationId = exchange.getRequestHeaders().getFirst("X-Correlation-Id");
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+        }
+        if (correlationId == null || correlationId.trim().isEmpty()) {
+            correlationId = UUID.randomUUID().toString();
+        }
+        return correlationId;
     }
 
     private static String segment(String path, String a, String b) {
@@ -149,7 +199,9 @@ public class Iadm02Controller implements HttpHandler {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(status, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 
     private static byte[] readAll(InputStream in) throws IOException {
