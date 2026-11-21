@@ -1,0 +1,162 @@
+package com.campx.iadm.config.controller;
+
+import com.campx.iadm.config.exception.InstituteAdminException;
+import com.campx.iadm.config.exception.UserProfileAccessDeniedException;
+import com.campx.iadm.config.security.GatewayHmacVerifier;
+import com.campx.iadm.config.security.UserSecurityContext;
+import com.campx.iadm.config.service.PlatformConfigService;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.UUID;
+
+public class Iadm02Controller implements HttpHandler {
+    private final PlatformConfigService service;
+    private final GatewayHmacVerifier hmac = new GatewayHmacVerifier();
+
+    public Iadm02Controller(PlatformConfigService service) { this.service = service; }
+
+    @Override
+    public void handle(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+        String path = exchange.getRequestURI().getPath();
+        byte[] bodyBytes = readAll(exchange.getRequestBody());
+        try {
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                exchange.sendResponseHeaders(204, -1);
+                return;
+            }
+            GatewayHmacVerifier.VerificationResult auth = hmac.verify(exchange, method, path, bodyBytes);
+            if (!auth.isSuccess()) {
+                send(exchange, auth.getStatus(), problem(auth.getErrorCode(), auth.getMessage()));
+                return;
+            }
+            String body = new String(bodyBytes, StandardCharsets.UTF_8);
+            UserSecurityContext ctx = path.contains("/definitions")
+                    ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
+                    : UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+
+            if ("POST".equalsIgnoreCase(method) && path.contains("/definitions")) {
+                boolean locked = "true".equalsIgnoreCase(extract(body, "platformLocked"));
+                boolean delegable = "true".equalsIgnoreCase(extract(body, "delegableToCollege"));
+                Map<String, Object> r = service.upsertDefinition(ctx, extract(body, "settingKey"),
+                        extract(body, "dataType") == null ? "STRING" : extract(body, "dataType"),
+                        extract(body, "defaultValue"), locked, delegable, new String[]{"INSTITUTE", "COLLEGE"});
+                send(exchange, 201, toJson(r));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/institute-value/?$")) {
+                String key = segment(path, "/settings/", "/institute-value");
+                send(exchange, 200, toJson(service.setInstituteValue(ctx, key, extractRaw(body, "value"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/delegate/?$")) {
+                String key = segment(path, "/settings/", "/delegate");
+                send(exchange, 201, toJson(service.delegateSetting(ctx, key, UUID.fromString(extract(body, "collegeId")))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/settings/[^/]+/effective/?$")) {
+                String key = segment(path, "/settings/", "/effective");
+                String q = exchange.getRequestURI().getQuery();
+                UUID tenantId = qParamUuid(q, "tenantId");
+                UUID collegeId = qParamUuid(q, "collegeId");
+                send(exchange, 200, toJson(service.resolveEffective(ctx, tenantId, collegeId, key)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/health")) {
+                send(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-02\"}");
+                return;
+            }
+            send(exchange, 404, problem("IADM02_NOT_FOUND", "Route not found: " + path));
+        } catch (UserProfileAccessDeniedException e) {
+            send(exchange, 403, problem("IADM02_FORBIDDEN", e.getMessage()));
+        } catch (InstituteAdminException e) {
+            send(exchange, e.getStatus(), problem(e.getErrorCode(), e.getMessage()));
+        } catch (Exception e) {
+            send(exchange, 500, problem("IADM02_INTERNAL", e.getMessage()));
+        }
+    }
+
+    private static String segment(String path, String a, String b) {
+        int s = path.indexOf(a) + a.length();
+        int e = path.indexOf(b, s);
+        return path.substring(s, e);
+    }
+
+    private static UUID qParamUuid(String q, String name) {
+        if (q == null) return null;
+        for (String part : q.split("&")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2 && kv[0].equals(name) && !kv[1].isEmpty()) return UUID.fromString(kv[1]);
+        }
+        return null;
+    }
+
+    private static String extract(String json, String key) {
+        if (json == null) return null;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + needle.length());
+        int q1 = json.indexOf('"', colon + 1);
+        if (q1 < 0) return null;
+        int q2 = json.indexOf('"', q1 + 1);
+        return json.substring(q1 + 1, q2);
+    }
+
+    private static String extractRaw(String json, String key) {
+        if (json == null) return "null";
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return "null";
+        int colon = json.indexOf(':', i + needle.length());
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            int q2 = rest.indexOf('"', 1);
+            return "\"" + rest.substring(1, q2) + "\"";
+        }
+        int end = rest.indexOf(',');
+        if (end < 0) end = rest.indexOf('}');
+        return rest.substring(0, end).trim();
+    }
+
+    private static String toJson(Map<String, Object> map) {
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, Object> e : map.entrySet()) {
+            if (!first) sb.append(',');
+            first = false;
+            sb.append('"').append(e.getKey()).append("\":");
+            Object v = e.getValue();
+            if (v == null) sb.append("null");
+            else if (v instanceof Number || v instanceof Boolean) sb.append(v);
+            else sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
+        }
+        return sb.append('}').toString();
+    }
+
+    private static String problem(String code, String detail) {
+        return "{\"errorCode\":\"" + code + "\",\"detail\":\"" + (detail == null ? "" : detail.replace("\"", "\\\"")) + "\"}";
+    }
+
+    private static void send(HttpExchange exchange, int status, String json) throws IOException {
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(status, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+    }
+
+    private static byte[] readAll(InputStream in) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = in.read(buf)) >= 0) bos.write(buf, 0, n);
+        return bos.toByteArray();
+    }
+}

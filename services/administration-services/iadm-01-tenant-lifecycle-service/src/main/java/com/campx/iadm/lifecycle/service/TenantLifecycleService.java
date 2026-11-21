@@ -1,0 +1,380 @@
+package com.campx.iadm.lifecycle.service;
+
+import com.campx.iadm.lifecycle.config.DatabaseConnectionManager;
+import com.campx.iadm.lifecycle.exception.InstituteAdminException;
+import com.campx.iadm.lifecycle.exception.UserProfileAccessDeniedException;
+import com.campx.iadm.lifecycle.security.UserSecurityContext;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * IADM-01 Institute & Tenant Lifecycle domain service.
+ * Permission keys: adm01.manage / adm01.write / adm01.view (never role names).
+ */
+public class TenantLifecycleService {
+
+    private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
+
+    public Map<String, Object> registerInstitute(UserSecurityContext ctx, String code, String name, String region) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (code == null || code.trim().isEmpty() || name == null || name.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION", "code and name are required");
+            }
+            try (PreparedStatement dup = conn.prepareStatement(
+                    "SELECT 1 FROM core.tenants WHERE code = ? AND deleted_at IS NULL")) {
+                dup.setString(1, code.trim());
+                try (ResultSet rs = dup.executeQuery()) {
+                    if (rs.next()) {
+                        throw new InstituteAdminException(409, "IADM01_DUPLICATE_CODE", "Institute code already exists");
+                    }
+                }
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ins = conn.prepareStatement(
+                    "INSERT INTO core.tenants (id, code, name, status, created_by) VALUES (?, ?, ?, 'ACTIVE', ?)")) {
+                ins.setObject(1, id);
+                ins.setString(2, code.trim());
+                ins.setString(3, name.trim());
+                ins.setObject(4, ctx.getUserId());
+                ins.executeUpdate();
+            }
+            appendEvent(conn, id, "CREATE", ctx.getUserId(), "Institute registered",
+                    "{\"code\":\"" + escape(code) + "\",\"region\":\"" + escape(region == null ? "" : region) + "\"}");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("tenantId", id.toString());
+            out.put("code", code.trim());
+            out.put("name", name.trim());
+            out.put("status", "ACTIVE");
+            out.put("region", region);
+            return out;
+        });
+    }
+
+    public Map<String, Object> appointInstitutionAdmin(UserSecurityContext ctx, UUID tenantId, UUID userId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (tenantId == null || userId == null) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION", "tenantId and userId required");
+            }
+            if (userId.equals(ctx.getUserId())) {
+                throw new InstituteAdminException(403, "IADM01_SELF_APPOINT", "Cannot appoint self as Institution Admin");
+            }
+            // Caller identity from auth.uid() via SET LOCAL ROLE + jwt claims; p_assigned_by ignored by DB
+            UUID assignmentId;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT plat.assign_institution_admin(?, ?, ?)")) {
+                ps.setObject(1, tenantId);
+                ps.setObject(2, userId);
+                ps.setObject(3, ctx.getUserId()); // ignored by hardened function
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) throw new InstituteAdminException(500, "IADM01_APPOINT", "No assignment returned");
+                    assignmentId = (UUID) rs.getObject(1);
+                }
+            }
+            appendEvent(conn, tenantId, "APPOINT", ctx.getUserId(), "Appointed Institution Admin (R03)",
+                    "{\"userId\":\"" + userId + "\",\"assignmentId\":\"" + assignmentId + "\"}");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("assignmentId", assignmentId.toString());
+            out.put("tenantId", tenantId.toString());
+            out.put("userId", userId.toString());
+            return out;
+        });
+    }
+
+    public Map<String, Object> getInstitute(UserSecurityContext ctx, UUID tenantId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm01.view");
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id, code, name, status, created_at, updated_at FROM core.tenants WHERE id = ? AND deleted_at IS NULL")) {
+                ps.setObject(1, tenantId != null ? tenantId : ctx.getTenantId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) throw new InstituteAdminException(404, "IADM01_NOT_FOUND", "Institute not found");
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("tenantId", rs.getObject("id").toString());
+                    out.put("code", rs.getString("code"));
+                    out.put("name", rs.getString("name"));
+                    out.put("status", rs.getString("status"));
+                    out.put("createdAt", rs.getTimestamp("created_at"));
+                    out.put("updatedAt", rs.getTimestamp("updated_at"));
+                    return out;
+                }
+            }
+        });
+    }
+
+    public Map<String, Object> onboardCollege(UserSecurityContext ctx, String collegeCode, String collegeName,
+                                              UUID firstCollegeAdminUserId) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm01.manage");
+            UUID tenantId = ctx.getTenantId();
+            if (tenantId == null) throw new InstituteAdminException(400, "IADM01_VALIDATION", "tenant required");
+            assertTenantActive(conn, tenantId);
+            UUID collegeId = UUID.randomUUID();
+            try (PreparedStatement ins = conn.prepareStatement(
+                    "INSERT INTO core.colleges (id, tenant_id, code, name, status, provisioning_status, created_by) " +
+                            "VALUES (?, ?, ?, ?, 'ACTIVE', 'ACTIVE', ?)")) {
+                ins.setObject(1, collegeId);
+                ins.setObject(2, tenantId);
+                ins.setString(3, collegeCode);
+                ins.setString(4, collegeName);
+                ins.setObject(5, ctx.getUserId());
+                ins.executeUpdate();
+            }
+            // Assign COLLEGE_ADMIN role to first admin if provided
+            if (firstCollegeAdminUserId != null) {
+                UUID roleId = lookupRole(conn, tenantId, "COLLEGE_ADMIN");
+                try (PreparedStatement ra = conn.prepareStatement(
+                        "INSERT INTO iam.role_assignments (tenant_id, user_id, role_id, college_id, created_by) " +
+                                "VALUES (?, ?, ?, ?, ?)")) {
+                    ra.setObject(1, tenantId);
+                    ra.setObject(2, firstCollegeAdminUserId);
+                    ra.setObject(3, roleId);
+                    ra.setObject(4, collegeId);
+                    ra.setObject(5, ctx.getUserId());
+                    ra.executeUpdate();
+                }
+            }
+            UUID handoverId = null;
+            if (firstCollegeAdminUserId != null) {
+                handoverId = insertHandover(conn, tenantId, collegeId, firstCollegeAdminUserId, ctx.getUserId(), "PENDING");
+            }
+            appendEvent(conn, tenantId, "HANDOVER", ctx.getUserId(), "College onboarded",
+                    "{\"collegeId\":\"" + collegeId + "\"}");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("collegeId", collegeId.toString());
+            out.put("tenantId", tenantId.toString());
+            out.put("handoverId", handoverId != null ? handoverId.toString() : null);
+            out.put("firstCollegeAdminUserId", firstCollegeAdminUserId != null ? firstCollegeAdminUserId.toString() : null);
+            return out;
+        });
+    }
+
+    public Map<String, Object> completeHandover(UserSecurityContext ctx, UUID collegeId, String notes) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm01.manage");
+            UUID tenantId = ctx.getTenantId();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE plat.college_admin_handovers SET status = 'COMPLETED', notes = ?, updated_at = now(), updated_by = ? " +
+                            "WHERE tenant_id = ? AND college_id = ? AND deleted_at IS NULL RETURNING id, first_college_admin_user_id")) {
+                ps.setString(1, notes);
+                ps.setObject(2, ctx.getUserId());
+                ps.setObject(3, tenantId);
+                ps.setObject(4, collegeId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM01_HANDOVER_NOT_FOUND", "No handover record for college");
+                    }
+                    appendEvent(conn, tenantId, "HANDOVER", ctx.getUserId(), "Handover completed to College Admin (R04)",
+                            "{\"collegeId\":\"" + collegeId + "\"}");
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("handoverId", rs.getObject("id").toString());
+                    out.put("collegeId", collegeId.toString());
+                    out.put("firstCollegeAdminUserId", rs.getObject("first_college_admin_user_id").toString());
+                    out.put("status", "COMPLETED");
+                    return out;
+                }
+            }
+        });
+    }
+
+    public Map<String, Object> suspendOrReactivate(UserSecurityContext ctx, UUID tenantId, String action, String reason) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM01_REASON_REQUIRED", "Reason is required");
+            }
+            String status = "suspend".equalsIgnoreCase(action) ? "SUSPENDED" : "ACTIVE";
+            String event = "SUSPENDED".equals(status) ? "SUSPEND" : "REACTIVATE";
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE core.tenants SET status = ?, updated_at = now(), updated_by = ? WHERE id = ? AND deleted_at IS NULL")) {
+                ps.setString(1, status);
+                ps.setObject(2, ctx.getUserId());
+                ps.setObject(3, tenantId);
+                if (ps.executeUpdate() == 0) {
+                    throw new InstituteAdminException(404, "IADM01_NOT_FOUND", "Institute not found");
+                }
+            }
+            appendEvent(conn, tenantId, event, ctx.getUserId(), reason, "{}");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("tenantId", tenantId.toString());
+            out.put("status", status);
+            out.put("reason", reason);
+            return out;
+        });
+    }
+
+    public Map<String, Object> createLifecycleRequest(UserSecurityContext ctx, String requestType, String reason) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPermission(conn, "adm01.write");
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM01_REASON_REQUIRED", "Reason is required");
+            }
+            UUID id = UUID.randomUUID();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO plat.institute_lifecycle_requests " +
+                            "(id, tenant_id, request_type, requested_by, status, reason, created_by) " +
+                            "VALUES (?, ?, ?, ?, 'PENDING', ?, ?)")) {
+                ps.setObject(1, id);
+                ps.setObject(2, ctx.getTenantId());
+                ps.setString(3, requestType);
+                ps.setObject(4, ctx.getUserId());
+                ps.setString(5, reason);
+                ps.setObject(6, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            String eventType = "EXPORT".equals(requestType) ? "EXPORT_REQUEST" : "DECOMMISSION_REQUEST";
+            if ("SUSPEND".equals(requestType)) eventType = "DECOMMISSION_REQUEST";
+            appendEvent(conn, ctx.getTenantId(), eventType, ctx.getUserId(), reason, "{\"requestId\":\"" + id + "\"}");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("requestId", id.toString());
+            out.put("status", "PENDING");
+            out.put("requestType", requestType);
+            return out;
+        });
+    }
+
+    public Map<String, Object> decideLifecycleRequest(UserSecurityContext ctx, UUID requestId, String decision, String note) {
+        return ctx.executeInTransaction(db, conn -> {
+            ctx.checkPlatformAdmin(conn);
+            String status = "APPROVE".equalsIgnoreCase(decision) || "APPROVED".equalsIgnoreCase(decision) ? "APPROVED" : "REJECTED";
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE plat.institute_lifecycle_requests SET status = ?, decided_by = ?, decided_at = now(), " +
+                            "decision_note = ?, updated_at = now(), updated_by = ? " +
+                            "WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL " +
+                            "RETURNING tenant_id, request_type")) {
+                ps.setString(1, status);
+                ps.setObject(2, ctx.getUserId());
+                ps.setString(3, note);
+                ps.setObject(4, ctx.getUserId());
+                ps.setObject(5, requestId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new InstituteAdminException(404, "IADM01_REQUEST_NOT_FOUND", "Pending request not found");
+                    }
+                    UUID tenantId = (UUID) rs.getObject("tenant_id");
+                    String type = rs.getString("request_type");
+                    if ("APPROVED".equals(status) && "SUSPEND".equals(type)) {
+                        try (PreparedStatement up = conn.prepareStatement(
+                                "UPDATE core.tenants SET status = 'SUSPENDED', updated_at = now(), updated_by = ? WHERE id = ?")) {
+                            up.setObject(1, ctx.getUserId());
+                            up.setObject(2, tenantId);
+                            up.executeUpdate();
+                        }
+                        appendEvent(conn, tenantId, "SUSPEND", ctx.getUserId(), note == null ? "Approved suspend request" : note, "{}");
+                    }
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    out.put("requestId", requestId.toString());
+                    out.put("status", status);
+                    out.put("tenantId", tenantId.toString());
+                    return out;
+                }
+            }
+        });
+    }
+
+    public List<Map<String, Object>> lifecycleHistory(UserSecurityContext ctx, UUID tenantId) {
+        return ctx.executeInTransaction(db, conn -> {
+            try {
+                ctx.checkPermission(conn, "adm01.view");
+            } catch (UserProfileAccessDeniedException ex) {
+                // Auditor (R28) / platform path
+                ctx.checkPlatformAdmin(conn);
+            }
+            UUID tid = tenantId != null ? tenantId : ctx.getTenantId();
+            List<Map<String, Object>> rows = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id, event_type, actor_id, reason, payload, created_at " +
+                            "FROM plat.institute_lifecycle_events WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 200")) {
+                ps.setObject(1, tid);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getObject("id").toString());
+                        row.put("eventType", rs.getString("event_type"));
+                        Object actor = rs.getObject("actor_id");
+                        row.put("actorId", actor != null ? actor.toString() : null);
+                        row.put("reason", rs.getString("reason"));
+                        row.put("payload", rs.getString("payload"));
+                        Timestamp ts = rs.getTimestamp("created_at");
+                        row.put("createdAt", ts != null ? ts.toInstant().toString() : null);
+                        rows.add(row);
+                    }
+                }
+            }
+            return rows;
+        });
+    }
+
+    private static void assertTenantActive(Connection conn, UUID tenantId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT status FROM core.tenants WHERE id = ? AND deleted_at IS NULL")) {
+            ps.setObject(1, tenantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new InstituteAdminException(404, "IADM01_NOT_FOUND", "Institute not found");
+                if ("SUSPENDED".equals(rs.getString("status"))) {
+                    throw new InstituteAdminException(403, "IADM01_SUSPENDED", "Institute is suspended");
+                }
+            }
+        }
+    }
+
+    private static UUID lookupRole(Connection conn, UUID tenantId, String code) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id FROM iam.roles WHERE tenant_id = ? AND code = ? AND deleted_at IS NULL LIMIT 1")) {
+            ps.setObject(1, tenantId);
+            ps.setString(2, code);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new InstituteAdminException(500, "IADM01_ROLE_MISSING", code + " role missing");
+                return (UUID) rs.getObject(1);
+            }
+        }
+    }
+
+    private static UUID insertHandover(Connection conn, UUID tenantId, UUID collegeId, UUID adminId, UUID by, String status)
+            throws SQLException {
+        UUID id = UUID.randomUUID();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO plat.college_admin_handovers " +
+                        "(id, tenant_id, college_id, first_college_admin_user_id, handed_over_by, status, created_by) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+            ps.setObject(1, id);
+            ps.setObject(2, tenantId);
+            ps.setObject(3, collegeId);
+            ps.setObject(4, adminId);
+            ps.setObject(5, by);
+            ps.setString(6, status);
+            ps.setObject(7, by);
+            ps.executeUpdate();
+        }
+        return id;
+    }
+
+    private static void appendEvent(Connection conn, UUID tenantId, String type, UUID actor, String reason, String payloadJson)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO plat.institute_lifecycle_events (tenant_id, event_type, actor_id, reason, payload, created_by) " +
+                        "VALUES (?, ?, ?, ?, ?::jsonb, ?)")) {
+            ps.setObject(1, tenantId);
+            ps.setString(2, type);
+            ps.setObject(3, actor);
+            ps.setString(4, reason);
+            ps.setString(5, payloadJson == null ? "{}" : payloadJson);
+            ps.setObject(6, actor);
+            ps.executeUpdate();
+        }
+    }
+
+    private static String escape(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+}

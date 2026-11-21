@@ -1,7 +1,20 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (Enterprise RBAC Matrix v3.0 Implementation Phases 0–4 completed and verified in DEV; 100% assertions green)
+**Updated:** 2026-11-21 (IADM Step 0 + Wave A completed in DEV; Waves B–D in progress; no push)
+
+## Owner decisions – IADM Waves A–D (21-11-2026)
+
+**Approved by:** Niranjan V.G. (product owner, 2026-11-21). Scope: reconcile IADM stories + implement Waves A–D in DEV only.
+
+| Item | Status |
+|---|---|
+| Step 0 preflight (appointment fn, context leak, backlog, inventory, keys, ports) | **completed** — `docs/iadm/STEP0_REPORT.md` |
+| Final backlog | **completed** — `docs/user-stories/IADM_User_Stories.md` (DRAFT unchanged) |
+| Wave A IADM-01 (:8099) + IADM-02 (:8100) | **completed** — `docs/iadm/WAVE_A_REPORT.md` |
+| Wave B IADM-03 + IADM-08 | in progress |
+| Wave C IADM-07 + IADM-05 | yet to pickup |
+| Wave D IADM-04 + IADM-06 | yet to pickup |
 
 ## Owner decisions – Admin RBAC / IADM-CADM (20-11-2026 / 21-11-2026)
 

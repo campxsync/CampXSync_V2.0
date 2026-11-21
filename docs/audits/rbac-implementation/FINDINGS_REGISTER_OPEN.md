@@ -63,6 +63,13 @@
 - **Impacted Components:** `database/migrations/20261120000300_rbac_phase3_code_alignment.sql` (`plat.assign_institution_admin`).
 - **Description:** Matrix §21.7 proposes a two-person quorum for appointing R03 Institution Admin. Current implementation executes via single platform administrator function `plat.assign_institution_admin(...)`.
 - **Severity:** LOW.
-- **Current State:** Accepted risk per Matrix §22.5 until two-person governance workflow is implemented in future wave.
+- **Current State:** Accepted risk per Matrix §22.5 until two-person governance workflow is implemented in future wave. Separately, IADM Step 0.1 found and **FIXED** a CRITICAL spoof hole: function trusted `p_assigned_by` instead of `auth.uid()` (migration `20261121000100_iadm_assign_institution_admin_auth_uid.sql`). Two-person quorum remains deferred (IADM-03-US-009).
 - **Recommended Fix:** Implement multi-party approval workflow when governance service is built.
 - **Owner Decision Pointer:** Matrix §22.5 Accepted Risks.
+
+### FINDING-IADM-SEC-02: HttpContext attribute leakage outside AttendanceController
+- **Impacted Components:** SubjectController (fixed), AnalyticsController (fixed); InstituteAdminController, CollegeAdminController, CourseController, CurriculumController (open).
+- **Description:** JDK HttpServer shares HttpContext attributes across requests. Curriculum stores `tenantId`/`userId` (HIGH).
+- **Severity:** HIGH (Curriculum); MEDIUM (others).
+- **Current State:** Identical-pattern fixes applied to Subject/Analytics; others logged in `docs/iadm/FINDINGS.md`.
+- **Owner Decision Pointer:** IADM kickoff Step 0.2.
