@@ -1,0 +1,572 @@
+permission_key,plain_language_meaning,owning_service_module,roles_holding_count,held_by_R01_super_admin,held_by_R02_system_admin,held_by_R03_institution_admin,held_by_R04_college_admin,held_by_R05_principal,held_by_R07_dean,held_by_R28_auditor,held_by_R31_registrar,matrix_target_service,matrix_R03_action,matrix_R04_action,matrix_new_holder,matrix_citation,decision_flags
+*,Universal platform wildcard (all permissions): universal,IADM-03,1,YES (implicit via plat.platform_admins),NO,NO,NO,NO,NO,NO,NO,IADM-03,COLLAPSE TO R03,REMOVE,R03 Institution Admin (without wildcard),"§2 (IADM-D7), §10, §21.1",Owner decision IADM-D7: Collapse Tenant Admin to R03; eliminate wildcard *
+acd01.manage,Academic Structure: manage,ACD-01,6,NO,NO,YES,YES,YES,YES,NO,NO,ACD-01,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd01.review,Academic Structure: review,ACD-01,6,NO,NO,YES,YES,YES,YES,NO,NO,ACD-01,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd01.view,Academic Structure: view,ACD-01,18,NO,NO,YES,YES,YES,YES,NO,NO,ACD-01,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd01.view.all,Academic Structure: view all,ACD-01,15,NO,NO,YES,YES,YES,YES,NO,NO,ACD-01,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd01.view.own,Academic Structure: view own,ACD-01,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-01,REMOVE,N/A,,"§7, §10, §11.1",
+acd01.write,Academic Structure: write,ACD-01,7,NO,NO,YES,YES,YES,YES,NO,NO,ACD-01,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd01.write.own,Academic Structure: write own,ACD-01,0,NO,NO,NO,NO,NO,NO,NO,NO,ACD-01,REMOVE,N/A,,"§7, §10, §11.1",
+acd02.approve,Program Management: approve,ACD-02,3,NO,NO,NO,NO,YES,YES,NO,NO,ACD-02,REMOVE,N/A,,"§7, §10, §11.1",
+acd02.manage,Program Management: manage,ACD-02,4,NO,NO,YES,YES,NO,NO,NO,NO,ACD-02,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd02.review,Program Management: review,ACD-02,4,NO,NO,YES,YES,NO,NO,NO,NO,ACD-02,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd02.view,Program Management: view,ACD-02,16,NO,NO,YES,YES,YES,YES,NO,NO,ACD-02,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd02.view.all,Program Management: view all,ACD-02,13,NO,NO,YES,YES,YES,YES,NO,NO,ACD-02,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd02.view.own,Program Management: view own,ACD-02,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-02,REMOVE,N/A,,"§7, §10, §11.1",
+acd02.write,Program Management: write,ACD-02,5,NO,NO,YES,YES,NO,NO,NO,NO,ACD-02,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd02.write.own,Program Management: write own,ACD-02,0,NO,NO,NO,NO,NO,NO,NO,NO,ACD-02,REMOVE,N/A,,"§7, §10, §11.1",
+acd03.approve,Course & Curriculum: approve,ACD-03,3,NO,NO,NO,NO,YES,YES,NO,NO,ACD-03,REMOVE,N/A,,"§7, §10, §11.1",
+acd03.manage,Course & Curriculum: manage,ACD-03,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-03,REMOVE,N/A,,"§7, §10, §11.1",
+acd03.review,Course & Curriculum: review,ACD-03,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-03,REMOVE,N/A,,"§7, §10, §11.1",
+acd03.view,Course & Curriculum: view,ACD-03,13,NO,NO,YES,YES,YES,YES,NO,NO,ACD-03,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd03.view.all,Course & Curriculum: view all,ACD-03,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-03,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd03.view.own,Course & Curriculum: view own,ACD-03,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-03,REMOVE,N/A,,"§7, §10, §11.1",
+acd03.write,Course & Curriculum: write,ACD-03,3,NO,NO,NO,NO,NO,NO,NO,NO,ACD-03,REMOVE,N/A,,"§7, §10, §11.1",
+acd03.write.own,Course & Curriculum: write own,ACD-03,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-03,REMOVE,N/A,,"§7, §10, §11.1",
+acd04.manage,Subject Management: manage,ACD-04,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-04,REMOVE,N/A,,"§7, §10, §11.1",
+acd04.review,Subject Management: review,ACD-04,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-04,REMOVE,N/A,,"§7, §10, §11.1",
+acd04.view,Subject Management: view,ACD-04,13,NO,NO,YES,YES,YES,YES,NO,NO,ACD-04,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd04.view.all,Subject Management: view all,ACD-04,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-04,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd04.view.own,Subject Management: view own,ACD-04,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-04,REMOVE,N/A,,"§7, §10, §11.1",
+acd04.write,Subject Management: write,ACD-04,3,NO,NO,NO,NO,NO,NO,NO,NO,ACD-04,REMOVE,N/A,,"§7, §10, §11.1",
+acd04.write.own,Subject Management: write own,ACD-04,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-04,REMOVE,N/A,,"§7, §10, §11.1",
+acd05.approve,Faculty Allocation: approve,ACD-05,3,NO,NO,NO,NO,YES,YES,NO,NO,ACD-05,REMOVE,N/A,,"§7, §10, §11.1",
+acd05.manage,Faculty Allocation: manage,ACD-05,3,NO,NO,YES,YES,NO,NO,NO,NO,ACD-05,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd05.review,Faculty Allocation: review,ACD-05,3,NO,NO,YES,YES,NO,NO,NO,NO,ACD-05,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd05.view,Faculty Allocation: view,ACD-05,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-05,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd05.view.all,Faculty Allocation: view all,ACD-05,8,NO,NO,YES,YES,YES,YES,NO,NO,ACD-05,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd05.view.own,Faculty Allocation: view own,ACD-05,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-05,REMOVE,N/A,,"§7, §10, §11.1",
+acd05.write,Faculty Allocation: write,ACD-05,5,NO,NO,YES,YES,NO,NO,NO,NO,ACD-05,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd05.write.own,Faculty Allocation: write own,ACD-05,0,NO,NO,NO,NO,NO,NO,NO,NO,ACD-05,REMOVE,N/A,,"§7, §10, §11.1",
+acd06.manage,Student Academic Profile: manage,ACD-06,3,NO,NO,YES,YES,NO,NO,NO,NO,ACD-06,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd06.review,Student Academic Profile: review,ACD-06,3,NO,NO,YES,YES,NO,NO,NO,NO,ACD-06,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd06.view,Student Academic Profile: view,ACD-06,12,NO,NO,YES,YES,YES,YES,NO,NO,ACD-06,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd06.view.all,Student Academic Profile: view all,ACD-06,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-06,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd06.view.own,Student Academic Profile: view own,ACD-06,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-06,REMOVE,N/A,,"§7, §10, §11.1",
+acd06.write,Student Academic Profile: write,ACD-06,5,NO,NO,YES,YES,NO,NO,NO,NO,ACD-06,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd06.write.own,Student Academic Profile: write own,ACD-06,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-06,REMOVE,N/A,,"§7, §10, §11.1",
+acd07.manage,Section & Batch Management: manage,ACD-07,5,NO,NO,YES,YES,NO,NO,NO,NO,ACD-07,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd07.review,Section & Batch Management: review,ACD-07,5,NO,NO,YES,YES,NO,NO,NO,NO,ACD-07,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd07.view,Section & Batch Management: view,ACD-07,13,NO,NO,YES,YES,YES,YES,NO,NO,ACD-07,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd07.view.all,Section & Batch Management: view all,ACD-07,11,NO,NO,YES,YES,YES,YES,NO,NO,ACD-07,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd07.view.own,Section & Batch Management: view own,ACD-07,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-07,REMOVE,N/A,,"§7, §10, §11.1",
+acd07.write,Section & Batch Management: write,ACD-07,5,NO,NO,YES,YES,NO,NO,NO,NO,ACD-07,REMOVE,REMOVE M/W,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.1",Owner decision D-RBAC-M09 & CADM-D3: R04 loses Academic module M/W
+acd07.write.own,Section & Batch Management: write own,ACD-07,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-07,REMOVE,N/A,,"§7, §10, §11.1",
+acd08.manage,Attendance Management: manage,ACD-08,1,NO,NO,NO,NO,NO,NO,NO,NO,ACD-08,REMOVE,N/A,,"§7, §10, §11.1",
+acd08.review,Attendance Management: review,ACD-08,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-08,REMOVE,N/A,,"§7, §10, §11.1",
+acd08.view,Attendance Management: view,ACD-08,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-08,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd08.view.all,Attendance Management: view all,ACD-08,8,NO,NO,YES,YES,YES,YES,NO,NO,ACD-08,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd08.view.own,Attendance Management: view own,ACD-08,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-08,REMOVE,N/A,,"§7, §10, §11.1",
+acd08.write,Attendance Management: write,ACD-08,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-08,REMOVE,N/A,,"§7, §10, §11.1",
+acd08.write.own,Attendance Management: write own,ACD-08,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-08,REMOVE,N/A,,"§7, §10, §11.1",
+acd09.approve,Academic Planning: approve,ACD-09,3,NO,NO,NO,NO,YES,YES,NO,NO,ACD-09,REMOVE,N/A,,"§7, §10, §11.1",
+acd09.manage,Academic Planning: manage,ACD-09,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-09,REMOVE,N/A,,"§7, §10, §11.1",
+acd09.review,Academic Planning: review,ACD-09,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-09,REMOVE,N/A,,"§7, §10, §11.1",
+acd09.view,Academic Planning: view,ACD-09,13,NO,NO,YES,YES,YES,YES,NO,NO,ACD-09,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd09.view.all,Academic Planning: view all,ACD-09,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-09,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd09.view.own,Academic Planning: view own,ACD-09,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-09,REMOVE,N/A,,"§7, §10, §11.1",
+acd09.write,Academic Planning: write,ACD-09,3,NO,NO,NO,NO,NO,NO,NO,NO,ACD-09,REMOVE,N/A,,"§7, §10, §11.1",
+acd09.write.own,Academic Planning: write own,ACD-09,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-09,REMOVE,N/A,,"§7, §10, §11.1",
+acd10.manage,Academic Monitoring & Analytics: manage,ACD-10,1,NO,NO,NO,NO,NO,NO,NO,NO,ACD-10,REMOVE,N/A,,"§7, §10, §11.1",
+acd10.review,Academic Monitoring & Analytics: review,ACD-10,3,NO,NO,NO,NO,NO,NO,NO,NO,ACD-10,REMOVE,N/A,,"§7, §10, §11.1",
+acd10.view,Academic Monitoring & Analytics: view,ACD-10,10,NO,NO,YES,YES,YES,YES,NO,NO,ACD-10,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd10.view.all,Academic Monitoring & Analytics: view all,ACD-10,8,NO,NO,YES,YES,YES,YES,NO,NO,ACD-10,REMOVE,KEEP (V/E scoped),R04 keeps operational view,"§7, §10, §11.1",
+acd10.view.own,Academic Monitoring & Analytics: view own,ACD-10,2,NO,NO,NO,NO,NO,NO,NO,NO,ACD-10,REMOVE,N/A,,"§7, §10, §11.1",
+acd10.write,Academic Monitoring & Analytics: write,ACD-10,1,NO,NO,NO,NO,NO,NO,NO,NO,ACD-10,REMOVE,N/A,,"§7, §10, §11.1",
+adm01.manage,Institute & Tenant Lifecycle: manage,IADM-01,1,NO,NO,YES,NO,NO,NO,NO,NO,IADM-01,KEEP (own institute),REMOVE,R03 Institution Admin,"§8, §21.1",
+adm01.review,Institute & Tenant Lifecycle: review,IADM-01,1,NO,NO,YES,NO,NO,NO,NO,NO,IADM-01,KEEP (own institute),REMOVE,R03 Institution Admin,"§8, §21.1",
+adm01.view,Institute & Tenant Lifecycle: view,IADM-01,3,NO,NO,YES,YES,NO,NO,YES,NO,IADM-01,KEEP (own institute),REMOVE,R03 Institution Admin,"§8, §21.1",
+adm01.view.all,Institute & Tenant Lifecycle: view all,IADM-01,3,NO,NO,YES,YES,NO,NO,YES,NO,IADM-01,KEEP (own institute),REMOVE,R03 Institution Admin,"§8, §21.1",
+adm01.write,Institute & Tenant Lifecycle: write,IADM-01,1,NO,NO,YES,NO,NO,NO,NO,NO,IADM-01,KEEP (own institute),REMOVE,R03 Institution Admin,"§8, §21.1",
+adm02.manage,Platform Config & Policy: manage,IADM-02,2,NO,NO,YES,YES,NO,NO,NO,NO,IADM-02,KEEP (allowed settings),REMOVE M -> KEEP V,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm02.review,Platform Config & Policy: review,IADM-02,2,NO,NO,YES,YES,NO,NO,NO,NO,IADM-02,KEEP (allowed settings),REMOVE M -> KEEP V,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm02.view,Platform Config & Policy: view,IADM-02,3,NO,NO,YES,YES,NO,NO,YES,NO,IADM-02,KEEP (allowed settings),REMOVE M -> KEEP V,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm02.view.all,Platform Config & Policy: view all,IADM-02,3,NO,NO,YES,YES,NO,NO,YES,NO,IADM-02,KEEP (allowed settings),REMOVE M -> KEEP V,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm02.view.own,Platform Config & Policy: view own,IADM-02,0,NO,NO,NO,NO,NO,NO,NO,NO,IADM-02,KEEP (allowed settings),N/A,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm02.write,Platform Config & Policy: write,IADM-02,2,NO,NO,YES,YES,NO,NO,NO,NO,IADM-02,KEEP (allowed settings),REMOVE M -> KEEP V,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm02.write.own,Platform Config & Policy: write own,IADM-02,0,NO,NO,NO,NO,NO,NO,NO,NO,IADM-02,KEEP (allowed settings),N/A,R03 Institution Admin (M); R04 V effective only,"§8, §9",
+adm03.manage,API Clients & Machine Identities: manage,NO OWNER (DORMANT),0,NO,NO,NO,NO,NO,NO,NO,NO,NO OWNER (DORMANT),DORMANT,DORMANT,Dormant per owner decision IADM-D5,"§2 (IADM-D5), §14, §21.7",Dormant outside IADM/CADM per owner decision IADM-D5
+adm03.view,API Clients & Machine Identities: view,NO OWNER (DORMANT),3,NO,NO,YES,YES,NO,NO,YES,NO,NO OWNER (DORMANT),DORMANT,DORMANT,Dormant per owner decision IADM-D5,"§2 (IADM-D5), §14, §21.7",Dormant outside IADM/CADM per owner decision IADM-D5
+adm03.view.all,API Clients & Machine Identities: view all,NO OWNER (DORMANT),3,NO,NO,YES,YES,NO,NO,YES,NO,NO OWNER (DORMANT),DORMANT,DORMANT,Dormant per owner decision IADM-D5,"§2 (IADM-D5), §14, §21.7",Dormant outside IADM/CADM per owner decision IADM-D5
+adm03.view.own,API Clients & Machine Identities: view own,NO OWNER (DORMANT),0,NO,NO,NO,NO,NO,NO,NO,NO,NO OWNER (DORMANT),DORMANT,DORMANT,Dormant per owner decision IADM-D5,"§2 (IADM-D5), §14, §21.7",Dormant outside IADM/CADM per owner decision IADM-D5
+adm03.write,API Clients & Machine Identities: write,NO OWNER (DORMANT),2,NO,NO,YES,YES,NO,NO,NO,NO,NO OWNER (DORMANT),DORMANT,DORMANT,Dormant per owner decision IADM-D5,"§2 (IADM-D5), §14, §21.7",Dormant outside IADM/CADM per owner decision IADM-D5
+adm03.write.own,API Clients & Machine Identities: write own,NO OWNER (DORMANT),0,NO,NO,NO,NO,NO,NO,NO,NO,NO OWNER (DORMANT),DORMANT,DORMANT,Dormant per owner decision IADM-D5,"§2 (IADM-D5), §14, §21.7",Dormant outside IADM/CADM per owner decision IADM-D5
+adm04.view,Student & Faculty Directory: view,CADM-04,3,NO,NO,YES,YES,NO,NO,YES,NO,CADM-04,REMOVE after handover,KEEP (admin attrs only),R04 College Admin,"§9, §15 (STM-01/CADM-04)",
+adm04.view.all,Student & Faculty Directory: view all,CADM-04,3,NO,NO,YES,YES,NO,NO,YES,NO,CADM-04,REMOVE after handover,KEEP (admin attrs only),R04 College Admin,"§9, §15 (STM-01/CADM-04)",
+adm05.manage,Campus Resources & Facilities: manage,CADM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-05,REMOVE,KEEP (provisional),R04 College Admin / R24 Facility Manager,§9,
+adm05.view,Campus Resources & Facilities: view,CADM-05,3,NO,NO,YES,YES,NO,NO,YES,NO,CADM-05,REMOVE,KEEP (provisional),R04 College Admin / R24 Facility Manager,§9,
+adm05.view.all,Campus Resources & Facilities: view all,CADM-05,3,NO,NO,YES,YES,NO,NO,YES,NO,CADM-05,REMOVE,KEEP (provisional),R04 College Admin / R24 Facility Manager,§9,
+adm05.write,Campus Resources & Facilities: write,CADM-05,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-05,REMOVE,KEEP (provisional),R04 College Admin / R24 Facility Manager,§9,
+adm05.write.own,Campus Resources & Facilities: write own,CADM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-05,REMOVE,KEEP (provisional),R04 College Admin / R24 Facility Manager,§9,
+adm06.manage,Platform Reporting & Analytics: manage,CADM-06,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm06.review,Platform Reporting & Analytics: review,CADM-06,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm06.view,Platform Reporting & Analytics: view,CADM-06,6,NO,NO,YES,YES,YES,YES,YES,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm06.view.all,Platform Reporting & Analytics: view all,CADM-06,6,NO,NO,YES,YES,YES,YES,YES,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm06.view.own,Platform Reporting & Analytics: view own,CADM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm06.write,Platform Reporting & Analytics: write,CADM-06,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm06.write.own,Platform Reporting & Analytics: write own,CADM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-06,REMOVE (consumes domain APIs),KEEP (college scope),R04 College Admin,§9,
+adm07.approve,Security & Compliance Governance: approve,CADM-07,2,NO,NO,NO,NO,YES,NO,NO,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.manage,Security & Compliance Governance: manage,CADM-07,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.review,Security & Compliance Governance: review,CADM-07,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.view,Security & Compliance Governance: view,CADM-07,8,NO,NO,YES,YES,YES,NO,YES,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.view.all,Security & Compliance Governance: view all,CADM-07,8,NO,NO,YES,YES,YES,NO,YES,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.view.own,Security & Compliance Governance: view own,CADM-07,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.write,Security & Compliance Governance: write,CADM-07,3,NO,NO,YES,YES,NO,NO,NO,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm07.write.own,Security & Compliance Governance: write own,CADM-07,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-07,REMOVE,KEEP (compliance records),R04 College Admin,§9,
+adm08.manage,Audit Health & Operations: manage,CADM-08,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm08.review,Audit Health & Operations: review,CADM-08,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm08.view,Audit Health & Operations: view,CADM-08,6,NO,NO,YES,YES,YES,NO,YES,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm08.view.all,Audit Health & Operations: view all,CADM-08,6,NO,NO,YES,YES,YES,NO,YES,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm08.view.own,Audit Health & Operations: view own,CADM-08,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm08.write,Audit Health & Operations: write,CADM-08,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm08.write.own,Audit Health & Operations: write own,CADM-08,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-08,REMOVE,KEEP (college scope),R04 College Admin,§9,
+adm09.approve,User Admin & Timetable: approve,CADM-09,2,NO,NO,NO,NO,YES,NO,NO,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.manage,User Admin & Timetable: manage,CADM-09,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.review,User Admin & Timetable: review,CADM-09,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.view,User Admin & Timetable: view,CADM-09,5,NO,NO,YES,YES,YES,NO,YES,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.view.all,User Admin & Timetable: view all,CADM-09,5,NO,NO,YES,YES,YES,NO,YES,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.view.own,User Admin & Timetable: view own,CADM-09,0,NO,NO,NO,NO,NO,NO,NO,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.write,User Admin & Timetable: write,CADM-09,2,NO,NO,YES,YES,NO,NO,NO,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+adm09.write.own,User Admin & Timetable: write own,CADM-09,8,NO,NO,NO,NO,YES,YES,NO,NO,CADM-09,REMOVE,KEEP (college scope),R04 College Admin,"§2 (CADM-D1), §9",
+audit.admin,Audit Trail & Event Logging: admin,IADM-08 / Shared,1,NO,NO,NO,NO,NO,NO,YES,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",Deviation: R28 Auditor holds write/admin in DB; Matrix §8/§21.2 mandates read-only V/AU/E
+audit.admin.own,Audit Trail & Event Logging: admin own,IADM-08 / Shared,0,NO,NO,NO,NO,NO,NO,NO,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",
+audit.read,Audit Trail & Event Logging: read,IADM-08 / Shared,5,NO,NO,YES,YES,YES,NO,YES,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",
+audit.read.own,Audit Trail & Event Logging: read own,IADM-08 / Shared,3,NO,NO,NO,NO,NO,NO,NO,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",
+audit.read.payload,Audit Trail & Event Logging: read payload,IADM-08 / Shared,1,NO,NO,NO,NO,NO,NO,YES,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",
+audit.read.payload.own,Audit Trail & Event Logging: read payload own,IADM-08 / Shared,0,NO,NO,NO,NO,NO,NO,NO,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",
+audit.write,Audit Trail & Event Logging: write,IADM-08 / Shared,1,NO,NO,NO,NO,NO,NO,YES,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",Deviation: R28 Auditor holds write/admin in DB; Matrix §8/§21.2 mandates read-only V/AU/E
+audit.write.own,Audit Trail & Event Logging: write own,IADM-08 / Shared,0,NO,NO,NO,NO,NO,NO,NO,NO,IADM-08 / Shared,KEEP (V own institute),KEEP (V own college),,"§8, §12, §21.2",
+cam01.approve,Announcement Groups: approve,CAM-01,2,NO,NO,NO,NO,YES,NO,NO,NO,CAM-01,REMOVE,N/A,,"§7, §11.6",
+cam01.manage,Announcement Groups: manage,CAM-01,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-01,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam01.review,Announcement Groups: review,CAM-01,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-01,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam01.view,Announcement Groups: view,CAM-01,25,NO,NO,YES,YES,YES,YES,YES,NO,CAM-01,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam01.view.all,Announcement Groups: view all,CAM-01,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-01,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam01.view.own,Announcement Groups: view own,CAM-01,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-01,REMOVE,N/A,,"§7, §11.6",
+cam01.write,Announcement Groups: write,CAM-01,4,NO,NO,YES,YES,NO,NO,NO,NO,CAM-01,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam01.write.own,Announcement Groups: write own,CAM-01,0,NO,NO,NO,NO,NO,NO,NO,NO,CAM-01,REMOVE,N/A,,"§7, §11.6",
+cam02.approve,Targeted Messaging: approve,CAM-02,2,NO,NO,NO,NO,YES,NO,NO,NO,CAM-02,REMOVE,N/A,,"§7, §11.6",
+cam02.manage,Targeted Messaging: manage,CAM-02,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-02,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam02.review,Targeted Messaging: review,CAM-02,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-02,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam02.view,Targeted Messaging: view,CAM-02,8,NO,NO,YES,YES,YES,NO,NO,NO,CAM-02,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam02.view.all,Targeted Messaging: view all,CAM-02,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-02,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam02.view.own,Targeted Messaging: view own,CAM-02,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-02,REMOVE,N/A,,"§7, §11.6",
+cam02.write,Targeted Messaging: write,CAM-02,4,NO,NO,YES,YES,NO,NO,NO,NO,CAM-02,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam02.write.own,Targeted Messaging: write own,CAM-02,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-02,REMOVE,N/A,,"§7, §11.6",
+cam03.approve,Email/SMS Gateway: approve,CAM-03,2,NO,NO,NO,NO,YES,NO,NO,NO,CAM-03,REMOVE,N/A,,"§7, §11.6",
+cam03.manage,Email/SMS Gateway: manage,CAM-03,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-03,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam03.review,Email/SMS Gateway: review,CAM-03,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-03,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam03.view,Email/SMS Gateway: view,CAM-03,8,NO,NO,YES,YES,YES,NO,NO,NO,CAM-03,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam03.view.all,Email/SMS Gateway: view all,CAM-03,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-03,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam03.view.own,Email/SMS Gateway: view own,CAM-03,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-03,REMOVE,N/A,,"§7, §11.6",
+cam03.write,Email/SMS Gateway: write,CAM-03,4,NO,NO,YES,YES,NO,NO,NO,NO,CAM-03,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam03.write.own,Email/SMS Gateway: write own,CAM-03,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-03,REMOVE,N/A,,"§7, §11.6",
+cam04.approve,Push Notifications: approve,CAM-04,2,NO,NO,NO,NO,YES,NO,NO,NO,CAM-04,REMOVE,N/A,,"§7, §11.6",
+cam04.manage,Push Notifications: manage,CAM-04,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-04,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam04.review,Push Notifications: review,CAM-04,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-04,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam04.view,Push Notifications: view,CAM-04,8,NO,NO,YES,YES,YES,NO,NO,NO,CAM-04,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam04.view.all,Push Notifications: view all,CAM-04,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-04,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam04.view.own,Push Notifications: view own,CAM-04,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-04,REMOVE,N/A,,"§7, §11.6",
+cam04.write,Push Notifications: write,CAM-04,4,NO,NO,YES,YES,NO,NO,NO,NO,CAM-04,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam04.write.own,Push Notifications: write own,CAM-04,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-04,REMOVE,N/A,,"§7, §11.6",
+cam05.approve,Event Notifications: approve,CAM-05,2,NO,NO,NO,NO,YES,NO,NO,NO,CAM-05,REMOVE,N/A,,"§7, §11.6",
+cam05.manage,Event Notifications: manage,CAM-05,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-05,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam05.review,Event Notifications: review,CAM-05,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-05,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam05.view,Event Notifications: view,CAM-05,8,NO,NO,YES,YES,YES,NO,NO,NO,CAM-05,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam05.view.all,Event Notifications: view all,CAM-05,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-05,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam05.view.own,Event Notifications: view own,CAM-05,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-05,REMOVE,N/A,,"§7, §11.6",
+cam05.write,Event Notifications: write,CAM-05,4,NO,NO,YES,YES,NO,NO,NO,NO,CAM-05,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam05.write.own,Event Notifications: write own,CAM-05,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-05,REMOVE,N/A,,"§7, §11.6",
+cam06.approve,Survey & Feedback: approve,CAM-06,2,NO,NO,NO,NO,YES,NO,NO,NO,CAM-06,REMOVE,N/A,,"§7, §11.6",
+cam06.execute.own,Survey & Feedback: execute own,CAM-06,15,NO,NO,YES,YES,YES,YES,NO,NO,CAM-06,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam06.manage,Survey & Feedback: manage,CAM-06,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-06,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam06.review,Survey & Feedback: review,CAM-06,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-06,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam06.view,Survey & Feedback: view,CAM-06,10,NO,NO,YES,YES,YES,NO,NO,NO,CAM-06,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam06.view.all,Survey & Feedback: view all,CAM-06,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-06,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam06.view.own,Survey & Feedback: view own,CAM-06,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-06,REMOVE,N/A,,"§7, §11.6",
+cam06.write,Survey & Feedback: write,CAM-06,4,NO,NO,YES,YES,NO,NO,NO,NO,CAM-06,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam06.write.own,Survey & Feedback: write own,CAM-06,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-06,REMOVE,N/A,,"§7, §11.6",
+cam07.approve,Emergency Alerts: approve,CAM-07,3,NO,NO,NO,NO,YES,NO,NO,NO,CAM-07,REMOVE,N/A,,"§7, §11.6",
+cam07.execute.own,Emergency Alerts: execute own,CAM-07,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-07,REMOVE,N/A,,"§7, §11.6",
+cam07.manage,Emergency Alerts: manage,CAM-07,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-07,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam07.review,Emergency Alerts: review,CAM-07,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-07,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam07.view,Emergency Alerts: view,CAM-07,10,NO,NO,YES,YES,YES,NO,NO,NO,CAM-07,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam07.view.all,Emergency Alerts: view all,CAM-07,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-07,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam07.view.own,Emergency Alerts: view own,CAM-07,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-07,REMOVE,N/A,,"§7, §11.6",
+cam07.write,Emergency Alerts: write,CAM-07,3,NO,NO,YES,YES,NO,NO,NO,NO,CAM-07,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam07.write.own,Emergency Alerts: write own,CAM-07,15,NO,NO,YES,YES,YES,YES,NO,NO,CAM-07,REMOVE,REMOVE M/W,R19 Communication Manager,"§7, §11.6",
+cam08.export,Communication Analytics: export,CAM-08,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-08,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam08.manage,Communication Analytics: manage,CAM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,CAM-08,REMOVE,N/A,,"§7, §11.6",
+cam08.review,Communication Analytics: review,CAM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,CAM-08,REMOVE,N/A,,"§7, §11.6",
+cam08.view,Communication Analytics: view,CAM-08,8,NO,NO,YES,YES,YES,NO,NO,NO,CAM-08,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam08.view.all,Communication Analytics: view all,CAM-08,6,NO,NO,YES,YES,YES,NO,NO,NO,CAM-08,REMOVE,KEEP (CFG college prefs only),R04 configures college preferences only,"§7, §11.6",
+cam08.view.own,Communication Analytics: view own,CAM-08,2,NO,NO,NO,NO,NO,NO,NO,NO,CAM-08,REMOVE,N/A,,"§7, §11.6",
+cam08.write,Communication Analytics: write,CAM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,CAM-08,REMOVE,N/A,,"§7, §11.6",
+cfg.view,System Configuration: view,SHARED,9,NO,NO,YES,YES,YES,NO,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+cfg.view.own,System Configuration: view own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.comment,Core Platform & Profiles: comment,SHARED,25,NO,NO,YES,YES,YES,YES,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.comment.own,Core Platform & Profiles: comment own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.directory.view,Core Platform & Profiles: directory view,SHARED,19,NO,NO,YES,YES,YES,YES,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.pii.read,Core Platform & Profiles: pii read,SHARED,5,NO,NO,YES,YES,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.pii.read.own,Core Platform & Profiles: pii read own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.pii.write,Core Platform & Profiles: pii write,SHARED,4,NO,NO,YES,YES,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.pii.write.own,Core Platform & Profiles: pii write own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.view.all,Core Platform & Profiles: view all,SHARED,1,NO,NO,YES,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.write,Core Platform & Profiles: write,SHARED,10,NO,NO,YES,YES,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+core.write.own,Core Platform & Profiles: write own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+doc.admin,Document Management: admin,STM-06,4,NO,NO,YES,YES,NO,NO,NO,NO,STM-06,N/A,KEEP (scoped),R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.admin.own,Document Management: admin own,STM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,STM-06,N/A,N/A,R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.manage,Document Management: manage,STM-06,5,NO,NO,YES,YES,NO,NO,NO,NO,STM-06,N/A,KEEP (scoped),R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.view,Document Management: view,STM-06,18,NO,NO,YES,YES,YES,YES,YES,NO,STM-06,N/A,KEEP (scoped),R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.view.confidential,Document Management: view confidential,STM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,STM-06,N/A,N/A,R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.view.own,Document Management: view own,STM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,STM-06,N/A,N/A,R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.write,Document Management: write,STM-06,12,NO,NO,YES,YES,NO,NO,NO,NO,STM-06,N/A,KEEP (scoped),R31 Registrar / R36 Document Verifier,§15 (STM-06),
+doc.write.own,Document Management: write own,STM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,STM-06,N/A,N/A,R31 Registrar / R36 Document Verifier,§15 (STM-06),
+exm01.manage,Exam Registration: manage,EXM-01,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm01.review,Exam Registration: review,EXM-01,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm01.view,Exam Registration: view,EXM-01,8,NO,NO,NO,NO,YES,YES,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm01.view.all,Exam Registration: view all,EXM-01,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm01.view.own,Exam Registration: view own,EXM-01,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm01.write,Exam Registration: write,EXM-01,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm01.write.own,Exam Registration: write own,EXM-01,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-01,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.approve,Exam Scheduling: approve,EXM-02,4,NO,NO,NO,NO,YES,YES,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.manage,Exam Scheduling: manage,EXM-02,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.view,Exam Scheduling: view,EXM-02,10,NO,NO,NO,NO,YES,YES,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.view.all,Exam Scheduling: view all,EXM-02,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.view.own,Exam Scheduling: view own,EXM-02,3,NO,NO,NO,NO,NO,NO,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.write,Exam Scheduling: write,EXM-02,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm02.write.own,Exam Scheduling: write own,EXM-02,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-02,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.approve,Hall Ticket Management: approve,EXM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.manage,Hall Ticket Management: manage,EXM-03,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.publish,Hall Ticket Management: publish,EXM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.view,Hall Ticket Management: view,EXM-03,9,NO,NO,NO,NO,YES,YES,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.view.all,Hall Ticket Management: view all,EXM-03,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.view.own,Hall Ticket Management: view own,EXM-03,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.write,Hall Ticket Management: write,EXM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm03.write.own,Hall Ticket Management: write own,EXM-03,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-03,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.execute.own,Valuation Management: execute own,EXM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.manage,Valuation Management: manage,EXM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.review,Valuation Management: review,EXM-04,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.view,Valuation Management: view,EXM-04,4,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.view.all,Valuation Management: view all,EXM-04,3,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.view.own,Valuation Management: view own,EXM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.write,Valuation Management: write,EXM-04,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm04.write.own,Valuation Management: write own,EXM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-04,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.approve,Marks Approval: approve,EXM-05,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.manage,Marks Approval: manage,EXM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.review,Marks Approval: review,EXM-05,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.review.own,Marks Approval: review own,EXM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.view,Marks Approval: view,EXM-05,9,NO,NO,NO,NO,YES,YES,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.view.all,Marks Approval: view all,EXM-05,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.view.own,Marks Approval: view own,EXM-05,3,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.write,Marks Approval: write,EXM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm05.write.own,Marks Approval: write own,EXM-05,3,NO,NO,NO,NO,NO,NO,NO,NO,EXM-05,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm06.approve,Mark Cards: approve,EXM-06,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-06,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm06.publish,Mark Cards: publish,EXM-06,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-06,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm06.view,Mark Cards: view,EXM-06,9,NO,NO,NO,NO,YES,YES,NO,NO,EXM-06,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm06.view.all,Mark Cards: view all,EXM-06,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-06,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm06.view.own,Mark Cards: view own,EXM-06,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-06,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm06.write,Mark Cards: write,EXM-06,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-06,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.execute.own,Script Valuation: execute own,EXM-07,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.manage,Script Valuation: manage,EXM-07,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.review,Script Valuation: review,EXM-07,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.view,Script Valuation: view,EXM-07,4,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.view.all,Script Valuation: view all,EXM-07,3,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.view.own,Script Valuation: view own,EXM-07,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.write,Script Valuation: write,EXM-07,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm07.write.own,Script Valuation: write own,EXM-07,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-07,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.approve,Results Management: approve,EXM-08,4,NO,NO,NO,NO,YES,YES,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.manage,Results Management: manage,EXM-08,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.publish,Results Management: publish,EXM-08,4,NO,NO,NO,NO,YES,YES,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.review,Results Management: review,EXM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.view,Results Management: view,EXM-08,8,NO,NO,NO,NO,YES,YES,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.view.all,Results Management: view all,EXM-08,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.view.own,Results Management: view own,EXM-08,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.write,Results Management: write,EXM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm08.write.own,Results Management: write own,EXM-08,0,NO,NO,NO,NO,NO,NO,NO,NO,EXM-08,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.export,Examination Reporting: export,EXM-09,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.export.own,Examination Reporting: export own,EXM-09,2,NO,NO,NO,NO,NO,NO,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.manage,Examination Reporting: manage,EXM-09,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.review,Examination Reporting: review,EXM-09,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.view,Examination Reporting: view,EXM-09,9,NO,NO,NO,NO,YES,YES,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.view.all,Examination Reporting: view all,EXM-09,6,NO,NO,NO,NO,YES,YES,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.view.own,Examination Reporting: view own,EXM-09,3,NO,NO,NO,NO,NO,NO,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+exm09.write,Examination Reporting: write,EXM-09,1,NO,NO,NO,NO,NO,NO,NO,NO,EXM-09,REMOVE,REMOVE,R12 Controller of Examinations / R13 Exam Cell,"§7, §10, §11.3",
+fin.bank.read,Financial Core Banking: bank read,FIN-SHARED,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-SHARED,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin.bank.read.own,Financial Core Banking: bank read own,FIN-SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-SHARED,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin.bank.write,Financial Core Banking: bank write,FIN-SHARED,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-SHARED,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin.bank.write.own,Financial Core Banking: bank write own,FIN-SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-SHARED,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin01.approve,Fee Structure: approve,FIN-01,2,NO,NO,NO,NO,YES,NO,NO,NO,FIN-01,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin01.manage,Fee Structure: manage,FIN-01,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-01,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin01.review,Fee Structure: review,FIN-01,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-01,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin01.view,Fee Structure: view,FIN-01,9,NO,NO,YES,YES,YES,NO,NO,NO,FIN-01,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin01.view.all,Fee Structure: view all,FIN-01,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-01,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin01.view.own,Fee Structure: view own,FIN-01,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-01,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin01.write,Fee Structure: write,FIN-01,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-01,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin01.write.own,Fee Structure: write own,FIN-01,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-01,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.approve,Fee Collection: approve,FIN-02,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.execute,Fee Collection: execute,FIN-02,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.execute.own,Fee Collection: execute own,FIN-02,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.manage,Fee Collection: manage,FIN-02,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.review,Fee Collection: review,FIN-02,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.view,Fee Collection: view,FIN-02,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-02,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin02.view.all,Fee Collection: view all,FIN-02,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-02,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin02.view.own,Fee Collection: view own,FIN-02,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.write,Fee Collection: write,FIN-02,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin02.write.own,Fee Collection: write own,FIN-02,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-02,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.approve,Expense Management: approve,FIN-03,2,NO,NO,NO,NO,YES,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.execute,Expense Management: execute,FIN-03,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.execute.own,Expense Management: execute own,FIN-03,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.manage,Expense Management: manage,FIN-03,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.review,Expense Management: review,FIN-03,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.view,Expense Management: view,FIN-03,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-03,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin03.view.all,Expense Management: view all,FIN-03,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-03,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin03.view.own,Expense Management: view own,FIN-03,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin03.write,Expense Management: write,FIN-03,5,NO,NO,YES,YES,NO,NO,NO,NO,FIN-03,REMOVE,REMOVE M/W,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",
+fin03.write.own,Expense Management: write own,FIN-03,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-03,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin04.approve,Tax Management: approve,FIN-04,2,NO,NO,NO,NO,YES,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.manage,Tax Management: manage,FIN-04,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.review,Tax Management: review,FIN-04,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.view,Tax Management: view,FIN-04,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.view.all,Tax Management: view all,FIN-04,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.view.own,Tax Management: view own,FIN-04,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.write,Tax Management: write,FIN-04,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin04.write.own,Tax Management: write own,FIN-04,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-04,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin05.approve,Scholarship Management: approve,FIN-05,3,NO,NO,NO,NO,YES,NO,NO,NO,FIN-05,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin05.manage,Scholarship Management: manage,FIN-05,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-05,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin05.review,Scholarship Management: review,FIN-05,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-05,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin05.view,Scholarship Management: view,FIN-05,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-05,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin05.view.all,Scholarship Management: view all,FIN-05,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-05,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin05.view.own,Scholarship Management: view own,FIN-05,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-05,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin05.write,Scholarship Management: write,FIN-05,3,NO,NO,YES,YES,NO,NO,NO,NO,FIN-05,REMOVE,REMOVE M/W,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",
+fin05.write.own,Scholarship Management: write own,FIN-05,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-05,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin06.approve,Payroll Management: approve,FIN-06,2,NO,NO,NO,NO,YES,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.execute,Payroll Management: execute,FIN-06,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.manage,Payroll Management: manage,FIN-06,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.review,Payroll Management: review,FIN-06,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.view,Payroll Management: view,FIN-06,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.view.all,Payroll Management: view all,FIN-06,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.view.own,Payroll Management: view own,FIN-06,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.write,Payroll Management: write,FIN-06,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin06.write.own,Payroll Management: write own,FIN-06,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-06,REMOVE,REMOVE,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",Owner decision D-RBAC-M12: R04 removed from Tax (FIN-04) and Payroll (FIN-06)
+fin07.export,Finance Reports: export,FIN-07,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-07,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin07.manage,Finance Reports: manage,FIN-07,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-07,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin07.review,Finance Reports: review,FIN-07,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-07,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin07.view,Finance Reports: view,FIN-07,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-07,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin07.view.all,Finance Reports: view all,FIN-07,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-07,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin07.write,Finance Reports: write,FIN-07,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-07,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin08.manage,Finance Audit & Reconciliation: manage,FIN-08,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-08,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin08.review,Finance Audit & Reconciliation: review,FIN-08,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-08,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin08.view,Finance Audit & Reconciliation: view,FIN-08,7,NO,NO,YES,YES,YES,NO,YES,NO,FIN-08,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin08.view.all,Finance Audit & Reconciliation: view all,FIN-08,7,NO,NO,YES,YES,YES,NO,YES,NO,FIN-08,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin08.view.own,Finance Audit & Reconciliation: view own,FIN-08,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-08,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin08.write,Finance Audit & Reconciliation: write,FIN-08,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-08,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin08.write.own,Finance Audit & Reconciliation: write own,FIN-08,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-08,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin09.approve,Budget Management: approve,FIN-09,2,NO,NO,NO,NO,YES,NO,NO,NO,FIN-09,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin09.manage,Budget Management: manage,FIN-09,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-09,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin09.review,Budget Management: review,FIN-09,2,NO,NO,NO,NO,NO,NO,NO,NO,FIN-09,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin09.view,Budget Management: view,FIN-09,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-09,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin09.view.all,Budget Management: view all,FIN-09,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-09,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin09.view.own,Budget Management: view own,FIN-09,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-09,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin09.write,Budget Management: write,FIN-09,4,NO,NO,YES,YES,NO,NO,NO,NO,FIN-09,REMOVE,REMOVE M/W,R15 Finance Manager / R16 Accountant,"§7, §10, §11.4, §21.3",
+fin09.write.own,Budget Management: write own,FIN-09,0,NO,NO,NO,NO,NO,NO,NO,NO,FIN-09,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin10.export,Financial Analytics: export,FIN-10,6,NO,NO,YES,YES,YES,NO,NO,NO,FIN-10,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin10.manage,Financial Analytics: manage,FIN-10,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-10,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin10.review,Financial Analytics: review,FIN-10,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-10,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+fin10.view,Financial Analytics: view,FIN-10,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-10,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin10.view.all,Financial Analytics: view all,FIN-10,7,NO,NO,YES,YES,YES,NO,NO,NO,FIN-10,REMOVE,KEEP (V/E scoped),R04 keeps view/export only,"§7, §10, §11.4, §21.3",
+fin10.write,Financial Analytics: write,FIN-10,1,NO,NO,NO,NO,NO,NO,NO,NO,FIN-10,REMOVE,N/A,,"§7, §10, §11.4, §21.3",
+hrm01.manage,Employee Information: manage,HRM-01,3,NO,NO,YES,YES,NO,NO,NO,NO,HRM-01,REMOVE,REMOVE M/W,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",
+hrm01.review,Employee Information: review,HRM-01,3,NO,NO,YES,YES,NO,NO,NO,NO,HRM-01,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm01.view,Employee Information: view,HRM-01,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-01,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm01.view.all,Employee Information: view all,HRM-01,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-01,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm01.view.own,Employee Information: view own,HRM-01,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-01,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm01.write,Employee Information: write,HRM-01,4,NO,NO,YES,YES,NO,NO,NO,NO,HRM-01,REMOVE,REMOVE M/W,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",
+hrm01.write.own,Employee Information: write own,HRM-01,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-01,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.approve,Leave Management: approve,HRM-02,3,NO,NO,NO,NO,YES,NO,NO,NO,HRM-02,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.execute,Leave Management: execute,HRM-02,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-02,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.manage,Leave Management: manage,HRM-02,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-02,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.review,Leave Management: review,HRM-02,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-02,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.view,Leave Management: view,HRM-02,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-02,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm02.view.all,Leave Management: view all,HRM-02,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-02,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm02.view.own,Leave Management: view own,HRM-02,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-02,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.write,Leave Management: write,HRM-02,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-02,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm02.write.own,Leave Management: write own,HRM-02,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-02,REMOVE,REMOVE M/W,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",
+hrm03.manage,Attendance & Timesheets: manage,HRM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-03,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm03.review,Attendance & Timesheets: review,HRM-03,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-03,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm03.view,Attendance & Timesheets: view,HRM-03,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-03,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm03.view.all,Attendance & Timesheets: view all,HRM-03,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-03,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm03.view.own,Attendance & Timesheets: view own,HRM-03,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-03,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm03.write,Attendance & Timesheets: write,HRM-03,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-03,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm03.write.own,Attendance & Timesheets: write own,HRM-03,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-03,REMOVE,REMOVE M/W,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",
+hrm04.approve,Performance Management: approve,HRM-04,2,NO,NO,NO,NO,YES,NO,NO,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.manage,Performance Management: manage,HRM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.review,Performance Management: review,HRM-04,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.view,Performance Management: view,HRM-04,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.view.all,Performance Management: view all,HRM-04,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.view.own,Performance Management: view own,HRM-04,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.write,Performance Management: write,HRM-04,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm04.write.own,Performance Management: write own,HRM-04,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-04,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.approve,Payroll Fixation: approve,HRM-05,2,NO,NO,NO,NO,YES,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.manage,Payroll Fixation: manage,HRM-05,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.review,Payroll Fixation: review,HRM-05,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.view,Payroll Fixation: view,HRM-05,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.view.all,Payroll Fixation: view all,HRM-05,6,NO,NO,YES,YES,YES,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.view.own,Payroll Fixation: view own,HRM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.write,Payroll Fixation: write,HRM-05,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm05.write.own,Payroll Fixation: write own,HRM-05,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-05,REMOVE,REMOVE,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",Owner decision D-RBAC-M12: R04 removed from Performance (HRM-04) and Payroll Fixation (HRM-05)
+hrm06.approve,Recruitment & Onboarding: approve,HRM-06,2,NO,NO,NO,NO,YES,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm06.execute,Recruitment & Onboarding: execute,HRM-06,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm06.manage,Recruitment & Onboarding: manage,HRM-06,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm06.review,Recruitment & Onboarding: review,HRM-06,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm06.view,Recruitment & Onboarding: view,HRM-06,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-06,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm06.view.all,Recruitment & Onboarding: view all,HRM-06,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-06,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm06.view.own,Recruitment & Onboarding: view own,HRM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm06.write,Recruitment & Onboarding: write,HRM-06,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm06.write.own,Recruitment & Onboarding: write own,HRM-06,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-06,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm07.approve,Exit Management: approve,HRM-07,2,NO,NO,NO,NO,YES,NO,NO,NO,HRM-07,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm07.manage,Exit Management: manage,HRM-07,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-07,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm07.review,Exit Management: review,HRM-07,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-07,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm07.view,Exit Management: view,HRM-07,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-07,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm07.view.all,Exit Management: view all,HRM-07,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-07,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm07.write,Exit Management: write,HRM-07,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-07,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm07.write.own,Exit Management: write own,HRM-07,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-07,REMOVE,REMOVE M/W,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",
+hrm08.export,HR Analytics & Reports: export,HRM-08,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-08,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm08.manage,HR Analytics & Reports: manage,HRM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-08,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm08.review,HR Analytics & Reports: review,HRM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-08,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm08.view,HR Analytics & Reports: view,HRM-08,8,NO,NO,YES,YES,YES,NO,NO,NO,HRM-08,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm08.view.all,HR Analytics & Reports: view all,HRM-08,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-08,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm08.write,HR Analytics & Reports: write,HRM-08,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-08,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm09.approve,Training & Development: approve,HRM-09,2,NO,NO,NO,NO,YES,NO,NO,NO,HRM-09,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm09.manage,Training & Development: manage,HRM-09,1,NO,NO,NO,NO,NO,NO,NO,NO,HRM-09,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm09.review,Training & Development: review,HRM-09,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-09,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm09.view,Training & Development: view,HRM-09,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-09,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm09.view.all,Training & Development: view all,HRM-09,7,NO,NO,YES,YES,YES,NO,NO,NO,HRM-09,REMOVE,KEEP (V directory only),R04 keeps view only,"§7, §10, §11.5, §21.3",
+hrm09.view.own,Training & Development: view own,HRM-09,0,NO,NO,NO,NO,NO,NO,NO,NO,HRM-09,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm09.write,Training & Development: write,HRM-09,2,NO,NO,NO,NO,NO,NO,NO,NO,HRM-09,REMOVE,N/A,,"§7, §10, §11.5, §21.3",
+hrm09.write.own,Training & Development: write own,HRM-09,25,NO,NO,YES,YES,YES,YES,YES,NO,HRM-09,REMOVE,REMOVE M/W,R17 HR Manager / R18 HR Officer,"§7, §10, §11.5, §21.3",
+lms01.manage,LMS Course Management: manage,LMS-01,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms01.review,LMS Course Management: review,LMS-01,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms01.view,LMS Course Management: view,LMS-01,10,NO,NO,NO,NO,YES,YES,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms01.view.all,LMS Course Management: view all,LMS-01,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms01.view.own,LMS Course Management: view own,LMS-01,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms01.write,LMS Course Management: write,LMS-01,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms01.write.own,LMS Course Management: write own,LMS-01,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-01,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.manage,LMS Course Content: manage,LMS-02,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.manage.own,LMS Course Content: manage own,LMS-02,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.review,LMS Course Content: review,LMS-02,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.review.own,LMS Course Content: review own,LMS-02,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.view,LMS Course Content: view,LMS-02,8,NO,NO,NO,NO,YES,YES,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.view.all,LMS Course Content: view all,LMS-02,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.view.own,LMS Course Content: view own,LMS-02,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.write,LMS Course Content: write,LMS-02,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms02.write.own,LMS Course Content: write own,LMS-02,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-02,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.manage,LMS Subject Management: manage,LMS-03,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.review,LMS Subject Management: review,LMS-03,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.view,LMS Subject Management: view,LMS-03,10,NO,NO,NO,NO,YES,YES,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.view.all,LMS Subject Management: view all,LMS-03,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.view.own,LMS Subject Management: view own,LMS-03,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.write,LMS Subject Management: write,LMS-03,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms03.write.own,LMS Subject Management: write own,LMS-03,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-03,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.manage,LMS Lesson Planning: manage,LMS-04,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.manage.own,LMS Lesson Planning: manage own,LMS-04,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.review,LMS Lesson Planning: review,LMS-04,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.review.own,LMS Lesson Planning: review own,LMS-04,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.view,LMS Lesson Planning: view,LMS-04,8,NO,NO,NO,NO,YES,YES,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.view.all,LMS Lesson Planning: view all,LMS-04,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.view.own,LMS Lesson Planning: view own,LMS-04,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.write,LMS Lesson Planning: write,LMS-04,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms04.write.own,LMS Lesson Planning: write own,LMS-04,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-04,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.execute.own,LMS Assignments: execute own,LMS-05,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.manage,LMS Assignments: manage,LMS-05,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.manage.own,LMS Assignments: manage own,LMS-05,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.review,LMS Assignments: review,LMS-05,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.review.own,LMS Assignments: review own,LMS-05,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.view,LMS Assignments: view,LMS-05,8,NO,NO,NO,NO,YES,YES,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.view.all,LMS Assignments: view all,LMS-05,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.view.own,LMS Assignments: view own,LMS-05,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.write,LMS Assignments: write,LMS-05,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms05.write.own,LMS Assignments: write own,LMS-05,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-05,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.execute.own,LMS Virtual Classroom: execute own,LMS-06,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.manage,LMS Virtual Classroom: manage,LMS-06,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.manage.own,LMS Virtual Classroom: manage own,LMS-06,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.review,LMS Virtual Classroom: review,LMS-06,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.review.own,LMS Virtual Classroom: review own,LMS-06,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.view,LMS Virtual Classroom: view,LMS-06,8,NO,NO,NO,NO,YES,YES,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.view.all,LMS Virtual Classroom: view all,LMS-06,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.view.own,LMS Virtual Classroom: view own,LMS-06,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.write,LMS Virtual Classroom: write,LMS-06,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms06.write.own,LMS Virtual Classroom: write own,LMS-06,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-06,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.manage,LMS Resources Management: manage,LMS-07,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.review,LMS Resources Management: review,LMS-07,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.view,LMS Resources Management: view,LMS-07,10,NO,NO,NO,NO,YES,YES,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.view.all,LMS Resources Management: view all,LMS-07,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.view.own,LMS Resources Management: view own,LMS-07,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.write,LMS Resources Management: write,LMS-07,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms07.write.own,LMS Resources Management: write own,LMS-07,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-07,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.manage,LMS Progress Tracking: manage,LMS-08,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.review,LMS Progress Tracking: review,LMS-08,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.view,LMS Progress Tracking: view,LMS-08,8,NO,NO,NO,NO,YES,YES,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.view.all,LMS Progress Tracking: view all,LMS-08,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.view.own,LMS Progress Tracking: view own,LMS-08,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.write,LMS Progress Tracking: write,LMS-08,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms08.write.own,LMS Progress Tracking: write own,LMS-08,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-08,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.approve,LMS Certification & Badges: approve,LMS-09,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.approve.own,LMS Certification & Badges: approve own,LMS-09,0,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.manage,LMS Certification & Badges: manage,LMS-09,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.review,LMS Certification & Badges: review,LMS-09,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.review.own,LMS Certification & Badges: review own,LMS-09,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.view,LMS Certification & Badges: view,LMS-09,8,NO,NO,NO,NO,YES,YES,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.view.all,LMS Certification & Badges: view all,LMS-09,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.view.own,LMS Certification & Badges: view own,LMS-09,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.write,LMS Certification & Badges: write,LMS-09,1,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms09.write.own,LMS Certification & Badges: write own,LMS-09,0,NO,NO,NO,NO,NO,NO,NO,NO,LMS-09,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.approve,LMS CO-TLO-PO Mapping: approve,LMS-10,3,NO,NO,NO,NO,YES,YES,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.manage,LMS CO-TLO-PO Mapping: manage,LMS-10,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.review,LMS CO-TLO-PO Mapping: review,LMS-10,3,NO,NO,NO,NO,NO,NO,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.view,LMS CO-TLO-PO Mapping: view,LMS-10,9,NO,NO,NO,NO,YES,YES,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.view.all,LMS CO-TLO-PO Mapping: view all,LMS-10,6,NO,NO,NO,NO,YES,YES,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.view.own,LMS CO-TLO-PO Mapping: view own,LMS-10,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.write,LMS CO-TLO-PO Mapping: write,LMS-10,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+lms10.write.own,LMS CO-TLO-PO Mapping: write own,LMS-10,2,NO,NO,NO,NO,NO,NO,NO,NO,LMS-10,REMOVE,N/A,R07 Dean + R05 Principal (Domain Admin),"§7, §10, §11.2",Owner decision D-RBAC-M09: Domain admin owners R07 Dean + R05 Principal
+plat.read,Platform Administration: read,SHARED,0,YES (implicit via plat.platform_admins),NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+plat.read.own,Platform Administration: read own,SHARED,0,YES (implicit via plat.platform_admins),NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+plat.write,Platform Administration: write,SHARED,0,YES (implicit via plat.platform_admins),NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+plat.write.own,Platform Administration: write own,SHARED,0,YES (implicit via plat.platform_admins),NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+recruit.read,Recruitment: read,SHARED,2,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+recruit.write,Recruitment: write,SHARED,2,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.export,Platform Reporting: export,SHARED,11,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.manage,Platform Reporting: manage,SHARED,5,NO,NO,YES,YES,YES,YES,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.review,Platform Reporting: review,SHARED,5,NO,NO,YES,YES,YES,YES,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.view,Platform Reporting: view,SHARED,17,NO,NO,YES,YES,YES,YES,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.view.all,Platform Reporting: view all,SHARED,17,NO,NO,YES,YES,YES,YES,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.view.own,Platform Reporting: view own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.write,Platform Reporting: write,SHARED,5,NO,NO,YES,YES,YES,YES,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+rpt.write.own,Platform Reporting: write own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+stu01.view.own,Student Identity & Profile: view own,STM-01,2,NO,NO,NO,NO,NO,NO,NO,NO,STM-01,N/A,N/A,R31 Registrar,"§7, §15",
+stu01.write.own,Student Identity & Profile: write own,STM-01,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-01,N/A,N/A,R31 Registrar,"§7, §15",
+stu02.application.review,Student Admissions: application review,STM-02,2,NO,NO,NO,NO,NO,NO,NO,YES,STM-02,N/A,N/A,R31 Registrar,"§7, §15",
+stu02.decision.approve,Student Admissions: decision approve,STM-02,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-02,N/A,N/A,R31 Registrar,"§7, §15",
+stu02.intake.manage,Student Admissions: intake manage,STM-02,2,NO,NO,NO,NO,NO,NO,NO,YES,STM-02,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.enrolment.approve,Student Enrolment: enrolment approve,STM-03,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.enrolment.create,Student Enrolment: enrolment create,STM-03,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.enrolment.view,Student Enrolment: enrolment view,STM-03,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.enrolment.view.own,Student Enrolment: enrolment view own,STM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.register.execute,Student Enrolment: register execute,STM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.roster.view,Student Enrolment: roster view,STM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.section.allocate,Student Enrolment: section allocate,STM-03,2,NO,NO,NO,NO,NO,YES,NO,NO,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.term.cfg,Student Enrolment: term cfg,STM-03,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.waitlist.join,Student Enrolment: waitlist join,STM-03,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.waitlist.promote,Student Enrolment: waitlist promote,STM-03,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu03.window.cfg,Student Enrolment: window cfg,STM-03,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-03,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.graduation.record,Student Lifecycle: lifecycle graduation record,STM-04,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.graduation.validate,Student Lifecycle: lifecycle graduation validate,STM-04,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.request.decide,Student Lifecycle: lifecycle request decide,STM-04,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.request.submit,Student Lifecycle: lifecycle request submit,STM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.rule.cfg,Student Lifecycle: lifecycle rule cfg,STM-04,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.view,Student Lifecycle: lifecycle view,STM-04,1,NO,NO,NO,NO,NO,NO,NO,YES,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.view.linked,Student Lifecycle: lifecycle view linked,STM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+stu04.lifecycle.view.own,Student Lifecycle: lifecycle view own,STM-04,1,NO,NO,NO,NO,NO,NO,NO,NO,STM-04,N/A,N/A,R31 Registrar,"§7, §15",
+wf.view,Workflow Orchestration: view,SHARED,12,NO,NO,YES,YES,YES,YES,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+wf.view.own,Workflow Orchestration: view own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
+wf.write,Workflow Orchestration: write,SHARED,25,NO,NO,YES,YES,YES,YES,YES,NO,SHARED,N/A,N/A,,Matrix v2.3,
+wf.write.own,Workflow Orchestration: write own,SHARED,0,NO,NO,NO,NO,NO,NO,NO,NO,SHARED,N/A,N/A,,Matrix v2.3,
