@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-22 (IADM-01 **S3 completed**; S4 oversight in progress; CADM still waits)
+**Updated:** 2026-11-22 (IADM-01 **S0–S4 completed locally**; CADM still waits; no push)
 
 ## Owner decisions – IADM-01 rework start (22-11-2026)
 
@@ -17,8 +17,8 @@
 | S1 journey | **APPROVED S1** — register → invite fail → retry → ACTIVE |
 | S2 journey | **completed** — college create → R04 fail+retry → handover ACTIVE; see `docs/iadm/SLICE_S2_REPORT.md` |
 | S3 journey | **completed** — request/decide/suspend/reactivate/archive/export deferred; see `docs/iadm/SLICE_S3_REPORT.md` |
-| S4 journey | **in progress** |
-| Demo evidence | `docs/iadm/SLICE_S1_DEMO_REPORT.md`, `SLICE_S2_REPORT.md`, `SLICE_S3_REPORT.md` |
+| S4 journey | **completed** — history trail + mutation deny; see `docs/iadm/SLICE_S4_REPORT.md` |
+| Demo evidence | `docs/iadm/SLICE_S1_DEMO_REPORT.md` … `SLICE_S4_REPORT.md` |
 
 ## Owner decisions – IADM full rollback (22-11-2026)
 

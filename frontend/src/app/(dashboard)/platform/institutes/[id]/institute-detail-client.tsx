@@ -42,12 +42,15 @@ export function InstituteDetailClient({
     resumeStep?: string | null;
   } | null>(null);
   const [colleges, setColleges] = useState<Array<{ code?: string; name?: string; status?: string }>>([]);
+  const [history, setHistory] = useState<
+    Array<{ eventType?: string; reason?: string | null; actorId?: string | null; createdAt?: string | null; source?: string }>
+  >([]);
   const [tabError, setTabError] = useState<string | null>(null);
   const [tabLoading, setTabLoading] = useState(false);
 
   useEffect(() => {
     if (!initial?.tenantId) return;
-    if (tab !== 'administrators' && tab !== 'colleges') return;
+    if (tab !== 'administrators' && tab !== 'colleges' && tab !== 'audit') return;
     let cancelled = false;
     (async () => {
       setTabLoading(true);
@@ -64,9 +67,17 @@ export function InstituteDetailClient({
             return;
           }
           if (!cancelled) setOnboarding(body);
-        } else {
+        } else if (tab === 'colleges') {
           const res = await fetchFromColleges(initial.tenantId);
           if (!cancelled) setColleges(res);
+        } else {
+          const res = await fetch(`/api/platform/institutes/${initial.tenantId}/history`, { cache: 'no-store' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            if (!cancelled) setTabError(body.detail || 'unavailable');
+            return;
+          }
+          if (!cancelled) setHistory(Array.isArray(body.items) ? body.items : []);
         }
       } catch {
         if (!cancelled) setTabError('unavailable');
@@ -258,14 +269,38 @@ export function InstituteDetailClient({
           <CardHeader>
             <CardTitle className="text-base">Audit trail</CardTitle>
             <CardDescription>
-              Lifecycle entries are written to shared audit on each mutation. Full Ops search lands in Slice S4
-              (IADM01-US-025).
+              Lifecycle events and durable IADM-01 audit rows for this institute (US-025). Read-only.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Link href="/platform/audit" className="text-sm text-[#1F6FEB] underline">
-              Open Ops & Audit Search
-            </Link>
+          <CardContent className="space-y-3">
+            {tabLoading && (
+              <p className="flex items-center gap-2 text-sm text-slate-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              </p>
+            )}
+            {tabError && <p className="text-sm text-amber-800">{tabError}</p>}
+            <ul className="space-y-2 text-sm" data-testid="iadm01-history-list">
+              {history.length === 0 && !tabLoading ? (
+                <li className="text-[#6B7688]">No lifecycle history yet.</li>
+              ) : (
+                history.map((h, i) => (
+                  <li key={`${h.eventType}-${h.createdAt}-${i}`} className="rounded border border-[#E3E8EF] px-3 py-2">
+                    <div className="font-medium text-[#0B1F3A]">
+                      {h.eventType}{' '}
+                      <span className="text-[10px] uppercase text-[#6B7688]">{h.source}</span>
+                    </div>
+                    <div className="text-[#6B7688]">{h.reason || '—'}</div>
+                    <div className="font-mono text-[10px] text-[#6B7688]">
+                      {h.createdAt ? new Date(String(h.createdAt)).toLocaleString() : '—'}
+                      {h.actorId ? ` · ${h.actorId}` : ''}
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+            <p className="text-xs text-[#6B7688]">
+              Ops & Audit Search still uses an in-memory path (FINDING-IADM01-AUD-01). Prefer this trail for IADM-01.
+            </p>
           </CardContent>
         </Card>
       )}

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-22 (IADM-01 **S2 completed**; **S3 lifecycle in progress**; CADM still waits; **no push**)
+**Last current-state refresh:** 2026-11-22 (IADM-01 **S0–S4 completed locally**; CADM still waits; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — Slice **S3** lifecycle (US-010/011/021/022/023). S2 evidence: `docs/iadm/SLICE_S2_REPORT.md`.
+1. `docs/prompts/NEXT_TASK.md` — S0–S4 done; owner review. Evidence: `docs/iadm/SLICE_S1_DEMO_REPORT.md` … `SLICE_S4_REPORT.md`.
 2. `docs/project-control/PROGRESS.md` — source of truth.
 3. Spec: `docs/user-stories/IADM-01_User_Stories.csv`; Phase 0: `docs/iadm/IADM01_PHASE0_REPORT.md`.
 

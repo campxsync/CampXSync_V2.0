@@ -1181,23 +1181,35 @@ public class TenantLifecycleService {
     }
 
     public List<Map<String, Object>> lifecycleHistory(UserSecurityContext ctx, UUID tenantId) {
+        Map<String, Object> bundle = lifecycleHistoryBundle(ctx, tenantId);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items = (List<Map<String, Object>>) bundle.get("items");
+        return items == null ? new ArrayList<>() : items;
+    }
+
+    /** US-012 / US-025: lifecycle events + durable audit rows for one institute. */
+    public Map<String, Object> lifecycleHistoryBundle(UserSecurityContext ctx, UUID tenantId) {
         return ctx.executeInTransaction(db, conn -> {
-            // IADM-01-US-008: Auditor (R28) via adm01.view; platform admin fallback
             try {
                 ctx.checkPermission(conn, "adm01.view");
             } catch (UserProfileAccessDeniedException ex) {
                 ctx.checkPlatformAdmin(conn);
             }
             UUID tid = tenantId != null ? tenantId : ctx.getTenantId();
-            List<Map<String, Object>> rows = new ArrayList<>();
+            if (tid == null) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION", "instituteId is required");
+            }
+            requirePlatformOrOwnView(conn, ctx, tid);
+            List<Map<String, Object>> items = new ArrayList<>();
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id, event_type, actor_id, reason, payload, created_at " +
-                            "FROM plat.institute_lifecycle_events WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 200")) {
+                    "SELECT id, event_type, actor_id, reason, payload, created_at "
+                            + "FROM plat.institute_lifecycle_events WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 200")) {
                 ps.setObject(1, tid);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
                         row.put("id", rs.getObject("id").toString());
+                        row.put("source", "lifecycle_event");
                         row.put("eventType", rs.getString("event_type"));
                         Object actor = rs.getObject("actor_id");
                         row.put("actorId", actor != null ? actor.toString() : null);
@@ -1205,11 +1217,50 @@ public class TenantLifecycleService {
                         row.put("payload", rs.getString("payload"));
                         Timestamp ts = rs.getTimestamp("created_at");
                         row.put("createdAt", ts != null ? ts.toInstant().toString() : null);
-                        rows.add(row);
+                        items.add(row);
                     }
                 }
             }
-            return rows;
+            List<Map<String, Object>> auditRows = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id, action, principal_id, resource_type, resource_id, status, detail, created_at "
+                            + "FROM audit.events WHERE tenant_id = ? AND action LIKE 'IADM01_%' "
+                            + "ORDER BY created_at DESC LIMIT 100")) {
+                ps.setObject(1, tid);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", rs.getObject("id").toString());
+                        row.put("source", "audit_event");
+                        row.put("eventType", rs.getString("action"));
+                        Object actor = rs.getObject("principal_id");
+                        row.put("actorId", actor != null ? actor.toString() : null);
+                        row.put("reason", rs.getString("detail"));
+                        row.put("resourceType", rs.getString("resource_type"));
+                        Object rid = rs.getObject("resource_id");
+                        row.put("resourceId", rid == null ? null : rid.toString());
+                        row.put("status", rs.getString("status"));
+                        Timestamp ts = rs.getTimestamp("created_at");
+                        row.put("createdAt", ts != null ? ts.toInstant().toString() : null);
+                        auditRows.add(row);
+                        items.add(row);
+                    }
+                }
+            } catch (SQLException ignored) {
+                // audit.events may be RLS-restricted; lifecycle_events remain authoritative for timeline
+            }
+            items.sort((a, b) -> {
+                String ca = String.valueOf(a.get("createdAt"));
+                String cb = String.valueOf(b.get("createdAt"));
+                return cb.compareTo(ca);
+            });
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("instituteId", tid.toString());
+            out.put("items", items);
+            out.put("lifecycleEventCount", items.stream().filter(i -> "lifecycle_event".equals(i.get("source"))).count());
+            out.put("auditEventCount", auditRows.size());
+            out.put("count", items.size());
+            return out;
         });
     }
 

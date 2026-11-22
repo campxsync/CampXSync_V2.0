@@ -270,10 +270,12 @@ public class Iadm01Controller implements HttpHandler {
                         extract(body, "decision"), note)));
                 return;
             }
-            if ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/lifecycle-history/?$")) {
-                UUID tenantId = uuidFromPath(path, "/institutes/", "/lifecycle-history");
-                List<Map<String, Object>> rows = service.lifecycleHistory(ctx, tenantId);
-                sendJson(exchange, 200, "{\"items\":" + toJsonArray(rows) + "}");
+            if ("GET".equalsIgnoreCase(method) && (path.matches(".*/institutes/[^/]+/lifecycle-history/?$")
+                    || path.matches(".*/institutes/[^/]+/history/?$"))) {
+                String end = path.contains("/lifecycle-history") ? "/lifecycle-history" : "/history";
+                UUID tenantId = uuidFromPath(path, "/institutes/", end);
+                Map<String, Object> hist = service.lifecycleHistoryBundle(ctx, tenantId);
+                sendJson(exchange, 200, toJson(hist));
                 return;
             }
             sendJson(exchange, 404, problem("IADM01_NOT_FOUND", "Route not found: " + path));
