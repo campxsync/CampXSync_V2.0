@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Building2,
   UserCheck,
@@ -64,11 +64,14 @@ interface FormState {
  */
 export function OnboardingWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resumeId = searchParams.get('resume');
   const [uiStep, setUiStep] = useState<1 | 2 | 3 | 4>(1);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notificationNote, setNotificationNote] = useState<string | null>(null);
   const [instituteId, setInstituteId] = useState<string | null>(null);
+  const [resumeMode, setResumeMode] = useState(false);
   const [onboardingSteps, setOnboardingSteps] = useState<
     Array<{ stepKey: string; status: StepStatus; lastError?: string | null }>
   >([]);
@@ -83,6 +86,48 @@ export function OnboardingWizard() {
     adminEmail: '',
     adminDisplayName: '',
   });
+
+  // Resume first-admin for an existing ONBOARDING institute (do not POST a new tenant).
+  useEffect(() => {
+    if (!resumeId) return;
+    let cancelled = false;
+    (async () => {
+      setBusy(true);
+      setErrorMessage(null);
+      try {
+        const [detailRes, stepsRes] = await Promise.all([
+          fetch(`/api/platform/institutes/${resumeId}`, { cache: 'no-store' }),
+          fetch(`/api/platform/institutes/${resumeId}/first-admin/onboarding`, { cache: 'no-store' }),
+        ]);
+        const detail = await detailRes.json().catch(() => ({}));
+        const stepsBody = await stepsRes.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!detailRes.ok) {
+          setErrorMessage(detail.detail || 'Could not load institute to resume.');
+          return;
+        }
+        setResumeMode(true);
+        setInstituteId(resumeId);
+        setForm((prev) => ({
+          ...prev,
+          name: detail.name || prev.name,
+          code: detail.code || prev.code,
+          contact: detail.contact || prev.contact,
+          type: detail.type || prev.type,
+          planReference: detail.planReference || prev.planReference,
+        }));
+        if (Array.isArray(stepsBody.steps)) setOnboardingSteps(stepsBody.steps);
+        setUiStep(3);
+      } catch {
+        if (!cancelled) setErrorMessage('Could not load institute to resume.');
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeId]);
 
   const update = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -181,11 +226,19 @@ export function OnboardingWizard() {
   return (
     <div className="mx-auto max-w-3xl space-y-6" data-testid="iadm01-onboard-wizard">
       <div>
-        <h1 className="text-2xl font-semibold text-[#0B1F3A]">Onboard Institute</h1>
+        <h1 className="text-2xl font-semibold text-[#0B1F3A]">
+          {resumeMode ? 'Resume first Institution Admin' : 'Onboard Institute'}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Register an institute (tenant), then invite its first Institution Admin. Colleges are created later by that
-          administrator — not in this wizard.
+          {resumeMode
+            ? 'You are continuing onboarding for an existing institute. This will not create a new tenant.'
+            : 'Register an institute (tenant), then invite its first Institution Admin. Colleges are created later by that administrator — not in this wizard.'}
         </p>
+        {resumeMode && instituteId ? (
+          <p className="mt-1 font-mono text-xs text-[#6B7688]" data-testid="iadm01-resume-institute-id">
+            Resuming institute: {form.code || instituteId}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2" data-testid="iadm01-onboard-stepper">

@@ -35,6 +35,8 @@ export function InstituteDetailClient({
   const [pending, startTransition] = useTransition();
   const [tab, setTab] = useState<Tab>('profile');
   const [reason, setReason] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminDisplayName, setAdminDisplayName] = useState('');
   const [error, setError] = useState<string | null>(loadError);
   const [busy, setBusy] = useState(false);
   const [onboarding, setOnboarding] = useState<{
@@ -120,6 +122,39 @@ export function InstituteDetailClient({
       setReason('');
     } catch (e) {
       setError(e instanceof Error ? e.message : `${kind} failed`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Completes R03 on THIS institute (ONBOARDING → ACTIVE). Does not register a new tenant. */
+  async function resumeFirstAdmin() {
+    if (!initial?.tenantId || adminEmail.trim().length < 5) {
+      setError('Admin email is required');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/platform/institutes/${initial.tenantId}/first-admin/onboarding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: adminEmail.trim(),
+          displayName: adminDisplayName.trim() || adminEmail.trim(),
+          simulateInviteFailure: false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || data.errorCode || 'First admin onboarding failed');
+      }
+      if (Array.isArray(data.steps)) {
+        setOnboarding(data);
+      }
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'First admin onboarding failed');
     } finally {
       setBusy(false);
     }
@@ -255,9 +290,40 @@ export function InstituteDetailClient({
                 </li>
               ))}
             </ul>
-            <Link href={`/platform/institutes/new`}>
+            {status === 'ONBOARDING' && (
+              <div className="space-y-2 rounded border border-amber-200 bg-amber-50 p-3" data-testid="iadm01-resume-first-admin">
+                <p className="text-xs text-amber-950">
+                  This institute stays ONBOARDING until the first Institution Admin (R03) is invited and appointed.
+                  That does <strong>not</strong> create a new institute.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Admin email"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    data-testid="iadm01-resume-admin-email"
+                  />
+                  <Input
+                    placeholder="Display name"
+                    value={adminDisplayName}
+                    onChange={(e) => setAdminDisplayName(e.target.value)}
+                    data-testid="iadm01-resume-admin-name"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  disabled={busy || adminEmail.trim().length < 5}
+                  onClick={() => void resumeFirstAdmin()}
+                  data-testid="iadm01-resume-first-admin-submit"
+                >
+                  {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                  Invite / appoint first Institution Admin
+                </Button>
+              </div>
+            )}
+            <Link href={`/platform/institutes/new?resume=${initial.tenantId}`}>
               <Button size="sm" variant="secondary" data-testid="iadm01-continue-onboarding">
-                Continue onboarding wizard
+                Open first-admin wizard for this institute
               </Button>
             </Link>
           </CardContent>

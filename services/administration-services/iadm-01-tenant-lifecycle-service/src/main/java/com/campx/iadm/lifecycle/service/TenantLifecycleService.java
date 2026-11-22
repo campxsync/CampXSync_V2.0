@@ -294,7 +294,7 @@ public class TenantLifecycleService {
                 throw new InstituteAdminException(502, "IADM01_AUTH_INVITE_FAILED",
                         "Invitation could not be sent. Retry invitation.");
             }
-            inviteResult = authAdminClient.inviteOrCreateUser(email, displayName);
+            inviteResult = authAdminClient.inviteOrCreateUser(email, displayName, emailLookup(ctx));
             UUID authUserId = UUID.fromString(inviteResult.get("userId").toString());
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("authUserId", authUserId.toString());
@@ -329,6 +329,9 @@ public class TenantLifecycleService {
                 resume = "APPOINT_R03";
             } catch (InstituteAdminException ex) {
                 markStep(ctx, instituteId, "CREATE_PROFILE", "FAILED", corr, ex.getMessage(), null);
+                if ("IADM01_PROFILE_OTHER_TENANT".equals(ex.getErrorCode())) {
+                    throw ex;
+                }
                 throw new InstituteAdminException(ex.getStatus(), ex.getErrorCode(),
                         "Login exists; institute profile is incomplete.");
             }
@@ -750,7 +753,7 @@ public class TenantLifecycleService {
                 throw new InstituteAdminException(502, "IADM01_AUTH_INVITE_FAILED",
                         "Invitation could not be sent. Retry invitation.");
             }
-            inviteResult = authAdminClient.inviteOrCreateUser(email, displayName);
+            inviteResult = authAdminClient.inviteOrCreateUser(email, displayName, emailLookup(ctx));
             UUID authUserId = UUID.fromString(inviteResult.get("userId").toString());
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("authUserId", authUserId.toString());
@@ -923,9 +926,12 @@ public class TenantLifecycleService {
             String event;
             String auditAction;
             if (archiving) {
-                if (!"ACTIVE".equalsIgnoreCase(current) && !"SUSPENDED".equalsIgnoreCase(current)) {
+                // ACTIVE/SUSPENDED = normal archive; ONBOARDING = abandon incomplete duplicate/onboarding.
+                if (!"ACTIVE".equalsIgnoreCase(current)
+                        && !"SUSPENDED".equalsIgnoreCase(current)
+                        && !"ONBOARDING".equalsIgnoreCase(current)) {
                     throw new InstituteAdminException(409, "IADM01_INVALID_TRANSITION",
-                            "Archive is allowed only from ACTIVE or SUSPENDED.");
+                            "Archive is allowed only from ACTIVE, SUSPENDED, or ONBOARDING.");
                 }
                 status = "ARCHIVED";
                 event = "ARCHIVE";
@@ -1634,6 +1640,26 @@ public class TenantLifecycleService {
         }
     }
 
+    /**
+     * Resolve an existing Auth user id by email when the Auth Admin list filter misses them.
+     * Uses SECURITY DEFINER helper {@code plat.iadm01_auth_user_id_by_email} (no secrets).
+     */
+    private SupabaseAuthAdminClient.AuthUserIdLookup emailLookup(UserSecurityContext ctx) {
+        return email -> ctx.executeInTransaction(db, conn -> {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT plat.iadm01_auth_user_id_by_email(?)")) {
+                ps.setString(1, email);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    Object id = rs.getObject(1);
+                    return id == null ? null : id.toString();
+                }
+            }
+        });
+    }
+
     private void markStep(UserSecurityContext ctx, UUID instituteId, String stepKey, String status,
                           String correlationId, String lastError, Map<String, Object> payload) {
         ctx.executeInTransaction(db, conn -> {
@@ -1772,22 +1798,39 @@ public class TenantLifecycleService {
             } catch (InstituteAdminException ex) {
                 throw ex;
             } catch (SQLException ex) {
-                String msg = ex.getMessage() == null ? "" : ex.getMessage();
-                if (msg.contains("IADM01_FORBIDDEN")) {
-                    throw new InstituteAdminException(403, "IADM01_FORBIDDEN", "You are not authorized for this action.");
-                }
-                if (msg.contains("IADM01_AUTH_USER_REQUIRED")) {
-                    throw new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
-                            "Target must be a linked Supabase Auth user");
-                }
-                throw new InstituteAdminException(500, "IADM01_PROFILE_FAILED",
-                        "Login exists; institute profile is incomplete.");
+                throw mapProfileSqlFailure(ex);
             }
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("authUserId", authUserId.toString());
             markStepInConn(conn, instituteId, "CREATE_PROFILE", "SUCCEEDED", correlationId, null, payload, ctx.getUserId());
             return null;
         });
+    }
+
+    private static InstituteAdminException mapProfileSqlFailure(SQLException ex) {
+        String msg = ex.getMessage() == null ? "" : ex.getMessage();
+        String sqlState = ex.getSQLState() == null ? "" : ex.getSQLState();
+        logger.warn("IADM-01 profile SQL failure sqlState={} msgSnippet={}",
+                sqlState, msg.length() > 180 ? msg.substring(0, 180) : msg);
+        if (msg.contains("IADM01_FORBIDDEN")) {
+            return new InstituteAdminException(403, "IADM01_FORBIDDEN", "You are not authorized for this action.");
+        }
+        if (msg.contains("IADM01_AUTH_USER_REQUIRED")) {
+            return new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
+                    "Target must be a linked Supabase Auth user");
+        }
+        if (msg.contains("IADM01_VALIDATION")) {
+            return new InstituteAdminException(400, "IADM01_VALIDATION", "tenant and auth user are required");
+        }
+        if (msg.contains("IADM01_PROFILE_OTHER_TENANT")
+                || "23505".equals(sqlState)
+                || msg.toLowerCase().contains("duplicate")
+                || msg.toLowerCase().contains("unique")) {
+            return new InstituteAdminException(409, "IADM01_PROFILE_OTHER_TENANT",
+                    "This login is already Institution Admin on another institute. Open that ACTIVE institute, or invite a different email here.");
+        }
+        return new InstituteAdminException(500, "IADM01_PROFILE_FAILED",
+                "Login exists; institute profile is incomplete.");
     }
 
     private void appointR03(UserSecurityContext ctx, UUID instituteId, UUID authUserId, String correlationId) {

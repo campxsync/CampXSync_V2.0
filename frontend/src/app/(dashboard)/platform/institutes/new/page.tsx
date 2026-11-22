@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
@@ -25,7 +26,9 @@ export default async function NewInstituteOnboardingPage() {
         </p>
       </div>
 
-      <OnboardingWizard />
+      <Suspense fallback={<p className="text-sm text-[#6B7688]">Loading wizard…</p>}>
+        <OnboardingWizard />
+      </Suspense>
     </div>
   );
 }

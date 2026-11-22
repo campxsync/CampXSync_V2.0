@@ -49,8 +49,14 @@ public class SupabaseAuthAdminClient {
 
     /**
      * Invite or create a login for {@code email}. If the user already exists, returns their id (no duplicate).
+     *
+     * @param dbLookup optional JDBC lookup (e.g. {@code plat.iadm01_auth_user_id_by_email}) when Admin list filter misses
      */
     public Map<String, Object> inviteOrCreateUser(String email, String displayName) {
+        return inviteOrCreateUser(email, displayName, null);
+    }
+
+    public Map<String, Object> inviteOrCreateUser(String email, String displayName, AuthUserIdLookup dbLookup) {
         if (!isConfigured()) {
             throw new InstituteAdminException(503, "IADM01_AUTH_ADMIN_UNAVAILABLE",
                     "Supabase Auth admin credential is not configured on the service. Ask the operator to set the approved server-side Auth admin environment variables.");
@@ -61,6 +67,9 @@ public class SupabaseAuthAdminClient {
         String normalized = email.trim().toLowerCase();
 
         Map<String, Object> existing = findUserByEmail(normalized);
+        if (existing == null) {
+            existing = findUserViaDb(normalized, dbLookup);
+        }
         if (existing != null && existing.get("userId") != null) {
             existing.put("created", Boolean.FALSE);
             existing.put("invitationStatus", "LINKED_EXISTING");
@@ -75,11 +84,49 @@ public class SupabaseAuthAdminClient {
             return invited;
         } catch (InstituteAdminException inviteEx) {
             logger.warn("IADM-01 Auth invite failed code={} — attempting admin createUser", inviteEx.getErrorCode());
-            Map<String, Object> created = createUser(normalized, displayName);
-            created.put("created", Boolean.TRUE);
-            created.put("invitationStatus", "CREATED");
-            return created;
+            try {
+                Map<String, Object> created = createUser(normalized, displayName);
+                created.put("created", Boolean.TRUE);
+                created.put("invitationStatus", "CREATED");
+                return created;
+            } catch (InstituteAdminException createEx) {
+                // Common when the login already exists but Admin list/email filter missed it.
+                Map<String, Object> linked = findUserViaDb(normalized, dbLookup);
+                if (linked == null) {
+                    linked = findUserByEmail(normalized);
+                }
+                if (linked != null && linked.get("userId") != null) {
+                    linked.put("created", Boolean.FALSE);
+                    linked.put("invitationStatus", "LINKED_EXISTING");
+                    return linked;
+                }
+                throw createEx;
+            }
         }
+    }
+
+    private static Map<String, Object> findUserViaDb(String email, AuthUserIdLookup dbLookup) {
+        if (dbLookup == null) {
+            return null;
+        }
+        try {
+            String id = dbLookup.findUserIdByEmail(email);
+            if (id == null || id.trim().isEmpty()) {
+                return null;
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("userId", id.trim());
+            out.put("email", email);
+            return out;
+        } catch (Exception e) {
+            logger.warn("IADM-01 Auth DB email lookup failed (non-fatal)");
+            return null;
+        }
+    }
+
+    /** Optional DB-backed Auth user id resolution (no secrets). */
+    public interface AuthUserIdLookup {
+        String findUserIdByEmail(String email) throws Exception;
     }
 
     private Map<String, Object> inviteUser(String email, String displayName) {

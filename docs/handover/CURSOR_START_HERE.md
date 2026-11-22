@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-22 (IADM-01 **S0–S4 completed locally**; CADM still waits; **no push**)
+**Last current-state refresh:** 2026-11-22 (IADM-01 **S0–S4 `APPROVED S4`**; CADM parked; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — S0–S4 done; owner review. Evidence: `docs/iadm/SLICE_S1_DEMO_REPORT.md` … `SLICE_S4_REPORT.md`.
+1. `docs/prompts/NEXT_TASK.md` — **no next IADM/CADM task** until new owner authorization. Evidence: `docs/iadm/SLICE_S1_DEMO_REPORT.md` … `SLICE_S4_REPORT.md`.
 2. `docs/project-control/PROGRESS.md` — source of truth.
 3. Spec: `docs/user-stories/IADM-01_User_Stories.csv`; Phase 0: `docs/iadm/IADM01_PHASE0_REPORT.md`.
 
@@ -22,14 +22,14 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **Gateway:** Ingress `:8080`; **IADM-01** `/api/v1/iadm/01` → `:8099`; JDK 8 PATCH proxy fixed.
-3. **IADM-01 S1 APPROVED; S2 done:** colleges + R04 fail/retry + INTERIM CADM handover; reports in `docs/iadm/SLICE_S*.md`. Backup tag `backup-iadm-before-rollback` remains.
-4. **Student One Login Link:** **ACTIVE** — verified through normal operations path using approved document verifications; mapped and persisted to `stu.student_iam_links`.
+3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight. Reports in `docs/iadm/SLICE_S*.md`.
+4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com`). Duplicate `MAC181627` archived.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
-9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope).
-10. **Demos:** `docs/reports/playwright-final-stm07-stm10/` contains screenshots, videos, DEMO_GUIDE.md, and run report.
+9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope). CADM / IADM-02…08 **not authorized**.
+10. **Demos:** `docs/iadm/` slice reports + `docs/reports/playwright-final-stm07-stm10/`.
 
 ---
 
