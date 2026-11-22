@@ -89,10 +89,16 @@ public class Iadm01Controller implements HttpHandler {
             boolean platformOp = (path.endsWith("/institutes") || path.endsWith("/institutes/"))
                     || path.endsWith("/institutes/summary")
                     || path.contains("/first-admin/onboarding")
+                    || path.matches(".*/colleges/[^/]+/first-admin/onboarding/?$")
                     || path.contains("/onboarding")
                     || path.contains("/suspend") || path.contains("/reactivate") || path.contains("/archive")
                     || (path.contains("/lifecycle-requests") && ("GET".equalsIgnoreCase(method) || path.endsWith("/decide") || path.endsWith("/decision")))
                     || ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$"))
+                    || ("PATCH".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$"))
+                    || path.matches(".*/institutes/[^/]+/colleges/?$")
+                    || path.matches(".*/colleges/[^/]+/?$")
+                    || path.matches(".*/colleges/[^/]+/handover/?$")
+                    || path.matches(".*/colleges/[^/]+/user-admin-boundary/?$")
                     || path.contains("/lifecycle-history")
                     || path.contains("/history");
             UserSecurityContext ctx = (platformOp && noTenant)
@@ -144,6 +150,59 @@ public class Iadm01Controller implements HttpHandler {
                 UUID tenantId = uuidFromPath(path, "/institutes/", "/colleges");
                 String status = queryParam(exchange.getRequestURI().getQuery(), "status");
                 sendJson(exchange, 200, toJson(service.listColleges(ctx, tenantId, status)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/colleges/?$")) {
+                UUID instituteId = uuidFromPath(path, "/institutes/", "/colleges");
+                String code = extract(body, "code");
+                if (code == null || code.trim().isEmpty()) {
+                    code = extract(body, "collegeCode");
+                }
+                String name = extract(body, "name");
+                if (name == null || name.trim().isEmpty()) {
+                    name = extract(body, "collegeName");
+                }
+                Map<String, Object> r = service.createCollege(ctx, instituteId, code, name,
+                        extract(body, "campusCode"), extract(body, "location"));
+                sendJson(exchange, 201, toJson(r));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/colleges/[^/]+/?$")
+                    && !path.contains("/handover") && !path.contains("/user-admin-boundary")
+                    && !path.contains("/first-admin")) {
+                UUID collegeId = UUID.fromString(path.substring(path.lastIndexOf("/colleges/") + 10).replaceAll("/$", ""));
+                sendJson(exchange, 200, toJson(service.getCollege(ctx, collegeId)));
+                return;
+            }
+            if ("PATCH".equalsIgnoreCase(method) && path.matches(".*/colleges/[^/]+/?$")) {
+                UUID collegeId = UUID.fromString(path.substring(path.lastIndexOf("/colleges/") + 10).replaceAll("/$", ""));
+                Map<String, Object> r = service.updateCollege(ctx, collegeId, extract(body, "name"),
+                        extract(body, "campusCode"), extract(body, "location"));
+                sendJson(exchange, 200, toJson(r));
+                return;
+            }
+            if ("PATCH".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$")) {
+                UUID instituteId = UUID.fromString(path.substring(path.lastIndexOf('/') + 1).replaceAll("/$", ""));
+                Map<String, Object> r = service.updateInstitute(ctx, instituteId, extract(body, "name"),
+                        extract(body, "contact"), extract(body, "location"));
+                sendJson(exchange, 200, toJson(r));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/colleges/[^/]+/first-admin/onboarding/?$")) {
+                UUID collegeId = uuidFromPath(path, "/colleges/", "/first-admin/onboarding");
+                sendJson(exchange, 200, toJson(service.getCollegeOnboarding(ctx, collegeId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/colleges/[^/]+/first-admin/onboarding/?$")) {
+                UUID collegeId = uuidFromPath(path, "/colleges/", "/first-admin/onboarding");
+                boolean simulateFail = extractBoolean(body, "simulateInviteFailure");
+                if (!simulateFail) {
+                    simulateFail = extractBoolean(body, "simulateFail");
+                }
+                Map<String, Object> r = service.resumeFirstCollegeAdminOnboarding(ctx, collegeId,
+                        extract(body, "email"), extract(body, "displayName"),
+                        extract(body, "correlationId"), simulateFail);
+                sendJson(exchange, 200, toJson(r));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.contains("/colleges/onboard")) {

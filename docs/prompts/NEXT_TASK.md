@@ -1,18 +1,15 @@
 # Next Task
 
-**STATUS: IADM-01 Slice S1 — CHANGES addressed (Type/Plan dropdowns + Primary contact). STOP again for `APPROVED S1` or further `CHANGES S1`. IADM-02…08 and CADM out of scope.**
+**STATUS: IADM-01 Slice S2 completed (2026-11-22). Implementing Slice S3 (lifecycle). IADM-02…08 and CADM out of scope.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| Owner authorization | IADM-01 slices S0–S4 DEV only | **active** |
-| Phase 0 report | `docs/iadm/IADM01_PHASE0_REPORT.md` | **completed** |
-| S1 demo report | `docs/iadm/SLICE_S1_DEMO_REPORT.md` | **written — STOP** |
-| Register → fail invite → retry → ACTIVE | institute `S1F175540` | **PASS (API/BFF)** |
-| Durable audit | `audit.events` via `audit.log_event` | **PASS (SQL)** |
-| R03 invite login landing | `/institution` home | **PARTIAL — owner confirm** |
-| Next after approval | Slice S2 colleges/handover | **blocked on APPROVED S1** |
+| S1 owner gate | `APPROVED S1` | **recorded 2026-11-22** |
+| S2 stories | US-019,006,020,018,007,008,009 | **completed** — `docs/iadm/SLICE_S2_REPORT.md` |
+| S3 stories | US-010,011,021,022,023 | **in progress** (no stop after S2) |
+| Next after S3 | Slice S4 oversight | pending |
 
 ## Spec
 

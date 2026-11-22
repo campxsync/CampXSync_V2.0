@@ -377,7 +377,7 @@ public class ReverseProxyHandler implements HttpHandler {
         }
 
         HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
-        conn.setRequestMethod(method);
+        setHttpMethod(conn, method);
 
         // REC-01: Configurable connect timeout (default 150ms for local targets, 3000ms for remote)
         boolean isLocalTarget = "localhost".equalsIgnoreCase(targetUrl.getHost())
@@ -683,6 +683,34 @@ public class ReverseProxyHandler implements HttpHandler {
                 exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", "true");
                 exchange.getResponseHeaders().add("Vary", "Origin");
             }
+        }
+    }
+
+    /**
+     * JDK 8 {@link HttpURLConnection#setRequestMethod(String)} rejects PATCH.
+     * Fall back to reflection so IADM-01 identity updates can use PATCH.
+     */
+    private static void setHttpMethod(HttpURLConnection conn, String method) throws java.net.ProtocolException {
+        try {
+            conn.setRequestMethod(method);
+        } catch (java.net.ProtocolException ex) {
+            if (!"PATCH".equalsIgnoreCase(method)) {
+                throw ex;
+            }
+            Class<?> type = conn.getClass();
+            while (type != null) {
+                try {
+                    java.lang.reflect.Field field = type.getDeclaredField("method");
+                    field.setAccessible(true);
+                    field.set(conn, method);
+                    return;
+                } catch (NoSuchFieldException ignored) {
+                    type = type.getSuperclass();
+                } catch (IllegalAccessException accessEx) {
+                    throw new java.net.ProtocolException("Unable to force HTTP method PATCH: " + accessEx.getMessage());
+                }
+            }
+            throw ex;
         }
     }
 }

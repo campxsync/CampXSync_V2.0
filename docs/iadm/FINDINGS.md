@@ -1,7 +1,7 @@
 # IADM Findings Register
 
 **Created:** 2026-11-21  
-**Updated:** 2026-11-22 (IADM-01 Slice S1 demo gate)  
+**Updated:** 2026-11-22 (IADM-01 Slice S2 colleges/handover)  
 **Scope:** IADM Step 0 / Waves A–D (historical) and IADM-01 S0–S4 rework (DEV only)  
 **Companion:** `docs/audits/rbac-implementation/FINDINGS_REGISTER_OPEN.md`
 
@@ -52,8 +52,21 @@
 
 - **Plain language:** `GET /institutes/summary` reported `colleges: 0` while `INST-DEMO-001` has `COL-DEMO-001`.
 - **INFERRED:** RLS on `core.colleges` under platform-scoped JWT (null tenant) may hide rows from the count query.
-- **Action:** Scope/count fix in S2 or a SECURITY DEFINER counter; until then counters that fail must show unavailable (partially mitigated for institutes-by-status).
+- **Action:** S2 added list/get SECURITY DEFINER helpers; summary counter not yet switched to a DEFINER aggregate. Still OPEN.
 - **Status:** OPEN.
+
+### FINDING-IADM01-AUD-03 — Duplicate `IADM01_R04_APPOINTED` audit rows (LOW)
+
+- **Plain language:** Same double-write pattern as AUD-02 on College Admin appoint.
+- **CONFIRMED:** College `a787519c-…` has two `IADM01_R04_APPOINTED` rows [SQL 2026-11-22].
+- **Action:** Deduplicate with AUD-02 in polish.
+- **Status:** OPEN.
+
+### FINDING-IADM01-RLS-01 — `core.colleges` / `iam.roles` lack usable policies for IADM path (HIGH → mitigated)
+
+- **Plain language:** RLS enabled with no SELECT/INSERT policies blocked college create/list/appoint until SECURITY DEFINER helpers.
+- **Fix (DEV):** `plat.iadm01_create_college`, `update_identity`, `set_status`, `get_college`, `list_colleges`, `assign_college_admin`.
+- **Status:** MITIGATED in DEV; proper RLS policies still preferred long-term (DDL needs owner approval).
 
 ### FINDING-IADM01-CADM-01 — CADM-01/02 absent; INTERIM handover acks (MEDIUM)
 

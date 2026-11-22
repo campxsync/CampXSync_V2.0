@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-22 (IADM-01 **Slice S1 demo gate** — awaiting `APPROVED S1`; CADM still waits)
+**Updated:** 2026-11-22 (IADM-01 **Slice S2 completed**; S3 lifecycle in progress; CADM still waits)
 
 ## Owner decisions – IADM-01 rework start (22-11-2026)
 
@@ -11,12 +11,13 @@
 | Item | Status |
 |---|---|
 | Phase 0 (TECH-001) | **completed** |
-| Migrations | **applied on DEV** — `20261122010000`…`20261122010400` (+ rollbacks in repo) |
-| IADM-01 module `:8099` | **running** — gateway route, Auth Admin invite, first-R03 onboarding |
-| Unit tests | `TenantLifecycleRbacTest` **7/7 PASS**; `tsc --noEmit` **0** |
-| S1 journey | **demoed via BFF** — register → invite fail (502) → retry → ACTIVE + `audit.events` |
-| Demo evidence | `docs/iadm/SLICE_S1_DEMO_REPORT.md` |
-| Owner STOP | **NOW** — reply `APPROVED S1` or `CHANGES S1: …` |
+| Migrations | **applied on DEV** — `20261122010000`…`20261122010800` (+ rollbacks in repo) |
+| IADM-01 module `:8099` | **running** — R03 + R04 onboarding, colleges, INTERIM handover |
+| Unit tests | `TenantLifecycleRbacTest` **PASS**; `tsc --noEmit` **0** |
+| S1 journey | **APPROVED S1** — register → invite fail → retry → ACTIVE |
+| S2 journey | **completed** — college create → R04 fail+retry → handover ACTIVE; see `docs/iadm/SLICE_S2_REPORT.md` |
+| S3 journey | **in progress** (no stop after S2) |
+| Demo evidence | `docs/iadm/SLICE_S1_DEMO_REPORT.md`, `docs/iadm/SLICE_S2_REPORT.md` |
 
 ## Owner decisions – IADM full rollback (22-11-2026)
 
