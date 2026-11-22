@@ -1,35 +1,36 @@
 # Next Task
 
-**STATUS: STOP — IADM Rework Slice 1 complete. Awaiting owner pattern confirmation.**
+**STATUS: Enterprise RBAC Matrix v3.0 (IADM/CADM) Implementation Phases 0–4 — VERIFIED AND CLOSED IN DEV. No push.**
 
-**Owner:** Niranjan V.G. — Rework approved 2026-11-21 (DEV only). Spec: `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
+## This Run Summary (2026-11-20 / 2026-11-21)
 
-## Just completed
+| Plain name | Code | Status / Evidence |
+|---|---|---|
+| Phase 0: Verification & Mapping | Phase 0 | **completed** — `docs/audits/rbac-implementation/PHASE0_REPORT.md` |
+| Phase 1: Database Foundation | Phase 1 | **completed** (`20261120000100_rbac_phase1_database_foundation.sql`) — `PHASE1_REPORT.md` |
+| Phase 2: Narrow R04 and R03 | Phase 2 | **completed** (`20261120000200_rbac_phase2_narrow_r04_r03.sql`) — `PHASE2_REPORT.md` |
+| Phase 3: Code Alignment | Phase 3 | **completed** (`20261120000300_rbac_phase3_code_alignment.sql`) — `PHASE3_REPORT.md` |
+| Phase 4: Verify & Patch | Phase 4 | **completed** (`20261120000400_rbac_phase4_verification_and_patch.sql`) — `PHASE4_REPORT.md` |
 
-| ID | Status |
-|---|---|
-| Wave UI-1 desks | Snapshot commit `ef3b93d` |
-| Rework Step 0 | Commit `0c3b666` — D1–D7, inventory, seed, reports |
-| **Slice 1** Platform Operator Desk | PD-01…PD-06 + J1 path — `docs/iadm/SLICE1_DEMO_REPORT.md` |
+## Closing Pass Test Evidence
 
-## Owner action required
+- Frontend compilation (`cd frontend; npx tsc --noEmit`): **clean, 0 errors**.
+- `services/administration-services/institute-admin-service`: **510 tests run, 0 failures, 0 errors**.
+- `services/attendance-services/attendance-service`: **38 tests run, 0 failures, 0 errors**.
+- `services/academic-services/academic-calendar-service`: **22 tests run, 0 failures, 0 errors**.
+- `services/academic-services/batch-management-service`: **50 tests run, 0 failures, 0 errors**.
+- `services/academic-services/course-management-service`: **46 tests run, 0 failures, 0 errors**.
+- `services/lms-services/learning-resource-service`: **23 tests run, 0 failures, 0 errors**.
+- Persona matrix evaluation (`scripts/dev/run_persona_matrix.cjs`): **56/56 checks (100%) PASS**.
+- Privilege escalation live test (`scripts/dev/test_task4_2.cjs`): **100% BLOCKED (PASS)**.
 
-Reply one of:
+## Next Priority
 
-- `APPROVED SLICE1` — continue **Slice 2** (Institution Admin Desk ID-01…ID-06, Journeys J2/J3)
-- `CHANGES SLICE1: <feedback>` — rework before Slice 2
-
-## After approval
-
-**Slice 2 — Institution Admin Desk:** IADM-ID-01…ID-06 + J2/J3.
-
-## Still deferred
-
-| ID | Meaning |
-|---|---|
-| IADM-05-US-007 | Under-18 guardian consent (legal) |
-| R27 / adm03 / Kafka | Unchanged |
+Await owner review of `docs/audits/rbac-implementation/PHASE4_REPORT.md`.
+Available next tracks:
+1. Production preparation / staging runbooks for Enterprise RBAC migrations 1–4.
+2. Academic History (STM-08) or Student Service Requests (STM-09) (pending owner new-service gate).
 
 ## Rules
 
-DEV only. UI → BFF → Gateway → Java → Supabase. Local commits; no push unless asked.
+No production/staging DB writes. No push to remote. All work committed locally on `feature/java-backend-integration`.

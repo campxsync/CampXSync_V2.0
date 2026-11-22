@@ -356,11 +356,6 @@ public class AnalyticsController implements HttpHandler {
         } finally {
             metricsCollector.recordRequest(System.currentTimeMillis() - startTime);
             LogContext.clear();
-            // FINDING-RBAC-05 pattern: HttpContext attributes are shared across requests
-            if (exchange.getHttpContext() != null && exchange.getHttpContext().getAttributes() != null) {
-                exchange.getHttpContext().getAttributes().remove("campx.cachedRequestBody");
-                exchange.getHttpContext().getAttributes().remove("campx.cachedRequestBodyBytes");
-            }
         }
     }
 

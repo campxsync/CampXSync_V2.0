@@ -1,0 +1,21 @@
+﻿table,row_count,tag
+cfg.setting_delegations,0,IADM Wave A config
+cfg.setting_value_versions,6,IADM Wave A config
+iam.access_change_requests,0,IADM Wave B
+iam.role_ceilings,0,IADM Wave B
+plat.break_glass_actions,0,IADM-03-US-008 break-glass
+plat.break_glass_requests,2,IADM-03-US-008 break-glass
+plat.break_glass_sessions,1,IADM-03-US-008 break-glass
+plat.college_admin_handovers,6,IADM Wave E
+plat.data_subject_requests,0,IADM Wave C
+plat.institute_lifecycle_events,21,IADM Wave A
+plat.institute_lifecycle_requests,1,IADM Wave A
+plat.institute_retention_policies,1,IADM Wave F
+plat.institute_security_policies,0,IADM Wave C
+plat.institution_admin_quorum_requests,6,IADM-03-US-009 two-person
+plat.legal_holds,0,IADM Wave C
+plat.plan_change_requests,0,IADM Wave D
+plat.platform_security_minimums,0,IADM Wave C
+plat.retention_minimums,2,IADM Wave F
+plat.security_findings,0,IADM Wave C
+plat.tenant_session_blocks,6,IADM Wave E

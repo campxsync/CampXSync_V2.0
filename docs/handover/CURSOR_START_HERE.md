@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (IADM Rework **Slice 1** done — STOP for `APPROVED SLICE1`)
+**Last current-state refresh:** 2026-11-21 (Enterprise RBAC Matrix v3.0 IADM/CADM Implementation Phases 0–4 VERIFIED and COMPLETED in DEV: Phase 4 verification & patch applied; student/parent role assignment verified and R03/R38 grant rules restored; privilege escalation live tested and blocked; billing endpoints secured in IADM-04; domain owner allow-lists updated in batch, attendance, calendar, course, and resource services; dev admin users de-conflated and 56-cell persona matrix 100% passed; test suites 100% green: frontend tsc 0 errors, institute-admin 510/0, attendance 38/0, calendar 22/0, batch 50/0, course 46/0, resource 23/0; **no push**)
 
 ---
 
@@ -10,11 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **await `APPROVED SLICE1`**; then Slice 2.
-2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Slice 1 evidence: `docs/iadm/SLICE1_DEMO_REPORT.md`; Step 0: `docs/iadm/REWORK_STEP0_REPORT.md`.
-4. Spec: `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
-5. Deferred: under-18 / R27; Kafka.
+1. `docs/prompts/NEXT_TASK.md` — STM-07/STM-10 closed. Current docs track: Admin RBAC matrix IADM/CADM v2 (`docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`).
+2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11, D13, IADM-D7).
+3. Owner decisions still open: RBAC coverage-map export (D-RBAC-M04); Kafka for EN-005 fan-out; commercial AV integration.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -24,10 +22,10 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **Gateway:** Active ingress on port 8080 routing to Java domain microservices with HMAC and Bearer claims forwarding.
-3. **Platform Admin live desks (Wave UI-1):** `/platform/identity` (IADM-03 quorum + break-glass) and `/platform/ops` (IADM-08 audit search + ops health); status catalog removed from nav.
+3. **Delegated Registrar staff-screen browser case:** **PASS** (`07_registrar.spec.mjs`) — Pilot Registrar holding `STM-07.ACCOUNT.A` delegation successfully reads link status (`"ACTIVE"`) via D13 Java service path without relaxing Postgres RLS.
 4. **Student One Login Link:** **ACTIVE** — verified through normal operations path using approved document verifications; mapped and persisted to `stu.student_iam_links`.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
-6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced. Platform admins may have empty tenant in HMAC (IADM-03/08).
+6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
 9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope).

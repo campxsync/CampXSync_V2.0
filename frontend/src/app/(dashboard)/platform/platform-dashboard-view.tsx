@@ -32,8 +32,6 @@ export interface PlatformDashboardProps {
     SUSPENDED: number;
     OFFBOARDED: number;
   };
-  pendingLifecycleCount?: number;
-  pendingQuorumCount?: number;
   institutes: any[];
   recentAuditEvents: any[];
   userId: string;
@@ -45,8 +43,6 @@ export function PlatformDashboardView({
   totalUserCount,
   roleTemplateCount,
   statusCounts,
-  pendingLifecycleCount = 0,
-  pendingQuorumCount = 0,
   institutes,
   recentAuditEvents,
   userId,
@@ -116,30 +112,6 @@ export function PlatformDashboardView({
                 description="Platform RBAC definitions"
               />
             </div>
-            <Link
-              href="/platform/lifecycle"
-              className="block"
-              data-testid="platform-kpi-pending-lifecycle"
-            >
-              <StatCard
-                title="Pending lifecycle"
-                value={pendingLifecycleCount}
-                icon={History}
-                description="Suspend / decommission inbox"
-              />
-            </Link>
-            <Link
-              href="/platform/identity"
-              className="block"
-              data-testid="platform-kpi-pending-quorum"
-            >
-              <StatCard
-                title="Pending R03 quorum"
-                value={pendingQuorumCount}
-                icon={ShieldCheck}
-                description="Institution Admin appointments"
-              />
-            </Link>
           </div>
         );
 
@@ -254,13 +226,10 @@ export function PlatformDashboardView({
                               className="hover:bg-[#F6F8FB]"
                             >
                               <td className="py-3 font-medium text-[#0B1F3A]">
-                                <Link
-                                  href={`/platform/institutes/${inst.id}`}
-                                  className="flex items-center gap-2 hover:text-[#1F6FEB]"
-                                >
+                                <div className="flex items-center gap-2">
                                   <Building2 className="h-3.5 w-3.5 text-[#1F6FEB]" />
                                   <span>{inst.name || 'Unnamed'}</span>
-                                </Link>
+                                </div>
                               </td>
                               <td className="py-3 font-mono text-[#1B2433]">{inst.code}</td>
                               <td className="py-3">

@@ -21,8 +21,6 @@ export default async function PlatformAdminDashboardPage() {
   let tenantCount = 0;
   let totalUserCount = 0;
   let roleTemplateCount = 0;
-  let pendingLifecycleCount = 0;
-  let pendingQuorumCount = 0;
   let institutes: any[] = [];
   let recentAuditEvents: any[] = [];
   let userPreferences = PRODUCT_DEFAULTS;
@@ -68,26 +66,6 @@ export default async function PlatformAdminDashboardPage() {
     } catch {
       // ADM-01 optional for H-3 local stack
     }
-
-    // PD-01 pending inbox counters (lifecycle + Institution Admin quorum)
-    try {
-      const [lifeRes, quorumRes] = await Promise.all([
-        fetchFromGateway('/api/v1/iadm/01/lifecycle-requests?status=PENDING', { method: 'GET' }),
-        fetchFromGateway('/api/v1/iadm/03/institution-admin-quorum-requests?status=PENDING', {
-          method: 'GET',
-        }),
-      ]);
-      if (lifeRes.ok) {
-        const life = await lifeRes.json();
-        pendingLifecycleCount = Number(life.count) || (Array.isArray(life.requests) ? life.requests.length : 0);
-      }
-      if (quorumRes.ok) {
-        const q = await quorumRes.json();
-        pendingQuorumCount = Number(q.count) || (Array.isArray(q.requests) ? q.requests.length : 0);
-      }
-    } catch {
-      // soft-fail pending counters
-    }
   } catch (e) {
     console.error('Platform aggregate query failed via gateway:', e);
   }
@@ -98,8 +76,6 @@ export default async function PlatformAdminDashboardPage() {
       totalUserCount={totalUserCount}
       roleTemplateCount={roleTemplateCount}
       statusCounts={statusCounts as any}
-      pendingLifecycleCount={pendingLifecycleCount}
-      pendingQuorumCount={pendingQuorumCount}
       institutes={institutes}
       recentAuditEvents={recentAuditEvents}
       userId={userId}

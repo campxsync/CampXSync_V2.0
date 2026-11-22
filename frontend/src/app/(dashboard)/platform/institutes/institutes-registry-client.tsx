@@ -175,15 +175,15 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
                     return (
                       <tr key={inst.id} className="hover:bg-[#F6F8FB]">
                         <td className="py-3.5 font-medium text-[#0B1F3A]">
-                          <Link href={`/platform/institutes/${inst.id}`} className="flex items-center gap-2.5 hover:opacity-90">
+                          <div className="flex items-center gap-2.5">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[#E8F0FE] text-[#1F6FEB]">
                               <Building2 className="h-4 w-4" />
                             </div>
                             <div>
                               <span className="font-semibold block text-sm">{inst.name || 'Unnamed Tenant'}</span>
-                              <span className="text-[11px] text-[#6B7688] font-mono">Domain: {(inst.code || '').toLowerCase()}.campxsync.edu</span>
+                              <span className="text-[11px] text-[#6B7688] font-mono">Domain: {inst.code.toLowerCase()}.campxsync.edu</span>
                             </div>
-                          </Link>
+                          </div>
                         </td>
                         <td className="py-3.5 font-mono font-semibold text-[#1B2433]">{inst.code}</td>
                         <td className="py-3.5">
