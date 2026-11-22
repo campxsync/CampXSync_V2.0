@@ -941,73 +941,55 @@ public class TenantLifecycleService {
 
     private void createInstituteProfile(UserSecurityContext ctx, UUID instituteId, UUID authUserId,
                                         String email, String displayName, String correlationId) {
+        // Platform-only SECURITY DEFINER helper — RLS on core.persons requires core.pii.write in-tenant.
         ctx.executeInTransaction(db, conn -> {
             requirePlatformInstituteManage(conn, ctx);
             markStepInConn(conn, instituteId, "CREATE_PROFILE", "IN_PROGRESS", correlationId, null, null, ctx.getUserId());
-            // Idempotent: existing profile for this auth user in this institute
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM iam.user_profiles WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL")) {
-                ps.setObject(1, authUserId);
-                ps.setObject(2, instituteId);
+                    "SELECT plat.iadm01_create_first_admin_profile(?, ?, ?, ?)")) {
+                ps.setObject(1, instituteId);
+                ps.setObject(2, authUserId);
+                ps.setString(3, email);
+                ps.setString(4, displayName);
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        markStepInConn(conn, instituteId, "CREATE_PROFILE", "SUCCEEDED", correlationId, null, null, ctx.getUserId());
-                        return null;
+                    if (!rs.next() || rs.getObject(1) == null) {
+                        throw new InstituteAdminException(500, "IADM01_PROFILE_FAILED",
+                                "Login exists; institute profile is incomplete.");
                     }
                 }
-            }
-            UUID personId = UUID.randomUUID();
-            String first = displayName == null ? "Admin" : displayName.trim();
-            String last = "User";
-            int sp = first.indexOf(' ');
-            if (sp > 0) {
-                last = first.substring(sp + 1).trim();
-                first = first.substring(0, sp).trim();
-            }
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO core.persons (id, tenant_id, first_name, last_name, display_name, primary_email, status, created_by) "
-                            + "VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)")) {
-                ps.setObject(1, personId);
-                ps.setObject(2, instituteId);
-                ps.setString(3, first.isEmpty() ? "Admin" : first);
-                ps.setString(4, last.isEmpty() ? "User" : last);
-                ps.setString(5, displayName == null ? email : displayName);
-                ps.setString(6, email);
-                ps.setObject(7, ctx.getUserId());
-                ps.executeUpdate();
-            }
-            String username = email == null ? authUserId.toString() : email;
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO iam.user_profiles (id, tenant_id, person_id, username, email, full_name, status, created_by) "
-                            + "VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)")) {
-                ps.setObject(1, authUserId);
-                ps.setObject(2, instituteId);
-                ps.setObject(3, personId);
-                ps.setString(4, username);
-                ps.setString(5, email);
-                ps.setString(6, displayName == null ? email : displayName);
-                ps.setObject(7, ctx.getUserId());
-                ps.executeUpdate();
+            } catch (InstituteAdminException ex) {
+                throw ex;
+            } catch (SQLException ex) {
+                String msg = ex.getMessage() == null ? "" : ex.getMessage();
+                if (msg.contains("IADM01_FORBIDDEN")) {
+                    throw new InstituteAdminException(403, "IADM01_FORBIDDEN", "You are not authorized for this action.");
+                }
+                if (msg.contains("IADM01_AUTH_USER_REQUIRED")) {
+                    throw new InstituteAdminException(400, "IADM01_AUTH_USER_REQUIRED",
+                            "Target must be a linked Supabase Auth user");
+                }
+                throw new InstituteAdminException(500, "IADM01_PROFILE_FAILED",
+                        "Login exists; institute profile is incomplete.");
             }
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("authUserId", authUserId.toString());
-            payload.put("personId", personId.toString());
             markStepInConn(conn, instituteId, "CREATE_PROFILE", "SUCCEEDED", correlationId, null, payload, ctx.getUserId());
             return null;
         });
     }
 
     private void appointR03(UserSecurityContext ctx, UUID instituteId, UUID authUserId, String correlationId) {
-        ctx.executeInTransaction(db, conn -> {
-            requirePlatformInstituteManage(conn, ctx);
-            markStepInConn(conn, instituteId, "APPOINT_R03", "IN_PROGRESS", correlationId, null, null, ctx.getUserId());
+        UserSecurityContext scoped = ctx.withTenant(instituteId);
+        scoped.executeInTransaction(db, conn -> {
+            requirePlatformInstituteManage(conn, scoped);
+            markStepInConn(conn, instituteId, "APPOINT_R03", "IN_PROGRESS", correlationId, null, null, scoped.getUserId());
             assertAuthLinkedUser(conn, authUserId);
             // Spoof regression: p_assigned_by ignored; auth.uid() from session claims is authoritative (K1)
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT plat.assign_institution_admin(?, ?, ?)")) {
                 ps.setObject(1, instituteId);
                 ps.setObject(2, authUserId);
-                ps.setObject(3, ctx.getUserId());
+                ps.setObject(3, scoped.getUserId());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
                         throw new InstituteAdminException(500, "IADM01_APPOINT_FAILED",
@@ -1020,8 +1002,8 @@ public class TenantLifecycleService {
                     }
                 }
             }
-            markStepInConn(conn, instituteId, "APPOINT_R03", "SUCCEEDED", correlationId, null, null, ctx.getUserId());
-            appendDurableAudit(conn, ctx, instituteId, "IADM01_R03_APPOINTED", "TENANT", instituteId.toString(),
+            markStepInConn(conn, instituteId, "APPOINT_R03", "SUCCEEDED", correlationId, null, null, scoped.getUserId());
+            appendDurableAudit(conn, scoped, instituteId, "IADM01_R03_APPOINTED", "TENANT", instituteId.toString(),
                     "Institution Admin appointed");
             return null;
         });
@@ -1130,27 +1112,36 @@ public class TenantLifecycleService {
         }
     }
 
-    /** TECH-003: durable shared-audit write on the same connection (audit.events). */
+    /**
+     * TECH-003: durable shared-audit write via {@code audit.log_event} (SECURITY DEFINER).
+     * Plain language: inserts into {@code audit.events} without fighting RLS on direct INSERT.
+     * Success is returned only after this call succeeds on the same transaction connection.
+     */
     private static void appendDurableAudit(Connection conn, UserSecurityContext ctx, UUID tenantId,
                                            String action, String resourceType, String resourceId, String detail)
             throws SQLException {
-        UUID id = UUID.randomUUID();
         String detailJson = "{\"message\":\"" + escape(detail) + "\"}";
+        UUID resourceUuid = null;
+        if (resourceId != null && !resourceId.trim().isEmpty()) {
+            try {
+                resourceUuid = UUID.fromString(resourceId.trim());
+            } catch (IllegalArgumentException ignored) {
+                resourceUuid = null;
+            }
+        }
         try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO audit.events ("
-                        + "id, tenant_id, event_time, action, principal_id, principal_type, "
-                        + "resource_type, resource_id, status, severity, correlation_id, detail, created_at, created_by"
-                        + ") VALUES (?, ?, now(), ?, ?, 'USER', ?, ?, 'SUCCESS', 'INFO', ?, ?::jsonb, now(), ?)")) {
-            ps.setObject(1, id);
-            ps.setObject(2, tenantId);
+                "SELECT audit.log_event(?, ?, ?, ?, ?, 'SUCCESS', 'INFO', NULL, ?::jsonb, NULL)")) {
+            ps.setObject(1, tenantId);
+            ps.setObject(2, ctx.getUserId());
             ps.setString(3, action);
-            ps.setObject(4, ctx.getUserId());
-            ps.setString(5, resourceType);
-            ps.setString(6, resourceId);
-            ps.setString(7, id.toString());
-            ps.setString(8, detailJson);
-            ps.setObject(9, ctx.getUserId());
-            ps.executeUpdate();
+            ps.setString(4, resourceType);
+            ps.setObject(5, resourceUuid);
+            ps.setString(6, detailJson);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getObject(1) == null) {
+                    throw new SQLException("audit.log_event returned no id — mutation cannot succeed without durable audit");
+                }
+            }
         }
     }
 

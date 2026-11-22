@@ -123,7 +123,7 @@ public class Iadm01Controller implements HttpHandler {
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/first-admin/onboarding/?$")) {
                 UUID tenantId = uuidFromPath(path, "/institutes/", "/first-admin/onboarding");
-                boolean simulateFail = "true".equalsIgnoreCase(extract(body, "simulateInviteFailure"));
+                boolean simulateFail = extractBoolean(body, "simulateInviteFailure");
                 Map<String, Object> r = service.resumeFirstAdminOnboarding(ctx, tenantId,
                         extract(body, "email"), extract(body, "displayName"),
                         extract(body, "correlationId"), simulateFail);
@@ -252,6 +252,25 @@ public class Iadm01Controller implements HttpHandler {
         int q2 = json.indexOf('"', q1 + 1);
         if (q2 < 0) return null;
         return json.substring(q1 + 1, q2);
+    }
+
+    /** Parses JSON boolean (unquoted true/false) or quoted "true"/"false". */
+    private static boolean extractBoolean(String json, String key) {
+        if (json == null) return false;
+        String needle = "\"" + key + "\"";
+        int i = json.indexOf(needle);
+        if (i < 0) return false;
+        int colon = json.indexOf(':', i + needle.length());
+        if (colon < 0) return false;
+        String rest = json.substring(colon + 1).trim();
+        if (rest.startsWith("\"")) {
+            return "true".equalsIgnoreCase(extract(json, key));
+        }
+        int end = 0;
+        while (end < rest.length() && Character.isLetter(rest.charAt(end))) {
+            end++;
+        }
+        return "true".equalsIgnoreCase(rest.substring(0, end));
     }
 
     private static String toJson(Map<String, Object> map) {

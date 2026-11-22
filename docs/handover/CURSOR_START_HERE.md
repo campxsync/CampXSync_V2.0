@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-22 (IADM-01 S0–S4 **re-authorized** and in progress on DEV; CADM still waits; **no push**)
+**Last current-state refresh:** 2026-11-22 (IADM-01 **Slice S1 STOP** — await `APPROVED S1`; CADM still waits; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — IADM-01 S0–S4 active; finish S1 demo then STOP for `APPROVED S1`.
+1. `docs/prompts/NEXT_TASK.md` — **STOP for owner:** reply `APPROVED S1` or `CHANGES S1: …`. Evidence: `docs/iadm/SLICE_S1_DEMO_REPORT.md`.
 2. `docs/project-control/PROGRESS.md` — source of truth.
 3. Spec: `docs/user-stories/IADM-01_User_Stories.csv`; Phase 0: `docs/iadm/IADM01_PHASE0_REPORT.md`.
 
@@ -21,8 +21,8 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **Gateway:** Active ingress on port 8080; **no** `/api/v1/iadm/*` routes after rollback. Institute Admin on `:8081`.
-3. **IADM rollback (2026-11-22):** Waves A–F / UI-1 / Slice 1 removed from code + DEV DB; backup tag `backup-iadm-before-rollback`; keep-list K1–K6 applied.
+2. **Gateway:** Ingress `:8080`; **IADM-01** routed again at `/api/v1/iadm/01` → `:8099` (rework). Institute Admin still `:8081`.
+3. **IADM-01 S1:** Auth-first R03 onboarding demoed (fail+retry); `SLICE_S1_DEMO_REPORT.md` written. Prior full IADM rollback backup remains at tag `backup-iadm-before-rollback`.
 4. **Student One Login Link:** **ACTIVE** — verified through normal operations path using approved document verifications; mapped and persisted to `stu.student_iam_links`.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.

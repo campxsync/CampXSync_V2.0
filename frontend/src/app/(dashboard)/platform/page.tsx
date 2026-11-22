@@ -29,10 +29,38 @@ export default async function PlatformAdminDashboardPage() {
     ACTIVE: 0,
     ONBOARDING: 0,
     SUSPENDED: 0,
-    OFFBOARDED: 0,
+    OFFBOARDED: 0, // legacy prop name; UI maps ARCHIVED into this slot until dashboard widget rename
+    ARCHIVED: 0,
   };
+  let iadmSummaryUnavailable = false;
 
   try {
+    // IADM01-US-024: institute lifecycle counters from IADM-01 (never invent zeros on failure)
+    try {
+      const summaryRes = await fetchFromGateway('/api/v1/iadm/01/institutes/summary', {
+        method: 'GET',
+        requireAuth: true,
+      });
+      if (summaryRes.ok) {
+        const summary = await summaryRes.json();
+        const by = summary.institutesByStatus || {};
+        statusCounts.ACTIVE = Number(by.ACTIVE) || 0;
+        statusCounts.ONBOARDING = Number(by.ONBOARDING) || 0;
+        statusCounts.SUSPENDED = Number(by.SUSPENDED) || 0;
+        statusCounts.ARCHIVED = Number(by.ARCHIVED) || 0;
+        statusCounts.OFFBOARDED = statusCounts.ARCHIVED;
+        tenantCount =
+          statusCounts.ACTIVE +
+          statusCounts.ONBOARDING +
+          statusCounts.SUSPENDED +
+          statusCounts.ARCHIVED;
+      } else {
+        iadmSummaryUnavailable = true;
+      }
+    } catch {
+      iadmSummaryUnavailable = true;
+    }
+
     const res = await fetchFromGateway('/api/v1/academics/analytics/dashboard?role=platform_admin', {
       method: 'GET',
     });
@@ -40,9 +68,11 @@ export default async function PlatformAdminDashboardPage() {
     if (res.ok) {
       const data = await res.json();
       institutes = Array.isArray(data.institutes) ? data.institutes : [];
-      tenantCount = Number(data.tenantCount) || institutes.length;
+      if (!tenantCount) {
+        tenantCount = Number(data.tenantCount) || institutes.length;
+      }
       roleTemplateCount = Number(data.roleTemplateCount) || 0;
-      if (data.statusCounts) {
+      if (!iadmSummaryUnavailable && data.statusCounts && tenantCount === 0) {
         Object.assign(statusCounts, data.statusCounts);
       }
       totalUserCount = institutes.reduce(

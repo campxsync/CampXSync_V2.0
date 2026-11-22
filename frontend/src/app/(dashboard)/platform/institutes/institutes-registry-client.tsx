@@ -22,23 +22,31 @@ export interface InstituteRecord {
 
 interface InstitutesRegistryClientProps {
   initialInstitutes: InstituteRecord[];
+  /** When set, list call failed — show unavailable (never silent zero). */
+  loadError?: string | null;
 }
 
-export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegistryClientProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ONBOARDING' | 'SUSPENDED' | 'OFFBOARDED'>('ALL');
+type LifecycleFilter = 'ALL' | 'ACTIVE' | 'ONBOARDING' | 'SUSPENDED' | 'ARCHIVED';
 
-  // Normalize status mapping per Phase 4 requirements
-  const normalizeStatus = (status: string): 'ACTIVE' | 'ONBOARDING' | 'SUSPENDED' | 'OFFBOARDED' => {
+export function InstitutesRegistryClient({
+  initialInstitutes,
+  loadError = null,
+}: InstitutesRegistryClientProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<LifecycleFilter>('ALL');
+
+  // IADM-01 states: ONBOARDING, ACTIVE, SUSPENDED, ARCHIVED (no OFFBOARDED)
+  const normalizeStatus = (status: string): Exclude<LifecycleFilter, 'ALL'> => {
     const s = (status || '').toUpperCase();
     if (s === 'ACTIVE') return 'ACTIVE';
     if (s === 'SUSPENDED') return 'SUSPENDED';
+    if (s === 'ARCHIVED' || s === 'OFFBOARDED') return 'ARCHIVED';
     if (s === 'INACTIVE' || s === 'ONBOARDING' || s === 'REQUESTED' || s === 'PROVISIONING') return 'ONBOARDING';
-    return 'OFFBOARDED';
+    return 'ONBOARDING';
   };
 
   const statusCounts = useMemo(() => {
-    const counts = { ALL: initialInstitutes.length, ACTIVE: 0, ONBOARDING: 0, SUSPENDED: 0, OFFBOARDED: 0 };
+    const counts = { ALL: initialInstitutes.length, ACTIVE: 0, ONBOARDING: 0, SUSPENDED: 0, ARCHIVED: 0 };
     initialInstitutes.forEach((inst) => {
       const norm = normalizeStatus(inst.status);
       counts[norm]++;
@@ -90,7 +98,7 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             {/* Status Filter Buttons */}
             <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#F6F8FB] rounded-[8px] border border-[#E3E8EF]">
-              {(['ALL', 'ACTIVE', 'ONBOARDING', 'SUSPENDED', 'OFFBOARDED'] as const).map((tab) => (
+              {(['ALL', 'ACTIVE', 'ONBOARDING', 'SUSPENDED', 'ARCHIVED'] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -100,6 +108,7 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
                       ? 'bg-white text-[#0B1F3A] shadow-xs border border-[#E3E8EF]'
                       : 'text-[#6B7688] hover:text-[#0B1F3A]'
                   }`}
+                  data-testid={`iadm01-filter-${tab.toLowerCase()}`}
                 >
                   {tab.toLowerCase()} ({statusCounts[tab]})
                 </button>
@@ -130,14 +139,22 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
                 Registered Institutional Tenants ({filteredInstitutes.length})
               </CardTitle>
               <CardDescription className="text-xs">
-                Authoritative records queried from core.tenants in staging PostgreSQL
+                Authoritative records from IADM-01 (Institute & Tenant Lifecycle) via the API Gateway
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pt-4">
-          {filteredInstitutes.length === 0 ? (
-            <div className="text-center py-10">
+        <CardContent className="pt-4" data-testid="iadm01-institutes-table">
+          {loadError ? (
+            <div
+              className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-6 text-center text-sm text-amber-900"
+              data-testid="iadm01-institutes-unavailable"
+              role="alert"
+            >
+              Institute list is unavailable. Retry shortly.
+            </div>
+          ) : filteredInstitutes.length === 0 ? (
+            <div className="text-center py-10" data-testid="iadm01-institutes-empty">
               <Building2 className="mx-auto h-10 w-10 text-[#6B7688]/50" />
               <p className="mt-2 text-sm font-semibold text-[#0B1F3A]">No Institutes Matching Criteria</p>
               <p className="text-xs text-[#6B7688] mt-1">
@@ -164,16 +181,15 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
                     <th className="pb-3 font-semibold uppercase tracking-wider">Tenant Code</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Status Badge</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider text-right">Colleges</th>
-                    <th className="pb-3 font-semibold uppercase tracking-wider text-right">Aggregated Users</th>
                     <th className="pb-3 font-semibold uppercase tracking-wider">Created Date</th>
-                    <th className="pb-3 font-semibold uppercase tracking-wider">Tenant UUID</th>
+                    <th className="pb-3 font-semibold uppercase tracking-wider">Open</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E3E8EF]">
                   {filteredInstitutes.map((inst) => {
                     const norm = normalizeStatus(inst.status);
                     return (
-                      <tr key={inst.id} className="hover:bg-[#F6F8FB]">
+                      <tr key={inst.id} className="hover:bg-[#F6F8FB]" data-testid={`iadm01-institute-row-${inst.code}`}>
                         <td className="py-3.5 font-medium text-[#0B1F3A]">
                           <div className="flex items-center gap-2.5">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[#E8F0FE] text-[#1F6FEB]">
@@ -181,7 +197,7 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
                             </div>
                             <div>
                               <span className="font-semibold block text-sm">{inst.name || 'Unnamed Tenant'}</span>
-                              <span className="text-[11px] text-[#6B7688] font-mono">Domain: {inst.code.toLowerCase()}.campxsync.edu</span>
+                              <span className="text-[11px] text-[#6B7688] font-mono">{inst.id}</span>
                             </div>
                           </div>
                         </td>
@@ -190,15 +206,18 @@ export function InstitutesRegistryClient({ initialInstitutes }: InstitutesRegist
                           <Badge status={norm} />
                         </td>
                         <td className="py-3.5 text-right font-medium text-[#1B2433]">
-                          {inst.college_count || 1}
-                        </td>
-                        <td className="py-3.5 text-right">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#E8F0FE] text-[#1F6FEB] font-medium">
-                            {inst.user_count} users
-                          </span>
+                          {inst.college_count ?? 0}
                         </td>
                         <td className="py-3.5 text-[#6B7688] font-mono">{formatDate(inst.created_at)}</td>
-                        <td className="py-3.5 font-mono text-[#6B7688] text-[11px]">{inst.id}</td>
+                        <td className="py-3.5">
+                          <Link
+                            href={`/platform/institutes/${inst.id}`}
+                            className="inline-flex items-center text-[#1F6FEB] hover:underline"
+                            data-testid={`iadm01-open-institute-${inst.code}`}
+                          >
+                            Open <ExternalLink className="ml-1 h-3 w-3" />
+                          </Link>
+                        </td>
                       </tr>
                     );
                   })}

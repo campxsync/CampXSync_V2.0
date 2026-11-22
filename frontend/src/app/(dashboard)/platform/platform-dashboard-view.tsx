@@ -30,7 +30,8 @@ export interface PlatformDashboardProps {
     ACTIVE: number;
     ONBOARDING: number;
     SUSPENDED: number;
-    OFFBOARDED: number;
+    OFFBOARDED: number; // legacy slot — prefer ARCHIVED when present
+    ARCHIVED?: number;
   };
   institutes: any[];
   recentAuditEvents: any[];
@@ -175,13 +176,13 @@ export function PlatformDashboardView({
                 <div className="p-3 rounded-[8px] border border-[#E3E8EF] bg-[#F0F2F5]/40 flex items-center justify-between">
                   <div>
                     <span className="text-[11px] font-semibold text-[#374151] uppercase tracking-wider block">
-                      Offboarded
+                      Archived
                     </span>
                     <span className="text-xl font-bold text-[#0B1F3A] mt-0.5 block">
-                      {statusCounts.OFFBOARDED}
+                      {statusCounts.ARCHIVED ?? statusCounts.OFFBOARDED}
                     </span>
                   </div>
-                  <Badge status="OFFBOARDED" />
+                  <Badge status="ARCHIVED" />
                 </div>
               </div>
             </CardContent>

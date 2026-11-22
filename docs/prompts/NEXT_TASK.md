@@ -1,19 +1,18 @@
 # Next Task
 
-**STATUS: IADM-01 (Institute & Tenant Lifecycle) S0–S4 authorized for DEV (2026-11-22). Owner: Niranjan V.G. IADM-02…08 and CADM are out of scope.**
+**STATUS: IADM-01 Slice S1 demo gate — STOP for owner. Reply `APPROVED S1` or `CHANGES S1: <feedback>`. IADM-02…08 and CADM remain out of scope.**
 
-## This run (in progress)
+## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
 | Owner authorization | IADM-01 slices S0–S4 DEV only | **active** |
-| Phase 0 report | `docs/iadm/IADM01_PHASE0_REPORT.md` | **completed** (IADM01-TECH-001) |
-| Foundation migration | `20261122010000_iadm01_lifecycle_foundation` (+ MCP apply) | **applied on DEV** |
-| IADM-01 service | port **8099**, `/api/v1/iadm/01` | **scaffolded + compiling**; RBAC unit tests 7/7 |
-| Gateway route | `GatewayConfig` `/api/v1/iadm/01` → `:8099` | **registered** |
-| Stack scripts | start/check/restart know `iadm-01` | **updated** |
-| S1 wizard / R03 home | Platform onboard + `/institution` | **in progress** — demo report not yet written |
-| Owner checkpoint | After `SLICE_S1_DEMO_REPORT.md` | **await APPROVED S1** (not reached yet) |
+| Phase 0 report | `docs/iadm/IADM01_PHASE0_REPORT.md` | **completed** |
+| S1 demo report | `docs/iadm/SLICE_S1_DEMO_REPORT.md` | **written — STOP** |
+| Register → fail invite → retry → ACTIVE | institute `S1F175540` | **PASS (API/BFF)** |
+| Durable audit | `audit.events` via `audit.log_event` | **PASS (SQL)** |
+| R03 invite login landing | `/institution` home | **PARTIAL — owner confirm** |
+| Next after approval | Slice S2 colleges/handover | **blocked on APPROVED S1** |
 
 ## Spec
 

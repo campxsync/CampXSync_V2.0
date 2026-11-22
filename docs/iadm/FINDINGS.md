@@ -1,7 +1,7 @@
 # IADM Findings Register
 
 **Created:** 2026-11-21  
-**Updated:** 2026-11-22 (IADM-01 rework Phase 0)  
+**Updated:** 2026-11-22 (IADM-01 Slice S1 demo gate)  
 **Scope:** IADM Step 0 / Waves A–D (historical) and IADM-01 S0–S4 rework (DEV only)  
 **Companion:** `docs/audits/rbac-implementation/FINDINGS_REGISTER_OPEN.md`
 
@@ -35,12 +35,25 @@
 - **Fix:** Recreated in migration `20261122010000` (applied via MCP as `iadm01_lifecycle_foundation`).
 - **Status:** FIXED in DEV [CONFIRMED SQL].
 
-### FINDING-IADM01-UI-01 — Institution Admin (R03) portal routing conflated with College Admin (HIGH)
+### FINDING-IADM01-UI-01 — Institution Admin (R03) portal routing conflated with College Admin (HIGH → FIXED)
 
-- **Plain language:** Middleware treats `INSTITUTION_ADMIN` as a college-admin user, so first R03 login will not land on an Institution Admin home.
-- **CONFIRMED:** `frontend/src/middleware.ts:130-131`.
-- **Action:** Required for US-005 in Slice S1.
-- **Status:** OPEN (in progress for S1).
+- **Plain language:** Middleware previously treated `INSTITUTION_ADMIN` as college-admin.
+- **Fix:** Dedicated `/institution` home, `institution_admin` role in resolve-role / role-policy / nav / middleware.
+- **Status:** FIXED in code [CONFIRMED]. Owner must still confirm first invitee lands on `/institution` after opening the Supabase Auth invite email (test-session has no R03 persona yet).
+
+### FINDING-IADM01-AUD-02 — Duplicate `IADM01_R03_APPOINTED` audit rows (LOW)
+
+- **Plain language:** Appointment writes audit twice (step helper + appoint path).
+- **CONFIRMED:** S1F institute `61e9b962-…` has two `IADM01_R03_APPOINTED` rows [SQL].
+- **Action:** Deduplicate in a later polish; not a blocker for S1 gate.
+- **Status:** OPEN.
+
+### FINDING-IADM01-SUM-01 — Summary `colleges` count returned 0 while seed college exists (MEDIUM)
+
+- **Plain language:** `GET /institutes/summary` reported `colleges: 0` while `INST-DEMO-001` has `COL-DEMO-001`.
+- **INFERRED:** RLS on `core.colleges` under platform-scoped JWT (null tenant) may hide rows from the count query.
+- **Action:** Scope/count fix in S2 or a SECURITY DEFINER counter; until then counters that fail must show unavailable (partially mitigated for institutes-by-status).
+- **Status:** OPEN.
 
 ### FINDING-IADM01-CADM-01 — CADM-01/02 absent; INTERIM handover acks (MEDIUM)
 
