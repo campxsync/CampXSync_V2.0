@@ -46,16 +46,46 @@ public class TenantLifecycleService {
     /**
      * US-001: Register institute in ONBOARDING; seed first-R03 onboarding steps; durable audit.
      */
-    public Map<String, Object> registerInstitute(UserSecurityContext ctx, String code, String name, String region) {
-        return registerInstitute(ctx, code, name, region, null, null);
+    private static final java.util.Set<String> ALLOWED_INSTITUTE_TYPES = new java.util.HashSet<>(
+            java.util.Arrays.asList(
+                    "UNIVERSITY", "DEEMED_UNIVERSITY", "AUTONOMOUS_COLLEGE",
+                    "AFFILIATED_COLLEGE_GROUP", "POLYTECHNIC", "SCHOOL_GROUP", "OTHER"));
+    private static final java.util.Set<String> ALLOWED_PLAN_REFERENCES = new java.util.HashSet<>(
+            java.util.Arrays.asList(
+                    "ENTERPRISE", "GROWTH", "STANDARD", "TRIAL_30_DAYS", "CUSTOM", "TRIAL"));
+
+    public Map<String, Object> registerInstitute(UserSecurityContext ctx, String code, String name, String contact) {
+        return registerInstitute(ctx, code, name, contact, null, null);
     }
 
-    public Map<String, Object> registerInstitute(UserSecurityContext ctx, String code, String name, String region,
+    /**
+     * US-001: register institute. {@code contact} is the primary outreach email/phone (story field "contact").
+     * Plan reference is a link code only — IADM-04 owns entitlements.
+     */
+    public Map<String, Object> registerInstitute(UserSecurityContext ctx, String code, String name, String contact,
                                                  String instituteType, String planReference) {
         return ctx.executeInTransaction(db, conn -> {
             requirePlatformInstituteManage(conn, ctx);
             if (code == null || code.trim().isEmpty() || name == null || name.trim().isEmpty()) {
                 throw new InstituteAdminException(400, "IADM01_VALIDATION", "code and name are required");
+            }
+            if (contact == null || contact.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION",
+                        "Primary contact (email or phone) is required");
+            }
+            if (instituteType == null || instituteType.trim().isEmpty()
+                    || !ALLOWED_INSTITUTE_TYPES.contains(instituteType.trim().toUpperCase())) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION",
+                        "Select a valid institute type");
+            }
+            String typeNorm = instituteType.trim().toUpperCase();
+            String planNorm = planReference == null ? "" : planReference.trim().toUpperCase();
+            if ("TRIAL".equals(planNorm)) {
+                planNorm = "TRIAL_30_DAYS";
+            }
+            if (planNorm.isEmpty() || !ALLOWED_PLAN_REFERENCES.contains(planNorm)) {
+                throw new InstituteAdminException(400, "IADM01_VALIDATION",
+                        "Select a valid plan reference");
             }
             try (PreparedStatement dup = conn.prepareStatement(
                     "SELECT 1 FROM core.tenants WHERE code = ? AND deleted_at IS NULL")) {
@@ -68,9 +98,10 @@ public class TenantLifecycleService {
                 }
             }
             UUID id = UUID.randomUUID();
-            String profileJson = "{\"type\":\"" + escape(instituteType == null ? "" : instituteType)
-                    + "\",\"planReference\":\"" + escape(planReference == null ? "" : planReference)
-                    + "\",\"region\":\"" + escape(region == null ? "" : region) + "\"}";
+            String contactTrim = contact.trim();
+            String profileJson = "{\"type\":\"" + escape(typeNorm)
+                    + "\",\"planReference\":\"" + escape(planNorm)
+                    + "\",\"contact\":\"" + escape(contactTrim) + "\"}";
             try (PreparedStatement ins = conn.prepareStatement(
                     "INSERT INTO core.tenants (id, code, name, status, profile, created_by) "
                             + "VALUES (?, ?, ?, 'ONBOARDING', ?::jsonb, ?)")) {
@@ -95,7 +126,9 @@ public class TenantLifecycleService {
             out.put("code", code.trim());
             out.put("name", name.trim());
             out.put("status", "ONBOARDING");
-            out.put("region", region);
+            out.put("type", typeNorm);
+            out.put("planReference", planNorm);
+            out.put("contact", contactTrim);
             out.put("notificationDeferred", Boolean.TRUE);
             out.put("notificationMessage", "Action completed; notification delivery is delayed.");
             auditMutation(ctx, "IADM01_INSTITUTE_CREATE", "TENANT", id.toString());

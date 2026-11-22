@@ -110,8 +110,13 @@ public class Iadm01Controller implements HttpHandler {
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/?$")) {
+                // US-001: contact is the primary outreach field; accept legacy "region" alias.
+                String contact = extract(body, "contact");
+                if (contact == null || contact.trim().isEmpty()) {
+                    contact = extract(body, "region");
+                }
                 Map<String, Object> r = service.registerInstitute(ctx,
-                        extract(body, "code"), extract(body, "name"), extract(body, "region"),
+                        extract(body, "code"), extract(body, "name"), contact,
                         extract(body, "type"), extract(body, "planReference"));
                 sendJson(exchange, 201, toJson(r));
                 return;

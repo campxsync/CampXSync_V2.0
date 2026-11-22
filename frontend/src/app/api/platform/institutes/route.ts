@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         code: payload.code,
         name: payload.name,
-        region: payload.region,
+        // US-001: contact (email/phone). Accept legacy "region" for older clients.
+        contact: payload.contact || payload.region,
         type: payload.type,
         planReference: payload.planReference || payload.plan,
       }),

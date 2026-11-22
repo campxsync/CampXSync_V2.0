@@ -20,12 +20,39 @@ import { Badge } from '@/components/ui/badge';
 
 type StepStatus = 'PENDING' | 'IN_PROGRESS' | 'SUCCEEDED' | 'FAILED' | 'RETRYABLE';
 
+/** Institute kinds for registration (US-001). Stored as profile.type — not a college type. */
+const INSTITUTE_TYPES = [
+  { value: 'UNIVERSITY', label: 'University' },
+  { value: 'DEEMED_UNIVERSITY', label: 'Deemed university' },
+  { value: 'AUTONOMOUS_COLLEGE', label: 'Autonomous college (institute tenant)' },
+  { value: 'AFFILIATED_COLLEGE_GROUP', label: 'Affiliated college group' },
+  { value: 'POLYTECHNIC', label: 'Polytechnic / technical institute' },
+  { value: 'SCHOOL_GROUP', label: 'School group' },
+  { value: 'OTHER', label: 'Other' },
+] as const;
+
+/**
+ * Plan reference codes (US-001). Link/reference only — IADM-04 owns real plan limits.
+ * Aligns with existing onboard-tenant enum plus Custom / Trial 30 days.
+ */
+const PLAN_REFERENCES = [
+  { value: 'ENTERPRISE', label: 'Enterprise' },
+  { value: 'GROWTH', label: 'Growth' },
+  { value: 'STANDARD', label: 'Standard' },
+  { value: 'TRIAL_30_DAYS', label: 'Trial for 30 days' },
+  { value: 'CUSTOM', label: 'Custom' },
+] as const;
+
+const selectClassName =
+  'flex h-10 w-full rounded-[8px] border border-[#E3E8EF] bg-white px-3 py-2 text-sm text-[#1B2433] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F6FEB] focus-visible:ring-offset-1';
+
 interface FormState {
   name: string;
   code: string;
   type: string;
   planReference: string;
-  region: string;
+  /** Primary contact for platform outreach (email or phone) — US-001 "contact". */
+  contact: string;
   adminEmail: string;
   adminDisplayName: string;
 }
@@ -50,9 +77,9 @@ export function OnboardingWizard() {
   const [form, setForm] = useState<FormState>({
     name: '',
     code: '',
-    type: 'UNIVERSITY',
-    planReference: 'ENTERPRISE',
-    region: '',
+    type: '',
+    planReference: '',
+    contact: '',
     adminEmail: '',
     adminDisplayName: '',
   });
@@ -60,6 +87,13 @@ export function OnboardingWizard() {
   const update = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  const detailsReady =
+    form.name.trim().length > 0 &&
+    form.code.trim().length > 0 &&
+    form.type.length > 0 &&
+    form.planReference.length > 0 &&
+    form.contact.trim().length > 0;
 
   const registerInstitute = async () => {
     setBusy(true);
@@ -73,7 +107,7 @@ export function OnboardingWizard() {
           code: form.code.trim().toUpperCase(),
           type: form.type,
           planReference: form.planReference,
-          region: form.region,
+          contact: form.contact.trim(),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -215,30 +249,67 @@ export function OnboardingWizard() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Type</label>
-              <Input data-testid="iadm01-field-type" value={form.type} onChange={(e) => update('type', e.target.value)} />
+              <label htmlFor="iadm01-field-type" className="text-sm font-medium">
+                Institute type
+              </label>
+              <select
+                id="iadm01-field-type"
+                data-testid="iadm01-field-type"
+                className={selectClassName}
+                value={form.type}
+                onChange={(e) => update('type', e.target.value)}
+              >
+                <option value="">Select institute type…</option>
+                {INSTITUTE_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="text-sm font-medium">Plan reference</label>
-              <Input
+              <label htmlFor="iadm01-field-plan" className="text-sm font-medium">
+                Plan reference
+              </label>
+              <select
+                id="iadm01-field-plan"
                 data-testid="iadm01-field-plan"
+                className={selectClassName}
                 value={form.planReference}
                 onChange={(e) => update('planReference', e.target.value)}
-              />
+              >
+                <option value="">Select plan…</option>
+                {PLAN_REFERENCES.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Reference only — subscription limits live in Billing & Entitlements (IADM-04), not copied here.
+              </p>
             </div>
-            <div>
-              <label className="text-sm font-medium">Region / contact</label>
+            <div className="sm:col-span-2">
+              <label htmlFor="iadm01-field-contact" className="text-sm font-medium">
+                Primary contact
+              </label>
               <Input
-                data-testid="iadm01-field-region"
-                value={form.region}
-                onChange={(e) => update('region', e.target.value)}
+                id="iadm01-field-contact"
+                data-testid="iadm01-field-contact"
+                value={form.contact}
+                onChange={(e) => update('contact', e.target.value)}
+                placeholder="ops@maharani.edu or +91-98XXXXXXXX"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                How the platform reaches this institute during onboarding (email or phone). Not the Institution Admin
+                login — that is invited on the next step.
+              </p>
             </div>
           </CardContent>
           <CardFooter className="justify-end">
             <Button
               data-testid="iadm01-details-next"
-              disabled={!form.name.trim() || !form.code.trim()}
+              disabled={!detailsReady}
               onClick={() => setUiStep(2)}
             >
               Review <ArrowRight className="ml-2 h-4 w-4" />
@@ -261,7 +332,15 @@ export function OnboardingWizard() {
               <strong>Code:</strong> {form.code}
             </p>
             <p>
-              <strong>Type / plan:</strong> {form.type} / {form.planReference}
+              <strong>Type:</strong>{' '}
+              {INSTITUTE_TYPES.find((t) => t.value === form.type)?.label || form.type}
+            </p>
+            <p>
+              <strong>Plan:</strong>{' '}
+              {PLAN_REFERENCES.find((p) => p.value === form.planReference)?.label || form.planReference}
+            </p>
+            <p>
+              <strong>Primary contact:</strong> {form.contact}
             </p>
           </CardContent>
           <CardFooter className="justify-between">

@@ -94,9 +94,21 @@ Honest gate: **API + BFF journey with fail/retry + durable audit = demonstrated*
 
 ---
 
-## STOP
+## CHANGES S1 (2026-11-22) — wizard field rework
 
-Awaiting owner reply:
+**Owner feedback:** Type and Plan should be dropdowns; clarify Region/Contact.
 
-- `APPROVED S1` — proceed to Slice S2 (colleges and handover) without further stop until S2/S3/S4 reports  
-- `CHANGES S1: <feedback>` — rework, re-demo, then stop again  
+| Feedback | Action |
+|---|---|
+| Type free-text default UNIVERSITY | **Fixed** — required dropdown: University, Deemed university, Autonomous college, Affiliated college group, Polytechnic, School group, Other |
+| Plan free-text Enterprise | **Fixed** — required dropdown: Enterprise, Growth, Standard, Trial for 30 days, Custom (reference only; IADM-04 owns limits) |
+| Region/Contact significance | **Clarified** — US-001 field is **Primary contact** (email or phone for platform outreach during onboarding). Renamed label; helper text added. Not the Institution Admin login. |
+
+Java validates type/plan allow-lists; profile JSON stores `type`, `planReference`, `contact`.
+
+### STOP (again)
+
+Awaiting owner reply after visual confirm of dropdowns:
+
+- `APPROVED S1` — proceed to Slice S2  
+- `CHANGES S1: <feedback>` — further rework

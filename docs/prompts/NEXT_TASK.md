@@ -1,6 +1,6 @@
 # Next Task
 
-**STATUS: IADM-01 Slice S1 demo gate — STOP for owner. Reply `APPROVED S1` or `CHANGES S1: <feedback>`. IADM-02…08 and CADM remain out of scope.**
+**STATUS: IADM-01 Slice S1 — CHANGES addressed (Type/Plan dropdowns + Primary contact). STOP again for `APPROVED S1` or further `CHANGES S1`. IADM-02…08 and CADM out of scope.**
 
 ## This run
 
