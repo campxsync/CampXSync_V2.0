@@ -27,7 +27,7 @@ export function InstitutionHomeClient() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/institution/home', { method: 'GET' });
+        const res = await fetch('/api/institution/desk', { method: 'GET' });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
           if (!cancelled) setError(body.detail || 'unavailable');
