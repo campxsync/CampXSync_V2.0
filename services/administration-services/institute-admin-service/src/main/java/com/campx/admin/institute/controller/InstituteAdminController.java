@@ -916,6 +916,9 @@ public class InstituteAdminController implements HttpHandler {
                 flow.close();
             }
             LogContext.clear();
+            if (exchange.getHttpContext() != null && exchange.getHttpContext().getAttributes() != null) {
+                exchange.getHttpContext().getAttributes().remove("campx.request.body");
+            }
         }
     }
 

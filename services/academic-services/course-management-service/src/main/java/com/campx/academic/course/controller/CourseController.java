@@ -487,6 +487,10 @@ public class CourseController implements HttpHandler {
                     "An unexpected error occurred: " + escape(e.getMessage()), fullPath);
         } finally {
             LogContext.clear();
+            if (exchange.getHttpContext() != null && exchange.getHttpContext().getAttributes() != null) {
+                exchange.getHttpContext().getAttributes().remove("campx.request.body");
+                exchange.getHttpContext().getAttributes().remove("campx.auth.result");
+            }
         }
     }
 
