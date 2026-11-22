@@ -1,7 +1,24 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-21 (Enterprise RBAC Matrix v3.0 Implementation Phases 0–4 completed and verified in DEV; 100% assertions green)
+**Updated:** 2026-11-22 (IADM implementation **rolled back** to RBAC Phase 4 state; docs retained; CADM waits)
+
+## Owner decisions – IADM full rollback (22-11-2026)
+
+**Authorized by:** Niranjan V.G. (approval recorded 2026-11-21 for this rollback only).  
+**Evidence:** `docs/iadm/ROLLBACK_REPORT.md`, `docs/iadm/rollback/`.
+
+| Item | Status |
+|---|---|
+| Code rollback | **completed** — commit `fac65de` (path-by-path restore to `0353f6e` = RBAC Phase 4); IADM commits remain on `backup-iadm-before-rollback` |
+| Security keep K2 | **completed** — commit `ec6057c` (context-leak fixes) |
+| Keep K1 / K5 / K6 | **completed** — `assign_institution_admin` auth.uid(); jwt-verifier base64; analytics DISTINCT count |
+| DEV DB rollback | **completed** — reverse rollbacks `000200`…`120000`; **skipped** `000100` (K1) |
+| Docs | **retained** — `docs/iadm/`, user-stories rework DRAFT, audits, RBAC matrix |
+| Next IADM attempt | Follow `IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md` when re-authorized; **do not start IADM/CADM now** |
+| CADM | **parked** |
+
+Prior IADM Wave A–F / UI-1 / Slice 1 owner-decision tables are historical only; implementation was removed 2026-11-22.
 
 ## Owner decisions – Admin RBAC / IADM-CADM (20-11-2026 / 21-11-2026)
 

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-21 (Enterprise RBAC Matrix v3.0 IADM/CADM Implementation Phases 0–4 VERIFIED and COMPLETED in DEV: Phase 4 verification & patch applied; student/parent role assignment verified and R03/R38 grant rules restored; privilege escalation live tested and blocked; billing endpoints secured in IADM-04; domain owner allow-lists updated in batch, attendance, calendar, course, and resource services; dev admin users de-conflated and 56-cell persona matrix 100% passed; test suites 100% green: frontend tsc 0 errors, institute-admin 510/0, attendance 38/0, calendar 22/0, batch 50/0, course 46/0, resource 23/0; **no push**)
+**Last current-state refresh:** 2026-11-22 (IADM implementation **rolled back** to RBAC Phase 4; docs retained; do not start IADM/CADM; **no push**)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — STM-07/STM-10 closed. Current docs track: Admin RBAC matrix IADM/CADM v2 (`docs/architecture/Security/CampXSync_Enterprise_RBAC_Matrix_IADM_CADM_v2.md`).
-2. `docs/project-control/PROGRESS.md` — source of truth for status and owner decisions (incl. D11, D13, IADM-D7).
-3. Owner decisions still open: RBAC coverage-map export (D-RBAC-M04); Kafka for EN-005 fan-out; commercial AV integration.
+1. `docs/prompts/NEXT_TASK.md` — IADM rolled back; **do not start IADM or CADM** until re-authorized.
+2. `docs/project-control/PROGRESS.md` — source of truth (rollback + RBAC Phase 0–4).
+3. Rollback evidence: `docs/iadm/ROLLBACK_REPORT.md`. Next IADM attempt (when authorized): `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -21,8 +21,8 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **Gateway:** Active ingress on port 8080 routing to Java domain microservices with HMAC and Bearer claims forwarding.
-3. **Delegated Registrar staff-screen browser case:** **PASS** (`07_registrar.spec.mjs`) — Pilot Registrar holding `STM-07.ACCOUNT.A` delegation successfully reads link status (`"ACTIVE"`) via D13 Java service path without relaxing Postgres RLS.
+2. **Gateway:** Active ingress on port 8080; **no** `/api/v1/iadm/*` routes after rollback. Institute Admin on `:8081`.
+3. **IADM rollback (2026-11-22):** Waves A–F / UI-1 / Slice 1 removed from code + DEV DB; backup tag `backup-iadm-before-rollback`; keep-list K1–K6 applied.
 4. **Student One Login Link:** **ACTIVE** — verified through normal operations path using approved document verifications; mapped and persisted to `stu.student_iam_links`.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.

@@ -1,0 +1,18 @@
+{
+  "_meta": {
+    "exported_at": "2026-11-22",
+    "project": "azulbaxszsqxymqmlwfe",
+    "note": "Sanitized IADM demo/test rows (ids, codes, statuses, timestamps). No secrets or personal data beyond demo UUIDs. Full payload captured via Supabase MCP before DB rollback; see ROLLBACK_REPORT.md."
+  },
+  "setting_value_versions_count": 6,
+  "institute_lifecycle_events_count": 21,
+  "institute_lifecycle_requests_count": 1,
+  "college_admin_handovers_count": 6,
+  "institution_admin_quorum_requests_count": 6,
+  "break_glass_requests_count": 2,
+  "break_glass_sessions_count": 1,
+  "tenant_session_blocks_count": 6,
+  "institute_retention_policies_count": 1,
+  "retention_minimums_count": 2,
+  "restore_hint": "Re-apply migration files from docs/iadm/rollback/migrations/ (or git checkout backup-iadm-before-rollback) then re-seed from backup branch data if needed."
+}
