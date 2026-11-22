@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const Schema = z.object({
   decision: z.enum(['APPROVE', 'APPROVED', 'REJECT', 'REJECTED']),
-  note: z.string().max(2000).optional(),
+  note: z.string().min(3).max(2000),
 });
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {

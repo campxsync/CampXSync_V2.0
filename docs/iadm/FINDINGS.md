@@ -68,6 +68,12 @@
 - **Fix (DEV):** `plat.iadm01_create_college`, `update_identity`, `set_status`, `get_college`, `list_colleges`, `assign_college_admin`.
 - **Status:** MITIGATED in DEV; proper RLS policies still preferred long-term (DDL needs owner approval).
 
+### FINDING-IADM01-SESS-01 — `plat.tenant_session_blocks` missing after rollback (MEDIUM)
+
+- **Plain language:** Suspend path previously wrote session blocks; table is gone. Fail-closed now depends on `plat.is_tenant_suspended` reading `core.tenants.status`.
+- **Action:** Optional recreate of session_blocks if product wants an audit trail beyond status; not required for status-based block.
+- **Status:** OPEN (mitigated by status check).
+
 ### FINDING-IADM01-CADM-01 — CADM-01/02 absent; INTERIM handover acks (MEDIUM)
 
 - **Plain language:** College Administration modules are not built. Handover records both acknowledgements with `cadm01_interim` / `cadm02_interim = true`.

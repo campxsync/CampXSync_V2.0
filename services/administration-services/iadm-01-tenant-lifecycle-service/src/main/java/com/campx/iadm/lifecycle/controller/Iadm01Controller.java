@@ -92,7 +92,8 @@ public class Iadm01Controller implements HttpHandler {
                     || path.matches(".*/colleges/[^/]+/first-admin/onboarding/?$")
                     || path.contains("/onboarding")
                     || path.contains("/suspend") || path.contains("/reactivate") || path.contains("/archive")
-                    || (path.contains("/lifecycle-requests") && ("GET".equalsIgnoreCase(method) || path.endsWith("/decide") || path.endsWith("/decision")))
+                    || path.contains("/lifecycle-requests")
+                    || path.endsWith("/decide") || path.endsWith("/decision")
                     || ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$"))
                     || ("PATCH".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$"))
                     || path.matches(".*/institutes/[^/]+/colleges/?$")
@@ -222,30 +223,51 @@ public class Iadm01Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.collegeUserAdminBoundary(ctx, collegeId)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/(suspend|reactivate)/?$")) {
-                boolean suspend = path.contains("/suspend");
-                UUID tenantId = uuidFromPath(path, "/institutes/", suspend ? "/suspend" : "/reactivate");
-                sendJson(exchange, 200, toJson(service.suspendOrReactivate(ctx, tenantId, suspend ? "suspend" : "reactivate", extract(body, "reason"))));
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/(suspend|reactivate|archive)/?$")) {
+                String action = path.contains("/archive") ? "archive"
+                        : (path.contains("/suspend") ? "suspend" : "reactivate");
+                UUID tenantId = uuidFromPath(path, "/institutes/", "/" + action);
+                sendJson(exchange, 200, toJson(service.suspendOrReactivate(ctx, tenantId, action, extract(body, "reason"))));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/lifecycle-requests/?$")) {
-                sendJson(exchange, 201, toJson(service.createLifecycleRequest(ctx, extract(body, "requestType"), extract(body, "reason"))));
+                UUID instituteId = uuidFromPath(path, "/institutes/", "/lifecycle-requests");
+                String college = extract(body, "collegeId");
+                UUID collegeId = (college == null || college.trim().isEmpty()) ? null : UUID.fromString(college.trim());
+                sendJson(exchange, 201, toJson(service.createLifecycleRequest(ctx, instituteId,
+                        extract(body, "requestType"), extract(body, "reason"), collegeId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/colleges/[^/]+/lifecycle-requests/?$")) {
+                UUID collegeId = uuidFromPath(path, "/colleges/", "/lifecycle-requests");
+                Map<String, Object> college = service.getCollege(ctx, collegeId);
+                UUID instituteId = UUID.fromString(college.get("instituteId").toString());
+                sendJson(exchange, 201, toJson(service.createLifecycleRequest(ctx, instituteId,
+                        extract(body, "requestType"), extract(body, "reason"), collegeId)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/lifecycle-requests/?$")) {
+                UUID instituteId = uuidFromPath(path, "/institutes/", "/lifecycle-requests");
+                String status = queryParam(exchange.getRequestURI().getQuery(), "status");
+                sendJson(exchange, 200, toJson(service.listLifecycleRequests(ctx, instituteId, status)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/lifecycle-requests")) {
-                String q = exchange.getRequestURI().getQuery();
-                String status = null;
-                if (q != null && q.contains("status=")) {
-                    int i = q.indexOf("status=") + 7;
-                    int end = q.indexOf('&', i);
-                    status = end < 0 ? q.substring(i) : q.substring(i, end);
-                }
-                sendJson(exchange, 200, toJson(service.listLifecycleRequests(ctx, status)));
+                String status = queryParam(exchange.getRequestURI().getQuery(), "status");
+                sendJson(exchange, 200, toJson(service.listLifecycleRequests(ctx, null, status)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.matches(".*/lifecycle-requests/[^/]+/decide/?$")) {
-                UUID requestId = uuidFromPath(path, "/lifecycle-requests/", "/decide");
-                sendJson(exchange, 200, toJson(service.decideLifecycleRequest(ctx, requestId, extract(body, "decision"), extract(body, "note"))));
+            if ("POST".equalsIgnoreCase(method)
+                    && (path.matches(".*/lifecycle-requests/[^/]+/decide/?$")
+                    || path.matches(".*/lifecycle-requests/[^/]+/decision/?$"))) {
+                String end = path.contains("/decision") ? "/decision" : "/decide";
+                UUID requestId = uuidFromPath(path, "/lifecycle-requests/", end);
+                String note = extract(body, "note");
+                if (note == null || note.trim().isEmpty()) {
+                    note = extract(body, "reason");
+                }
+                sendJson(exchange, 200, toJson(service.decideLifecycleRequest(ctx, requestId,
+                        extract(body, "decision"), note)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/lifecycle-history/?$")) {

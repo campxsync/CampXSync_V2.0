@@ -1,21 +1,20 @@
 # Next Task
 
-**STATUS: IADM-01 Slice S2 completed (2026-11-22). Implementing Slice S3 (lifecycle). IADM-02…08 and CADM out of scope.**
+**STATUS: IADM-01 Slice S3 completed (2026-11-22). Implementing Slice S4 (oversight). IADM-02…08 and CADM out of scope.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| S1 owner gate | `APPROVED S1` | **recorded 2026-11-22** |
-| S2 stories | US-019,006,020,018,007,008,009 | **completed** — `docs/iadm/SLICE_S2_REPORT.md` |
-| S3 stories | US-010,011,021,022,023 | **in progress** (no stop after S2) |
-| Next after S3 | Slice S4 oversight | pending |
+| S1 | `APPROVED S1` | recorded |
+| S2 | US-019…009 | **completed** — `docs/iadm/SLICE_S2_REPORT.md` |
+| S3 | US-010,011,021,022,023 | **completed** — `docs/iadm/SLICE_S3_REPORT.md` |
+| S4 | oversight stories | **in progress** |
 
 ## Spec
 
 - Work list: `docs/user-stories/IADM-01_User_Stories.csv`
-- Design: external `CampXSync_IADM-01_Detailed_Blueprint_V2.1.md` (see Phase 0 DOC finding)
-- Fixed decisions in owner task (tenant=institute; no college in Platform wizard; Auth-first R03; etc.)
+- Fixed decisions in owner task
 
 ## Rules
 
