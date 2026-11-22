@@ -31,6 +31,7 @@ $services = @(
     @{ Name = "Frontend (Next.js)"; Port = 3000; HealthUrl = "http://127.0.0.1:3000/login"; AcceptAuthChallenge = $false },
     @{ Name = "API Gateway"; Port = 8080; HealthUrl = "http://127.0.0.1:8080/actuator/health"; AcceptAuthChallenge = $false },
     @{ Name = "Institute Admin (IAM Path C)"; Port = 8081; HealthUrl = "http://127.0.0.1:8081/api/v1/admin"; AcceptAuthChallenge = $true },
+    @{ Name = "IADM-01 Tenant Lifecycle"; Port = 8099; HealthUrl = "http://127.0.0.1:8099/api/v1/iadm/01/health"; AcceptAuthChallenge = $true },
     @{ Name = "Student Service (STM-01/07)"; Port = 8093; HealthUrl = "http://127.0.0.1:8093/actuator/health"; AcceptAuthChallenge = $true },
     @{ Name = "Admissions Service (STM-02)"; Port = 8094; HealthUrl = "http://127.0.0.1:8094/health"; AcceptAuthChallenge = $true },
     @{ Name = "Enrollment Service (STM-03)"; Port = 8095; HealthUrl = "http://127.0.0.1:8095/health"; AcceptAuthChallenge = $true },

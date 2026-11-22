@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-22 (IADM implementation **rolled back** to RBAC Phase 4; docs retained; do not start IADM/CADM; **no push**)
+**Last current-state refresh:** 2026-11-22 (IADM-01 S0–S4 **re-authorized** and in progress on DEV; CADM still waits; **no push**)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — IADM rolled back; **do not start IADM or CADM** until re-authorized.
-2. `docs/project-control/PROGRESS.md` — source of truth (rollback + RBAC Phase 0–4).
-3. Rollback evidence: `docs/iadm/ROLLBACK_REPORT.md`. Next IADM attempt (when authorized): `docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`.
+1. `docs/prompts/NEXT_TASK.md` — IADM-01 S0–S4 active; finish S1 demo then STOP for `APPROVED S1`.
+2. `docs/project-control/PROGRESS.md` — source of truth.
+3. Spec: `docs/user-stories/IADM-01_User_Stories.csv`; Phase 0: `docs/iadm/IADM01_PHASE0_REPORT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 

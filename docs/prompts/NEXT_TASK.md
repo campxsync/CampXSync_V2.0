@@ -1,27 +1,26 @@
 # Next Task
 
-**STATUS: IADM implementation rolled back to RBAC Phase 4 state (2026-11-22). Docs retained. Do NOT start IADM or CADM implementation.**
+**STATUS: IADM-01 (Institute & Tenant Lifecycle) S0–S4 authorized for DEV (2026-11-22). Owner: Niranjan V.G. IADM-02…08 and CADM are out of scope.**
 
-## This Run Summary (2026-11-22) — IADM Rollback
+## This run (in progress)
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| Owner-approved IADM rollback | Owner Niranjan V.G. 2026-11-21 | **completed** — `docs/iadm/ROLLBACK_REPORT.md` |
-| Backup tag/branch | `backup-iadm-before-rollback` / `backup/iadm-before-rollback` | tip `dc4063f` (snapshot before rollback) |
-| Code revert | `fac65de` | IADM Waves A–F, UI-1, Slice 1, demo catalog removed |
-| Security keep (context leak) | `ec6057c` | K2 re-applied |
-| DB rollback DEV | migrations `000200`…`120000` reverse; **skip K1 `000100`** | objects gone; K1 `auth.uid()` kept |
-| RBAC Phases 0–4 | `0353f6e` and earlier | **unchanged / stay** |
+| Owner authorization | IADM-01 slices S0–S4 DEV only | **active** |
+| Phase 0 report | `docs/iadm/IADM01_PHASE0_REPORT.md` | **completed** (IADM01-TECH-001) |
+| Foundation migration | `20261122010000_iadm01_lifecycle_foundation` (+ MCP apply) | **applied on DEV** |
+| IADM-01 service | port **8099**, `/api/v1/iadm/01` | **scaffolded + compiling**; RBAC unit tests 7/7 |
+| Gateway route | `GatewayConfig` `/api/v1/iadm/01` → `:8099` | **registered** |
+| Stack scripts | start/check/restart know `iadm-01` | **updated** |
+| S1 wizard / R03 home | Platform onboard + `/institution` | **in progress** — demo report not yet written |
+| Owner checkpoint | After `SLICE_S1_DEMO_REPORT.md` | **await APPROVED S1** (not reached yet) |
 
-## Spec for the next IADM attempt (when re-authorized)
+## Spec
 
-Follow **`docs/user-stories/IADM_Rework_Desks_Journeys_and_Stories_v2_DRAFT.md`** — desks, demo data, stricter definition of done.  
-**CADM waits.** Do not start any IADM or CADM implementation from this task.
-
-## RBAC Phase 4 baseline (still closed)
-
-Enterprise RBAC Matrix v3.0 Phases 0–4 remain the live DEV security baseline. Evidence: Phase reports under `docs/audits/rbac-implementation/`; post-rollback verify scripts PASS (see ROLLBACK_REPORT).
+- Work list: `docs/user-stories/IADM-01_User_Stories.csv`
+- Design: external `CampXSync_IADM-01_Detailed_Blueprint_V2.1.md` (see Phase 0 DOC finding)
+- Fixed decisions in owner task (tenant=institute; no college in Platform wizard; Auth-first R03; etc.)
 
 ## Rules
 
-No production/staging DB writes. No push to remote. No new IADM modules/ports until a new owner task authorizes the rework plan.
+No production/staging DB writes. No push. No IADM-02…08 or CADM implementation in this authorization.

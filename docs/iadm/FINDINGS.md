@@ -1,12 +1,60 @@
 # IADM Findings Register
 
 **Created:** 2026-11-21  
-**Scope:** IADM Step 0 and Waves A–D (DEV only)  
+**Updated:** 2026-11-22 (IADM-01 rework Phase 0)  
+**Scope:** IADM Step 0 / Waves A–D (historical) and IADM-01 S0–S4 rework (DEV only)  
 **Companion:** `docs/audits/rbac-implementation/FINDINGS_REGISTER_OPEN.md`
 
 ---
 
-## Security findings
+## IADM-01 rework findings (2026-11-22)
+
+### FINDING-IADM01-DOC-01 — Blueprint files outside git repo (LOW)
+
+- **Plain language:** `CampXSync_IADM-01_Detailed_Blueprint_V2.1.md` and `IADM_Service_Blueprint_Template_v1.md` live under `D:\CampXSync\Documentation\Platform_InstituteAdmin\`, not under `docs/user-stories/`.
+- **Action:** Follow CSV + fixed decisions; use external blueprint as design reference.
+- **Status:** OPEN (documentation location).
+
+### FINDING-IADM01-SEC-01 — `core.tenants` / `core.colleges` RLS not FORCED (MEDIUM)
+
+- **Plain language:** Row-level security is enabled but not forced, so table owners / bypass roles could skip policies.
+- **CONFIRMED:** `relforcerowsecurity=false` [SQL 2026-11-22].
+- **Action:** Do not change without owner approval (DDL). Logged only.
+- **Status:** OPEN.
+
+### FINDING-IADM01-AUD-01 — Platform audit search uses in-memory trail (HIGH)
+
+- **Plain language:** `/platform/audit` search path calls `InstituteAdminDomainService.searchAudit*` which reads an in-memory list, not `audit.events`.
+- **CONFIRMED:** `InstituteAdminDomainService.java` search methods.
+- **Action:** IADM-01 mutations write `audit.events` in-transaction. US-025 / Ops search may need a dedicated `audit.events` reader — do not claim Platform audit page finds IADM actions until rewired.
+- **Status:** OPEN.
+
+### FINDING-IADM01-AUTH-01 — `plat.is_auth_linked_user` was missing after rollback (HIGH → FIXED in DEV)
+
+- **Plain language:** Auth-link helper was removed with IADM DB rollback.
+- **Fix:** Recreated in migration `20261122010000` (applied via MCP as `iadm01_lifecycle_foundation`).
+- **Status:** FIXED in DEV [CONFIRMED SQL].
+
+### FINDING-IADM01-UI-01 — Institution Admin (R03) portal routing conflated with College Admin (HIGH)
+
+- **Plain language:** Middleware treats `INSTITUTION_ADMIN` as a college-admin user, so first R03 login will not land on an Institution Admin home.
+- **CONFIRMED:** `frontend/src/middleware.ts:130-131`.
+- **Action:** Required for US-005 in Slice S1.
+- **Status:** OPEN (in progress for S1).
+
+### FINDING-IADM01-CADM-01 — CADM-01/02 absent; INTERIM handover acks (MEDIUM)
+
+- **Plain language:** College Administration modules are not built. Handover records both acknowledgements with `cadm01_interim` / `cadm02_interim = true`.
+- **Status:** OPEN (by design until CADM exists).
+
+### FINDING-IADM-REWORK-02 — SUPERSEDED by IADM-01 US-002
+
+- Prior default required an existing Auth-linked profile before invite. Owner task now requires backend Auth Admin invite/create first. Implemented via `SupabaseAuthAdminClient` (env-gated).
+- **Status:** SUPERSEDED.
+
+---
+
+## Security findings (historical)
 
 ### FINDING-IADM-SEC-01 — `plat.assign_institution_admin` trusted `p_assigned_by` (CRITICAL → FIXED)
 

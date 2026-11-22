@@ -40,6 +40,8 @@ export function Sidebar({
     switch (role) {
       case 'platform_admin':
         return Building;
+      case 'institution_admin':
+        return Building;
       case 'college_admin':
         return ShieldCheck;
       case 'registrar':
@@ -48,6 +50,8 @@ export function Sidebar({
         return CalendarCheck2;
       case 'student':
         return GraduationCap;
+      default:
+        return Building;
     }
   };
 

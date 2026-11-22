@@ -128,8 +128,16 @@ export async function middleware(request: NextRequest) {
   const rawRole = (user.app_metadata?.role || '').toUpperCase();
 
   const isPlatformUser = rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
-  const isCollegeAdminUser = (rawRole === 'COLLEGE_ADMIN' || rawRole === 'INSTITUTION_ADMIN' || rawRole === 'ADMIN') && !isPlatformUser;
-  const isRegistrarUser = (rawRole === 'REGISTRAR' || rawRole === 'R31') && !isPlatformUser && !isCollegeAdminUser;
+  // Institution Admin (R03) is NOT College Admin (R04) — US-005 / FINDING-IADM01-UI-01
+  const isInstitutionAdminUser =
+    (rawRole === 'INSTITUTION_ADMIN' || rawRole === 'R03') && !isPlatformUser;
+  const isCollegeAdminUser =
+    (rawRole === 'COLLEGE_ADMIN' || rawRole === 'ADMIN') && !isPlatformUser && !isInstitutionAdminUser;
+  const isRegistrarUser =
+    (rawRole === 'REGISTRAR' || rawRole === 'R31') &&
+    !isPlatformUser &&
+    !isCollegeAdminUser &&
+    !isInstitutionAdminUser;
   const isFacultyUser = (rawRole === 'FACULTY' || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') && !isPlatformUser;
   const isStudentUser = rawRole === 'STUDENT' && !isPlatformUser;
 
@@ -208,6 +216,9 @@ export async function middleware(request: NextRequest) {
       if (isPlatformUser) {
         return NextResponse.redirect(new URL('/platform', request.url));
       }
+      if (isInstitutionAdminUser) {
+        return NextResponse.redirect(new URL('/institution', request.url));
+      }
       if (isCollegeAdminUser) {
         return NextResponse.redirect(new URL('/college', request.url));
       }
@@ -230,6 +241,12 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    if (pathname.startsWith('/institution')) {
+      if (!isInstitutionAdminUser && !isPlatformUser) {
+        return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+      }
+    }
+
     if (pathname.startsWith('/college')) {
       if (isRegistrarUser && (pathname === '/college' || pathname === '/college/')) {
         return NextResponse.redirect(new URL('/college/lifecycle', request.url));
@@ -242,7 +259,12 @@ export async function middleware(request: NextRequest) {
         isPlatformUser &&
         (pathname === '/college/account-provisioning' ||
           pathname.startsWith('/college/account-provisioning/'));
-      if (!isCollegeAdminUser && !facultyAdmissionsException && !registrarOk && !platformAccountDeskOk) {
+      if (
+        !isCollegeAdminUser &&
+        !facultyAdmissionsException &&
+        !registrarOk &&
+        !platformAccountDeskOk
+      ) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
     }

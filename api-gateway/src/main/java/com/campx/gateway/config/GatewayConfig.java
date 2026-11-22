@@ -51,6 +51,8 @@ public class GatewayConfig {
     public GatewayConfig() {
         // Core V2.0 / V3.0 User Story Ingress Routes
         // Path C — longest-prefix wins; register specific IAM routes before /api/v1/admin
+        // IADM-01 Institute & Tenant Lifecycle (port 8099) — before legacy /api/v1/admin catch-all
+        routeTable.put("/api/v1/iadm/01", "http://localhost:8099/api/v1/iadm/01");
         routeTable.put("/api/v1/admin/internal/delegations",
                 "http://localhost:8081/api/v1/admin/internal/delegations");
         routeTable.put("/api/v1/admin/internal/roles",

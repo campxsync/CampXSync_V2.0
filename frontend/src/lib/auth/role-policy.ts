@@ -58,6 +58,8 @@ export function canAccessCollegeAdminOnlyBff(role: UserRole | string | null | un
 export function gatewayActorRoleHint(uiRole: UserRole | string | null | undefined): string {
   switch (uiRole) {
     case 'platform_admin':
+      return 'PLATFORM_ADMIN';
+    case 'institution_admin':
       return 'INSTITUTION_ADMIN';
     case 'registrar':
       return 'REGISTRAR';
@@ -75,6 +77,8 @@ export function defaultDashboardForRole(role: UserRole): string {
   switch (role) {
     case 'platform_admin':
       return '/platform';
+    case 'institution_admin':
+      return '/institution';
     case 'college_admin':
       return '/college';
     case 'registrar':

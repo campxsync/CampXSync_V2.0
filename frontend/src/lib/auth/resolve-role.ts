@@ -4,7 +4,13 @@ import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 import { query } from '@/lib/db';
 import { verifySupabaseJwtLocally, extractAccessTokenFromCookies } from '@/lib/auth/jwt-verifier';
 
-export type UserRole = 'platform_admin' | 'college_admin' | 'registrar' | 'faculty' | 'student';
+export type UserRole =
+  | 'platform_admin'
+  | 'institution_admin'
+  | 'college_admin'
+  | 'registrar'
+  | 'faculty'
+  | 'student';
 
 export interface ResolvedUserSession {
   userId: string;
@@ -233,6 +239,9 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
         if (rawRole === 'REGISTRAR' || rawRole === 'R31') {
           effectiveRole = 'registrar';
           iamRoleCode = 'REGISTRAR';
+        } else if (rawRole === 'INSTITUTION_ADMIN' || rawRole === 'R03') {
+          effectiveRole = 'institution_admin';
+          iamRoleCode = 'INSTITUTION_ADMIN';
         } else if (rawRole.includes('ADMIN') && rawRole !== 'SUPER_ADMIN') {
           effectiveRole = 'college_admin';
         } else if (rawRole.includes('FACULTY') || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') {
@@ -326,8 +335,9 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       return { success: false, reason: 'inactive_membership' };
     }
 
-    // Extract highest role code. Priority: college_admin > registrar > faculty > student.
+    // Priority: institution_admin (R03) > college_admin > registrar > faculty > student.
     // REGISTRAR/R31 is a distinct UI bucket (D10/D12d) — never fold into college_admin.
+    // INSTITUTION_ADMIN must not fold into college_admin (IADM-01 US-005 / FINDING-IADM01-UI-01).
     let resolvedRole: UserRole | null = null;
     let matchedIamRoleCode: string | null = null;
     let matchedCollegeId: string | null = null;
@@ -340,9 +350,12 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       matchedCollegeId = assign.college_id || matchedCollegeId;
       matchedDeptId = assign.department_id || matchedDeptId;
 
-      if (
+      if (code === 'INSTITUTION_ADMIN' || code === 'R03') {
+        resolvedRole = 'institution_admin';
+        matchedIamRoleCode = 'INSTITUTION_ADMIN';
+        break;
+      } else if (
         code === 'COLLEGE_ADMIN' ||
-        code === 'INSTITUTION_ADMIN' ||
         code === 'PRINCIPAL' ||
         code === 'ACADEMIC_ADMIN'
       ) {

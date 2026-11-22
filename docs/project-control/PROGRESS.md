@@ -1,7 +1,21 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-22 (IADM implementation **rolled back** to RBAC Phase 4 state; docs retained; CADM waits)
+**Updated:** 2026-11-22 (IADM-01 S0–S4 **re-authorized** for DEV; implementation in progress; CADM still waits)
+
+## Owner decisions – IADM-01 rework start (22-11-2026)
+
+**Authorized by:** Niranjan V.G. (approval recorded 2026-11-22 for IADM-01 slices S0–S4 DEV only; nothing beyond).  
+**Spec:** `docs/user-stories/IADM-01_User_Stories.csv` + Phase 0 report `docs/iadm/IADM01_PHASE0_REPORT.md`.
+
+| Item | Status |
+|---|---|
+| Phase 0 (TECH-001) | **completed** — EXISTS/NEW map, audit table clarification, gaps listed |
+| Foundation migration | **applied on DEV** — `20261122010000` (+ MCP parts); rollback script present |
+| IADM-01 module `:8099` | **scaffolded** — gateway route, scripts, Auth Admin client, first-R03 onboarding API |
+| Unit tests | `TenantLifecycleRbacTest` **7/7 PASS** |
+| S1 screens | **in progress** — Platform wizard rewritten (no college); R03 `/institution` home + routing |
+| Owner STOP | After `SLICE_S1_DEMO_REPORT.md` — **not yet** |
 
 ## Owner decisions – IADM full rollback (22-11-2026)
 

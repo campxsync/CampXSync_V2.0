@@ -45,7 +45,7 @@ public class Iadm01Controller implements HttpHandler {
         String path = exchange.getRequestURI().getPath();
         if ("OPTIONS".equalsIgnoreCase(method)) {
             exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-            exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
             exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "*");
             exchange.sendResponseHeaders(204, -1);
             return;
@@ -64,6 +64,12 @@ public class Iadm01Controller implements HttpHandler {
         byte[] bodyBytes = readAll(exchange.getRequestBody());
         FlowTracker tracker = logger.flow(method + " " + path, correlationId);
         try {
+            // Health is unauthenticated so stack/check scripts can probe without HMAC.
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/health") || path.endsWith("/healthz"))) {
+                sendJson(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-01\"}");
+                return;
+            }
+
             GatewayHmacVerifier.VerificationResult auth = hmacVerifier.verify(exchange, method, path, bodyBytes);
             if (!auth.isSuccess()) {
                 logger.warn("IADM-01 auth failed path={} code={} correlationId={}", path, auth.getErrorCode(), correlationId);
@@ -80,19 +86,48 @@ public class Iadm01Controller implements HttpHandler {
 
             String body = new String(bodyBytes, StandardCharsets.UTF_8);
             boolean noTenant = auth.getTenantId() == null || auth.getTenantId().trim().isEmpty();
-            boolean platformOp = path.endsWith("/institutes") && "POST".equalsIgnoreCase(method)
-                    || path.contains("/appoint-admin")
-                    || path.contains("/suspend") || path.contains("/reactivate")
-                    || (path.contains("/lifecycle-requests") && ("GET".equalsIgnoreCase(method) || path.endsWith("/decide")))
+            boolean platformOp = (path.endsWith("/institutes") || path.endsWith("/institutes/"))
+                    || path.endsWith("/institutes/summary")
+                    || path.contains("/first-admin/onboarding")
+                    || path.contains("/onboarding")
+                    || path.contains("/suspend") || path.contains("/reactivate") || path.contains("/archive")
+                    || (path.contains("/lifecycle-requests") && ("GET".equalsIgnoreCase(method) || path.endsWith("/decide") || path.endsWith("/decision")))
                     || ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$"))
-                    || path.contains("/lifecycle-history");
+                    || path.contains("/lifecycle-history")
+                    || path.contains("/history");
             UserSecurityContext ctx = (platformOp && noTenant)
                     ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
                     : UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
-
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/institutes/summary")) {
+                sendJson(exchange, 200, toJson(service.getSummary(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/institutes") || path.endsWith("/institutes/"))) {
+                String q = exchange.getRequestURI().getQuery();
+                String status = queryParam(q, "status");
+                String search = queryParam(q, "search");
+                sendJson(exchange, 200, toJson(service.listInstitutes(ctx, status, search)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/?$")) {
-                Map<String, Object> r = service.registerInstitute(ctx, extract(body, "code"), extract(body, "name"), extract(body, "region"));
+                Map<String, Object> r = service.registerInstitute(ctx,
+                        extract(body, "code"), extract(body, "name"), extract(body, "region"),
+                        extract(body, "type"), extract(body, "planReference"));
                 sendJson(exchange, 201, toJson(r));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/onboarding/?$")) {
+                UUID tenantId = uuidFromPath(path, "/institutes/", "/onboarding");
+                sendJson(exchange, 200, toJson(service.getOnboarding(ctx, tenantId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/first-admin/onboarding/?$")) {
+                UUID tenantId = uuidFromPath(path, "/institutes/", "/first-admin/onboarding");
+                boolean simulateFail = "true".equalsIgnoreCase(extract(body, "simulateInviteFailure"));
+                Map<String, Object> r = service.resumeFirstAdminOnboarding(ctx, tenantId,
+                        extract(body, "email"), extract(body, "displayName"),
+                        extract(body, "correlationId"), simulateFail);
+                sendJson(exchange, 200, toJson(r));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/?$")) {
@@ -100,13 +135,10 @@ public class Iadm01Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.getInstitute(ctx, id)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/appoint-admin/?$")) {
-                UUID tenantId = uuidFromPath(path, "/institutes/", "/appoint-admin");
-                String userIdRaw = extract(body, "userId");
-                String email = extract(body, "email");
-                UUID userId = (userIdRaw == null || userIdRaw.trim().isEmpty()) ? null : UUID.fromString(userIdRaw.trim());
-                Map<String, Object> r = service.appointInstitutionAdmin(ctx, tenantId, userId, email);
-                sendJson(exchange, 200, toJson(r));
+            if ("GET".equalsIgnoreCase(method) && path.matches(".*/institutes/[^/]+/colleges/?$")) {
+                UUID tenantId = uuidFromPath(path, "/institutes/", "/colleges");
+                String status = queryParam(exchange.getRequestURI().getQuery(), "status");
+                sendJson(exchange, 200, toJson(service.listColleges(ctx, tenantId, status)));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.contains("/colleges/onboard")) {
@@ -158,10 +190,6 @@ public class Iadm01Controller implements HttpHandler {
                 sendJson(exchange, 200, "{\"items\":" + toJsonArray(rows) + "}");
                 return;
             }
-            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/health") || path.endsWith("/healthz"))) {
-                sendJson(exchange, 200, "{\"status\":\"UP\",\"service\":\"IADM-01\"}");
-                return;
-            }
             sendJson(exchange, 404, problem("IADM01_NOT_FOUND", "Route not found: " + path));
         } catch (UserProfileAccessDeniedException e) {
             tracker.markFailed(e);
@@ -200,6 +228,18 @@ public class Iadm01Controller implements HttpHandler {
         return UUID.fromString(id.replaceAll("/$", ""));
     }
 
+    private static String queryParam(String query, String key) {
+        if (query == null || key == null) return null;
+        String[] parts = query.split("&");
+        for (String part : parts) {
+            int eq = part.indexOf('=');
+            if (eq > 0 && key.equals(part.substring(0, eq))) {
+                return part.substring(eq + 1);
+            }
+        }
+        return null;
+    }
+
     private static String extract(String json, String key) {
         if (json == null) return null;
         String needle = "\"" + key + "\"";
@@ -221,12 +261,31 @@ public class Iadm01Controller implements HttpHandler {
             if (!first) sb.append(',');
             first = false;
             sb.append('"').append(e.getKey()).append("\":");
-            Object v = e.getValue();
-            if (v == null) sb.append("null");
-            else if (v instanceof Number || v instanceof Boolean) sb.append(v);
-            else sb.append('"').append(String.valueOf(v).replace("\"", "\\\"")).append('"');
+            sb.append(toJsonValue(e.getValue()));
         }
         return sb.append('}').toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String toJsonValue(Object v) {
+        if (v == null) return "null";
+        if (v instanceof Number || v instanceof Boolean) return String.valueOf(v);
+        if (v instanceof Map) return toJson((Map<String, Object>) v);
+        if (v instanceof List) {
+            List<?> list = (List<?>) v;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) sb.append(',');
+                Object item = list.get(i);
+                if (item instanceof Map) {
+                    sb.append(toJson((Map<String, Object>) item));
+                } else {
+                    sb.append(toJsonValue(item));
+                }
+            }
+            return sb.append(']').toString();
+        }
+        return "\"" + String.valueOf(v).replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private static String toJsonArray(List<Map<String, Object>> rows) {

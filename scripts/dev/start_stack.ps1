@@ -1,4 +1,4 @@
-# scripts/dev/start_stack.ps1
+﻿# scripts/dev/start_stack.ps1
 $ErrorActionPreference = "Stop"
 
 $baseDir = "D:\CampXSync\CampXSync_V2.0"
@@ -33,7 +33,7 @@ try {
 }
 
 # 2. Stop old listeners on core + academic ports
-$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 3000)
+$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 8099, 3000)
 foreach ($p in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
     if ($conns) {
@@ -80,6 +80,26 @@ $iamProc = Start-Process -FilePath "java" -ArgumentList @(
 ) -WorkingDirectory $iamDir -RedirectStandardOutput "$logDir\adm-01.log" -RedirectStandardError "$logDir\adm-01.err" -WindowStyle Minimized -PassThru
 
 Write-Host "ADM-01 launched with PID $($iamProc.Id)" -ForegroundColor DarkGray
+
+# 3a1. Launch IADM-01 Institute & Tenant Lifecycle on port 8099
+Write-Host "Starting IADM-01 Tenant Lifecycle Service on port 8099 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$iadm01Dir = "$baseDir\services\administration-services\iadm-01-tenant-lifecycle-service"
+if (Test-Path "$iadm01Dir\classpath.txt") {
+    $iadm01Cp = (Get-Content "$iadm01Dir\classpath.txt" -Raw).Trim()
+    $iadm01Proc = Start-Process -FilePath "java" -ArgumentList @(
+        "-Xms32m",
+        "-Xmx96m",
+        "-Dcampx.persistence.mode=postgres",
+        "-Dcampx.internal.auth.enabled=true",
+        "-cp",
+        "target\classes;$iadm01Cp",
+        "com.campx.iadm.lifecycle.Iadm01Application",
+        "8099"
+    ) -WorkingDirectory $iadm01Dir -RedirectStandardOutput "$logDir\iadm-01.log" -RedirectStandardError "$logDir\iadm-01.err" -WindowStyle Minimized -PassThru
+    Write-Host "IADM-01 launched with PID $($iadm01Proc.Id)" -ForegroundColor DarkGray
+} else {
+    Write-Host "IADM-01 classpath.txt missing — skip launch (build module first)" -ForegroundColor Yellow
+}
 
 # Path C + STM-07 IAM role port client base (student-service)
 $env:CAMPX_IAM_DELEGATION_BASE_URL = "http://127.0.0.1:8081"
