@@ -34,60 +34,9 @@ public class PostgresGlobalPolicyRepository implements GlobalPolicyRepository {
 
     @Override
     public GlobalPolicy savePolicy(UserSecurityContext context, GlobalPolicy policy) {
-        if (context == null) {
-            throw new UserProfileAccessDeniedException("Missing required security context");
-        }
-        if (policy == null || policy.getPolicyCode() == null || policy.getPolicyCode().trim().isEmpty()) {
-            throw new MalformedPayloadException("Policy and policyCode cannot be null");
-        }
-
-        String code = policy.getPolicyCode().trim();
-        String name = policy.getPolicyCode();
-        String category = policy.getPolicyType() != null ? policy.getPolicyType() : "SECURITY";
-        String enforcementMode = "ENFORCE";
-        String rulesJson = "{\"rules\":[]}";
-        if (policy.getRules() != null && !policy.getRules().isEmpty()) {
-            StringBuilder sb = new StringBuilder("{\"rules\":[");
-            for (int i = 0; i < policy.getRules().size(); i++) {
-                if (i > 0) sb.append(",");
-                sb.append("\"").append(policy.getRules().get(i).replace("\"", "\\\"")).append("\"");
-            }
-            sb.append("]}");
-            rulesJson = sb.toString();
-        }
-
-        String finalRules = rulesJson;
-        return context.executeInTransaction(connectionManager, conn -> {
-            String sql = "INSERT INTO cfg.policies ("
-                    + "id, policy_code, name, category, rules, enforcement_mode, created_at, updated_at, row_version"
-                    + ") VALUES (gen_random_uuid(), ?, ?, ?, ?::jsonb, ?, now(), now(), 1) "
-                    + "ON CONFLICT (policy_code) WHERE deleted_at IS NULL DO UPDATE SET "
-                    + "name = EXCLUDED.name, category = EXCLUDED.category, rules = EXCLUDED.rules, "
-                    + "enforcement_mode = EXCLUDED.enforcement_mode, updated_at = now(), row_version = cfg.policies.row_version + 1 "
-                    + "RETURNING id, policy_code, name, category, rules::text, enforcement_mode, created_at, updated_at, row_version";
-
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, code);
-                ps.setString(2, name);
-                ps.setString(3, category);
-                ps.setString(4, finalRules);
-                ps.setString(5, enforcementMode);
-
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        policy.setId(rs.getString("id"));
-                        policy.setPolicyCode(rs.getString("policy_code"));
-                        policy.setPolicyType(rs.getString("category"));
-                        policy.setStatus("ACTIVE");
-                        Timestamp cat = rs.getTimestamp("created_at");
-                        if (cat != null) policy.setCreatedAt(cat.getTime());
-                        logger.info("Persisted policy [{}] in cfg.policies", code);
-                        return policy;
-                    }
-                    throw new SQLException("Save into cfg.policies returned no rows");
-                }
-            }
-        });
+        // IADM-02 cutover: platform policy mutations go through IADM-02 only.
+        throw new UserProfileAccessDeniedException(
+                "cfg.policies writes via institute-admin are retired; use IADM-02 policy drafts.");
     }
 
     @Override

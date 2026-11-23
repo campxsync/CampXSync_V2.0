@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "step": "versions before",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s4_versions_before.png"
+    },
+    {
+      "step": "US-027 corrective",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s4_corrective.png",
+      "msg": "Published VER-006 from VER-004 · notification delayed",
+      "pass": true
+    }
+  ]
+}

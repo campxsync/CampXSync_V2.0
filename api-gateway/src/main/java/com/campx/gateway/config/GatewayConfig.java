@@ -59,6 +59,10 @@ public class GatewayConfig {
                 "http://localhost:8081/api/v1/admin/internal/delegations");
         routeTable.put("/api/v1/admin/internal/roles",
                 "http://localhost:8081/api/v1/admin/internal/roles");
+        // IADM-02 cutover: retire monolith platform configuration + global policies (410 Gone).
+        // Longer prefixes beat /api/v1/admin catch-all.
+        routeTable.put("/api/v1/admin/configuration", "gone://iadm02-cutover-configuration");
+        routeTable.put("/api/v1/admin/policies", "gone://iadm02-cutover-policies");
         routeTable.put("/api/v1/admin", "http://localhost:8081/api/v1/admin");
         routeTable.put("/api/v1/user/preferences", "http://localhost:8081/api/v1/user/preferences");
         routeTable.put("/api/v1/user", "http://localhost:8081/api/v1/user");
@@ -138,7 +142,7 @@ public class GatewayConfig {
         // Canonical Documented Gateway Route Prefixes
         // Platform Tier -> Institute Admin Service (Port 8081)
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
-        routeTable.put("/v1/platform-configs", "http://localhost:8081/api/v1/admin/configuration");
+        routeTable.put("/v1/platform-configs", "gone://iadm02-cutover-configuration");
         routeTable.put("/v1/platform-roles", "http://localhost:8081/api/v1/admin/roles");
         routeTable.put("/v1/billing-accounts", "http://localhost:8081/api/v1/admin/billing/plans");
         routeTable.put("/v1/platform-audit-logs", "http://localhost:8081/api/v1/admin/audit-logs");

@@ -37,6 +37,7 @@ public class Iadm02Controller implements HttpHandler {
     private static final Pattern DRAFT_DECIDE = Pattern.compile(".*/drafts/([^/]+)/decide/?$");
     private static final Pattern DRAFT_PUBLISH = Pattern.compile(".*/drafts/([^/]+)/publish/?$");
     private static final Pattern VERSION_COMPARE = Pattern.compile(".*/versions/([^/]+)/compare/([^/]+)/?$");
+    private static final Pattern VERSION_CORRECTIVE = Pattern.compile(".*/versions/([^/]+)/corrective-publish/?$");
     private static final Pattern POLICY_DRAFT = Pattern.compile(".*/policies/([^/]+)/drafts/?$");
 
     private final ConfigDomainService service;
@@ -156,6 +157,15 @@ public class Iadm02Controller implements HttpHandler {
             if ("GET".equalsIgnoreCase(method) && compare.matches()) {
                 sendJson(exchange, 200, toJson(service.compareVersions(ctx,
                         UUID.fromString(compare.group(1)), UUID.fromString(compare.group(2)))));
+                return;
+            }
+            Matcher corrective = VERSION_CORRECTIVE.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && corrective.matches()) {
+                UUID sourceId = UUID.fromString(corrective.group(1));
+                sendJson(exchange, 200, toJson(service.correctiveRepublish(ctx, sourceId,
+                        extract(body, "reason"),
+                        extract(body, "releaseNotes"),
+                        firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key")))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/versions") || path.endsWith("/versions/"))) {

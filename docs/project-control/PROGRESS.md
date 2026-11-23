@@ -1,11 +1,11 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-23 (IADM-02 **`APPROVED S3 COMMIT`**; `APPROVED S2`; S0–S2 in `480f847`; IADM-01 S0–S4 still `APPROVED S4`; no push)
+**Updated:** 2026-11-23 (IADM-02 **`APPROVED S4` COMMIT + push**; cutover executed; `APPROVED S3 COMMIT` `a66eed2`; IADM-01 S0–S4 still `APPROVED S4`)
 
 ## Owner decisions – IADM-02 Platform Configuration & Policy (23-11-2026)
 
-**Authorized by:** Niranjan V.G. (S0–S2 approved; S3 US-021…026 authorized this turn; DEV; no push).  
+**Authorized by:** Niranjan V.G. (S0–S4 approved; cutover authorized; DEV; no push).  
 **Spec:** `docs/user-stories/CampXSync_IADM-02_User_Stories.csv` + blueprint `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\CampXSync_IADM-02_Detailed_Blueprint_V2.1.md` (document says V1.0).
 
 | Item | Status |
@@ -13,11 +13,13 @@
 | S0 US-001 read-only verification | **completed** — `docs/iadm/iadm-02/S0_VERIFICATION_REPORT.md` |
 | S0 Decision Pack (D1, D3, D6, D7, D9, D10) | **Owner APPROVED** |
 | S0 build US-002…007 | **completed** |
-| S1 US-008…015 | **`APPROVED S1 COMMIT`** — US-012 edit + R02/R01-B headed JWT fixes included |
-| S2 US-016…020 | **`APPROVED S2`** — gap evidence in `SLICE_S2_DEMO_REPORT.md`; cutover plan written (not executed) |
-| S3 US-021…026 | **`APPROVED S3 COMMIT`** — `docs/iadm/iadm-02/SLICE_S3_DEMO_REPORT.md` (US-024 partially completed) |
-| S4 | **Not started** — needs owner authorization |
-| Gate holds | No change to `cfg.policies` / `setting_values` writers; `FINDING-IADM02-WRITE-01`; `CUTOVER_PLAN.md` |
+| S1 US-008…015 | **`APPROVED S1 COMMIT`** |
+| S2 US-016…020 | **`APPROVED S2`** |
+| S3 US-021…026 | **`APPROVED S3 COMMIT`** (`a66eed2`) |
+| Cutover | **executed** — `docs/iadm/iadm-02/CUTOVER_PLAN.md` |
+| S4 US-027…032 | **`APPROVED S4`** — `SLICE_S4_DEMO_REPORT.md` (028/032 partial; no commit yet) |
+| After S4 | **Stop** — no IADM-03…08 / CADM without new authorization |
+| Gate holds | US-031 PARKED; `FINDING-IADM02-WRITE-01` mitigated for platform path |
 | DB writes this step | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-01 rework start (22-11-2026)

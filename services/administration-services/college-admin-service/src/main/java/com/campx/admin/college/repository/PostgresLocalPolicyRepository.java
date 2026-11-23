@@ -34,69 +34,18 @@ public class PostgresLocalPolicyRepository implements LocalPolicyRepository {
 
     @Override
     public LocalPolicy createLocalPolicy(UserSecurityContext context, LocalPolicy policy) {
-        if (context == null || context.getTenantId() == null) {
-            throw new CollegeSecurityViolationException("Missing required security context: tenantId");
-        }
-        if (policy == null) {
-            throw new CollegeMalformedPayloadException("Policy payload cannot be null");
-        }
-        if (policy.getPolicyCode() == null || policy.getPolicyCode().trim().isEmpty()) {
-            throw new CollegeMalformedPayloadException("Mandatory field 'policyCode' is required");
-        }
-
-        String code = policy.getPolicyCode().trim().toUpperCase(Locale.ROOT);
-        String status = policy.getStatus() != null ? policy.getStatus().trim() : "DRAFT";
-
-        return context.executeInTransaction(connectionManager, conn -> {
-            // Check for conflict
-            String checkSql = "SELECT id FROM cfg.policies WHERE policy_code = ? AND deleted_at IS NULL";
-            try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
-                ps.setString(1, code);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        throw new CollegeResourceConflictException("LocalPolicy", "policyCode", code);
-                    }
-                }
-            }
-
-            UUID id = (policy.getId() != null && !policy.getId().trim().isEmpty())
-                    ? UUID.fromString(policy.getId().trim()) : UUID.randomUUID();
-
-            Map<String, Object> rules = new LinkedHashMap<>();
-            rules.put("status", status);
-            rules.put("approvedBy", policy.getApprovedBy());
-            rules.put("version", policy.getVersion() > 0 ? policy.getVersion() : 1);
-            String rulesJson;
-            try {
-                rulesJson = objectMapper.writeValueAsString(rules);
-            } catch (Exception e) {
-                throw new CollegeMalformedPayloadException("Failed to serialize policy rules JSON: " + e.getMessage());
-            }
-
-            String insertSql = "INSERT INTO cfg.policies (id, policy_code, name, category, rules, enforcement_mode, " +
-                    "created_at, updated_at, row_version) " +
-                    "VALUES (?, ?, ?, 'LOCAL_POLICY', ?::jsonb, 'ENFORCE', now(), now(), ?)";
-            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
-                ps.setObject(1, id);
-                ps.setString(2, code);
-                ps.setString(3, code);
-                ps.setString(4, rulesJson);
-                ps.setInt(5, policy.getVersion() > 0 ? policy.getVersion() : 1);
-                ps.executeUpdate();
-            }
-
-            policy.setId(id.toString());
-            policy.setPolicyCode(code);
-            policy.setStatus(status);
-            policy.setVersion(policy.getVersion() > 0 ? policy.getVersion() : 1);
-
-            logger.info("Persisted local policy [{}] in cfg.policies", code);
-            return policy;
-        });
+        // IADM-02 cutover: cfg.policies is FORCE RLS + IADM-02 owned; college local writes retired.
+        throw new CollegeSecurityViolationException(
+                "cfg.policies writes via college-admin are retired; use IADM-02 for platform policy drafts.");
     }
 
     @Override
     public LocalPolicy updateLocalPolicy(UserSecurityContext context, LocalPolicy policy) {
+        throw new CollegeSecurityViolationException(
+                "cfg.policies writes via college-admin are retired; use IADM-02 for platform policy drafts.");
+    }
+
+    private LocalPolicy updateLocalPolicyRetired(UserSecurityContext context, LocalPolicy policy) {
         if (context == null || context.getTenantId() == null) {
             throw new CollegeSecurityViolationException("Missing required security context: tenantId");
         }

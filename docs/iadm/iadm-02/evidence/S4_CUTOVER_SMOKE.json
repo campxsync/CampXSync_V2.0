@@ -1,0 +1,34 @@
+{
+  "cutover": {
+    "configuration": {
+      "status": 410,
+      "code": "IADM02_CUTOVER_GONE"
+    },
+    "alias": {
+      "status": 410,
+      "code": "IADM02_CUTOVER_GONE"
+    },
+    "policies": {
+      "status": 410,
+      "code": "IADM02_CUTOVER_GONE"
+    },
+    "pass": true
+  },
+  "corrective": {
+    "sourceLabel": "VER-003",
+    "sourceId": "88caa554-adc1-4ff6-92ed-78eca49a902e",
+    "status": 200,
+    "versionId": "6b4c0667-0877-43eb-bbd4-a55f03849dbf",
+    "label": "VER-005",
+    "restoredFrom": "88caa554-adc1-4ff6-92ed-78eca49a902e",
+    "notificationDeferred": true,
+    "retrySameId": true,
+    "pass": true
+  },
+  "r03r04Deny": {
+    "status": 403,
+    "errorCode": "IADM02_TENANT_ADMIN_DENIED",
+    "pass": true
+  },
+  "pass": true
+}

@@ -46,6 +46,18 @@ public class PostgresCollegeSettingRepository implements CollegeSettingRepositor
         String key = setting.getKey().trim();
 
         return context.executeInTransaction(connectionManager, conn -> {
+            // IADM-02 cutover / D2: platform catalogue keys cannot be overridden at college scope.
+            try (PreparedStatement chk = conn.prepareStatement(
+                    "SELECT 1 FROM cfg.setting_definitions WHERE setting_key = ? AND deleted_at IS NULL LIMIT 1")) {
+                chk.setString(1, key);
+                try (ResultSet rs = chk.executeQuery()) {
+                    if (rs.next()) {
+                        throw new CollegeMalformedPayloadException(
+                                "Platform catalogue key '" + key
+                                        + "' is frozen; institute overrides are parked (IADM-02-US-031).");
+                    }
+                }
+            }
             UUID collegeId = CollegeResolver.resolveCollegeId(conn, context.getTenantId());
 
             UUID settingId = null;

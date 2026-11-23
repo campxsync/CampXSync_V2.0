@@ -9,13 +9,12 @@
 
 ## IADM-02 findings (2026-11-23)
 
-### FINDING-IADM02-WRITE-01 — Residual writers on `cfg.setting_values` / `cfg.policies` (MEDIUM)
+### FINDING-IADM02-WRITE-01 — Residual writers on `cfg.setting_values` / `cfg.policies` (MEDIUM → MITIGATED)
 
-- **Plain language:** Until cutover, Institute Admin and College Admin JDBC repositories still INSERT/UPDATE `cfg.setting_values`, and institute/college policy repositories still write `cfg.policies`. IADM-02 publish uses `cfg.config_versions` only; writers of the legacy tables were **left unchanged** per owner gate.
-- **CONFIRMED:** Grep 2026-11-23 — `PostgresGlobalSettingRepository`, `PostgresCollegeSettingRepository`, policy repositories live; no service treats `setting_values` as the IADM-02 **effective** platform catalogue (IADM-01 now pulls consumer effective-config).
-- **Risk:** Operators may confuse monolith edits with published platform defaults; US-029 denials incomplete while dual-write remains.
-- **Action:** Execute `docs/iadm/iadm-02/CUTOVER_PLAN.md` only when owner authorizes each step (reader soak → freeze → FORCE RLS → retire `/api/v1/admin/configuration` and `/v1/platform-configs`).
-- **Status:** OPEN (documented; cutover not executed).
+- **Plain language:** Legacy institute/college writers could mutate `cfg.setting_values` / `cfg.policies` beside IADM-02 publish.
+- **Mitigation (2026-11-23 cutover):** Gateway **410** on `/api/v1/admin/configuration`, `/v1/platform-configs`, `/api/v1/admin/policies`; Java freeze for **platform catalogue keys** in setting_values writers; policy JDBC writers retired; `cfg.policies` **FORCE RLS** on DEV.
+- **Remaining:** Non-catalogue college `setting_values` rows still writable until US-031 (PARKED).
+- **Status:** **MITIGATED** for platform catalogue / policies path.
 
 ---
 

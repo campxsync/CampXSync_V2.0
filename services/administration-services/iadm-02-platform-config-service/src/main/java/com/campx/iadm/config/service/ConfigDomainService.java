@@ -408,6 +408,93 @@ public class ConfigDomainService {
                     versionId.toString(), "Published " + label + " from draft " + draftId);
             Map<String, Object> out = loadVersion(conn, versionId);
             out.put("published", Boolean.TRUE);
+            // IADM-02-US-030 — COM unavailable: non-blocking deferred notification status.
+            out.put("notificationDeferred", Boolean.TRUE);
+            out.put("notificationMessage", "Action completed; notification delivery is delayed.");
+            return out;
+        });
+    }
+
+    /**
+     * IADM-02-US-027 — corrective republish: new immutable version cloned from a prior version
+     * (D11 — new version, not pointer flip). History preserved; consumers pull the new active.
+     */
+    public Map<String, Object> correctiveRepublish(UserSecurityContext ctx, UUID sourceVersionId,
+                                                   String reason, String releaseNotes, String idempotencyKey) {
+        return ctx.executeInTransaction(db, conn -> {
+            assertMutationAllowed(conn, ctx);
+            requirePermissionOrSuperAdmin(conn, ctx, "cfg.publish");
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new InstituteAdminException(400, "IADM02_VALIDATION",
+                        "Corrective republish requires a reason.");
+            }
+            if (idempotencyKey != null && !idempotencyKey.trim().isEmpty()) {
+                Map<String, Object> existing = findVersionByIdempotency(conn, idempotencyKey.trim());
+                if (existing != null) {
+                    existing.put("notificationDeferred", Boolean.TRUE);
+                    existing.put("notificationMessage", "Action completed; notification delivery is delayed.");
+                    return existing;
+                }
+            }
+            Map<String, Object> source = loadVersion(conn, sourceVersionId);
+            if (source.get("versionId") == null) {
+                throw new ResourceNotFoundException("CONFIG_VERSION", sourceVersionId.toString());
+            }
+            String sourcePayload = source.get("payload") != null
+                    ? String.valueOf(source.get("payload")) : "{}";
+            Map<String, Object> active = loadActiveVersion(conn);
+            UUID supersedes = active.get("versionId") != null
+                    ? UUID.fromString(String.valueOf(active.get("versionId"))) : null;
+            if (supersedes != null) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE cfg.config_versions SET status = 'SUPERSEDED', updated_at = now(), updated_by = ? "
+                                + "WHERE id = ? AND status = 'PUBLISHED' AND deleted_at IS NULL")) {
+                    ps.setObject(1, ctx.getUserId());
+                    ps.setObject(2, supersedes);
+                    ps.executeUpdate();
+                }
+            }
+            String label = nextVersionLabel(conn);
+            UUID versionId = UUID.randomUUID();
+            String checksum = sha256(sourcePayload);
+            String notes = releaseNotes != null && !releaseNotes.trim().isEmpty()
+                    ? releaseNotes.trim()
+                    : "Corrective republish from " + source.get("versionLabel") + ": " + reason.trim();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO cfg.config_versions ("
+                            + "id, version_label, status, effective_from, release_notes, published_by, "
+                            + "supersedes_version_id, checksum, payload, idempotency_key, correlation_id, created_by) "
+                            + "VALUES (?, ?, 'PUBLISHED', now(), ?, ?, ?, ?, ?::jsonb, ?, ?, ?)")) {
+                ps.setObject(1, versionId);
+                ps.setString(2, label);
+                ps.setString(3, notes);
+                ps.setObject(4, ctx.getUserId());
+                if (supersedes != null) {
+                    ps.setObject(5, supersedes);
+                } else {
+                    ps.setNull(5, Types.OTHER);
+                }
+                ps.setString(6, checksum);
+                ps.setString(7, sourcePayload);
+                if (idempotencyKey != null && !idempotencyKey.trim().isEmpty()) {
+                    ps.setString(8, idempotencyKey.trim());
+                } else {
+                    ps.setNull(8, Types.VARCHAR);
+                }
+                ps.setString(9, "corrective:" + sourceVersionId);
+                ps.setObject(10, ctx.getUserId());
+                ps.executeUpdate();
+            }
+            appendDurableAudit(conn, ctx, null, "IADM02_CONFIG_ROLLBACK_PUBLISHED", "CONFIG_VERSION",
+                    versionId.toString(),
+                    "Corrective " + label + " from source " + source.get("versionLabel")
+                            + " (" + sourceVersionId + "): " + reason.trim());
+            Map<String, Object> out = loadVersion(conn, versionId);
+            out.put("corrective", Boolean.TRUE);
+            out.put("restoredFromVersionId", sourceVersionId.toString());
+            out.put("restoredFromVersionLabel", source.get("versionLabel"));
+            out.put("notificationDeferred", Boolean.TRUE);
+            out.put("notificationMessage", "Action completed; notification delivery is delayed.");
             return out;
         });
     }
@@ -645,6 +732,7 @@ public class ConfigDomainService {
     }
 
     private void requireDraftAuthority(Connection conn, UserSecurityContext ctx, String key) throws SQLException {
+        assertMutationAllowed(conn, ctx);
         PlatformRole pr = resolvePlatformRole(conn, ctx);
         if (pr == PlatformRole.SUPER_ADMIN) {
             return;
@@ -678,6 +766,7 @@ public class ConfigDomainService {
 
     private void requirePermissionOrSuperAdmin(Connection conn, UserSecurityContext ctx, String permission)
             throws SQLException {
+        assertMutationAllowed(conn, ctx);
         PlatformRole pr = resolvePlatformRole(conn, ctx);
         if (pr == PlatformRole.SUPER_ADMIN) {
             return;
@@ -688,6 +777,39 @@ public class ConfigDomainService {
             throw new InstituteAdminException(403, "IADM02_FORBIDDEN",
                     "You are not authorized for this configuration action.");
         }
+    }
+
+    /**
+     * US-028 / US-029 — auditors and institute/college admins cannot mutate platform config.
+     */
+    private void assertMutationAllowed(Connection conn, UserSecurityContext ctx) throws SQLException {
+        String tenantRole = resolveTenantBusinessRole(conn, ctx);
+        if ("AUDITOR".equals(tenantRole) || "R28".equals(tenantRole)) {
+            throw new InstituteAdminException(403, "IADM02_AUDITOR_READONLY",
+                    "Auditor access is read-only");
+        }
+        if ("INSTITUTION_ADMIN".equals(tenantRole) || "R03".equals(tenantRole)
+                || "COLLEGE_ADMIN".equals(tenantRole) || "R04".equals(tenantRole)
+                || "ADMIN".equals(tenantRole)) {
+            throw new InstituteAdminException(403, "IADM02_TENANT_ADMIN_DENIED",
+                    "Institution Admin and College Admin cannot change platform defaults or policy.");
+        }
+    }
+
+    private String resolveTenantBusinessRole(Connection conn, UserSecurityContext ctx) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT upper(r.code) FROM iam.role_assignments ra "
+                        + "JOIN iam.roles r ON r.id = ra.role_id "
+                        + "WHERE ra.user_id = ? AND ra.deleted_at IS NULL "
+                        + "ORDER BY ra.created_at DESC NULLS LAST LIMIT 1")) {
+            ps.setObject(1, ctx.getUserId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+            }
+        }
+        return null;
     }
 
     private void requireAny(Connection conn, UserSecurityContext ctx, String[] permissions, boolean allowPlatform)

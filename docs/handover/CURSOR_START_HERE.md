@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-23 (IADM-02 **`APPROVED S3 COMMIT`**; `APPROVED S2`; S0–S2 in `480f847`; IADM-01 S0–S4 still `APPROVED S4`; **no push**)
+**Last current-state refresh:** 2026-11-23 (IADM-02 **`APPROVED S4`**; cutover executed; `APPROVED S3 COMMIT` `a66eed2`; IADM-01 S0–S4 still `APPROVED S4`; **no push**; S4 local commit not requested)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **awaiting owner authorization for S4 or cutover**. S3 report: `docs/iadm/iadm-02/SLICE_S3_DEMO_REPORT.md`.
+1. `docs/prompts/NEXT_TASK.md` — **awaiting next-module authorization** (or `APPROVED S4 COMMIT` to commit cutover/S4). Report: `docs/iadm/iadm-02/SLICE_S4_DEMO_REPORT.md`.
 2. `docs/project-control/PROGRESS.md` — source of truth.
 3. Spec: `docs/user-stories/CampXSync_IADM-02_User_Stories.csv`; blueprint under Documentation `MicroServices/CampXSync_IADM-02_Detailed_Blueprint_V2.1.md` (doc says V1.0).
 
@@ -28,7 +28,7 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
-9. **IADM-02 S3 `APPROVED S3 COMMIT`** (`docs/iadm/iadm-02/SLICE_S3_DEMO_REPORT.md`); consumer exposes `iam.delegation.max_validity_days`; cutover plan only (`CUTOVER_PLAN.md`); **S4 / cutover need new owner authorization**.
+9. **IADM-02 `APPROVED S4`**; cutover executed; monolith configuration routes **410**; residuals US-024/028/032 partial; **IADM-03 not authorized**.
 10. **Demos:** `docs/iadm/iadm-02/SLICE_S*.md` + `docs/reports/playwright-final-stm07-stm10/`.
 
 ---

@@ -48,6 +48,12 @@ public class PostgresGlobalSettingRepository implements GlobalSettingRepository 
         String jsonVal = "\"" + val.replace("\"", "\\\"") + "\"";
 
         return context.executeInTransaction(connectionManager, conn -> {
+            // IADM-02 cutover: freeze platform-catalogue keys — publish only via IADM-02.
+            if (isPlatformCatalogueKey(conn, key)) {
+                throw new UserProfileAccessDeniedException(
+                        "Platform catalogue key '" + key
+                                + "' is frozen for cfg.setting_values writes; use IADM-02 publish.");
+            }
             String sql = "INSERT INTO cfg.setting_values ("
                     + "id, tenant_id, setting_key, scope, value, is_overridden"
                     + ") VALUES (gen_random_uuid(), ?, ?, ?, ?::jsonb, false) "
@@ -139,5 +145,15 @@ public class PostgresGlobalSettingRepository implements GlobalSettingRepository 
                 }
             }
         });
+    }
+
+    private static boolean isPlatformCatalogueKey(Connection conn, String key) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM cfg.setting_definitions WHERE setting_key = ? AND deleted_at IS NULL LIMIT 1")) {
+            ps.setString(1, key);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
     }
 }
