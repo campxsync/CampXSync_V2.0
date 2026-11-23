@@ -150,6 +150,13 @@ export default function PlatformConfigurationPage() {
           Policies
         </Link>
         <Link
+          href="/platform/configuration/diagnostics"
+          className="rounded border border-slate-300 px-4 py-2 text-sm"
+          data-testid="iadm02-link-diagnostics"
+        >
+          Consumer diagnostics
+        </Link>
+        <Link
           href="/platform/configuration/versions"
           className="rounded border border-slate-300 px-4 py-2 text-sm"
           data-testid="iadm02-open-versions"

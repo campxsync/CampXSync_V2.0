@@ -1,9 +1,21 @@
 # IADM Findings Register
 
 **Created:** 2026-11-21  
-**Updated:** 2026-11-22 (IADM-01 Slice S2 colleges/handover)  
-**Scope:** IADM Step 0 / Waves A–D (historical) and IADM-01 S0–S4 rework (DEV only)  
+**Updated:** 2026-11-23 (IADM-02 S2 residual write risk + S3)  
+**Scope:** IADM Step 0 / Waves A–D (historical) and IADM-01 S0–S4 rework (DEV only); IADM-02 S0–S3  
 **Companion:** `docs/audits/rbac-implementation/FINDINGS_REGISTER_OPEN.md`
+
+---
+
+## IADM-02 findings (2026-11-23)
+
+### FINDING-IADM02-WRITE-01 — Residual writers on `cfg.setting_values` / `cfg.policies` (MEDIUM)
+
+- **Plain language:** Until cutover, Institute Admin and College Admin JDBC repositories still INSERT/UPDATE `cfg.setting_values`, and institute/college policy repositories still write `cfg.policies`. IADM-02 publish uses `cfg.config_versions` only; writers of the legacy tables were **left unchanged** per owner gate.
+- **CONFIRMED:** Grep 2026-11-23 — `PostgresGlobalSettingRepository`, `PostgresCollegeSettingRepository`, policy repositories live; no service treats `setting_values` as the IADM-02 **effective** platform catalogue (IADM-01 now pulls consumer effective-config).
+- **Risk:** Operators may confuse monolith edits with published platform defaults; US-029 denials incomplete while dual-write remains.
+- **Action:** Execute `docs/iadm/iadm-02/CUTOVER_PLAN.md` only when owner authorizes each step (reader soak → freeze → FORCE RLS → retire `/api/v1/admin/configuration` and `/v1/platform-configs`).
+- **Status:** OPEN (documented; cutover not executed).
 
 ---
 

@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-23 (IADM-02 **S2 demo ready — owner checkpoint**; S1 `APPROVED S1 COMMIT`; IADM-01 S0–S4 still `APPROVED S4`; **no push**)
+**Last current-state refresh:** 2026-11-23 (IADM-02 **`APPROVED S3 COMMIT`**; `APPROVED S2`; S0–S2 in `480f847`; IADM-01 S0–S4 still `APPROVED S4`; **no push**)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **IADM-02 S2 owner checkpoint**. Demo: `docs/iadm/iadm-02/SLICE_S2_DEMO_REPORT.md`. Do not start S3 until `APPROVED S2`.
+1. `docs/prompts/NEXT_TASK.md` — **awaiting owner authorization for S4 or cutover**. S3 report: `docs/iadm/iadm-02/SLICE_S3_DEMO_REPORT.md`.
 2. `docs/project-control/PROGRESS.md` — source of truth.
 3. Spec: `docs/user-stories/CampXSync_IADM-02_User_Stories.csv`; blueprint under Documentation `MicroServices/CampXSync_IADM-02_Detailed_Blueprint_V2.1.md` (doc says V1.0).
 
@@ -21,15 +21,15 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **Gateway:** Ingress `:8080`; **IADM-01** `/api/v1/iadm/01` → `:8099`; JDK 8 PATCH proxy fixed.
-3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight. Reports in `docs/iadm/SLICE_S*.md`.
+2. **Gateway:** Ingress `:8080`; **IADM-01** `/api/v1/iadm/01` → `:8099`; **IADM-02** `/api/v1/iadm/02` → `:8100`.
+3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight. Now also pulls platform defaults via IADM-02 consumer (US-026).
 4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com`). Duplicate `MAC181627` archived.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
-9. **Kafka CROSS-EN-007** held. Live malware scanner = new tool (out of scope). CADM / IADM-03…08 not authorized. **IADM-02 S2** demo ready (`docs/iadm/iadm-02/SLICE_S2_DEMO_REPORT.md`); S3+ blocked on `APPROVED S2`.
-10. **Demos:** `docs/iadm/` slice reports (IADM-02 S1/S2) + `docs/reports/playwright-final-stm07-stm10/`.
+9. **IADM-02 S3 `APPROVED S3 COMMIT`** (`docs/iadm/iadm-02/SLICE_S3_DEMO_REPORT.md`); consumer exposes `iam.delegation.max_validity_days`; cutover plan only (`CUTOVER_PLAN.md`); **S4 / cutover need new owner authorization**.
+10. **Demos:** `docs/iadm/iadm-02/SLICE_S*.md` + `docs/reports/playwright-final-stm07-stm10/`.
 
 ---
 

@@ -1,0 +1,19 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "step": "catalogue with diagnostics link",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s3_catalogue.png"
+    },
+    {
+      "step": "US-025 diagnostics",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s3_diagnostics.png",
+      "hasRow": true,
+      "tableSnippet": "Principal\tLast version\tFetched at\tStatus\tActive version\n69822238-2ca1-4e3b-86d4-c76d76a78024\ta2b94200-06fa-4e33-8c60-ecabf27e88a2\t2026-11-23T12:09:11.390135Z\tFRESH\ta2b94200-06fa-4e33-8c60-ecabf27e88a2"
+    },
+    {
+      "step": "versions history",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s3_versions.png"
+    }
+  ]
+}

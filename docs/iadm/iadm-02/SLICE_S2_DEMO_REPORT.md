@@ -59,8 +59,23 @@ Owner decision needed before **IADM-02-US-029** (R03/R04 denial): whether to FOR
 
 ---
 
+## Post-approval S2 gap evidence (before S3)
+
+Owner: `APPROVED S2` (commit `480f847` covers S0–S2; no extra commit). Evidence script: `scripts/dev/iadm02_s2_gap_evidence.mjs` → `docs/iadm/iadm-02/evidence/S2_GAP_EVIDENCE.json`.
+
+| # | Requirement | Result | Evidence |
+|---|---|---|---|
+| 1 | R01-A cannot approve own draft (denied, audited) | **PASS** | API `403 IADM02_SELF_APPROVE`; audit `IADM02_CONFIG_DRAFT_DECIDE_DENIED` / `DENIED` for draft `515c13d0-…` (separate committed connection) |
+| 2 | Reject with reason; rejected draft cannot publish | **PASS** | Reject → `REJECTED`; publish → `409 IADM02_NOT_APPROVED` |
+| 3 | Publish failure keeps approved draft; idempotent retry; audit-or-no-success | **partially completed** | Idempotent retry **PASS** (`VER-003`/`VER-004` same `versionId` on retry; no duplicate version). Same-TX `audit.log_event` fail-closed is **code-proven** (`appendDurableAudit` throws → TX rollback leaves draft `APPROVED`); live publish-fault injection **not run** in this window |
+| 4 | Version history list + compare; published versions not editable | **PASS** | List labels VER-004…VER-001; compare API 200; PATCH published → `404` (no edit route) |
+| 5 | Effective time + release notes on VER-002 | **PASS** | SQL: `VER-002` `effective_from=2026-11-23 09:31:30+00`, `release_notes='S2 publish after R01-B approve'` |
+
+Writers of `cfg.setting_values` / `cfg.policies` **unchanged**. Cutover plan (read-only): `docs/iadm/iadm-02/CUTOVER_PLAN.md`. Residual write risk: `FINDING-IADM02-WRITE-01` in `docs/iadm/FINDINGS.md`.
+
+---
+
 ## Stop gate
 
-Reply `APPROVED S2`, `APPROVED S2 COMMIT`, or `CHANGES S2: …`.  
-Do **not** start S3 (consumer pull / freshness) or cut over monolith configuration until approved.  
-CSV status cells: update when you close the file in the editor (was EBUSY earlier).
+**S2 approved.** Proceeded to S3 under the same owner turn.  
+CSV status cells: update when the stories CSV file is unlocked in the editor.

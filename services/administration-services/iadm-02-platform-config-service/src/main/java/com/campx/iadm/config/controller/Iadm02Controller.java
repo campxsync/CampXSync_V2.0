@@ -162,6 +162,25 @@ public class Iadm02Controller implements HttpHandler {
                 sendJson(exchange, 200, "{\"items\":" + toJsonArray(service.listVersions(ctx)) + "}");
                 return;
             }
+            if ("GET".equalsIgnoreCase(method)
+                    && (path.endsWith("/consumer/effective-config") || path.endsWith("/consumer/effective-config/"))) {
+                String domains = null;
+                String query = exchange.getRequestURI().getRawQuery();
+                if (query != null) {
+                    for (String part : query.split("&")) {
+                        if (part.startsWith("domains=")) {
+                            domains = java.net.URLDecoder.decode(part.substring("domains=".length()), "UTF-8");
+                        }
+                    }
+                }
+                sendJson(exchange, 200, toJson(service.consumerEffectiveConfig(ctx, domains)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method)
+                    && (path.endsWith("/consumer/diagnostics") || path.endsWith("/consumer/diagnostics/"))) {
+                sendJson(exchange, 200, "{\"items\":" + toJsonArray(service.listConsumerDiagnostics(ctx)) + "}");
+                return;
+            }
             Matcher draftPatch = DRAFT_ID.matcher(path);
             if ("PATCH".equalsIgnoreCase(method) && draftPatch.matches() && !path.contains("/validate")) {
                 UUID draftId = UUID.fromString(draftPatch.group(1));

@@ -266,6 +266,40 @@ public class JdbcIdentityResolver implements IdentityResolver {
             }
 
             if (activeAssignments.isEmpty()) {
+                // IADM-02 service consumers: active iam.api_clients may authenticate without a
+                // tenant role assignment (D7 seed-only clients / cfg.consumer.read).
+                String apiClientSql = "SELECT id, name, tenant_id FROM iam.api_clients "
+                        + "WHERE user_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL "
+                        + "AND (expires_at IS NULL OR expires_at > now()) LIMIT 1";
+                try (PreparedStatement aps = conn.prepareStatement(apiClientSql)) {
+                    aps.setObject(1, userId);
+                    try (ResultSet ars = aps.executeQuery()) {
+                        if (ars.next()) {
+                            String clientName = ars.getString("name");
+                            ResolvedIdentity serviceIdentity = new ResolvedIdentity(
+                                    userId.toString(),
+                                    email != null ? email : userId.toString() + "@service.campx",
+                                    fullName != null ? fullName : clientName,
+                                    fullName != null ? fullName : clientName,
+                                    "SERVICE",
+                                    "service",
+                                    java.util.Collections.singletonList("SERVICE"),
+                                    tenantId != null ? tenantId.toString() : null,
+                                    tenantName,
+                                    tenantStatus,
+                                    collegeId != null ? collegeId.toString() : null,
+                                    departmentId != null ? departmentId.toString() : null,
+                                    "ACTIVE",
+                                    false);
+                            IdentityResolutionResult serviceRes = IdentityResolutionResult.success(serviceIdentity);
+                            IDENTITY_CACHE.put(cacheKey,
+                                    new CacheEntry(serviceRes, System.currentTimeMillis() + CACHE_TTL_MS));
+                            return serviceRes;
+                        }
+                    }
+                } catch (SQLException e) {
+                    logger.debug("iam.api_clients consumer lookup skipped: {}", e.getMessage());
+                }
                 return IdentityResolutionResult.ineligible("no_role_assigned",
                         "No active business role assignment found for user in tenant");
             }

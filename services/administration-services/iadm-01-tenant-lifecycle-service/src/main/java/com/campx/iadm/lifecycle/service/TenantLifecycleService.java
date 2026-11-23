@@ -2,6 +2,7 @@ package com.campx.iadm.lifecycle.service;
 
 import com.campx.iadm.lifecycle.auth.SupabaseAuthAdminClient;
 import com.campx.iadm.lifecycle.config.DatabaseConnectionManager;
+import com.campx.iadm.lifecycle.config.Iadm02PlatformDefaultsClient;
 import com.campx.iadm.lifecycle.exception.InstituteAdminException;
 import com.campx.iadm.lifecycle.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.lifecycle.security.UserSecurityContext;
@@ -35,13 +36,21 @@ public class TenantLifecycleService {
 
     private final DatabaseConnectionManager db = DatabaseConnectionManager.getInstance();
     private final SupabaseAuthAdminClient authAdminClient;
+    private final Iadm02PlatformDefaultsClient platformDefaultsClient;
 
     public TenantLifecycleService() {
-        this(new SupabaseAuthAdminClient());
+        this(new SupabaseAuthAdminClient(), new Iadm02PlatformDefaultsClient());
     }
 
     public TenantLifecycleService(SupabaseAuthAdminClient authAdminClient) {
+        this(authAdminClient, new Iadm02PlatformDefaultsClient());
+    }
+
+    public TenantLifecycleService(SupabaseAuthAdminClient authAdminClient,
+                                  Iadm02PlatformDefaultsClient platformDefaultsClient) {
         this.authAdminClient = authAdminClient == null ? new SupabaseAuthAdminClient() : authAdminClient;
+        this.platformDefaultsClient = platformDefaultsClient == null
+                ? new Iadm02PlatformDefaultsClient() : platformDefaultsClient;
     }
 
     /**
@@ -375,11 +384,47 @@ public class TenantLifecycleService {
         return out;
     }
 
-    /** TECH-007: second-approver extension point (default OFF). */
+    /**
+     * IADM-02-US-026 — read platform defaults via IADM-02 consumer (no local catalogue copy).
+     * Platform operators only. Exposes {@code iam.delegation.max_validity_days} when granted.
+     */
+    public Map<String, Object> getPlatformDefaults(UserSecurityContext ctx) {
+        ctx.executeInTransaction(db, conn -> {
+            try {
+                ctx.checkPlatformAdmin(conn);
+            } catch (UserProfileAccessDeniedException ex) {
+                throw new InstituteAdminException(403, "IADM01_FORBIDDEN",
+                        "Platform defaults preview requires a platform administrator.");
+            }
+            return Boolean.TRUE;
+        });
+        // HTTP to IADM-02 outside the auth TX so we do not hold a DB connection during the pull.
+        Map<String, Object> defaults = platformDefaultsClient.readEffectiveDefaults();
+        String sessionTimeout = platformDefaultsClient.requireKey("security.session_timeout_min");
+        defaults.put("onboardingSessionTimeoutMin", sessionTimeout);
+        return defaults;
+    }
+
+    /** TECH-007: second-approver extension point (default OFF). Prefers IADM-02 when key is published. */
     public boolean isSecondApproverRequired(UserSecurityContext ctx) {
         Boolean sys = Boolean.getBoolean("campx.iadm01.r03.secondApproverRequired");
         if (sys) {
             return true;
+        }
+        try {
+            Map<String, Object> defaults = platformDefaultsClient.readEffectiveDefaults();
+            Object keysObj = defaults.get("keys");
+            if (keysObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> keys = (Map<String, Object>) keysObj;
+                Object flag = keys.get("iadm01.r03.second_approver_required");
+                if (flag != null) {
+                    String v = String.valueOf(flag).trim().toLowerCase();
+                    return "true".equals(v) || "1".equals(v) || "yes".equals(v);
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall through to local flag table — key not yet published or consumer unavailable.
         }
         try {
             return ctx.executeInTransaction(db, conn -> {

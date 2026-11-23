@@ -1,0 +1,22 @@
+{
+  "allow": {
+    "status": 200,
+    "version": "a2b94200-06fa-4e33-8c60-ecabf27e88a2",
+    "fetchedAt": "2026-11-23T12:09:10.166Z",
+    "schemaVersion": 1,
+    "keyCount": 3,
+    "hasDelegation": true,
+    "hasSession": true,
+    "keys": {
+      "iam.delegation.max_validity_days": "90",
+      "security.session_timeout_min": "55",
+      "attendance.min_pct": "75"
+    }
+  },
+  "denyFees": {
+    "status": 403,
+    "errorCode": "IADM02_CONSUMER_DOMAIN_DENIED",
+    "pass": true
+  },
+  "pass": true
+}

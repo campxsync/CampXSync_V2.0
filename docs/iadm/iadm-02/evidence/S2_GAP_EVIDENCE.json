@@ -1,0 +1,58 @@
+{
+  "draftSelfApprove": "515c13d0-8fc1-4bde-90ff-16c2878b4f66",
+  "draftReject": "33ce044d-424e-4005-b664-e2c507efeedb",
+  "selfApprove": {
+    "status": 403,
+    "errorCode": "IADM02_SELF_APPROVE",
+    "pass": true
+  },
+  "reject": {
+    "status": 200,
+    "draftStatus": "REJECTED",
+    "pass": true
+  },
+  "publishRejected": {
+    "status": 409,
+    "errorCode": "IADM02_NOT_APPROVED",
+    "pass": true
+  },
+  "idempotentPublish": {
+    "first": {
+      "status": 200,
+      "versionId": "a2b94200-06fa-4e33-8c60-ecabf27e88a2",
+      "label": "VER-004"
+    },
+    "retry": {
+      "status": 200,
+      "versionId": "a2b94200-06fa-4e33-8c60-ecabf27e88a2",
+      "label": "VER-004"
+    },
+    "sameVersion": true,
+    "pass": true
+  },
+  "versions": {
+    "status": 200,
+    "count": 4,
+    "labels": [
+      "VER-004:PUBLISHED",
+      "VER-003:SUPERSEDED",
+      "VER-002:SUPERSEDED",
+      "VER-001:SUPERSEDED"
+    ]
+  },
+  "compare": {
+    "status": 200,
+    "hasLeft": true,
+    "hasRight": true
+  },
+  "editPublished": {
+    "status": 404,
+    "pass": true
+  },
+  "createValidateSubmit": {
+    "create": 201,
+    "validate": 200,
+    "submit": 200,
+    "approve": 200
+  }
+}

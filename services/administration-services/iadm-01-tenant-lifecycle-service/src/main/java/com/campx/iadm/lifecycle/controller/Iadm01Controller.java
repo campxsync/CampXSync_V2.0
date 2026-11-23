@@ -88,6 +88,7 @@ public class Iadm01Controller implements HttpHandler {
             boolean noTenant = auth.getTenantId() == null || auth.getTenantId().trim().isEmpty();
             boolean platformOp = (path.endsWith("/institutes") || path.endsWith("/institutes/"))
                     || path.endsWith("/institutes/summary")
+                    || path.endsWith("/platform-defaults") || path.endsWith("/platform-defaults/")
                     || path.contains("/first-admin/onboarding")
                     || path.matches(".*/colleges/[^/]+/first-admin/onboarding/?$")
                     || path.contains("/onboarding")
@@ -105,6 +106,11 @@ public class Iadm01Controller implements HttpHandler {
             UserSecurityContext ctx = (platformOp && noTenant)
                     ? UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId())
                     : UserSecurityContext.fromHeaders(auth.getUserId(), auth.getTenantId());
+            if ("GET".equalsIgnoreCase(method)
+                    && (path.endsWith("/platform-defaults") || path.endsWith("/platform-defaults/"))) {
+                sendJson(exchange, 200, toJson(service.getPlatformDefaults(ctx)));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/institutes/summary")) {
                 sendJson(exchange, 200, toJson(service.getSummary(ctx)));
                 return;

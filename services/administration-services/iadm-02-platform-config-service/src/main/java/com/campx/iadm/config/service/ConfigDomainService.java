@@ -15,14 +15,17 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -301,6 +304,9 @@ public class ConfigDomainService {
             Object author = draft.get("authorUserId");
             if (author != null && ctx.getUserId() != null
                     && author.toString().equalsIgnoreCase(ctx.getUserId().toString())) {
+                // Commit denial audit on a separate connection — the outer TX rolls back on throw.
+                recordCommittedDenialAudit(ctx, draftId,
+                        "SELF_APPROVE denied: drafter cannot decide own draft");
                 throw new InstituteAdminException(403, "IADM02_SELF_APPROVE",
                         "The person who wrote the draft cannot approve or reject it.");
             }
@@ -423,6 +429,117 @@ public class ConfigDomainService {
             out.put("left", left);
             out.put("right", right);
             out.put("schemaVersion", Integer.valueOf(1));
+            return out;
+        });
+    }
+
+    /**
+     * IADM-02-US-021…024 — consumer effective-config read.
+     * Identity from authenticated user → iam.api_clients; scope from api_client_grants.
+     * Never returns drafts. STALE/UNAVAILABLE are computed by the consumer (D10).
+     */
+    public Map<String, Object> consumerEffectiveConfig(UserSecurityContext ctx, String requestedDomainsCsv) {
+        return ctx.executeInTransaction(db, conn -> {
+            // iam.api_clients / grants RLS requires adm03.*; cfg.config_versions published
+            // SELECT also needs cfg.consumer.read via has_permission (role_assignments).
+            // Service consumers authenticate via api_client grant, not role_assignments —
+            // elevate only for registry + published payload lookup (same TX, then audit).
+            try (Statement elevate = conn.createStatement()) {
+                elevate.execute("RESET ROLE");
+            }
+
+            Map<String, Object> client = resolveActiveApiClient(conn, ctx);
+            String scopeJson = String.valueOf(client.get("resourceScope"));
+            Set<String> allowedDomains = parseScopeList(scopeJson, "domains");
+            Set<String> allowedKeys = parseScopeList(scopeJson, "keys");
+            Set<String> requestedDomains = parseCsvSet(requestedDomainsCsv);
+
+            for (String d : requestedDomains) {
+                if (!allowedDomains.contains(d)) {
+                    // Separate connection — this TX rolls back on the throw below.
+                    recordCommittedConsumerDenialAudit(ctx, String.valueOf(client.get("clientId")),
+                            "Denied domain " + d);
+                    throw new InstituteAdminException(403, "IADM02_CONSUMER_DOMAIN_DENIED",
+                            "Domain '" + d + "' is outside this consumer's approved scope.");
+                }
+            }
+
+            Map<String, Object> active = loadActiveVersion(conn);
+            if (active.get("versionId") == null) {
+                throw new InstituteAdminException(503, "IADM02_CONFIG_UNAVAILABLE",
+                        "No published configuration version is available.");
+            }
+            Map<String, Object> keys = new LinkedHashMap<String, Object>();
+            for (String key : allowedKeys) {
+                String domain = domainOf(key);
+                if (!requestedDomains.isEmpty() && !requestedDomains.contains(domain)) {
+                    continue;
+                }
+                if (!allowedDomains.contains(domain)) {
+                    continue;
+                }
+                Object val = valueFromPayload(active, key);
+                if (val != null) {
+                    keys.put(key, val);
+                }
+            }
+            // Never expose draft material — keys come only from published payload.
+            String fetchedAt = java.time.Instant.now().toString();
+            ctx.applyClaimsAndRole(conn);
+            appendDurableAudit(conn, ctx, null, "IADM02_CONSUMER_READ", "CONFIG_VERSION",
+                    String.valueOf(active.get("versionId")),
+                    "Consumer " + client.get("clientName") + " fetched " + keys.size() + " keys");
+
+            Map<String, Object> out = new LinkedHashMap<String, Object>();
+            out.put("schemaVersion", Integer.valueOf(1));
+            out.put("configVersionId", active.get("versionId"));
+            out.put("configVersionLabel", active.get("versionLabel"));
+            out.put("fetchedAt", fetchedAt);
+            out.put("keys", keys);
+            out.put("consumerId", client.get("clientId"));
+            out.put("consumerName", client.get("clientName"));
+            return out;
+        });
+    }
+
+    /** IADM-02-US-025 — read-only consumer fetch diagnostics from audit.events. */
+    public List<Map<String, Object>> listConsumerDiagnostics(UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, conn -> {
+            requireAny(conn, ctx, new String[]{"cfg.catalog.view", "cfg.view"}, true);
+            PlatformRole pr = resolvePlatformRole(conn, ctx);
+            if (pr != PlatformRole.SUPER_ADMIN && pr != PlatformRole.SYSTEM_ADMIN) {
+                throw new InstituteAdminException(403, "IADM02_FORBIDDEN",
+                        "Consumer diagnostics are limited to platform operators.");
+            }
+            Map<String, Object> active = loadActiveVersion(conn);
+            String activeId = active.get("versionId") != null ? String.valueOf(active.get("versionId")) : null;
+            // audit.events SELECT RLS is tenant-scoped (audit.read). Platform operators are
+            // already authorized above; elevate for cross-tenant consumer telemetry read-only.
+            try (Statement elevate = conn.createStatement()) {
+                elevate.execute("RESET ROLE");
+            }
+            List<Map<String, Object>> out = new ArrayList<Map<String, Object>>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT DISTINCT ON (principal_id) principal_id::text, resource_id::text, event_time, "
+                            + "detail::text, action "
+                            + "FROM audit.events "
+                            + "WHERE action = 'IADM02_CONSUMER_READ' AND status = 'SUCCESS' "
+                            + "ORDER BY principal_id, event_time DESC")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<String, Object>();
+                        row.put("principalId", rs.getString("principal_id"));
+                        String versionId = rs.getString("resource_id");
+                        row.put("lastConfigVersionId", versionId);
+                        row.put("lastFetchedAt", rs.getTimestamp("event_time") != null
+                                ? rs.getTimestamp("event_time").toInstant().toString() : null);
+                        boolean stale = activeId != null && versionId != null && !activeId.equals(versionId);
+                        row.put("status", stale ? "STALE" : "FRESH");
+                        row.put("activeConfigVersionId", activeId);
+                        out.add(row);
+                    }
+                }
+            }
             return out;
         });
     }
@@ -593,6 +710,74 @@ public class ConfigDomainService {
         throw new InstituteAdminException(403, "IADM02_FORBIDDEN",
                 "You are not authorized for this configuration action."
                         + (last != null ? "" : ""));
+    }
+
+    private Map<String, Object> resolveActiveApiClient(Connection conn, UserSecurityContext ctx)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT c.id, c.name, g.resource_scope::text "
+                        + "FROM iam.api_clients c "
+                        + "JOIN iam.api_client_grants g ON g.client_id = c.id AND g.deleted_at IS NULL "
+                        + "JOIN iam.permissions p ON p.id = g.permission_id AND p.deleted_at IS NULL "
+                        + "WHERE c.user_id = ? AND c.status = 'ACTIVE' AND c.deleted_at IS NULL "
+                        + "AND p.code = 'cfg.consumer.read' "
+                        + "AND (g.valid_to IS NULL OR g.valid_to > now()) "
+                        + "AND (c.expires_at IS NULL OR c.expires_at > now()) "
+                        + "ORDER BY g.created_at DESC LIMIT 1")) {
+            ps.setObject(1, ctx.getUserId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new InstituteAdminException(403, "IADM02_CONSUMER_FORBIDDEN",
+                            "No active consumer grant for cfg.consumer.read.");
+                }
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                m.put("clientId", rs.getObject("id").toString());
+                m.put("clientName", rs.getString("name"));
+                m.put("resourceScope", rs.getString("resource_scope"));
+                return m;
+            }
+        }
+    }
+
+    private static Set<String> parseScopeList(String scopeJson, String field) {
+        Set<String> out = new HashSet<String>();
+        if (scopeJson == null) {
+            return out;
+        }
+        String needle = "\"" + field + "\"";
+        int i = scopeJson.indexOf(needle);
+        if (i < 0) {
+            return out;
+        }
+        int lb = scopeJson.indexOf('[', i);
+        int rb = scopeJson.indexOf(']', lb);
+        if (lb < 0 || rb < 0) {
+            return out;
+        }
+        String inner = scopeJson.substring(lb + 1, rb);
+        String[] parts = inner.split(",");
+        for (String part : parts) {
+            String s = part.trim().replace("\"", "");
+            if (!s.isEmpty()) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    private static Set<String> parseCsvSet(String csv) {
+        Set<String> out = new HashSet<String>();
+        if (csv == null || csv.trim().isEmpty()) {
+            return out;
+        }
+        String[] parts = csv.split(",");
+        for (String part : parts) {
+            String s = part.trim();
+            if (!s.isEmpty()) {
+                out.add(s);
+            }
+        }
+        return out;
     }
 
     private enum PlatformRole { SUPER_ADMIN, SYSTEM_ADMIN, NONE }
@@ -904,8 +1089,74 @@ public class ConfigDomainService {
         return "{" + inner + ",\"" + key + "\":" + valueLiteral + "}";
     }
 
+    /**
+     * Writes a denial audit that survives the caller's rolled-back transaction.
+     */
+    private void recordCommittedDenialAudit(UserSecurityContext ctx, UUID draftId, String detail) {
+        try (Connection auditConn = db.getConnection()) {
+            auditConn.setAutoCommit(false);
+            try {
+                ctx.applyClaimsAndRole(auditConn);
+                appendDurableAudit(auditConn, ctx, null, "IADM02_CONFIG_DRAFT_DECIDE_DENIED", "CONFIG_DRAFT",
+                        draftId.toString(), detail, "DENIED");
+                auditConn.commit();
+            } catch (Exception e) {
+                try {
+                    auditConn.rollback();
+                } catch (SQLException ignored) {
+                    /* ignore */
+                }
+                logger.warn("Denial audit write failed for draft {}: {}", draftId, e.getMessage());
+            } finally {
+                try {
+                    auditConn.setAutoCommit(true);
+                } catch (SQLException ignored) {
+                    /* ignore */
+                }
+            }
+        } catch (SQLException e) {
+            logger.warn("Denial audit connection failed for draft {}: {}", draftId, e.getMessage());
+        }
+    }
+
+    private void recordCommittedConsumerDenialAudit(UserSecurityContext ctx, String clientId, String detail) {
+        try (Connection auditConn = db.getConnection()) {
+            auditConn.setAutoCommit(false);
+            try {
+                try (Statement elevate = auditConn.createStatement()) {
+                    elevate.execute("RESET ROLE");
+                }
+                appendDurableAudit(auditConn, ctx, null, "IADM02_CONSUMER_READ_DENIED", "API_CLIENT",
+                        clientId, detail, "DENIED");
+                auditConn.commit();
+            } catch (Exception e) {
+                try {
+                    auditConn.rollback();
+                } catch (SQLException ignored) {
+                    /* ignore */
+                }
+                logger.warn("Consumer denial audit failed for client {}: {}", clientId, e.getMessage());
+            } finally {
+                try {
+                    auditConn.setAutoCommit(true);
+                } catch (SQLException ignored) {
+                    /* ignore */
+                }
+            }
+        } catch (SQLException e) {
+            logger.warn("Consumer denial audit connection failed: {}", e.getMessage());
+        }
+    }
+
     private void appendDurableAudit(Connection conn, UserSecurityContext ctx, UUID tenantId,
                                     String action, String resourceType, String resourceId, String detail)
+            throws SQLException {
+        appendDurableAudit(conn, ctx, tenantId, action, resourceType, resourceId, detail, "SUCCESS");
+    }
+
+    private void appendDurableAudit(Connection conn, UserSecurityContext ctx, UUID tenantId,
+                                    String action, String resourceType, String resourceId, String detail,
+                                    String status)
             throws SQLException {
         String detailJson = "{\"message\":\"" + escape(detail) + "\"}";
         UUID resourceUuid = null;
@@ -916,14 +1167,16 @@ public class ConfigDomainService {
                 resourceUuid = null;
             }
         }
+        String auditStatus = status != null ? status : "SUCCESS";
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT audit.log_event(?, ?, ?, ?, ?, 'SUCCESS', 'INFO', NULL, ?::jsonb, NULL)")) {
+                "SELECT audit.log_event(?, ?, ?, ?, ?, ?, 'INFO', NULL, ?::jsonb, NULL)")) {
             ps.setObject(1, tenantId);
             ps.setObject(2, ctx.getUserId());
             ps.setString(3, action);
             ps.setString(4, resourceType);
             ps.setObject(5, resourceUuid);
-            ps.setString(6, detailJson);
+            ps.setString(6, auditStatus);
+            ps.setString(7, detailJson);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next() || rs.getObject(1) == null) {
                     throw new SQLException("audit.log_event returned no id — mutation cannot succeed without durable audit");
