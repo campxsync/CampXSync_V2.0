@@ -1,0 +1,47 @@
+{
+  "at": "2026-11-23T09:30:05.739Z",
+  "results": [
+    {
+      "step": "R01-A create draft",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s2_r01a_create_draft.png"
+    },
+    {
+      "step": "US-012 edit",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s1_us012_edit.png",
+      "ok": true
+    },
+    {
+      "step": "R01-A validate+submit",
+      "draftId": "4e562e40-ad6a-4b04-acd6-dcb230fe962d",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s2_r01a_submitted.png"
+    },
+    {
+      "step": "R02 login catalogue key",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s1_r02_login.png"
+    },
+    {
+      "step": "R02 allow session",
+      "ok": true,
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s1_r02_allow.png"
+    },
+    {
+      "step": "R02 deny attendance",
+      "ok": true,
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s1_r02_deny.png"
+    },
+    {
+      "step": "R01-B login",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s1_r01b_login.png",
+      "ok": true
+    },
+    {
+      "step": "R01-B approve",
+      "ok": false,
+      "detail": "No PENDING_APPROVAL draft visible"
+    },
+    {
+      "step": "versions desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s2_versions.png"
+    }
+  ]
+}

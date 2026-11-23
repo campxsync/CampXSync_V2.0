@@ -1,0 +1,41 @@
+{
+  "capturedAt": "2026-11-23",
+  "project": "azulbaxszsqxymqmlwfe",
+  "note": "cfg.* keys on role templates before IADM-02 foundation migration",
+  "roleTemplateCfgKeys": {
+    "ACADEMIC_ADMIN": 1,
+    "AUDITOR": 1,
+    "COLLEGE_ADMIN": 1,
+    "EXAM_CONTROLLER": 1,
+    "FINANCE_MANAGER": 1,
+    "HR_MANAGER": 1,
+    "INSTITUTION_ADMIN": 1,
+    "PRINCIPAL": 1,
+    "VICE_PRINCIPAL": 1
+  },
+  "keysPresent": ["cfg.view", "cfg.view.own"],
+  "newKeysAbsent": [
+    "cfg.draft",
+    "cfg.approve",
+    "cfg.publish",
+    "cfg.policy.draft",
+    "cfg.consumer.read",
+    "cfg.catalog.view"
+  ],
+  "platformAdmins": {
+    "count": 1,
+    "roleCodes": ["SUPER_ADMIN"]
+  },
+  "polSecResidue": [
+    {
+      "policy_code": "POL_SEC_6C9FA1E8",
+      "category": "LOCAL_POLICY",
+      "rules_preview": "{\"status\": \"DRAFT\", \"version\": 1, \"approvedBy\": \"DEAN_ATTACKER\\\",\\\"status\\\":\\\"FORGED\\\",\\\"version\\\":999\"}"
+    },
+    {
+      "policy_code": "POL_SEC_708CFFCF",
+      "category": "LOCAL_POLICY",
+      "rules_preview": "{\"status\": \"DRAFT\", \"version\": 1, \"approvedBy\": \"DEAN_ATTACKER\\\",\\\"status\\\":\\\"FORGED\\\",\\\"version\\\":999\"}"
+    }
+  ]
+}

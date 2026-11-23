@@ -1,7 +1,23 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-22 (IADM-01 **S0–S4 `APPROVED S4`**; CADM still waits; no push)
+**Updated:** 2026-11-23 (IADM-02 **S2 demo ready — owner checkpoint**; `APPROVED S1 COMMIT` executed locally; IADM-01 S0–S4 still `APPROVED S4`; no push)
+
+## Owner decisions – IADM-02 Platform Configuration & Policy (23-11-2026)
+
+**Authorized by:** Niranjan V.G. (S0 decisions + S0/S1 build; `APPROVED S1 COMMIT` + continue S2 US-016…020; DEV; no push).  
+**Spec:** `docs/user-stories/CampXSync_IADM-02_User_Stories.csv` + blueprint `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\CampXSync_IADM-02_Detailed_Blueprint_V2.1.md` (document says V1.0).
+
+| Item | Status |
+|---|---|
+| S0 US-001 read-only verification | **completed** — `docs/iadm/iadm-02/S0_VERIFICATION_REPORT.md` |
+| S0 Decision Pack (D1, D3, D6, D7, D9, D10) | **Owner APPROVED** |
+| S0 build US-002…007 | **completed** |
+| S1 US-008…015 | **`APPROVED S1 COMMIT`** — US-012 edit + R02/R01-B headed JWT fixes included |
+| S2 US-016…020 | **Demo ready — STOP** — `docs/iadm/iadm-02/SLICE_S2_DEMO_REPORT.md` (R01-A draft → R01-B approve → VER-002) |
+| S3–S4 | **Not started** — blocked on `APPROVED S2` |
+| Gate holds | No change to `cfg.policies` / `setting_values` writers; summary in S2 report for US-029 |
+| DB writes this step | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-01 rework start (22-11-2026)
 

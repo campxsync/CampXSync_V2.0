@@ -134,9 +134,15 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
     // 2. Check if user is Platform Admin (authoritative check against plat.platform_admins via direct PostgreSQL query)
     let platAdmin: any = null;
     try {
+      // R01 Super Admin and R02 System Admin both live in plat.platform_admins (IADM-02).
       const paRes = await query(
-        'SELECT id, status, role_code FROM plat.platform_admins WHERE user_id = $1 AND role_code = $2 AND status = $3 AND deleted_at IS NULL LIMIT 1',
-        [userId, 'SUPER_ADMIN', 'ACTIVE']
+        `SELECT id, status, role_code FROM plat.platform_admins
+         WHERE user_id = $1
+           AND role_code IN ('SUPER_ADMIN', 'SYSTEM_ADMIN')
+           AND status = $2
+           AND deleted_at IS NULL
+         LIMIT 1`,
+        [userId, 'ACTIVE']
       );
       if (paRes.rows.length > 0) {
         platAdmin = paRes.rows[0];

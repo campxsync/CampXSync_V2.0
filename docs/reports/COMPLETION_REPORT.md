@@ -2281,3 +2281,96 @@ Does the owner authorize an explicit college-scoped Registrar **V** (view) on `s
 - Decisions Log: `docs/reports/AUTONOMOUS_DECISIONS_LOG.md`
 
 
+
+---
+
+## Entry � IADM-02 S0 verification (US-001) 2026-11-23
+
+**Task ID:** IADM-02-US-001  
+**Mode:** READ-ONLY verification (no implementation, no DB writes, no commit/push)  
+**Branch:** `feature/java-backend-integration`  
+**HEAD at inspection:** `f81c1a8`
+
+### Scope completed
+- Read CSV (32 stories), blueprint Markdown V1.0 (file name V2.1), Agreement V2.1, PROGRESS/NEXT_TASK/COMPLETION, IADM Architecture Design v2.0, RBAC matrix v3.0 �8, IADM-01 patterns, legacy ADM-01 configuration epic.
+- Inspected gateway routes, institute-admin configuration HTTP + in-memory domain path, `cfg.*` migrations, DEV schema/RLS (SELECT only on `azulbaxszsqxymqmlwfe`), permission catalogue, shared audit (`audit.log_event`), IAM `api_clients`, frontend (no config desk).
+- Wrote `docs/iadm/iadm-02/S0_VERIFICATION_REPORT.md` (REUSE/MOVE/NEW + traceability).
+- Wrote `docs/iadm/iadm-02/S0_DECISION_PACK.md` for open D1, D3, D6, D7, D9, D10 with labelled RECOMMENDATIONs + proposed seed/keys/tables/port.
+
+### Database
+None (SELECT-only).
+
+### Tests
+Not applicable (report only).
+
+### Stop
+Owner must decide the decision pack before IADM-02-US-002�007 build. US-031 remains PARKED (D2).
+
+### Story readiness
+| Story | API-ready | Screen-ready | Demo-verified |
+|---|---|---|---|
+| IADM-02-US-001 | n/a (report) | n/a | Pending owner acceptance of report |
+| IADM-02-US-002�032 | no | no | no (031 PARKED) |
+
+---
+
+## Entry — IADM-02 S0 build + S1 demo (2026-11-23)
+
+**Task ID:** IADM-02-US-002…015  
+**Mode:** IMPLEMENT (DEV only; no push)  
+**Branch:** `feature/java-backend-integration`  
+**Owner auth:** D1/D3/D6/D7/D9/D10 + build US-002…007 + continue through S1
+
+### Scope completed
+- Service `iadm-02-platform-config-service` on **:8100**; gateway `/api/v1/iadm/02`; health UP.
+- Migrations `20261123010000_iadm02_foundation` + `20261123010100_iadm02_demo_seed` (+ rollbacks) on DEV `azulbaxszsqxymqmlwfe`.
+- New permissions (no wildcard); FORCE RLS on `cfg.config_drafts` / `cfg.config_versions`; `setting_definitions` tightened after grep-clean; **did not** FORCE/tighten `cfg.policies` or freeze college `setting_values` writers (`S0_GATE_FINDINGS.md`).
+- Seed: 5 keys (incl. `iam.delegation.max_validity_days`), VER-001, DRAFT-001/002, second R01 + R02 + consumer Auth users, `iam.api_clients` seed-only.
+- UI desks: `/platform/configuration`, key detail, drafts+validate, policies; BFF under `/api/platform/configuration*`.
+- Headed R01 demo: catalogue, create draft, validate pass + fail, policy draft; R02 ceiling smoke PASS (HMAC).
+- Durable `audit.log_event` same-TX for mutations.
+
+### Tests
+| Suite | Result |
+|---|---|
+| Maven `iadm-02-platform-config-service` | 7/7 PASS |
+| `npx tsc --noEmit` | 0 errors |
+| R02 ceiling smoke | PASS |
+
+### Evidence
+`docs/iadm/iadm-02/SLICE_S1_DEMO_REPORT.md`; screenshots under `docs/iadm/iadm-02/evidence/s1_*.png`.
+
+### Stop
+Owner checkpoint for S1. Do not start S2 (approve/publish/consumer) or cut over monolith configuration routes.
+
+### Story readiness
+| Story | Status |
+|---|---|
+| US-002…011, 013…015 | completed |
+| US-012 | partially completed (PATCH API; no edit UI control) |
+| US-016+ / S2+ | yet to pickup |
+| US-031 | PARKED |
+
+---
+
+## Entry — IADM-02 S1 close-out + S2 (2026-11-23)
+
+**Task ID:** IADM-02-US-012…020  
+**Mode:** IMPLEMENT (DEV; local commit; no push)  
+**Owner:** `APPROVED S1 COMMIT` + continue S2
+
+### Scope completed
+- US-012 Edit control on drafts desk + headed evidence.
+- R02/R01-B Auth `app_metadata.tenant_id` (+ role); middleware/resolve-role SYSTEM_ADMIN; headed allow/deny and R01-B login.
+- Permission matrix unit tests for 6 cfg keys × R01/R02/R03/R04/R28.
+- S2 submit / decide / publish / versions / compare / idempotent publish; R01-A→R01-B path; **VER-002** published.
+- Gate findings summarised for owner (no writer changes).
+
+### Tests
+Maven **14/14**; gateway persona + publish smokes PASS.
+
+### Evidence
+`docs/iadm/iadm-02/SLICE_S2_DEMO_REPORT.md`, `docs/iadm/iadm-02/evidence/s1_*`, `s2_*`.
+
+### Stop
+Owner S2 checkpoint. CSV cells pending editor unlock.

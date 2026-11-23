@@ -1,30 +1,22 @@
 # Next Task
 
-**STATUS: IADM-01 S0–S4 owner-approved (`APPROVED S4`, 2026-11-22). No further IADM/CADM work without new authorization. No commit/push from this approval.**
+**STATUS: IADM-02 S2 demo complete — owner checkpoint. Waiting for `APPROVED S2` / `APPROVED S2 COMMIT` / `CHANGES S2`.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| S1 | `APPROVED S1` | recorded |
-| S2 | colleges/handover | **completed** — `docs/iadm/SLICE_S2_REPORT.md` (`8939228`) |
-| S3 | lifecycle | **completed** — `docs/iadm/SLICE_S3_REPORT.md` (`674d0ab`) |
-| S4 | oversight | **`APPROVED S4`** — `docs/iadm/SLICE_S4_REPORT.md` (`61f7680`) |
+| IADM-02 S0 + S1 (US-002…015) | Service, migrations, UI, R02/R01-B JWT, US-012 edit | **completed** — local commit pending/done this session |
+| IADM-02 S2 (US-016…020) | Submit / approve / publish / versions / retry | **Demo ready** — `docs/iadm/iadm-02/SLICE_S2_DEMO_REPORT.md` |
+| Gate findings (policies / setting_values) | Owner decision before US-029 | Summarised in S2 report |
+| CSV status cells | `CampXSync_IADM-02_User_Stories.csv` | Update when editor unlocks the file |
+| IADM-01 S0–S4 | Prior | `APPROVED S4` unchanged |
 
-## Known gaps retained under approval
+## Stop gate
 
-- US-012 Auditor R28 dedicated persona demo still pending (mutation deny proven via non-platform 403).
-- Platform `/platform/audit` search still in-memory (FINDING-IADM01-AUD-01); institute history trail is live.
-- CSV status cells for US-012 / US-025 could not be written (`IADM-01_User_Stories.csv` file lock). Close the file and ask to refresh statuses if needed.
-
-## Post-S4 uncommitted local fixes (not part of S4 commit)
-
-Invite link for existing Auth users; other-tenant profile conflict message; ONBOARDING→ARCHIVED abandon; resume-first-admin UX. Say `APPROVED S4 COMMIT` (or a separate commit phrase) if you want those committed. **No push** unless you order it.
-
-## Next authorized work
-
-**None.** IADM-02…08 and CADM remain out of scope until a new owner authorization is written here.
+Do **not** start S3 (consumer / freshness) or cut over monolith `/api/v1/admin/configuration` until the owner replies to the S2 report.
 
 ## Rules
 
-No production/staging DB writes. No IADM-02…08 or CADM without new authorization.
+- DEV only (`azulbaxszsqxymqmlwfe`). **No push** unless owner says.
+- US-031 PARKED.

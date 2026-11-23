@@ -1,0 +1,15 @@
+[
+  {
+    "step": "R01-B drafts loaded",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s2_r01b_drafts.png"
+  },
+  {
+    "step": "approved",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s2_r01b_approve.png",
+    "ok": true
+  },
+  {
+    "step": "versions",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\s2_versions_after.png"
+  }
+]

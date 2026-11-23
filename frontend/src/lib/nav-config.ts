@@ -27,6 +27,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Dashboard', href: '/platform', icon: LayoutDashboard },
     { title: 'Institutes & Tenancies', href: '/platform/institutes', icon: Building2 },
     { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
+    { title: 'Platform configuration', href: '/platform/configuration', icon: Layers },
     { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],

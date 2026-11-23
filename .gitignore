@@ -25,3 +25,7 @@ scratch/
 cookies.txt
 home/
 sites/
+
+# IADM-02 local seed secrets
+docs/iadm/iadm-02/evidence/.local/
+

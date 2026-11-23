@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-11-23",
+  "project": "azulbaxszsqxymqmlwfe",
+  "roleTemplateCfgKeys": {
+    "ACADEMIC_ADMIN": { "n": 1, "keys": ["cfg.view"] },
+    "AUDITOR": { "n": 2, "keys": ["cfg.catalog.view", "cfg.view"] },
+    "COLLEGE_ADMIN": { "n": 1, "keys": ["cfg.view"] },
+    "EXAM_CONTROLLER": { "n": 1, "keys": ["cfg.view"] },
+    "FINANCE_MANAGER": { "n": 1, "keys": ["cfg.view"] },
+    "HR_MANAGER": { "n": 1, "keys": ["cfg.view"] },
+    "INSTITUTION_ADMIN": { "n": 2, "keys": ["cfg.catalog.view", "cfg.view"] },
+    "PRINCIPAL": { "n": 1, "keys": ["cfg.view"] },
+    "SYSTEM_ADMIN": { "n": 2, "keys": ["cfg.catalog.view", "cfg.draft"] },
+    "VICE_PRINCIPAL": { "n": 1, "keys": ["cfg.view"] }
+  },
+  "notes": [
+    "COLLEGE_ADMIN has no cfg.catalog.view (as decided).",
+    "R01 Super Admin uses plat.platform_admins SUPER_ADMIN + iam.is_platform_admin() (not role templates).",
+    "No wildcard permissions added."
+  ]
+}

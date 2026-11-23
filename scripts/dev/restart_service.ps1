@@ -312,8 +312,41 @@ switch ($Service.ToLower()) {
         Wait-HealthCheck "http://127.0.0.1:8099/api/v1/iadm/01/health"
     }
 
+    { $_ -in @("iadm-02", "iadm-02-platform-config-service", "iadm02") } {
+        Write-Host "1. Building iadm-02-platform-config-service..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\iadm-02-platform-config-service"
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "iadm-02 compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8100 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8100
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching iadm-02..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.iadm.config.Iadm02Application",
+            "8100"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\iadm-02.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\iadm-02.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started iadm-02 PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck "http://127.0.0.1:8100/api/v1/iadm/02/health"
+    }
+
     default {
-        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01" -ForegroundColor Red
+        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01, iadm-02" -ForegroundColor Red
         exit 1
     }
 }

@@ -127,7 +127,11 @@ export async function middleware(request: NextRequest) {
   const email = (user.email || '').toLowerCase();
   const rawRole = (user.app_metadata?.role || '').toUpperCase();
 
-  const isPlatformUser = rawRole === 'SUPER_ADMIN' || rawRole === 'PLATFORM_ADMIN';
+  // SYSTEM_ADMIN (R02) is a platform operator with a narrower IADM-02 ceiling.
+  const isPlatformUser =
+    rawRole === 'SUPER_ADMIN' ||
+    rawRole === 'PLATFORM_ADMIN' ||
+    rawRole === 'SYSTEM_ADMIN';
   // Institution Admin (R03) is NOT College Admin (R04) — US-005 / FINDING-IADM01-UI-01
   const isInstitutionAdminUser =
     (rawRole === 'INSTITUTION_ADMIN' || rawRole === 'R03') && !isPlatformUser;
