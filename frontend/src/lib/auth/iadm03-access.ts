@@ -13,3 +13,13 @@ export function canReadIadm03Access(role: string | null | undefined): boolean {
 export function canMutateIadm03Profiles(role: string | null | undefined): boolean {
   return role === 'platform_admin' || role === 'institution_admin' || role === 'auditor';
 }
+
+/** R04 may submit access requests only (US-023). */
+export function canSubmitIadm03AccessRequest(role: string | null | undefined): boolean {
+  return (
+    role === 'platform_admin' ||
+    role === 'institution_admin' ||
+    role === 'college_admin' ||
+    role === 'auditor'
+  );
+}

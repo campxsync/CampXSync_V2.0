@@ -100,6 +100,13 @@ export default function PlatformIdentityPage() {
           >
             Administrator profiles
           </Link>
+          <Link
+            href="/platform/identity/requests"
+            className="rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-requests"
+          >
+            Access requests
+          </Link>
           <button
             type="button"
             className="rounded border border-slate-300 px-4 py-2 text-sm"

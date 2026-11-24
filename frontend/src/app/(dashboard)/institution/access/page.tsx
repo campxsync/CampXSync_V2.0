@@ -73,6 +73,22 @@ export default function InstitutionAccessPage() {
         <p className="max-w-2xl text-slate-600">
           Overview and catalogues for your institute only. Cross-institute rows are never shown.
         </p>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/institution/access/delegations"
+            className="inline-block rounded bg-slate-900 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-delegations"
+          >
+            Delegations
+          </Link>
+          <Link
+            href="/institution/access/requests"
+            className="inline-block rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-requests"
+          >
+            Access requests
+          </Link>
+        </div>
       </header>
 
       {loading && <p data-testid="iadm03-inst-loading">Loading…</p>}

@@ -6,6 +6,8 @@ import com.campx.iadm.access.security.GatewayHmacVerifier;
 import com.campx.iadm.access.security.GrantorCeiling;
 import com.campx.iadm.access.security.UserSecurityContext;
 import com.campx.iadm.access.service.AccessGovernanceService;
+import com.campx.iadm.access.service.AccessRequestGovernanceService;
+import com.campx.iadm.access.service.DelegationGovernanceService;
 import com.campx.iadm.access.service.GrantGovernanceService;
 import com.campx.iadm.access.service.ProfileGovernanceService;
 import com.campx.logger.CampXLogger;
@@ -33,21 +35,38 @@ public class Iadm03Controller implements HttpHandler {
     private final AccessGovernanceService service;
     private final ProfileGovernanceService profiles;
     private final GrantGovernanceService grants;
+    private final DelegationGovernanceService delegations;
+    private final AccessRequestGovernanceService accessRequests;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
-        this(service, new ProfileGovernanceService(), new GrantGovernanceService());
+        this(service, new ProfileGovernanceService(), new GrantGovernanceService(),
+                new DelegationGovernanceService(), new AccessRequestGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles) {
-        this(service, profiles, new GrantGovernanceService());
+        this(service, profiles, new GrantGovernanceService(), new DelegationGovernanceService(),
+                new AccessRequestGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants) {
+        this(service, profiles, grants, new DelegationGovernanceService(), new AccessRequestGovernanceService());
+    }
+
+    public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
+                            GrantGovernanceService grants, DelegationGovernanceService delegations) {
+        this(service, profiles, grants, delegations, new AccessRequestGovernanceService());
+    }
+
+    public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
+                            GrantGovernanceService grants, DelegationGovernanceService delegations,
+                            AccessRequestGovernanceService accessRequests) {
         this.service = service;
         this.profiles = profiles == null ? new ProfileGovernanceService() : profiles;
         this.grants = grants == null ? new GrantGovernanceService() : grants;
+        this.delegations = delegations == null ? new DelegationGovernanceService() : delegations;
+        this.accessRequests = accessRequests == null ? new AccessRequestGovernanceService() : accessRequests;
     }
 
     @Override
@@ -169,6 +188,68 @@ public class Iadm03Controller implements HttpHandler {
                 String op = extract(body, "operation");
                 String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
                 sendJson(exchange, 200, toJson(service.beginIdempotent(ctx, op == null ? "MUTATION" : op, key, correlationId)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/access-requests") || path.endsWith("/access-requests/"))) {
+                sendJson(exchange, 200, toJson(accessRequests.list(ctx, queryParam(exchange, "status"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/access-requests")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID subject = parseUuidOptional(extract(body, "subjectUserId"));
+                UUID collegeId = parseUuidOptional(extract(body, "collegeId"));
+                UUID tenantId = parseUuidOptional(extract(body, "tenantId"));
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(accessRequests.submit(
+                        ctx, subject, extract(body, "requestedRole"), collegeId, tenantId,
+                        extract(body, "justification"), extract(body, "validFrom"), extract(body, "validTo"),
+                        key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/access-requests/") && path.endsWith("/decide")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID requestId = parseUuidOptional(extract(body, "requestId"));
+                if (requestId == null) {
+                    int i = path.indexOf("/access-requests/");
+                    String rest = path.substring(i + "/access-requests/".length());
+                    int slash = rest.indexOf('/');
+                    requestId = parseUuid(slash < 0 ? rest : rest.substring(0, slash), "requestId");
+                }
+                sendJson(exchange, 200, toJson(accessRequests.decide(
+                        ctx, requestId, extract(body, "decision"), extract(body, "reason"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/delegations/contract")) {
+                sendJson(exchange, 200, toJson(delegations.delegationContract()));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/delegations") || path.endsWith("/delegations/"))) {
+                sendJson(exchange, 200, toJson(delegations.listDelegations(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/delegations")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID toUser = parseUuid(extract(body, "toUserId"), "toUserId");
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(delegations.createDelegation(
+                        ctx, toUser, extract(body, "roleCode"),
+                        extract(body, "validFrom"), extract(body, "validTo"),
+                        extract(body, "reason"), key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/delegations/") && path.endsWith("/revoke")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID delegationId = parseUuidOptional(extract(body, "delegationId"));
+                if (delegationId == null) {
+                    int i = path.indexOf("/delegations/");
+                    String rest = path.substring(i + "/delegations/".length());
+                    int slash = rest.indexOf('/');
+                    String idPart = slash < 0 ? rest : rest.substring(0, slash);
+                    delegationId = parseUuid(idPart, "delegationId");
+                }
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(delegations.revokeDelegation(
+                        ctx, delegationId, extract(body, "reason"), key, correlationId)));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/appoint-r03")) {

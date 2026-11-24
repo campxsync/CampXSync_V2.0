@@ -1,0 +1,27 @@
+[
+  {
+    "step": "R03 submit access request",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3\\s3_r03_request_submit.png",
+    "ok": true,
+    "detail": "Submitted 9c0643f1-90fe-42b7-a13c-693263122c49 — Request stored and routed. No grant was applied.",
+    "requestId": "9c0643f1-90fe-42b7-a13c-693263122c49"
+  },
+  {
+    "step": "R03 self-approve denied",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3\\s3_r03_self_approve_deny.png",
+    "ok": true,
+    "detail": "The requester cannot approve or reject their own access request."
+  },
+  {
+    "step": "R03 create REGISTRAR delegation",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3\\s3_r03_delegation.png",
+    "ok": true,
+    "detail": "Created 74c708fc-3b2f-41ce-88a9-bddf4f3c4212 (max 90d). Consumers continue Path C GET /api/v1/admin/internal/delegations/active-check on :8081 (US-028); IADM-03 is not on the per-request path."
+  },
+  {
+    "step": "R01 reject access request",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3\\s3_r01_decide.png",
+    "ok": true,
+    "detail": "Decision REJECTED"
+  }
+]

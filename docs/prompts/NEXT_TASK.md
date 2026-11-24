@@ -1,22 +1,21 @@
 # Next Task
 
-**STATUS: IADM-03 S2 `APPROVED S2 COMMIT` (`475480c`). Next slice S3 only when owner authorizes.**
+**STATUS: IADM-03 S3 `APPROVED S3 COMMIT` — await owner authorization for next slice.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| IADM-03 S0 | US-001…007 | **completed** |
-| IADM-03 S1 screens | US-008…014 | **`APPROVED S1 COMMIT`** |
-| IADM-03 S2 grants | US-015…022 | **`APPROVED S2 COMMIT`** — `docs/iadm/iadm-03/S2_BUILD_REPORT.md` |
+| IADM-03 S0–S3 | | **`APPROVED … COMMIT`** (S3 local commit) |
+| Migration `20261124120000` | `iam.access_requests` | **Applied on DEV** |
+| US-030 / US-031 | catalogue / governance read | **yet to pickup** |
 | 56-cell matrix | harness | **Still required** before close-out |
 
 ## Stop gate
 
-Do **not** auto-start S3. Do **not** push unless owner says.
+Do **not** start S4 / US-030/031 until owner authorizes. Do **not** push unless owner says.
 
 ## Rules
 
-- DEV only (`azulbaxszsqxymqmlwfe`). **No push** unless owner says.
+- DEV only (`azulbaxszsqxymqmlwfe`).
 - PARKED: break-glass, two-person R03 appointment, R27; `adm03` dormant.
-- Open hardening: owner-approved platform RLS policies on `iam.user_profiles` (interim pool-role documented).
