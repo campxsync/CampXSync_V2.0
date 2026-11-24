@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-02 **close-out complete** — US-024/028/032 Demo-verified; CSV closed; IADM-03 **not started**)
+**Last current-state refresh:** 2026-11-24 (IADM-03 S0 **US-002…007 foundation** on `:8101`; **STOP** for `APPROVED S0` before S1)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — **awaiting next-module authorization** (do **not** start IADM-03 until owner says so). Close-out: `docs/iadm/iadm-02/CLOSEOUT_REPORT.md`.
+1. `docs/prompts/NEXT_TASK.md` — awaiting **`APPROVED S0`** (optional `COMMIT`) before S1 US-008…014.
 2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Spec: `docs/user-stories/CampXSync_IADM-02_User_Stories.csv` (**closed**); blueprint under Documentation `MicroServices/CampXSync_IADM-02_Detailed_Blueprint_V2.1.md`.
+3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; build report `docs/iadm/iadm-03/S0_BUILD_REPORT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -21,15 +21,15 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **Gateway:** Ingress `:8080`; **IADM-01** `/api/v1/iadm/01` → `:8099`; **IADM-02** `/api/v1/iadm/02` → `:8100`.
+2. **Gateway:** Ingress `:8080`; **IADM-01** `/api/v1/iadm/01` → `:8099`; **IADM-02** `/api/v1/iadm/02` → `:8100`; **IADM-03** `/api/v1/iadm/03` → `:8101`.
 3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight. Now also pulls platform defaults via IADM-02 consumer (US-026).
 4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com`). Duplicate `MAC181627` archived.
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
 8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
-9. **IADM-02 close-out done** (2026-11-24): US-024/028/032 **Demo-verified**; CSV statuses finalized; consumer exposes `iam.delegation.max_validity_days`; **IADM-03 not started**.
-10. **Demos / evidence:** `docs/iadm/iadm-02/CLOSEOUT_REPORT.md`, `evidence/US024_*`, `US028_*`, `US032_*`, `PERSONA_MATRIX_56.*`.
+9. **IADM-02 close-out done** (2026-11-24): US-024/028/032 **Demo-verified**; consumer exposes `iam.delegation.max_validity_days` = 90.
+10. **IADM-03 S0:** service `:8101` health UP; foundation + demo seed on DEV; decision pack Approved; **STOP** for S0 checkpoint before S1 screens.
 
 ---
 

@@ -1,0 +1,1 @@
+routeTable.put("/api/v1/iadm/03", "http://localhost:8101/api/v1/iadm/03");

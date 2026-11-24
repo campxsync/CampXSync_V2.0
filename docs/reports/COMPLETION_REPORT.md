@@ -2374,3 +2374,56 @@ Maven **14/14**; gateway persona + publish smokes PASS.
 
 ### Stop
 Owner S2 checkpoint. CSV cells pending editor unlock.
+
+---
+
+## Entry — IADM-03 S0 US-001 read-only verification (2026-11-24)
+
+**Task ID:** IADM-03-US-001  
+**Mode:** VERIFY (DEV; SELECT-only; no commit required for this step)  
+**Owner authorization:** Owner prompt 2026-11-24 — S0 step (a) only
+
+### Scope completed
+- Read CSV (40 stories), blueprint V1.4, Agreement V2.1, IADM architecture v2.0, RBAC matrix v3.0 §§8/21/22, IADM-01/02 patterns, institute-admin IAM Path C, gateway routes.
+- Confirmed REUSE: `plat.assign_institution_admin` (auth.uid harden), R25 assign/revoke on institute-admin, `STM-07.ACCOUNT.A` active-check, live R03 `maharani.campx@gmail.com` on MAC, 56-cell persona matrix harness.
+- Documented profile/invite/claims paths; root cause class for "No profile for that email"; `iam.delegation.max_validity_days` = 90; `adm03` dormant; no `/api/v1/iadm/03`.
+- Wrote `docs/iadm/iadm-03/S0_VERIFICATION_REPORT.md` and `S0_DECISION_PACK.md`.
+
+### Database
+None (read-only SQL via Supabase MCP on `azulbaxszsqxymqmlwfe`).
+
+### Tests
+None run (verification only).
+
+### Story status
+| Story | API-ready | Screen-ready | Demo-verified |
+|---|---|---|---|
+| IADM-03-US-001 | n/a (report) | n/a | Report accepted? **awaiting owner** |
+| IADM-03-US-002…040 | no | no | no |
+
+### Stop
+Owner answers decision pack before US-002…007.
+
+---
+
+## Entry — IADM-03 S0 build US-002…007 (2026-11-24)
+
+**Task ID:** IADM-03-US-002…007  
+**Mode:** IMPLEMENT (DEV; no push; commit only if owner asks)  
+**Owner:** Decision pack Approved 2026-11-24
+
+### Scope completed
+- New module `iadm-03-identity-access-service` port **8101**, prefix `/api/v1/iadm/03`, health UP.
+- Gateway route + stack/restart/check scripts; route unit test PASS.
+- 20 `iam.*` permission keys + template grants; `iam.governance_idempotency`; durable audit fail-closed helper; grantor ceiling encoding; catalogue read routes.
+- DEV migrations `20261124100000` / `20261124100100` applied on `azulbaxszsqxymqmlwfe`.
+- Reused (not rebuilt): R03 appoint function, R25 endpoints, STM-07.ACCOUNT.A, MAC R03 persona.
+
+### Tests
+IADM-03 `mvn test` PASS; `Iadm03GatewayRouteTest` PASS; live health 200.
+
+### Evidence
+`docs/iadm/iadm-03/S0_BUILD_REPORT.md`, `evidence/S0_HEALTH.json`.
+
+### Stop
+Await `APPROVED S0` / `APPROVED S0 COMMIT` before S1. Re-run 56-cell matrix before S1 demo.

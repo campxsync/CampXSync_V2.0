@@ -24,6 +24,7 @@
         <module>college-admin-service</module>
         <module>iadm-01-tenant-lifecycle-service</module>
         <module>iadm-02-platform-config-service</module>
+        <module>iadm-03-identity-access-service</module>
     </modules>
 </project>
 

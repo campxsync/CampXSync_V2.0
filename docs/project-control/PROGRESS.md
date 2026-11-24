@@ -1,7 +1,22 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-24 (IADM-02 **close-out complete** — US-024/028/032 Demo-verified; CSV closed; IADM-03 **not started**)
+**Updated:** 2026-11-24 (IADM-03 S0 **US-001…007 foundation built** — awaiting `APPROVED S0` / `APPROVED S0 COMMIT` before S1)
+
+## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)
+
+**Authorized by:** Niranjan V.G. (S0 verification + decision pack **Approved** 2026-11-24; DEV).  
+**Spec:** `docs/user-stories/CampXSync_IADM-03_User_Stories.csv` + blueprint `CampXSync_IADM-03_Detailed_Blueprint_V1_4.md`.
+
+| Item | Status |
+|---|---|
+| S0 US-001 read-only verification | **completed** — `docs/iadm/iadm-03/S0_VERIFICATION_REPORT.md` |
+| S0 Decision Pack | **Owner APPROVED** — `S0_DECISION_PACK.md` |
+| S0 build US-002…007 | **API-ready / partial Demo** — `S0_BUILD_REPORT.md`; service `:8101`, `/api/v1/iadm/03` |
+| Migrations on DEV | `20261124100000` foundation + `20261124100100` demo seed |
+| 56-cell matrix | **Re-run required before S1** (not executed this step) |
+| After S0 checkpoint | S1 US-008…014 only when owner says `APPROVED S0` |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-02 Platform Configuration & Policy (23-11-2026)
 
