@@ -36,7 +36,15 @@ public final class DurableAuditWriter {
             ps.setObject(2, ctx != null ? ctx.getUserId() : null);
             ps.setString(3, action == null ? "IADM03_MUTATION" : action);
             ps.setString(4, entityType);
-            ps.setString(5, entityId);
+            UUID resourceUuid = null;
+            if (entityId != null && !entityId.trim().isEmpty()) {
+                try {
+                    resourceUuid = UUID.fromString(entityId.trim());
+                } catch (IllegalArgumentException ignored) {
+                    resourceUuid = null;
+                }
+            }
+            ps.setObject(5, resourceUuid);
             ps.setString(6, payload);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next() || rs.getObject(1) == null) {

@@ -6,6 +6,7 @@ import com.campx.iadm.access.security.GatewayHmacVerifier;
 import com.campx.iadm.access.security.GrantorCeiling;
 import com.campx.iadm.access.security.UserSecurityContext;
 import com.campx.iadm.access.service.AccessGovernanceService;
+import com.campx.iadm.access.service.ProfileGovernanceService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -29,10 +30,16 @@ public class Iadm03Controller implements HttpHandler {
     private static final CampXLogger logger = CampXLoggerFactory.getLogger(Iadm03Controller.class);
 
     private final AccessGovernanceService service;
+    private final ProfileGovernanceService profiles;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
+        this(service, new ProfileGovernanceService());
+    }
+
+    public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles) {
         this.service = service;
+        this.profiles = profiles == null ? new ProfileGovernanceService() : profiles;
     }
 
     @Override
@@ -91,6 +98,47 @@ public class Iadm03Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.searchPermissions(ctx, q)));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/overview") || path.endsWith("/overview/"))) {
+                sendJson(exchange, 200, toJson(profiles.overview(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && matchesProfilesList(path)) {
+                sendJson(exchange, 200, toJson(profiles.listProfiles(ctx, queryParam(exchange, "status"))));
+                return;
+            }
+            UUID profileId = extractProfileId(path);
+            if ("GET".equalsIgnoreCase(method) && profileId != null && path.contains("/access")) {
+                sendJson(exchange, 200, toJson(profiles.getProfileAccess(ctx, profileId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/profiles/invite")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String email = extract(body, "email");
+                String displayName = extract(body, "displayName");
+                String targetRole = extract(body, "targetRole");
+                String tenantRaw = extract(body, "tenantId");
+                UUID tenantId = null;
+                if (tenantRaw != null && !tenantRaw.trim().isEmpty()) {
+                    try {
+                        tenantId = UUID.fromString(tenantRaw.trim());
+                    } catch (IllegalArgumentException ex) {
+                        throw new InstituteAdminException(400, "IADM03_VALIDATION", "tenantId must be a UUID");
+                    }
+                }
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(profiles.inviteOrCreateProfile(
+                        ctx, email, displayName, targetRole, tenantId, key, correlationId)));
+                return;
+            }
+            if (("PATCH".equalsIgnoreCase(method) || "POST".equalsIgnoreCase(method))
+                    && profileId != null && path.endsWith("/status")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String status = extract(body, "status");
+                String reason = extract(body, "reason");
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(profiles.updateProfileStatus(ctx, profileId, status, reason, key)));
+                return;
+            }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/idempotency/begin")) {
                 String body = new String(bodyBytes, StandardCharsets.UTF_8);
                 String op = extract(body, "operation");
@@ -122,6 +170,36 @@ public class Iadm03Controller implements HttpHandler {
         } finally {
             tracker.close();
             LogContext.clear();
+        }
+    }
+
+    private static boolean matchesProfilesList(String path) {
+        if (path == null) {
+            return false;
+        }
+        String p = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        return p.endsWith("/profiles");
+    }
+
+    private static UUID extractProfileId(String path) {
+        if (path == null) {
+            return null;
+        }
+        String marker = "/profiles/";
+        int i = path.indexOf(marker);
+        if (i < 0) {
+            return null;
+        }
+        String rest = path.substring(i + marker.length());
+        int slash = rest.indexOf('/');
+        String idPart = slash < 0 ? rest : rest.substring(0, slash);
+        if (idPart.isEmpty() || "invite".equalsIgnoreCase(idPart)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(idPart);
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 

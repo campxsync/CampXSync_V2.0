@@ -1,0 +1,22 @@
+[
+  {
+    "step": "R01 overview+catalogues",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s1\\s1_r01_desk.png",
+    "ok": true
+  },
+  {
+    "step": "R01 profiles list",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s1\\s1_r01_profiles.png",
+    "ok": true
+  },
+  {
+    "step": "R01 access detail",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s1\\s1_r01_detail.png",
+    "ok": true
+  },
+  {
+    "step": "R03 institute desk",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s1\\s1_r03_desk.png",
+    "ok": true
+  }
+]

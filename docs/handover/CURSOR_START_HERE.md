@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-03 S0 **US-002…007 foundation** on `:8101`; **STOP** for `APPROVED S0` before S1)
+**Last current-state refresh:** 2026-11-24 (IADM-03 S1 **`APPROVED S1 COMMIT`**; next S2 when owner starts it)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — awaiting **`APPROVED S0`** (optional `COMMIT`) before S1 US-008…014.
+1. `docs/prompts/NEXT_TASK.md` — S1 approved; S2 US-015…020 when owner authorizes.
 2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; build report `docs/iadm/iadm-03/S0_BUILD_REPORT.md`.
+3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S1_BUILD_REPORT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -21,27 +21,23 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **Gateway:** Ingress `:8080`; **IADM-01** `/api/v1/iadm/01` → `:8099`; **IADM-02** `/api/v1/iadm/02` → `:8100`; **IADM-03** `/api/v1/iadm/03` → `:8101`.
-3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight. Now also pulls platform defaults via IADM-02 consumer (US-026).
-4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com`). Duplicate `MAC181627` archived.
+2. **Gateway:** Ingress `:8080`; **IADM-01** `:8099`; **IADM-02** `:8100`; **IADM-03** `/api/v1/iadm/03` → `:8101`.
+3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight.
+4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com` — Auth `app_metadata.tenant_id` fixed 2026-11-24).
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
-6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC. Auth rules and Postgres RLS strictly enforced.
-7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden. Service-role key never in frontend/Git/logs.
-8. **Automated Verification:** Cross-Service E2E (`CROSS-EN-010`) 32/32 pass; Cross-Tenant Pen Test 34/34 pass; Playwright final demos 7/7 pass (`docs/reports/playwright-final-stm07-stm10/FINAL_DEMO_RUN_REPORT.json`).
-9. **IADM-02 close-out done** (2026-11-24): US-024/028/032 **Demo-verified**; consumer exposes `iam.delegation.max_validity_days` = 90.
-10. **IADM-03 S0:** service `:8101` health UP; foundation + demo seed on DEV; decision pack Approved; **STOP** for S0 checkpoint before S1 screens.
+6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC.
+7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
+8. **IADM-02 close-out done** (2026-11-24).
+9. **IADM-03 S0 foundation** committed locally after `APPROVED S0 COMMIT`.
+10. **IADM-03 S1 `APPROVED S1 COMMIT`:** platform `/platform/identity` + institute `/institution/access`; headed R01+R03 PASS.
 
 ---
 
 ## 2. File Map & Project Artifacts
 
 - **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`, `docs/reports/COMPLETION_REPORT.md`
-- **Backlog CSV:** `docs/user-stories/CampXSync_STM-03_to_STM-10_Implementation_Backlog_RBAC_Validated.csv`
-- **Audit (historical snapshot):** `docs/audit/STM_STATUS_AUDIT_2026-11-14.md`
-- **Archive (never a source):** `docs/archive/`
-- **Pilot onboard CLI:** `scripts/dev/pilot_onboard.mjs` + `scripts/dev/fixtures/pilot/`
-- **Runbook:** `docs/runbooks/PILOT_ONBOARDING_RUNBOOK.md`
-- **Story demos:** `docs/stories/<ID>.demo.json`, `docs/demos/<ID>/`
+- **IADM-03:** `docs/iadm/iadm-03/S1_BUILD_REPORT.md`, evidence under `docs/iadm/iadm-03/evidence/s1/`
+- **Demo:** `node scripts/demo/iadm03_s1_headed.mjs`
 - **Stack scripts:** `scripts/dev/start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 

@@ -1,0 +1,12 @@
+{
+  "profileId": "c03a0000-0000-4000-8000-000000000003",
+  "inactive": {
+    "status": 200,
+    "body": "{\"profileId\":\"c03a0000-0000-4000-8000-000000000003\",\"status\":\"INACTIVE\",\"reason\":\"S1 headed US-014 smoke — set inactive\",\"idempotencyKey\":\"s1-status-INACTIVE-1795509334719\",\"claimsNote\":\"Profile status is authoritative on next permission check; gateway identity cache may lag up to 5 minutes until invalidate (US-021).\",\"rlsNote\":\"Platform status write used pool-role interim until owner-approved iam.user_profiles platform policies.\"}"
+  },
+  "active": {
+    "status": 200,
+    "body": "{\"profileId\":\"c03a0000-0000-4000-8000-000000000003\",\"status\":\"ACTIVE\",\"reason\":\"S1 headed US-014 smoke — restore active\",\"idempotencyKey\":\"s1-status-ACTIVE-1795509335584\",\"claimsNote\":\"Profile status is authoritative on next permission check; gateway identity cache may lag up to 5 minutes until invalidate (US-021).\",\"rlsNote\":\"Platform status write used pool-role interim until owner-approved iam.user_profiles platform policies.\"}"
+  },
+  "at": "2026-11-24T08:35:36.075Z"
+}

@@ -28,6 +28,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Institutes & Tenancies', href: '/platform/institutes', icon: Building2 },
     { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
     { title: 'Platform configuration', href: '/platform/configuration', icon: Layers },
+    { title: 'Identity & access', href: '/platform/identity', icon: Users },
     { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],
@@ -35,12 +36,14 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   auditor: [
     { title: 'Configuration versions', href: '/platform/configuration/versions', icon: History },
     { title: 'Platform catalogue', href: '/platform/configuration', icon: Layers },
+    { title: 'Identity & access', href: '/platform/identity', icon: Users },
   ],
   /** Institution Admin (R03) — IADM-01 desk; colleges & handover live here (not Platform wizard). */
   institution_admin: [
     { title: 'Home', href: '/institution', icon: LayoutDashboard },
     { title: 'Institute profile', href: '/institution/profile', icon: Building2 },
     { title: 'Colleges', href: '/institution/colleges', icon: GraduationCap },
+    { title: 'Institute access', href: '/institution/access', icon: Users },
   ],
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },

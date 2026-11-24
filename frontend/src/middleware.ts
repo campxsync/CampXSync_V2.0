@@ -251,7 +251,10 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/platform')) {
       const auditorConfigOk =
         isAuditorUser &&
-        (pathname === '/platform/configuration' || pathname.startsWith('/platform/configuration/'));
+        (pathname === '/platform/configuration' ||
+          pathname.startsWith('/platform/configuration/') ||
+          pathname === '/platform/identity' ||
+          pathname.startsWith('/platform/identity/'));
       if (!isPlatformUser && !auditorConfigOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }

@@ -90,12 +90,21 @@ public class AccessGovernanceService {
                 requirePermission(conn, ctx, "iam.catalog.permissions.view");
                 List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
                 String like = q == null || q.trim().isEmpty() ? "%" : "%" + q.trim().toLowerCase() + "%";
-                String sql = "SELECT code, module, action, description FROM iam.permissions "
-                        + "WHERE deleted_at IS NULL AND (lower(code) LIKE ? OR lower(coalesce(description,'')) LIKE ?) "
-                        + "ORDER BY code LIMIT 100";
+                String sql = "SELECT p.code, p.module, p.action, p.description, "
+                        + "coalesce(string_agg(DISTINCT rtp.role_code, ','), '') AS mapped_roles "
+                        + "FROM iam.permissions p "
+                        + "LEFT JOIN iam.role_template_permissions rtp "
+                        + "  ON rtp.permission_code = p.code AND rtp.deleted_at IS NULL "
+                        + "WHERE p.deleted_at IS NULL "
+                        + "AND (lower(p.code) LIKE ? OR lower(coalesce(p.description,'')) LIKE ? "
+                        + "     OR lower(coalesce(p.module,'')) LIKE ? OR lower(coalesce(p.action,'')) LIKE ?) "
+                        + "GROUP BY p.code, p.module, p.action, p.description "
+                        + "ORDER BY p.code LIMIT 100";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, like);
                     ps.setString(2, like);
+                    ps.setString(3, like);
+                    ps.setString(4, like);
                     try (ResultSet rs = ps.executeQuery()) {
                         while (rs.next()) {
                             Map<String, Object> row = new LinkedHashMap<String, Object>();
@@ -103,6 +112,16 @@ public class AccessGovernanceService {
                             row.put("module", rs.getString("module"));
                             row.put("action", rs.getString("action"));
                             row.put("description", rs.getString("description"));
+                            String mapped = rs.getString("mapped_roles");
+                            List<String> roles = new ArrayList<String>();
+                            if (mapped != null && !mapped.isEmpty()) {
+                                for (String part : mapped.split(",")) {
+                                    if (part != null && !part.trim().isEmpty()) {
+                                        roles.add(part.trim());
+                                    }
+                                }
+                            }
+                            row.put("mappedRoles", roles);
                             items.add(row);
                         }
                     }

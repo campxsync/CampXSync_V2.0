@@ -1,24 +1,22 @@
 # Next Task
 
-**STATUS: IADM-03 S0 foundation built. STOP for owner `APPROVED S0` (and optional COMMIT) before S1.**
+**STATUS: IADM-03 S1 `APPROVED S1 COMMIT`. Next authorized slice is S2 (US-015…020 grants) — await explicit start if capacity-gated.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| IADM-03 S0 verification | US-001 | **completed** |
-| IADM-03 decision pack | Approved 2026-11-24 | **applied** |
-| IADM-03 S0 build | US-002…007 | **API-ready** — report `docs/iadm/iadm-03/S0_BUILD_REPORT.md` |
-| Service | `:8101` `/api/v1/iadm/03` | **health UP** |
-| S1 profiles/read screens | US-008…014 | **Not started** — needs `APPROVED S0` |
+| IADM-03 S0 | US-001…007 | **completed** |
+| IADM-03 S1 screens | US-008…014 | **`APPROVED S1 COMMIT`** — `docs/iadm/iadm-03/S1_BUILD_REPORT.md` |
+| Next | S2 US-015…020 | **yet to pickup** (grants / ceilings / denials) |
+| 56-cell matrix | harness | **Still required** before close-out |
 
 ## Stop gate
 
-Do **not** start S1 until the owner replies `APPROVED S0` or `APPROVED S0 COMMIT`.  
-Before S1 demo: re-run 56-cell persona matrix.
+Do **not** auto-start S2 in this commit turn unless the owner also says to begin S2. Prepare from CSV when authorized.
 
 ## Rules
 
 - DEV only (`azulbaxszsqxymqmlwfe`). **No push** unless owner says.
-- Reuse R03 appoint / R25 / `STM-07.ACCOUNT.A` / MAC R03 / 56-cell — do not rebuild.
 - PARKED: break-glass, two-person R03 appointment, R27 create; `adm03` dormant.
+- Open hardening: owner-approved platform RLS policies on `iam.user_profiles` (interim pool-role documented).
