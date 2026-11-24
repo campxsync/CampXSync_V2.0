@@ -1,0 +1,180 @@
+{
+  "title": "IADM-03 US-040 close-out checklist",
+  "generatedAt": "2026-11-24T10:53:44.776Z",
+  "allHardPass": true,
+  "rbacV30CompliantClaim": false,
+  "rbacV30CompliantReason": "Do not claim RBAC v3.0 Compliant while US-033 is blocked, US-036/037 wait later integration, and US-038/039 remain PARKED.",
+  "checks": [
+    {
+      "id": "IADM02_56_CELL",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "cellCount": 56,
+        "allows": 26,
+        "denies": 30
+      }
+    },
+    {
+      "id": "IADM03_56_CELL",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "cellCount": 56,
+        "allows": 33,
+        "denies": 23
+      }
+    },
+    {
+      "id": "IADM03_HEALTH",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "json": {
+          "status": "UP",
+          "service": "IADM-03",
+          "prefix": "/api/v1/iadm/03",
+          "port": 8101,
+          "runtimePath": "NOT_PER_REQUEST",
+          "adm03Family": "DORMANT"
+        }
+      }
+    },
+    {
+      "id": "CLAIMS_NOT_PER_REQUEST",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "json": {
+          "authoritative": "DB + iam.has_permission in service transaction",
+          "gatewayIdentityCacheTtlSeconds": 300,
+          "revocationDelaySecondsMax": 300,
+          "iadm03OnRequestPath": false,
+          "roleNameFallback": false,
+          "note": "Authoritative checks use DB + iam.has_permission immediately. Gateway identity cache may lag up to 5 minutes (US-021 DEV SLA)."
+        }
+      }
+    },
+    {
+      "id": "NOTIFICATION_CONTRACT",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "json": {
+          "audit": "REQUIRED_SAME_TX â€” failure blocks success (US-004/US-034)",
+          "notification": "BEST_EFFORT â€” may be delayed; never grants or denies access",
+          "stoppedNotificationService": "Change still succeeds; UI shows notification is delayed",
+          "stoppedAuditService": "Change must not report success",
+          "message": "Access change is audited durably. App notification is best-effort and may show as delayed; notifications never decide whether access is granted (US-034)."
+        }
+      }
+    },
+    {
+      "id": "R27_DENIAL",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "status": 403,
+        "json": {
+          "allowed": false,
+          "targetRole": "API_CLIENT",
+          "adm03Family": "DORMANT",
+          "denyReason": "API Client (R27) creation/elevation is parked; denial only."
+        }
+      }
+    },
+    {
+      "id": "GOVERNANCE_CONTRACT",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "json": {
+          "authoritative": "DB + iam.has_permission in service transaction",
+          "gatewayIdentityCacheTtlSeconds": 300,
+          "revocationDelaySecondsMax": 300,
+          "iadm03OnRequestPath": false,
+          "roleNameFallback": false,
+          "note": "Authoritative checks use DB + iam.has_permission immediately. Gateway identity cache may lag up to 5 minutes (US-021 DEV SLA)."
+        }
+      }
+    },
+    {
+      "id": "NO_FRONTEND_DB_IADM03_PATHS",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "hits": 0,
+        "samples": []
+      }
+    },
+    {
+      "id": "NO_WILDCARD_IN_MATRIX",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "hasWildcard": false
+      }
+    },
+    {
+      "id": "ADM03_DORMANT_IN_MATRIX",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "note": "adm03.* absent from NEW_KEYS array (comments may mention dormancy)",
+        "adm03InKeys": false
+      }
+    },
+    {
+      "id": "PRIOR_SLICE_EVIDENCE",
+      "status": "PASS",
+      "ok": true,
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "id": "US036_CADM03",
+      "status": "LATER_INTEGRATION",
+      "ok": true,
+      "detail": {
+        "status": "LATER_INTEGRATION"
+      }
+    },
+    {
+      "id": "US037_STM07",
+      "status": "LATER_INTEGRATION",
+      "ok": true,
+      "detail": {
+        "status": "LATER_INTEGRATION"
+      }
+    },
+    {
+      "id": "US038_BREAK_GLASS",
+      "status": "PARKED",
+      "ok": true,
+      "detail": {
+        "status": "PARKED"
+      }
+    },
+    {
+      "id": "US039_TWO_PERSON",
+      "status": "PARKED",
+      "ok": true,
+      "detail": {
+        "status": "PARKED"
+      }
+    },
+    {
+      "id": "US033_AUDITOR",
+      "status": "BLOCKED",
+      "ok": true,
+      "detail": {
+        "status": "BLOCKED_BY_D3"
+      }
+    }
+  ]
+}

@@ -1,0 +1,293 @@
+{
+  "title": "IADM-03 56-cell persona matrix (iam.* sample)",
+  "cellCount": 56,
+  "keys": 7,
+  "personas": 8,
+  "cells": [
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "R02",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.roles.view",
+      "persona": "R28",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "R02",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "iam.profile.view",
+      "persona": "R28",
+      "allowed": 1
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "iam.grant.assign",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "R04",
+      "allowed": 1
+    },
+    {
+      "key": "iam.request.submit",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "iam.delegation.create",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "R03",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "iam.catalog.change.propose",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "iam.review.manage",
+      "persona": "R28",
+      "allowed": 0
+    }
+  ],
+  "summary": {
+    "allows": 33,
+    "denies": 23
+  },
+  "note": "Sample of owner-approved iam.* keys; full AccessPermissionMatrix covered by Java unit tests. R02 lacks grant/review/catalog-change. R04 request-only. R28 read-only."
+}

@@ -1,11 +1,11 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-24 (IADM-03 S4 — **`APPROVED S4 COMMIT`**)
+**Updated:** 2026-11-24 (IADM-03 US-040 — **APPROVED US040 COMMIT**)
 
 ## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)
 
-**Authorized by:** Niranjan V.G. (S0–S4 **APPROVED … COMMIT**; migration `20261124140000` applied DEV 2026-11-24).  
+**Authorized by:** Niranjan V.G. (S0–S4 **APPROVED … COMMIT**; US-040 **APPROVED US040 COMMIT** 2026-11-24; DEV).  
 **Spec:** `docs/user-stories/CampXSync_IADM-03_User_Stories.csv` + blueprint `CampXSync_IADM-03_Detailed_Blueprint_V1_4.md`.
 
 | Item | Status |
@@ -17,11 +17,12 @@
 | S2 US-015…022 grants | **`APPROVED S2 COMMIT`** `475480c` — `S2_BUILD_REPORT.md`; headed PASS |
 | S3 US-023…029 | **`APPROVED S3 COMMIT`** `a95f224` — `S3_BUILD_REPORT.md` |
 | S3b US-030/031 | **`APPROVED S3b COMMIT`** `453495f` — `S3B_BUILD_REPORT.md` |
-| S4 US-032/034/035 | **`APPROVED S4 COMMIT`** — `S4_BUILD_REPORT.md`; headed PASS; migration applied |
-| Migrations on DEV | … + `20261124130000` + **`20261124140000` review RLS** |
-| 56-cell matrix | **Still required** before close-out |
-| Open hardening | Owner-approved platform RLS on `iam.user_profiles` (interim pool-role documented) |
-| After S4 | US-040 close-out / 56-cell only after owner authorization |
+| S4 US-032/034/035 | **`APPROVED S4 COMMIT`** `c1ead52` — `S4_BUILD_REPORT.md` |
+| US-040 close-out | **`APPROVED US040 COMMIT`** — `US040_CLOSEOUT_REPORT.md`; hard checks PASS; RBAC badge **NOT CLAIMED**; CSV **partially completed** |
+| Migrations on DEV | … + `20261124130000` + `20261124140000` |
+| 56-cell matrix | **PASS** (IADM-02 cfg + IADM-03 iam sample) |
+| Open hardening | Owner-approved platform RLS on `iam.user_profiles` (interim pool-role documented); US-033 D3 |
+| After US-040 | Owner decides module close vs clear blocked/parked items |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-02 Platform Configuration & Policy (23-11-2026)

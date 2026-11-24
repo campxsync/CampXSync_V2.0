@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-03 S4 — **`APPROVED S4 COMMIT`**)
+**Last current-state refresh:** 2026-11-24 (IADM-03 US-040 — **APPROVED US040 COMMIT**)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — S4 committed; await owner authorization for next slice (US-040 / 56-cell).
+1. `docs/prompts/NEXT_TASK.md` — US-040 committed; owner picks next open item.
 2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S4_BUILD_REPORT.md`.
+3. Report: `docs/iadm/iadm-03/US040_CLOSEOUT_REPORT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -22,23 +22,22 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **Gateway:** Ingress `:8080`; **IADM-01** `:8099`; **IADM-02** `:8100`; **IADM-03** `/api/v1/iadm/03` → `:8101`.
-3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight.
-4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com`).
-5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
+3. **IADM-01 / IADM-02** close-out done on DEV.
+4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b`.
+5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC.
-7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
-8. **IADM-02 close-out done** (2026-11-24).
-9. **IADM-03 S0–S3b** committed locally after owner APPROVED … COMMIT.
-10. **IADM-03 S4 `APPROVED S4 COMMIT`:** access reviews + R27 denials + notification contract; headed PASS; report `S4_BUILD_REPORT.md`.
+7. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
+8. **IADM-03 S0–S4** committed locally after owner APPROVED … COMMIT.
+9. **US-040 close-out:** **`APPROVED US040 COMMIT`**; hard checks PASS; 56-cell PASS; **RBAC v3.0 Compliant NOT CLAIMED**.
+10. **Open:** US-033 (D3), US-036/037 later integration, US-038/039 PARKED.
 
 ---
 
 ## 2. File Map & Project Artifacts
 
-- **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`, `docs/reports/COMPLETION_REPORT.md`
-- **IADM-03:** `docs/iadm/iadm-03/S4_BUILD_REPORT.md`, evidence under `docs/iadm/iadm-03/evidence/s4/`
-- **Demo:** `node scripts/demo/iadm03_s4_headed.mjs`
-- **Stack scripts:** `scripts/dev/start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`
+- **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`
+- **IADM-03 close-out:** `docs/iadm/iadm-03/US040_CLOSEOUT_REPORT.md`, `evidence/closeout/`
+- **Demo:** `node scripts/demo/iadm03_us040_closeout.mjs`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 
 ---
