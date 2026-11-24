@@ -1,6 +1,6 @@
 # Next Task
 
-**STATUS: IADM-03 S2 implemented — STOP for `APPROVED S2` / `APPROVED S2 COMMIT`.**
+**STATUS: IADM-03 S2 `APPROVED S2 COMMIT` (`475480c`). Next slice S3 only when owner authorizes.**
 
 ## This run
 
@@ -8,12 +8,12 @@
 |---|---|---|
 | IADM-03 S0 | US-001…007 | **completed** |
 | IADM-03 S1 screens | US-008…014 | **`APPROVED S1 COMMIT`** |
-| IADM-03 S2 grants | US-015…022 | **awaiting approval** — `docs/iadm/iadm-03/S2_BUILD_REPORT.md` |
+| IADM-03 S2 grants | US-015…022 | **`APPROVED S2 COMMIT`** — `docs/iadm/iadm-03/S2_BUILD_REPORT.md` |
 | 56-cell matrix | harness | **Still required** before close-out |
 
 ## Stop gate
 
-Do **not** start S3 until owner approves S2. Do **not** push unless owner says.
+Do **not** auto-start S3. Do **not** push unless owner says.
 
 ## Rules
 

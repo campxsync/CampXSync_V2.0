@@ -4,7 +4,7 @@
 **Environment:** DEV (`azulbaxszsqxymqmlwfe`)  
 **Trigger:** Owner `approved proceed to next slice` after `APPROVED S1 COMMIT`  
 **Service:** `:8101` `/api/v1/iadm/03`  
-**Commit:** **not committed** — await `APPROVED S2` / `APPROVED S2 COMMIT`
+**Commit:** **`475480c`** — owner `APPROVED S2 COMMIT` (local only; no push)
 
 ---
 
@@ -65,5 +65,4 @@ UI → BFF `/api/platform/identity/grants/*` or `/api/institution/access/grants/
 
 ## STOP
 
-Await owner: **`APPROVED S2`** or **`APPROVED S2 COMMIT`** (or `CHANGES S2: …`).  
-Do **not** push. Next optional: R02 technical headed film; 56-cell; platform RLS; S3 access requests.
+**`APPROVED S2 COMMIT` recorded.** Do **not** push unless owner says. Next optional: R02 technical headed film; 56-cell; platform RLS; S3 when authorized.

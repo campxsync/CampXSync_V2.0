@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-03 S2 grants — **STOP for APPROVED S2**)
+**Last current-state refresh:** 2026-11-24 (IADM-03 S2 **`APPROVED S2 COMMIT`** `475480c`)
 
 ---
 
@@ -10,7 +10,7 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — S2 awaiting `APPROVED S2` / `APPROVED S2 COMMIT`.
+1. `docs/prompts/NEXT_TASK.md` — S2 committed; S3 only when owner authorizes.
 2. `docs/project-control/PROGRESS.md` — source of truth.
 3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S2_BUILD_REPORT.md`.
 
@@ -29,7 +29,7 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
 8. **IADM-02 close-out done** (2026-11-24).
 9. **IADM-03 S0 + S1** committed locally after owner APPROVED … COMMIT.
-10. **IADM-03 S2 grants ready for approval:** appoint/assign/revoke/ceilings/claims; headed PASS; FACULTY grant `0b690be3-…` on DEV.
+10. **IADM-03 S2 `APPROVED S2 COMMIT` (`475480c`):** appoint/assign/revoke/ceilings/claims; headed PASS; FACULTY grant `0b690be3-…` on DEV.
 
 ---
 
