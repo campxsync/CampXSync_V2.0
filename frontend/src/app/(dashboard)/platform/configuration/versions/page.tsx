@@ -95,7 +95,11 @@ export default function ConfigurationVersionsPage() {
         ← Catalogue
       </Link>
       <h1 className="text-2xl font-semibold">Configuration versions</h1>
-      {error && <p className="text-red-700">{error}</p>}
+      {error && (
+        <p className="text-red-700" data-testid="iadm02-versions-error">
+          {error}
+        </p>
+      )}
       {correctiveMsg && (
         <p className="text-emerald-800" data-testid="iadm02-corrective-result">
           {correctiveMsg}
@@ -110,7 +114,7 @@ export default function ConfigurationVersionsPage() {
             <p className="text-slate-600">
               {v.effectiveFrom} — {v.releaseNotes}
             </p>
-            {v.status !== 'PUBLISHED' && (
+            {(v.status === 'PUBLISHED' || v.status === 'ACTIVE' || !v.status) && (
               <button
                 type="button"
                 className="mt-2 rounded border border-slate-300 px-3 py-1 text-xs"

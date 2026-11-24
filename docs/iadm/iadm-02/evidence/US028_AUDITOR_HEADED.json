@@ -1,0 +1,39 @@
+{
+  "story": "IADM-02-US-028",
+  "pass": true,
+  "results": [
+    {
+      "step": "API GET versions",
+      "status": 200,
+      "count": 1,
+      "pass": true
+    },
+    {
+      "step": "API POST draft denied",
+      "status": 403,
+      "detail": "Auditor access is read-only",
+      "errorCode": "IADM02_AUDITOR_READONLY",
+      "pass": true
+    },
+    {
+      "step": "UI versions desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\us028_versions.png",
+      "pass": true
+    },
+    {
+      "step": "UI mutation denied with auditor message",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\us028_mutation_denied.png",
+      "detail": {
+        "status": 403,
+        "body": {
+          "type": "about:blank",
+          "title": "Error",
+          "status": null,
+          "detail": "Auditor access is read-only",
+          "errorCode": "IADM02_AUDITOR_READONLY"
+        }
+      },
+      "pass": true
+    }
+  ]
+}

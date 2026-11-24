@@ -1,15 +1,15 @@
 {
   "allow": {
     "status": 200,
-    "version": "a2b94200-06fa-4e33-8c60-ecabf27e88a2",
-    "fetchedAt": "2026-11-23T12:09:10.166Z",
+    "version": "3b7f4618-8d7b-4985-b7d6-504e645d8d34",
+    "fetchedAt": "2026-11-24T07:37:38.262Z",
     "schemaVersion": 1,
     "keyCount": 3,
     "hasDelegation": true,
     "hasSession": true,
     "keys": {
       "iam.delegation.max_validity_days": "90",
-      "security.session_timeout_min": "55",
+      "security.session_timeout_min": "54",
       "attendance.min_pct": "75"
     }
   },

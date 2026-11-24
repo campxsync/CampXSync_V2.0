@@ -211,7 +211,12 @@ public class InMemoryIdentityResolver implements IdentityResolver {
 
         for (RoleAssignmentRecord ra : matchingAssignments) {
             String code = ra.roleCode != null ? ra.roleCode.toUpperCase(Locale.ROOT) : "";
-            if (isCollegeAdminRole(code)) {
+            if (isAuditorRole(code)) {
+                resolvedRole = ra.roleCode != null ? ra.roleCode : "AUDITOR";
+                if (ra.collegeId != null) matchedCollegeId = ra.collegeId;
+                if (ra.departmentId != null) matchedDepartmentId = ra.departmentId;
+                break;
+            } else if (isCollegeAdminRole(code)) {
                 resolvedRole = ra.roleCode != null ? ra.roleCode : "COLLEGE_ADMIN";
                 if (ra.collegeId != null) matchedCollegeId = ra.collegeId;
                 if (ra.departmentId != null) matchedDepartmentId = ra.departmentId;
@@ -261,6 +266,12 @@ public class InMemoryIdentityResolver implements IdentityResolver {
         );
 
         return IdentityResolutionResult.success(identity);
+    }
+
+    private static boolean isAuditorRole(String code) {
+        if (code == null) return false;
+        String upper = code.toUpperCase(Locale.ROOT);
+        return upper.equals("AUDITOR") || upper.equals("R28");
     }
 
     private static boolean isCollegeAdminRole(String code) {

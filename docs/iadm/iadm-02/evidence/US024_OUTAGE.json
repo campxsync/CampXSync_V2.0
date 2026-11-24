@@ -1,0 +1,36 @@
+{
+  "story": "IADM-02-US-024",
+  "pass": true,
+  "results": [
+    {
+      "step": "FRESH baseline",
+      "status": 200,
+      "cacheStatus": "FRESH",
+      "hasDelegation": true,
+      "pass": true
+    },
+    {
+      "step": "Within freshness window after IADM-02 stop (last-known)",
+      "killedPids": [
+        "27640"
+      ],
+      "status": 200,
+      "cacheStatus": "FRESH",
+      "pass": true
+    },
+    {
+      "step": "After freshness window — STALE/UNAVAILABLE fail-closed",
+      "status": 503,
+      "errorCode": "IADM01_PLATFORM_DEFAULTS_STALE",
+      "detail": "Platform defaults cache is stale and refresh failed; fail closed.",
+      "pass": true
+    },
+    {
+      "step": "Cold after IADM-02 down (UNAVAILABLE / fail-closed)",
+      "status": 503,
+      "errorCode": "IADM01_PLATFORM_DEFAULTS_UNAVAILABLE",
+      "pass": true
+    }
+  ],
+  "filmedAt": "2026-11-24T07:32:01.484Z"
+}

@@ -31,6 +31,11 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],
+  /** Auditor (R28) — IADM-02 configuration history read-only. */
+  auditor: [
+    { title: 'Configuration versions', href: '/platform/configuration/versions', icon: History },
+    { title: 'Platform catalogue', href: '/platform/configuration', icon: Layers },
+  ],
   /** Institution Admin (R03) — IADM-01 desk; colleges & handover live here (not Platform wizard). */
   institution_admin: [
     { title: 'Home', href: '/institution', icon: LayoutDashboard },

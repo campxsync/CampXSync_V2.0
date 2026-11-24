@@ -1,25 +1,27 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-23 (IADM-02 **`APPROVED S4` COMMIT + push**; cutover executed; `APPROVED S3 COMMIT` `a66eed2`; IADM-01 S0–S4 still `APPROVED S4`)
+**Updated:** 2026-11-24 (IADM-02 **close-out complete** — US-024/028/032 Demo-verified; CSV closed; IADM-03 **not started**)
 
 ## Owner decisions – IADM-02 Platform Configuration & Policy (23-11-2026)
 
-**Authorized by:** Niranjan V.G. (S0–S4 approved; cutover authorized; DEV; no push).  
-**Spec:** `docs/user-stories/CampXSync_IADM-02_User_Stories.csv` + blueprint `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\CampXSync_IADM-02_Detailed_Blueprint_V2.1.md` (document says V1.0).
+**Authorized by:** Niranjan V.G. (S0–S4 approved; cutover authorized; close-out authorized 2026-11-24; DEV).  
+**Spec:** `docs/user-stories/CampXSync_IADM-02_User_Stories.csv` (**closed**) + blueprint `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\CampXSync_IADM-02_Detailed_Blueprint_V2.1.md` (document says V1.0).
 
 | Item | Status |
 |---|---|
-| S0 US-001 read-only verification | **completed** — `docs/iadm/iadm-02/S0_VERIFICATION_REPORT.md` |
+| S0 US-001 read-only verification | **Demo-verified** — `docs/iadm/iadm-02/S0_VERIFICATION_REPORT.md` |
 | S0 Decision Pack (D1, D3, D6, D7, D9, D10) | **Owner APPROVED** |
-| S0 build US-002…007 | **completed** |
+| S0 build US-002…007 | **API-ready / Demo-verified** (per story) |
 | S1 US-008…015 | **`APPROVED S1 COMMIT`** |
 | S2 US-016…020 | **`APPROVED S2`** |
 | S3 US-021…026 | **`APPROVED S3 COMMIT`** (`a66eed2`) |
 | Cutover | **executed** — `docs/iadm/iadm-02/CUTOVER_PLAN.md` |
-| S4 US-027…032 | **`APPROVED S4`** — `SLICE_S4_DEMO_REPORT.md` (028/032 partial; no commit yet) |
-| After S4 | **Stop** — no IADM-03…08 / CADM without new authorization |
+| S4 US-027…032 | **`APPROVED S4`** + **close-out** — US-024/028/032 now **Demo-verified** |
+| Close-out | **done** — `docs/iadm/iadm-02/CLOSEOUT_REPORT.md` |
+| After close-out | **Stop** — no IADM-03…08 / CADM without new authorization |
 | Gate holds | US-031 PARKED; `FINDING-IADM02-WRITE-01` mitigated for platform path |
+| Consumer → IADM-03 | `iam.delegation.max_validity_days` = **90** (exposed) |
 | DB writes this step | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-01 rework start (22-11-2026)

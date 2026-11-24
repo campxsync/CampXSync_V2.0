@@ -1,0 +1,293 @@
+{
+  "title": "IADM-02 56-cell persona matrix",
+  "cellCount": 56,
+  "keys": 7,
+  "personas": 8,
+  "cells": [
+    {
+      "key": "cfg.view",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.view",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.view",
+      "persona": "R02",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.view",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.view",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.view",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.view",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.view",
+      "persona": "R28",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "R02",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "R03",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.catalog.view",
+      "persona": "R28",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "R02",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "R03",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.draft",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "R03",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.approve",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "R03",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.publish",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "R03",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.policy.draft",
+      "persona": "R28",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "R01",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "SUPER_ADMIN",
+      "allowed": 1
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "R02",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "SYSTEM_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "R03",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "INSTITUTION_ADMIN",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "R04",
+      "allowed": 0
+    },
+    {
+      "key": "cfg.consumer.read",
+      "persona": "R28",
+      "allowed": 0
+    }
+  ],
+  "summary": {
+    "allows": 26,
+    "denies": 30
+  },
+  "note": "cfg.view treated as catalogue/history read aligned with cfg.catalog.view; consumer.read granted to R01/SUPER_ADMIN in matrix (service identities bind separately at runtime)."
+}

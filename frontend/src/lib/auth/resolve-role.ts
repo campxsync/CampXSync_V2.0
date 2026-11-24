@@ -6,6 +6,7 @@ import { verifySupabaseJwtLocally, extractAccessTokenFromCookies } from '@/lib/a
 
 export type UserRole =
   | 'platform_admin'
+  | 'auditor'
   | 'institution_admin'
   | 'college_admin'
   | 'registrar'
@@ -341,7 +342,7 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       return { success: false, reason: 'inactive_membership' };
     }
 
-    // Priority: institution_admin (R03) > college_admin > registrar > faculty > student.
+    // Priority: auditor (R28) > institution_admin (R03) > college_admin > registrar > faculty > student.
     // REGISTRAR/R31 is a distinct UI bucket (D10/D12d) — never fold into college_admin.
     // INSTITUTION_ADMIN must not fold into college_admin (IADM-01 US-005 / FINDING-IADM01-UI-01).
     let resolvedRole: UserRole | null = null;
@@ -356,7 +357,11 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       matchedCollegeId = assign.college_id || matchedCollegeId;
       matchedDeptId = assign.department_id || matchedDeptId;
 
-      if (code === 'INSTITUTION_ADMIN' || code === 'R03') {
+      if (code === 'AUDITOR' || code === 'R28') {
+        resolvedRole = 'auditor';
+        matchedIamRoleCode = 'AUDITOR';
+        break;
+      } else if (code === 'INSTITUTION_ADMIN' || code === 'R03') {
         resolvedRole = 'institution_admin';
         matchedIamRoleCode = 'INSTITUTION_ADMIN';
         break;

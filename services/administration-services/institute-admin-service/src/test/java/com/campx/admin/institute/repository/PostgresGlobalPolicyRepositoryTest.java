@@ -1,22 +1,20 @@
 package com.campx.admin.institute.repository;
 
-import com.campx.admin.institute.config.DatabaseConfig;
 import com.campx.admin.institute.config.DatabaseConnectionManager;
 import com.campx.admin.institute.model.InstituteModels.GlobalPolicy;
+import com.campx.admin.institute.exception.UserProfileAccessDeniedException;
 import com.campx.admin.institute.security.UserSecurityContext;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.junit.Assume.assumeNotNull;
 
 /**
- * Integration test for {@link PostgresGlobalPolicyRepository} verifying persistence to {@code cfg.policies} (ADM-01 Item 6).
+ * After IADM-02 cutover, institute-admin {@code cfg.policies} writers are retired.
  */
 public class PostgresGlobalPolicyRepositoryTest {
 
@@ -46,21 +44,14 @@ public class PostgresGlobalPolicyRepositoryTest {
         } catch (Exception ignored) {}
     }
 
-    @Test
-    public void testSaveAndRetrieveGlobalPolicy() {
+    @Test(expected = UserProfileAccessDeniedException.class)
+    public void testSavePolicyRetiredAfterIadm02Cutover() {
         testPolicyCode = "POL_TEST_" + System.currentTimeMillis();
         GlobalPolicy policy = new GlobalPolicy();
         policy.setPolicyCode(testPolicyCode);
         policy.setPolicyType("GOVERNANCE");
         policy.setRules(Arrays.asList("RULE_ENFORCE_MFA", "RULE_SESSION_30M"));
 
-        GlobalPolicy saved = repository.savePolicy(platformContext, policy);
-        assertNotNull(saved.getId());
-        assertEquals(testPolicyCode, saved.getPolicyCode());
-
-        Optional<GlobalPolicy> found = repository.getPolicyByCode(platformContext, testPolicyCode);
-        assertTrue(found.isPresent());
-        assertEquals(testPolicyCode, found.get().getPolicyCode());
-        assertEquals("GOVERNANCE", found.get().getPolicyType());
+        repository.savePolicy(platformContext, policy);
     }
 }

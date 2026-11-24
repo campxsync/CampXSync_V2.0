@@ -77,6 +77,8 @@ export function defaultDashboardForRole(role: UserRole): string {
   switch (role) {
     case 'platform_admin':
       return '/platform';
+    case 'auditor':
+      return '/platform/configuration/versions';
     case 'institution_admin':
       return '/institution';
     case 'college_admin':
@@ -99,6 +101,7 @@ export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): b
   ) {
     return true;
   }
+  if (role === 'auditor' && returnTo.startsWith('/platform/configuration')) return true;
   if (role === 'college_admin' && returnTo.startsWith('/college')) return true;
   if (role === 'registrar' && canRegistrarAccessCollegePath(returnTo)) return true;
   if (

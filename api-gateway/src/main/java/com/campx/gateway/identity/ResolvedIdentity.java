@@ -87,6 +87,9 @@ public class ResolvedIdentity {
         if (upper.equals("SUPER_ADMIN") || upper.equals("PLATFORM_ADMIN")) {
             return "platform_admin";
         }
+        if (upper.equals("AUDITOR") || upper.equals("R28")) {
+            return "auditor";
+        }
         if (upper.equals("COLLEGE_ADMIN") || upper.equals("INSTITUTION_ADMIN")
                 || upper.equals("PRINCIPAL") || upper.equals("ACADEMIC_ADMIN")) {
             return "college_admin";

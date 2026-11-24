@@ -144,6 +144,12 @@ export async function middleware(request: NextRequest) {
     !isInstitutionAdminUser;
   const isFacultyUser = (rawRole === 'FACULTY' || rawRole === 'HOD' || rawRole === 'DEAN' || rawRole === 'TEACHER') && !isPlatformUser;
   const isStudentUser = rawRole === 'STUDENT' && !isPlatformUser;
+  // Auditor (R28) — IADM-02 read-only configuration history (US-028)
+  const isAuditorUser =
+    (rawRole === 'AUDITOR' || rawRole === 'R28') &&
+    !isPlatformUser &&
+    !isInstitutionAdminUser &&
+    !isCollegeAdminUser;
 
   const registrarAllowedCollegePrefixes = [
     '/college/lifecycle',
@@ -220,6 +226,9 @@ export async function middleware(request: NextRequest) {
       if (isPlatformUser) {
         return NextResponse.redirect(new URL('/platform', request.url));
       }
+      if (isAuditorUser) {
+        return NextResponse.redirect(new URL('/platform/configuration/versions', request.url));
+      }
       if (isInstitutionAdminUser) {
         return NextResponse.redirect(new URL('/institution', request.url));
       }
@@ -240,7 +249,10 @@ export async function middleware(request: NextRequest) {
 
     // Server-side Route Guards for role prefixes (Fail Closed)
     if (pathname.startsWith('/platform')) {
-      if (!isPlatformUser) {
+      const auditorConfigOk =
+        isAuditorUser &&
+        (pathname === '/platform/configuration' || pathname.startsWith('/platform/configuration/'));
+      if (!isPlatformUser && !auditorConfigOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
     }

@@ -1,0 +1,200 @@
+{
+  "story": "IADM-02-US-032",
+  "pass": true,
+  "checklist": [
+    {
+      "id": "15.1 R01 catalogue/dashboard",
+      "pass": true,
+      "detail": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\us032_catalogue.png"
+    },
+    {
+      "id": "15.2 key detail",
+      "pass": true,
+      "detail": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\us032_key_detail.png"
+    },
+    {
+      "id": "15.3 create valid draft",
+      "pass": true,
+      "detail": {
+        "status": 201,
+        "draftId": "e631b6b1-4bb4-42ee-82bf-15f4fcda2d8a",
+        "audit": "26747c63b27b4802815bbe8610d7a73f"
+      }
+    },
+    {
+      "id": "15.4 create invalid draft",
+      "pass": true,
+      "detail": {
+        "status": 201,
+        "draftId": "06889e89-05e2-40a9-a2c1-fdf6694ea96e"
+      }
+    },
+    {
+      "id": "15.5 validation errors on invalid",
+      "pass": true,
+      "detail": {
+        "draftId": "06889e89-05e2-40a9-a2c1-fdf6694ea96e",
+        "settingKey": "security.session_timeout_min",
+        "policyCode": null,
+        "proposedValue": "not-a-number",
+        "proposedValueRaw": "\"not-a-number\"",
+        "reason": "US-032 invalid draft",
+        "status": "DRAFT",
+        "validationErrors": "[{\"field\": \"proposedValue\", \"message\": \"The value does not match the required type.\"}]",
+        "authorUserId": "54e8308c-ada3-4065-a9fe-51814af6b971",
+        "idempotencyKey": "us032-1795505737804-bad",
+        "correlationId": "1eb7a25d93d148d8ace56c244cb4bce3",
+        "createdAt": "2026-11-24T07:35:37.846134Z",
+        "schemaVersion": 1,
+        "valid": false,
+        "fieldErrors": [
+          {
+            "field": "proposedValue",
+            "message": "The value does not match the required type."
+          }
+        ]
+      }
+    },
+    {
+      "id": "15.6 revalidate valid",
+      "pass": true,
+      "detail": {
+        "draftId": "e631b6b1-4bb4-42ee-82bf-15f4fcda2d8a",
+        "settingKey": "security.session_timeout_min",
+        "policyCode": null,
+        "proposedValue": "54",
+        "proposedValueRaw": "54",
+        "reason": "US-032 section-15 valid draft",
+        "status": "VALIDATED",
+        "validationErrors": "[]",
+        "authorUserId": "54e8308c-ada3-4065-a9fe-51814af6b971",
+        "idempotencyKey": "us032-1795505737804",
+        "correlationId": "26747c63b27b4802815bbe8610d7a73f",
+        "createdAt": "2026-11-24T07:35:37.471601Z",
+        "schemaVersion": 1,
+        "valid": true,
+        "fieldErrors": []
+      }
+    },
+    {
+      "id": "15.7 submit pending",
+      "pass": true,
+      "detail": {
+        "draftId": "e631b6b1-4bb4-42ee-82bf-15f4fcda2d8a",
+        "settingKey": "security.session_timeout_min",
+        "policyCode": null,
+        "proposedValue": "54",
+        "proposedValueRaw": "54",
+        "reason": "US-032 section-15 valid draft",
+        "status": "PENDING_APPROVAL",
+        "validationErrors": "[]",
+        "authorUserId": "54e8308c-ada3-4065-a9fe-51814af6b971",
+        "idempotencyKey": "us032-1795505737804",
+        "correlationId": "26747c63b27b4802815bbe8610d7a73f",
+        "createdAt": "2026-11-24T07:35:37.471601Z",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "15.8 approve",
+      "pass": true,
+      "detail": {
+        "draftId": "e631b6b1-4bb4-42ee-82bf-15f4fcda2d8a",
+        "settingKey": "security.session_timeout_min",
+        "policyCode": null,
+        "proposedValue": "54",
+        "proposedValueRaw": "54",
+        "reason": "US-032 section-15 valid draft",
+        "status": "APPROVED",
+        "validationErrors": "[]",
+        "authorUserId": "54e8308c-ada3-4065-a9fe-51814af6b971",
+        "idempotencyKey": "us032-1795505737804",
+        "correlationId": "26747c63b27b4802815bbe8610d7a73f",
+        "createdAt": "2026-11-24T07:35:37.471601Z",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "15.9 publish + deferred notification",
+      "pass": true,
+      "detail": {
+        "versionId": "3b7f4618-8d7b-4985-b7d6-504e645d8d34",
+        "versionLabel": "VER-007",
+        "status": "PUBLISHED",
+        "effectiveFrom": "2026-11-24T07:35:39.759334Z",
+        "releaseNotes": "US-032 publish",
+        "payload": "{\"attendance.min_pct\": 75, \"exam.grace_marks_max\": 5, \"fees.late_fee_grace_days\": 9, \"security.session_timeout_min\": 54, \"iam.delegation.max_validity_days\": 90}",
+        "checksum": "31ea049dcbf1c73ab9094ecdba9c19825a82920cfa786a9dcb81a36f02402f1b",
+        "publishedBy": "54e8308c-ada3-4065-a9fe-51814af6b971",
+        "supersedesVersionId": "9e9484b3-177f-49d4-9906-04333dd1d6ed",
+        "schemaVersion": 1,
+        "published": true,
+        "notificationDeferred": true,
+        "notificationMessage": "Action completed; notification delivery is delayed."
+      }
+    },
+    {
+      "id": "15.10 consumer effective + delegation key",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "version": "VER-007",
+        "hasDelegation": true
+      }
+    },
+    {
+      "id": "15.11 consumer domain denial",
+      "pass": true,
+      "detail": {
+        "status": 403
+      }
+    },
+    {
+      "id": "15.12 versions list",
+      "pass": true,
+      "detail": {
+        "count": 7
+      }
+    },
+    {
+      "id": "15.13 R28 read-only",
+      "pass": true,
+      "detail": "US028_AUDITOR_HEADED.json"
+    },
+    {
+      "id": "15.14 R04 mutation denied",
+      "pass": true,
+      "detail": {
+        "status": 403
+      }
+    },
+    {
+      "id": "15.15 cutover 410",
+      "pass": true,
+      "detail": {
+        "status": 410
+      }
+    },
+    {
+      "id": "15.16 no direct DB in IADM-02 BFF",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "id": "15.17 outage stale/unavailable",
+      "pass": true,
+      "detail": "US024_OUTAGE.json"
+    },
+    {
+      "id": "15.18 institution desk",
+      "pass": true,
+      "detail": "No dedicated institute settings page in Next.js; freeze verified via gateway 410 + college desk headed (15.19) + R03/R04 API deny (15.14). Institution password not in .env.audit."
+    },
+    {
+      "id": "15.19 college desk post-freeze",
+      "pass": true,
+      "detail": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-02\\evidence\\us032_college_desk.png"
+    }
+  ],
+  "filmedAt": "2026-11-24T07:36:01.513Z"
+}

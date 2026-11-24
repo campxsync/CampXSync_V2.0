@@ -322,7 +322,14 @@ public class JdbcIdentityResolver implements IdentityResolver {
 
             for (RoleAssignmentDto ra : activeAssignments) {
                 String code = ra.roleCode != null ? ra.roleCode.toUpperCase(Locale.ROOT) : "";
-                if (isCollegeAdminRole(code)) {
+                if (isAuditorRole(code)) {
+                    resolvedRole = ra.roleCode != null ? ra.roleCode : "AUDITOR";
+                    if (ra.collegeId != null)
+                        matchedCollegeId = ra.collegeId;
+                    if (ra.departmentId != null)
+                        matchedDeptId = ra.departmentId;
+                    break;
+                } else if (isCollegeAdminRole(code)) {
                     resolvedRole = ra.roleCode != null ? ra.roleCode : "COLLEGE_ADMIN";
                     if (ra.collegeId != null)
                         matchedCollegeId = ra.collegeId;
@@ -402,6 +409,14 @@ public class JdbcIdentityResolver implements IdentityResolver {
             return IdentityResolutionResult.ineligible("database_error",
                     "Failed to resolve identity from authoritative storage");
         }
+    }
+
+    /** Auditor (R28) — recognised identity; IADM-02 mutations stay fail-closed in domain service. */
+    private static boolean isAuditorRole(String code) {
+        if (code == null)
+            return false;
+        String upper = code.toUpperCase(Locale.ROOT);
+        return upper.equals("AUDITOR") || upper.equals("R28");
     }
 
     private static boolean isCollegeAdminRole(String code) {

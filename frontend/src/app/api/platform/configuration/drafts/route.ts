@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveUserRole } from '@/lib/auth/resolve-role';
+import { canAttemptIadm02Mutation, canReadIadm02Config } from '@/lib/auth/iadm02-access';
 import { fetchFromGateway, GatewayAuthError } from '@/lib/api/gateway-client';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
-  if (!resolution.success || resolution.session.role !== 'platform_admin') {
+  if (!resolution.success || !canAttemptIadm02Mutation(resolution.session.role)) {
     return NextResponse.json(
       { errorCode: 'FORBIDDEN', detail: 'You are not authorized for this action.' },
       { status: 403 }
