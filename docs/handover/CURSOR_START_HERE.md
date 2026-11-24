@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-03 S3 — **`APPROVED S3 COMMIT`**)
+**Last current-state refresh:** 2026-11-24 (IADM-03 S3b — **`APPROVED S3b COMMIT`**)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — S3 committed; await owner authorization for next slice.
+1. `docs/prompts/NEXT_TASK.md` — S3b committed; await owner authorization for next slice.
 2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S3_BUILD_REPORT.md`.
+3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S3B_BUILD_REPORT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -23,21 +23,21 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **Gateway:** Ingress `:8080`; **IADM-01** `:8099`; **IADM-02** `:8100`; **IADM-03** `/api/v1/iadm/03` → `:8101`.
 3. **IADM-01 S0–S4 `APPROVED S4`:** onboarding, colleges/R04/INTERIM handover, lifecycle, history oversight.
-4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com` — Auth `app_metadata.tenant_id` fixed 2026-11-24).
+4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (R03 `maharani.campx@gmail.com`).
 5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`. Path C uses institute-admin (`CAMPX_IAM_DELEGATION_BASE_URL=http://127.0.0.1:8081`).
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
 8. **IADM-02 close-out done** (2026-11-24).
-9. **IADM-03 S0–S2** committed locally after owner APPROVED … COMMIT.
-10. **IADM-03 S3 `APPROVED S3 COMMIT`:** `iam.access_requests` + requests/delegations desks; headed PASS; report `S3_BUILD_REPORT.md`.
+9. **IADM-03 S0–S3** committed locally after owner APPROVED … COMMIT.
+10. **IADM-03 S3b `APPROVED S3b COMMIT`:** catalogue change + governance read; headed PASS; report `S3B_BUILD_REPORT.md`.
 
 ---
 
 ## 2. File Map & Project Artifacts
 
 - **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`, `docs/reports/COMPLETION_REPORT.md`
-- **IADM-03:** `docs/iadm/iadm-03/S3_BUILD_REPORT.md`, evidence under `docs/iadm/iadm-03/evidence/s3/`
-- **Demo:** `node scripts/demo/iadm03_s3_headed.mjs`
+- **IADM-03:** `docs/iadm/iadm-03/S3B_BUILD_REPORT.md`, evidence under `docs/iadm/iadm-03/evidence/s3b/`
+- **Demo:** `node scripts/demo/iadm03_s3b_headed.mjs`
 - **Stack scripts:** `scripts/dev/start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 

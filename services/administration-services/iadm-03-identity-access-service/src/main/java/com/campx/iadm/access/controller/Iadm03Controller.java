@@ -7,7 +7,9 @@ import com.campx.iadm.access.security.GrantorCeiling;
 import com.campx.iadm.access.security.UserSecurityContext;
 import com.campx.iadm.access.service.AccessGovernanceService;
 import com.campx.iadm.access.service.AccessRequestGovernanceService;
+import com.campx.iadm.access.service.CatalogChangeGovernanceService;
 import com.campx.iadm.access.service.DelegationGovernanceService;
+import com.campx.iadm.access.service.GovernanceReadService;
 import com.campx.iadm.access.service.GrantGovernanceService;
 import com.campx.iadm.access.service.ProfileGovernanceService;
 import com.campx.logger.CampXLogger;
@@ -37,36 +39,53 @@ public class Iadm03Controller implements HttpHandler {
     private final GrantGovernanceService grants;
     private final DelegationGovernanceService delegations;
     private final AccessRequestGovernanceService accessRequests;
+    private final CatalogChangeGovernanceService catalogChanges;
+    private final GovernanceReadService governanceRead;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
         this(service, new ProfileGovernanceService(), new GrantGovernanceService(),
-                new DelegationGovernanceService(), new AccessRequestGovernanceService());
+                new DelegationGovernanceService(), new AccessRequestGovernanceService(),
+                new CatalogChangeGovernanceService(), new GovernanceReadService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles) {
         this(service, profiles, new GrantGovernanceService(), new DelegationGovernanceService(),
-                new AccessRequestGovernanceService());
+                new AccessRequestGovernanceService(), new CatalogChangeGovernanceService(),
+                new GovernanceReadService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants) {
-        this(service, profiles, grants, new DelegationGovernanceService(), new AccessRequestGovernanceService());
+        this(service, profiles, grants, new DelegationGovernanceService(), new AccessRequestGovernanceService(),
+                new CatalogChangeGovernanceService(), new GovernanceReadService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants, DelegationGovernanceService delegations) {
-        this(service, profiles, grants, delegations, new AccessRequestGovernanceService());
+        this(service, profiles, grants, delegations, new AccessRequestGovernanceService(),
+                new CatalogChangeGovernanceService(), new GovernanceReadService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants, DelegationGovernanceService delegations,
                             AccessRequestGovernanceService accessRequests) {
+        this(service, profiles, grants, delegations, accessRequests,
+                new CatalogChangeGovernanceService(), new GovernanceReadService());
+    }
+
+    public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
+                            GrantGovernanceService grants, DelegationGovernanceService delegations,
+                            AccessRequestGovernanceService accessRequests,
+                            CatalogChangeGovernanceService catalogChanges,
+                            GovernanceReadService governanceRead) {
         this.service = service;
         this.profiles = profiles == null ? new ProfileGovernanceService() : profiles;
         this.grants = grants == null ? new GrantGovernanceService() : grants;
         this.delegations = delegations == null ? new DelegationGovernanceService() : delegations;
         this.accessRequests = accessRequests == null ? new AccessRequestGovernanceService() : accessRequests;
+        this.catalogChanges = catalogChanges == null ? new CatalogChangeGovernanceService() : catalogChanges;
+        this.governanceRead = governanceRead == null ? new GovernanceReadService() : governanceRead;
     }
 
     @Override
@@ -112,7 +131,12 @@ public class Iadm03Controller implements HttpHandler {
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/claims/contract")) {
-                sendJson(exchange, 200, toJson(grants.claimsContract()));
+                sendJson(exchange, 200, toJson(governanceRead.claimsContract()));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/governance/contract")) {
+                // Public metadata twin of claims contract (US-031)
+                sendJson(exchange, 200, toJson(governanceRead.claimsContract()));
                 return;
             }
 
@@ -294,6 +318,38 @@ public class Iadm03Controller implements HttpHandler {
                 }
                 sendJson(exchange, 200, toJson(grants.decideR03GrantChange(
                         ctx, requestId, extract(body, "decision"), extract(body, "reason"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/governance/snapshot")
+                    || path.endsWith("/governance/snapshot/"))) {
+                sendJson(exchange, 200, toJson(governanceRead.snapshot(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/catalog-changes")
+                    || path.endsWith("/catalog-changes/"))) {
+                sendJson(exchange, 200, toJson(catalogChanges.list(ctx, queryParam(exchange, "status"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/catalog-changes")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(catalogChanges.propose(
+                        ctx, extract(body, "changeType"), extract(body, "roleCode"),
+                        extract(body, "permissionCode"), extract(body, "justification"),
+                        key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/catalog-changes/") && path.endsWith("/decide")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID changeId = parseUuidOptional(extract(body, "requestId"));
+                if (changeId == null) {
+                    int i = path.indexOf("/catalog-changes/");
+                    String rest = path.substring(i + "/catalog-changes/".length());
+                    int slash = rest.indexOf('/');
+                    changeId = parseUuid(slash < 0 ? rest : rest.substring(0, slash), "requestId");
+                }
+                sendJson(exchange, 200, toJson(catalogChanges.decide(
+                        ctx, changeId, extract(body, "decision"), extract(body, "reason"))));
                 return;
             }
 

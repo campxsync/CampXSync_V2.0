@@ -23,3 +23,13 @@ export function canSubmitIadm03AccessRequest(role: string | null | undefined): b
     role === 'auditor'
   );
 }
+
+/** US-030 — R01 only (UI gate; Java enforces R01 vs R02). */
+export function canMutateIadm03CatalogChange(role: string | null | undefined): boolean {
+  return role === 'platform_admin';
+}
+
+/** US-031 — platform / system admin governance read. */
+export function canReadIadm03Governance(role: string | null | undefined): boolean {
+  return role === 'platform_admin' || role === 'system_admin';
+}

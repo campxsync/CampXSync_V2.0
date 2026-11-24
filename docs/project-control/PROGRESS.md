@@ -1,11 +1,11 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-24 (IADM-03 S3 — **`APPROVED S3 COMMIT`**)
+**Updated:** 2026-11-24 (IADM-03 S3b — **`APPROVED S3b COMMIT`**)
 
 ## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)
 
-**Authorized by:** Niranjan V.G. (S0–S3 **APPROVED … COMMIT**; migration `20261124120000` applied DEV 2026-11-24).  
+**Authorized by:** Niranjan V.G. (S0–S3b **APPROVED … COMMIT**; migration `20261124130000` applied DEV 2026-11-24).  
 **Spec:** `docs/user-stories/CampXSync_IADM-03_User_Stories.csv` + blueprint `CampXSync_IADM-03_Detailed_Blueprint_V1_4.md`.
 
 | Item | Status |
@@ -15,11 +15,12 @@
 | S0 build US-002…007 | **completed** |
 | S1 US-008…014 | **`APPROVED S1 COMMIT`** — `S1_BUILD_REPORT.md`; headed R01+R03 PASS |
 | S2 US-015…022 grants | **`APPROVED S2 COMMIT`** `475480c` — `S2_BUILD_REPORT.md`; headed PASS |
-| S3 US-023…029 | **`APPROVED S3 COMMIT`** — `S3_BUILD_REPORT.md`; headed PASS; migration applied |
-| Migrations on DEV | foundation + demo seed + **`20261124120000` access_requests** |
+| S3 US-023…029 | **`APPROVED S3 COMMIT`** `a95f224` — `S3_BUILD_REPORT.md` |
+| S3b US-030/031 | **`APPROVED S3b COMMIT`** — `S3B_BUILD_REPORT.md`; headed PASS; migration applied |
+| Migrations on DEV | foundation + demo seed + `20261124120000` + **`20261124130000` catalog_change_requests** |
 | 56-cell matrix | **Still required** before close-out |
 | Open hardening | Owner-approved platform RLS on `iam.user_profiles` (interim pool-role documented) |
-| After S3 | S4 / remaining US-030/031 only after owner authorization (S3 committed) |
+| After S3b | S4 US-032+ only after owner authorization |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-02 Platform Configuration & Policy (23-11-2026)

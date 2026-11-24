@@ -107,6 +107,20 @@ export default function PlatformIdentityPage() {
           >
             Access requests
           </Link>
+          <Link
+            href="/platform/identity/catalog-changes"
+            className="rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-catalog-changes"
+          >
+            Catalogue changes
+          </Link>
+          <Link
+            href="/platform/identity/governance"
+            className="rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-governance"
+          >
+            Governance read
+          </Link>
           <button
             type="button"
             className="rounded border border-slate-300 px-4 py-2 text-sm"

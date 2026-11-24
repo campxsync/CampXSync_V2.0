@@ -1,0 +1,29 @@
+[
+  {
+    "step": "R01 governance snapshot",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3b\\s3b_r01_governance.png",
+    "ok": true,
+    "detail": "{\n  \"service\": \"IADM-03\",\n  \"runtimePath\": \"NOT_PER_REQUEST\",\n  \"claims\": {\n    \"authoritative\": \"DB + iam.has_permission in service transaction\",\n    \"gatewayIdentityCacheTtlSeconds\": 300,\n    \"revocationDelaySecondsMax\": 300,\n    \"iadm03OnRequestPath\": false,\n    \"roleNameFallback\": false,\n    \"note\": \"Authoritative checks use DB + iam.has_permission immediately. Gateway identity cache may lag u"
+  },
+  {
+    "step": "R01 propose catalog change",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3b\\s3b_r01_propose.png",
+    "ok": true,
+    "detail": "Proposal stored. A different R01 must approve before apply.",
+    "requestId": "ef44c844-3fe7-45e0-b9be-daeac6506b93"
+  },
+  {
+    "step": "R01 self-approve denied",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3b\\s3b_r01_self_approve_deny.png",
+    "ok": true,
+    "detail": "A different Super Admin (R01) must approve. The proposer cannot decide their own change."
+  },
+  {
+    "step": "R01-B approve and apply",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3b\\s3b_r01b_approve.png",
+    "ok": true,
+    "detail": "APPROVE → APPLIED; applied=true",
+    "requestId": "ef44c844-3fe7-45e0-b9be-daeac6506b93",
+    "approverEmail": "platformadmin2.campx@gmail.com"
+  }
+]
