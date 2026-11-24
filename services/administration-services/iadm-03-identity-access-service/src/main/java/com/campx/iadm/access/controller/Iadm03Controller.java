@@ -7,6 +7,7 @@ import com.campx.iadm.access.security.GrantorCeiling;
 import com.campx.iadm.access.security.UserSecurityContext;
 import com.campx.iadm.access.service.AccessGovernanceService;
 import com.campx.iadm.access.service.AccessRequestGovernanceService;
+import com.campx.iadm.access.service.AccessReviewGovernanceService;
 import com.campx.iadm.access.service.CatalogChangeGovernanceService;
 import com.campx.iadm.access.service.DelegationGovernanceService;
 import com.campx.iadm.access.service.GovernanceReadService;
@@ -41,37 +42,42 @@ public class Iadm03Controller implements HttpHandler {
     private final AccessRequestGovernanceService accessRequests;
     private final CatalogChangeGovernanceService catalogChanges;
     private final GovernanceReadService governanceRead;
+    private final AccessReviewGovernanceService accessReviews;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
         this(service, new ProfileGovernanceService(), new GrantGovernanceService(),
                 new DelegationGovernanceService(), new AccessRequestGovernanceService(),
-                new CatalogChangeGovernanceService(), new GovernanceReadService());
+                new CatalogChangeGovernanceService(), new GovernanceReadService(),
+                new AccessReviewGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles) {
         this(service, profiles, new GrantGovernanceService(), new DelegationGovernanceService(),
                 new AccessRequestGovernanceService(), new CatalogChangeGovernanceService(),
-                new GovernanceReadService());
+                new GovernanceReadService(), new AccessReviewGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants) {
         this(service, profiles, grants, new DelegationGovernanceService(), new AccessRequestGovernanceService(),
-                new CatalogChangeGovernanceService(), new GovernanceReadService());
+                new CatalogChangeGovernanceService(), new GovernanceReadService(),
+                new AccessReviewGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants, DelegationGovernanceService delegations) {
         this(service, profiles, grants, delegations, new AccessRequestGovernanceService(),
-                new CatalogChangeGovernanceService(), new GovernanceReadService());
+                new CatalogChangeGovernanceService(), new GovernanceReadService(),
+                new AccessReviewGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
                             GrantGovernanceService grants, DelegationGovernanceService delegations,
                             AccessRequestGovernanceService accessRequests) {
         this(service, profiles, grants, delegations, accessRequests,
-                new CatalogChangeGovernanceService(), new GovernanceReadService());
+                new CatalogChangeGovernanceService(), new GovernanceReadService(),
+                new AccessReviewGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
@@ -79,6 +85,16 @@ public class Iadm03Controller implements HttpHandler {
                             AccessRequestGovernanceService accessRequests,
                             CatalogChangeGovernanceService catalogChanges,
                             GovernanceReadService governanceRead) {
+        this(service, profiles, grants, delegations, accessRequests, catalogChanges, governanceRead,
+                new AccessReviewGovernanceService());
+    }
+
+    public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
+                            GrantGovernanceService grants, DelegationGovernanceService delegations,
+                            AccessRequestGovernanceService accessRequests,
+                            CatalogChangeGovernanceService catalogChanges,
+                            GovernanceReadService governanceRead,
+                            AccessReviewGovernanceService accessReviews) {
         this.service = service;
         this.profiles = profiles == null ? new ProfileGovernanceService() : profiles;
         this.grants = grants == null ? new GrantGovernanceService() : grants;
@@ -86,6 +102,7 @@ public class Iadm03Controller implements HttpHandler {
         this.accessRequests = accessRequests == null ? new AccessRequestGovernanceService() : accessRequests;
         this.catalogChanges = catalogChanges == null ? new CatalogChangeGovernanceService() : catalogChanges;
         this.governanceRead = governanceRead == null ? new GovernanceReadService() : governanceRead;
+        this.accessReviews = accessReviews == null ? new AccessReviewGovernanceService() : accessReviews;
     }
 
     @Override
@@ -137,6 +154,30 @@ public class Iadm03Controller implements HttpHandler {
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/governance/contract")) {
                 // Public metadata twin of claims contract (US-031)
                 sendJson(exchange, 200, toJson(governanceRead.claimsContract()));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/notifications/contract")) {
+                // US-034 — audit vs best-effort notification
+                sendJson(exchange, 200, toJson(accessReviews.notificationContract()));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/denials/r27")) {
+                // US-035 — parked R27 create/elevate; denial only (no HMAC needed for ceiling probe)
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String grantor = extract(body, "grantor");
+                if (grantor == null || grantor.trim().isEmpty()) {
+                    grantor = "R01";
+                }
+                String deny = GrantorCeiling.denyReason(grantor, "API_CLIENT", false);
+                if (deny == null) {
+                    deny = "API Client (R27) creation/elevation is parked; denial only.";
+                }
+                Map<String, Object> out = new java.util.LinkedHashMap<String, Object>();
+                out.put("allowed", Boolean.FALSE);
+                out.put("targetRole", "API_CLIENT");
+                out.put("adm03Family", "DORMANT");
+                out.put("denyReason", deny);
+                sendJson(exchange, 403, toJson(out));
                 return;
             }
 
@@ -352,6 +393,45 @@ public class Iadm03Controller implements HttpHandler {
                         ctx, changeId, extract(body, "decision"), extract(body, "reason"))));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/access-reviews")
+                    || path.endsWith("/access-reviews/"))) {
+                UUID tenantFilter = parseUuidOptional(queryParam(exchange, "tenantId"));
+                sendJson(exchange, 200, toJson(accessReviews.list(ctx, tenantFilter)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/access-reviews")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID tenantId = parseUuidOptional(extract(body, "tenantId"));
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(accessReviews.start(
+                        ctx, tenantId, extract(body, "cycleName"), key, correlationId)));
+                return;
+            }
+            UUID reviewId = extractReviewId(path);
+            if ("GET".equalsIgnoreCase(method) && reviewId != null
+                    && !path.contains("/items/") && !path.endsWith("/complete")) {
+                sendJson(exchange, 200, toJson(accessReviews.get(ctx, reviewId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && reviewId != null && path.contains("/items/")
+                    && path.endsWith("/decide")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID itemId = parseUuidOptional(extract(body, "itemId"));
+                if (itemId == null) {
+                    int i = path.indexOf("/items/");
+                    String rest = path.substring(i + "/items/".length());
+                    int slash = rest.indexOf('/');
+                    itemId = parseUuid(slash < 0 ? rest : rest.substring(0, slash), "itemId");
+                }
+                sendJson(exchange, 200, toJson(accessReviews.decideItem(
+                        ctx, reviewId, itemId, extract(body, "decision"), extract(body, "note"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && reviewId != null && path.endsWith("/complete")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(accessReviews.complete(ctx, reviewId, extract(body, "reason"))));
+                return;
+            }
 
             sendJson(exchange, 404, problem("IADM03_NOT_FOUND", "No IADM-03 route for " + path));
         } catch (UserProfileAccessDeniedException ex) {
@@ -394,6 +474,28 @@ public class Iadm03Controller implements HttpHandler {
             return UUID.fromString(raw.trim());
         } catch (IllegalArgumentException ex) {
             throw new InstituteAdminException(400, "IADM03_VALIDATION", "Invalid UUID");
+        }
+    }
+
+    private static UUID extractReviewId(String path) {
+        if (path == null) {
+            return null;
+        }
+        String marker = "/access-reviews/";
+        int i = path.indexOf(marker);
+        if (i < 0) {
+            return null;
+        }
+        String rest = path.substring(i + marker.length());
+        int slash = rest.indexOf('/');
+        String idPart = slash < 0 ? rest : rest.substring(0, slash);
+        if (idPart.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(idPart);
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 

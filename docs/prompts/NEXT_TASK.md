@@ -1,19 +1,19 @@
 # Next Task
 
-**STATUS: IADM-03 S3b `APPROVED S3b COMMIT` — await owner authorization for next slice.**
+**STATUS: IADM-03 S4 `APPROVED S4 COMMIT` — await owner authorization for next slice.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| IADM-03 S0–S3b | | **`APPROVED … COMMIT`** (S3b local commit) |
-| Migration `20261124130000` | `iam.catalog_change_requests` | **Applied on DEV** |
-| S4 US-032+ | access review / auditor / denials | **yet to pickup** |
-| 56-cell matrix | harness | **Still required** before close-out |
+| IADM-03 S0–S4 | | **`APPROVED … COMMIT`** (S4 local commit) |
+| Migration `20261124140000` | review RLS | **Applied on DEV** |
+| US-033 | R28 auditor | **Blocked by D3** |
+| US-040 / 56-cell | close-out | **yet to pickup** |
 
 ## Stop gate
 
-Do **not** start S4 until owner authorizes. Do **not** push unless owner says.
+Do **not** start US-040 / close-out until owner authorizes. Do **not** push unless owner says.
 
 ## Rules
 

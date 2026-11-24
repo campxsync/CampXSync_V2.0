@@ -33,3 +33,8 @@ export function canMutateIadm03CatalogChange(role: string | null | undefined): b
 export function canReadIadm03Governance(role: string | null | undefined): boolean {
   return role === 'platform_admin' || role === 'system_admin';
 }
+
+/** US-032 — access review campaigns (R01 / R03). */
+export function canManageIadm03Reviews(role: string | null | undefined): boolean {
+  return role === 'platform_admin' || role === 'institution_admin';
+}

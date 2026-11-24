@@ -88,6 +88,13 @@ export default function InstitutionAccessPage() {
           >
             Access requests
           </Link>
+          <Link
+            href="/institution/access/reviews"
+            className="inline-block rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-reviews"
+          >
+            Access reviews
+          </Link>
         </div>
       </header>
 

@@ -1,0 +1,48 @@
+{
+  "ok": true,
+  "macTenant": "72ecbfe3-2077-41b5-8a20-b6d3e045311b",
+  "results": [
+    {
+      "step": "R27 denial probe",
+      "ok": true,
+      "detail": {
+        "allowed": false,
+        "targetRole": "API_CLIENT",
+        "adm03Family": "DORMANT",
+        "denyReason": "API Client (R27) creation/elevation is parked; denial only."
+      }
+    },
+    {
+      "step": "Notification contract",
+      "ok": true,
+      "detail": {
+        "audit": "REQUIRED_SAME_TX â€” failure blocks success (US-004/US-034)",
+        "notification": "BEST_EFFORT â€” may be delayed; never grants or denies access",
+        "stoppedNotificationService": "Change still succeeds; UI shows notification is delayed",
+        "stoppedAuditService": "Change must not report success",
+        "message": "Access change is audited durably. App notification is best-effort and may show as delayed; notifications never decide whether access is granted (US-034)."
+      }
+    },
+    {
+      "step": "R03 start access review",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s4\\s4_r03_review_start.png",
+      "ok": true,
+      "detail": "Started 179c146b-b514-4ee6-8f1f-3cafd51fa861; items=3; autoRevoke=false; Access change is audited durably. App notification is best-effort and may show as delayed; notifications never decide whether access is granted (US-034).",
+      "reviewId": "179c146b-b514-4ee6-8f1f-3cafd51fa861"
+    },
+    {
+      "step": "R03 certify review item",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s4\\s4_r03_review_certify.png",
+      "ok": true,
+      "detail": "Grant certified (KEEP).",
+      "itemId": "d8840573-4b7b-4057-b683-47b349c3e83e"
+    },
+    {
+      "step": "R03 request revocation (no auto-revoke)",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s4\\s4_r03_review_revoke_req.png",
+      "ok": true,
+      "detail": "Revocation requested and audited. No automatic revoke was applied.",
+      "itemId": "c6bb8f81-dcf7-4c73-8e7a-ac8af1fb0991"
+    }
+  ]
+}
