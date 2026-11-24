@@ -6,6 +6,7 @@ import com.campx.iadm.access.security.GatewayHmacVerifier;
 import com.campx.iadm.access.security.GrantorCeiling;
 import com.campx.iadm.access.security.UserSecurityContext;
 import com.campx.iadm.access.service.AccessGovernanceService;
+import com.campx.iadm.access.service.GrantGovernanceService;
 import com.campx.iadm.access.service.ProfileGovernanceService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -31,15 +32,22 @@ public class Iadm03Controller implements HttpHandler {
 
     private final AccessGovernanceService service;
     private final ProfileGovernanceService profiles;
+    private final GrantGovernanceService grants;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
-        this(service, new ProfileGovernanceService());
+        this(service, new ProfileGovernanceService(), new GrantGovernanceService());
     }
 
     public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles) {
+        this(service, profiles, new GrantGovernanceService());
+    }
+
+    public Iadm03Controller(AccessGovernanceService service, ProfileGovernanceService profiles,
+                            GrantGovernanceService grants) {
         this.service = service;
         this.profiles = profiles == null ? new ProfileGovernanceService() : profiles;
+        this.grants = grants == null ? new GrantGovernanceService() : grants;
     }
 
     @Override
@@ -69,6 +77,23 @@ public class Iadm03Controller implements HttpHandler {
         try {
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/health") || path.endsWith("/healthz"))) {
                 sendJson(exchange, 200, toJson(service.health()));
+                return;
+            }
+            // Pure ceiling evaluation + claims contract (no tenant data) — usable for smoke without HMAC
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/ceilings/evaluate")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String grantor = extract(body, "grantor");
+                String target = extract(body, "targetRole");
+                boolean self = "true".equalsIgnoreCase(extract(body, "selfGrant"));
+                String deny = GrantorCeiling.denyReason(grantor, target, self);
+                Map<String, Object> out = new java.util.LinkedHashMap<String, Object>();
+                out.put("allowed", Boolean.valueOf(deny == null));
+                out.put("denyReason", deny);
+                sendJson(exchange, 200, toJson(out));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/claims/contract")) {
+                sendJson(exchange, 200, toJson(grants.claimsContract()));
                 return;
             }
 
@@ -146,16 +171,48 @@ public class Iadm03Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.beginIdempotent(ctx, op == null ? "MUTATION" : op, key, correlationId)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.endsWith("/ceilings/evaluate")) {
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/appoint-r03")) {
                 String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                String grantor = extract(body, "grantor");
-                String target = extract(body, "targetRole");
-                boolean self = "true".equalsIgnoreCase(extract(body, "selfGrant"));
-                String deny = GrantorCeiling.denyReason(grantor, target, self);
-                Map<String, Object> out = new java.util.LinkedHashMap<String, Object>();
-                out.put("allowed", Boolean.valueOf(deny == null));
-                out.put("denyReason", deny);
-                sendJson(exchange, 200, toJson(out));
+                String email = extract(body, "email");
+                String displayName = extract(body, "displayName");
+                UUID tenantId = parseUuid(extract(body, "tenantId"), "tenantId");
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grants.appointInstitutionAdmin(
+                        ctx, email, displayName, tenantId, key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/assign")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID subject = parseUuid(extract(body, "subjectUserId"), "subjectUserId");
+                String targetRole = extract(body, "targetRole");
+                UUID tenantId = parseUuidOptional(extract(body, "tenantId"));
+                UUID collegeId = parseUuidOptional(extract(body, "collegeId"));
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grants.assignGrant(
+                        ctx, subject, targetRole, tenantId, collegeId,
+                        extract(body, "validFrom"), extract(body, "validTo"),
+                        extract(body, "reason"), key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/revoke")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID assignmentId = parseUuid(extract(body, "assignmentId"), "assignmentId");
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grants.revokeGrant(
+                        ctx, assignmentId, extract(body, "reason"), key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/grants/r03-change/") && path.endsWith("/decide")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String requestId = extract(body, "requestId");
+                if (requestId == null || requestId.trim().isEmpty()) {
+                    int i = path.indexOf("/grants/r03-change/");
+                    String rest = path.substring(i + "/grants/r03-change/".length());
+                    int slash = rest.indexOf('/');
+                    requestId = slash < 0 ? rest : rest.substring(0, slash);
+                }
+                sendJson(exchange, 200, toJson(grants.decideR03GrantChange(
+                        ctx, requestId, extract(body, "decision"), extract(body, "reason"))));
                 return;
             }
 
@@ -179,6 +236,28 @@ public class Iadm03Controller implements HttpHandler {
         }
         String p = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
         return p.endsWith("/profiles");
+    }
+
+    private static UUID parseUuid(String raw, String field) {
+        if (raw == null || raw.trim().isEmpty()) {
+            throw new InstituteAdminException(400, "IADM03_VALIDATION", field + " is required");
+        }
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new InstituteAdminException(400, "IADM03_VALIDATION", field + " must be a UUID");
+        }
+    }
+
+    private static UUID parseUuidOptional(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new InstituteAdminException(400, "IADM03_VALIDATION", "Invalid UUID");
+        }
     }
 
     private static UUID extractProfileId(String path) {

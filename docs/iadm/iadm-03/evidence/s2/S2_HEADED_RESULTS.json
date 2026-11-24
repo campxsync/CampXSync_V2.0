@@ -1,0 +1,31 @@
+[
+  {
+    "step": "R01 claims contract",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s2\\s2_r01_claims.png",
+    "ok": true
+  },
+  {
+    "step": "R01 appoint form",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s2\\s2_r01_appoint.png",
+    "ok": true
+  },
+  {
+    "step": "R01 ceiling denial preview",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s2\\s2_r01_ceiling.png",
+    "ok": true,
+    "detail": "Denied (US-017): Institution Admin (R03) cannot assign R01, R02 or R03."
+  },
+  {
+    "step": "R03 assign FACULTY",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s2\\s2_r03_assign.png",
+    "ok": true,
+    "detail": "Granted FACULTY. Authoritative checks use DB + iam.has_permission immediately. Gateway identity cache may lag up to 5 minutes (US-021 DEV SLA).",
+    "tenant": "72ecbfe3-2077-41b5-8a20-b6d3e045311b"
+  },
+  {
+    "step": "R03→R03 denial",
+    "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s2\\s2_r03_deny.png",
+    "ok": true,
+    "detail": "Denied: Institution Admin (R03) cannot assign R01, R02 or R03."
+  }
+]

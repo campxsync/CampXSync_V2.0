@@ -29,6 +29,9 @@ export default function PlatformIdentityProfilesPage() {
   const [targetRole, setTargetRole] = useState('INSTITUTION_ADMIN');
   const [tenantId, setTenantId] = useState(MAC_TENANT);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const [appointEmail, setAppointEmail] = useState('');
+  const [appointName, setAppointName] = useState('');
+  const [appointMsg, setAppointMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -77,6 +80,36 @@ export default function PlatformIdentityProfilesPage() {
       await load();
     } catch (e) {
       setInviteMsg(e instanceof Error ? e.message : 'Invite failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function appointR03() {
+    setBusy(true);
+    setAppointMsg(null);
+    try {
+      const res = await fetch('/api/platform/identity/grants/appoint-r03', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: appointEmail,
+          displayName: appointName,
+          tenantId,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body.detail || body.errorCode || 'Appoint failed');
+      }
+      setAppointMsg(
+        body.replay
+          ? `Replay — same appoint result (${body.idempotencyKey || ''})`
+          : `Appointed R03 profile ${body.profileId || ''} · ${body.claimsNote || ''}`
+      );
+      await load();
+    } catch (e) {
+      setAppointMsg(e instanceof Error ? e.message : 'Appoint failed');
     } finally {
       setBusy(false);
     }
@@ -152,6 +185,47 @@ export default function PlatformIdentityProfilesPage() {
         {inviteMsg && (
           <p data-testid="iadm03-invite-result" className="text-sm text-slate-700">
             {inviteMsg}
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4" data-testid="iadm03-appoint-form">
+        <h2 className="text-lg font-semibold">Appoint Institution Admin (US-015)</h2>
+        <p className="text-sm text-slate-600">
+          One retry-safe flow: profile invite/create first, then grant. Two-person appoint remains parked.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-sm">
+            <span>Email</span>
+            <input
+              data-testid="iadm03-appoint-email"
+              className="rounded border border-slate-300 px-3 py-2"
+              value={appointEmail}
+              onChange={(e) => setAppointEmail(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span>Display name</span>
+            <input
+              data-testid="iadm03-appoint-name"
+              className="rounded border border-slate-300 px-3 py-2"
+              value={appointName}
+              onChange={(e) => setAppointName(e.target.value)}
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          data-testid="iadm03-appoint-submit"
+          className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+          disabled={busy || !appointEmail.trim() || !tenantId.trim()}
+          onClick={() => void appointR03()}
+        >
+          {busy ? 'Working…' : 'Appoint R03'}
+        </button>
+        {appointMsg && (
+          <p data-testid="iadm03-appoint-result" className="text-sm text-slate-700">
+            {appointMsg}
           </p>
         )}
       </section>

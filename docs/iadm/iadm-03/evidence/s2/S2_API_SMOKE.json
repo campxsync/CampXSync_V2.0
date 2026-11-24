@@ -1,0 +1,52 @@
+{
+  "steps": [
+    {
+      "step": "service_health",
+      "status": 200,
+      "body": {
+        "status": "UP",
+        "service": "IADM-03",
+        "prefix": "/api/v1/iadm/03",
+        "port": 8101,
+        "runtimePath": "NOT_PER_REQUEST",
+        "adm03Family": "DORMANT"
+      }
+    },
+    {
+      "step": "ceiling_r03_r03",
+      "status": 200,
+      "allowed": false,
+      "denyReason": "Institution Admin (R03) cannot assign R01, R02 or R03.",
+      "ok": true
+    },
+    {
+      "step": "claims_contract",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "authoritative": "DB + iam.has_permission in service transaction",
+        "gatewayIdentityCacheTtlSeconds": 300,
+        "revocationDelaySecondsMax": 300,
+        "iadm03OnRequestPath": false,
+        "note": "Authoritative checks use DB + iam.has_permission immediately. Gateway identity cache may lag up to 5 minutes (US-021 DEV SLA)."
+      }
+    },
+    {
+      "step": "gateway_health",
+      "status": 401,
+      "body": {
+        "timestamp": 1795510230394,
+        "status": 401,
+        "error": "Unauthorized",
+        "title": "Unauthorized",
+        "code": "GATEWAY_MISSING_AUTH",
+        "errorCode": "GATEWAY_MISSING_AUTH",
+        "message": "Missing Authorization header",
+        "path": "/api/v1/iadm/03/health",
+        "traceId": "998bfafca54343bfa2623db390dd4d84",
+        "correlationId": "998bfafca54343bfa2623db390dd4d84"
+      }
+    }
+  ],
+  "ok": true
+}

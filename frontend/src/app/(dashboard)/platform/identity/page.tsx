@@ -100,6 +100,24 @@ export default function PlatformIdentityPage() {
           >
             Administrator profiles
           </Link>
+          <button
+            type="button"
+            className="rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-claims-contract"
+            onClick={() => {
+              void (async () => {
+                const res = await fetch('/api/platform/identity/claims/contract');
+                const body = await res.json();
+                setError(
+                  res.ok
+                    ? `Claims: auth=${body.authoritative}; cache≤${body.gatewayIdentityCacheTtlSeconds}s; ${body.note || ''}`
+                    : body.detail || 'Claims contract unavailable'
+                );
+              })();
+            }}
+          >
+            Claims contract (US-021)
+          </button>
         </div>
       </header>
 

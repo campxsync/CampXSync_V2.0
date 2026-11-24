@@ -2,7 +2,7 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-03 S1 **`APPROVED S1 COMMIT`**; next S2 when owner starts it)
+**Last current-state refresh:** 2026-11-24 (IADM-03 S2 grants — **STOP for APPROVED S2**)
 
 ---
 
@@ -10,9 +10,9 @@
 
 Read and follow only:
 
-1. `docs/prompts/NEXT_TASK.md` — S1 approved; S2 US-015…020 when owner authorizes.
+1. `docs/prompts/NEXT_TASK.md` — S2 awaiting `APPROVED S2` / `APPROVED S2 COMMIT`.
 2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S1_BUILD_REPORT.md`.
+3. Spec: `docs/user-stories/CampXSync_IADM-03_User_Stories.csv`; report `docs/iadm/iadm-03/S2_BUILD_REPORT.md`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -28,16 +28,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`. Production / legacy staging forbidden.
 8. **IADM-02 close-out done** (2026-11-24).
-9. **IADM-03 S0 foundation** committed locally after `APPROVED S0 COMMIT`.
-10. **IADM-03 S1 `APPROVED S1 COMMIT`:** platform `/platform/identity` + institute `/institution/access`; headed R01+R03 PASS.
+9. **IADM-03 S0 + S1** committed locally after owner APPROVED … COMMIT.
+10. **IADM-03 S2 grants ready for approval:** appoint/assign/revoke/ceilings/claims; headed PASS; FACULTY grant `0b690be3-…` on DEV.
 
 ---
 
 ## 2. File Map & Project Artifacts
 
 - **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`, `docs/reports/COMPLETION_REPORT.md`
-- **IADM-03:** `docs/iadm/iadm-03/S1_BUILD_REPORT.md`, evidence under `docs/iadm/iadm-03/evidence/s1/`
-- **Demo:** `node scripts/demo/iadm03_s1_headed.mjs`
+- **IADM-03:** `docs/iadm/iadm-03/S2_BUILD_REPORT.md`, evidence under `docs/iadm/iadm-03/evidence/s2/`
+- **Demo:** `node scripts/demo/iadm03_s2_headed.mjs`
 - **Stack scripts:** `scripts/dev/start_stack.ps1`, `check_stack.ps1`, `stop_stack.ps1`, `restart_service.ps1`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 
