@@ -205,12 +205,21 @@ public class ReverseProxyHandler implements HttpHandler {
                         "No route registered for request path: " + path, path);
                 return;
             }
-            // IADM-02 cutover: retired monolith configuration / platform-configs / policies.
+            // Cutover: retired monolith routes return HTTP 410 Gone (IADM-02 / IADM-04).
             if (destinationUrlStr.startsWith("gone:")) {
-                sendError(exchange, 410, "Gone", "IADM02_CUTOVER_GONE",
-                        "This platform configuration route has been retired. Use /api/v1/iadm/02 "
-                                + "(Next.js BFF /api/platform/configuration*).",
-                        path);
+                // destination looks like gone://iadm04-cutover-billing or gone://iadm02-cutover-policies
+                boolean iadm04 = destinationUrlStr.contains("iadm04-cutover");
+                if (iadm04) {
+                    sendError(exchange, 410, "Gone", "IADM04_CUTOVER_GONE",
+                            "This monolith billing route has been retired. Use /api/v1/iadm/04 "
+                                    + "(Next.js BFF /api/platform/billing* or /api/institution/billing*).",
+                            path);
+                } else {
+                    sendError(exchange, 410, "Gone", "IADM02_CUTOVER_GONE",
+                            "This platform configuration route has been retired. Use /api/v1/iadm/02 "
+                                    + "(Next.js BFF /api/platform/configuration*).",
+                            path);
+                }
                 return;
             }
 

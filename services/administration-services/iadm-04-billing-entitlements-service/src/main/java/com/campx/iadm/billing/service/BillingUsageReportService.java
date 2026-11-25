@@ -363,10 +363,16 @@ public class BillingUsageReportService {
         }
     }
 
+    /** Super Admin (R01) only — System Admin (R02) must use permission keys (S5). */
     private boolean isPlatformOperator(Connection conn) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("SELECT iam.is_platform_admin()");
-             ResultSet rs = ps.executeQuery()) {
-            return rs.next() && rs.getBoolean(1);
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT EXISTS ("
+                        + "SELECT 1 FROM plat.platform_admins p "
+                        + "WHERE p.user_id = auth.uid() AND p.role_code = 'SUPER_ADMIN' "
+                        + "AND p.status = 'ACTIVE' AND p.deleted_at IS NULL)")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getBoolean(1);
+            }
         }
     }
 

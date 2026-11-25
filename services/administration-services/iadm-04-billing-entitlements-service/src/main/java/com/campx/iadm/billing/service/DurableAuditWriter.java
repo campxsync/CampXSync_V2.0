@@ -21,6 +21,10 @@ public final class DurableAuditWriter {
     public static UUID append(Connection conn, UserSecurityContext ctx, UUID tenantId,
                               String action, String entityType, String entityId, String message)
             throws SQLException {
+        if (BillingOutageFlags.isAuditDisabled()) {
+            throw new InstituteAdminException(503, "IADM04_AUDIT_UNAVAILABLE",
+                    "The billing change cannot be confirmed because audit is unavailable.");
+        }
         if (conn == null) {
             throw new InstituteAdminException(503, "IADM04_AUDIT_UNAVAILABLE",
                     "The billing change cannot be confirmed because audit is unavailable.");

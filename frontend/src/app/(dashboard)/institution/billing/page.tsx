@@ -91,8 +91,38 @@ export default function InstitutionBillingPage() {
               <p className="text-sm text-[#5B6573]">No current subscription.</p>
             )}
             {pending && (
-              <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-testid="iadm04-pending-banner">
-                Access is unavailable until payment is confirmed. PENDING subscriptions grant zero entitlements.
+              <div
+                className="space-y-2 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+                data-testid="iadm04-pending-banner"
+              >
+                <p className="font-medium">Pending payment</p>
+                <p>
+                  Commercial access is unavailable until payment is confirmed. PENDING subscriptions
+                  grant zero entitlements.
+                </p>
+                <p data-testid="iadm04-pending-pay-path">
+                  Way to pay (DEMO): confirm the open invoice through the platform{' '}
+                  <strong>DEV payment simulator</strong> on the Super Admin Payment &amp; reconciliation
+                  desk. After the simulator settles the invoice, refresh this page — access returns when
+                  status is ACTIVE.
+                </p>
+                <button
+                  type="button"
+                  className="rounded border border-amber-300 bg-white px-3 py-1.5 text-xs"
+                  data-testid="iadm04-pending-refresh"
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh status after payment
+                </button>
+              </div>
+            )}
+            {!sub && (
+              <p
+                className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+                data-testid="iadm04-no-subscription-banner"
+              >
+                No subscription row is attached. Commercial access is denied until a TRIAL or ACTIVE
+                subscription exists.
               </p>
             )}
             <p className="text-sm text-[#5B6573]" data-testid="iadm04-access-flag">

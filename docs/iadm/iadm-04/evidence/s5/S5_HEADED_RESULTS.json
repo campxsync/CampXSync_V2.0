@@ -1,0 +1,144 @@
+{
+  "generatedAt": "2026-11-25T07:02:10.144Z",
+  "results": [
+    {
+      "step": "410 cutover /api/v1/admin/billing/plans",
+      "ok": true,
+      "detail": "status=410 code=IADM04_CUTOVER_GONE"
+    },
+    {
+      "step": "410 cutover /api/v1/admin/usage",
+      "ok": true,
+      "detail": "status=410 code=IADM04_CUTOVER_GONE"
+    },
+    {
+      "step": "410 cutover /v1/billing-accounts",
+      "ok": true,
+      "detail": "status=410 code=IADM04_CUTOVER_GONE"
+    },
+    {
+      "step": "R02 plan-write deny (IADM-04)",
+      "ok": true,
+      "detail": "status=403 code=IADM04_FORBIDDEN"
+    },
+    {
+      "step": "R02 plan-write deny (monolith 410)",
+      "ok": true,
+      "detail": "retired route returns 410"
+    },
+    {
+      "step": "Evidence 4d timezone DEMO value",
+      "ok": true,
+      "detail": "billing.timezone=\"Asia/Kolkata\""
+    },
+    {
+      "step": "Evidence 4d jobs with TZ",
+      "ok": true,
+      "detail": "ran=true"
+    },
+    {
+      "step": "US-038a reuse subscription",
+      "ok": true,
+      "detail": "sub=3ca7aaf1-d3d7-491e-8732-1cc80a02b10e status=ACTIVE"
+    },
+    {
+      "step": "US-038a invoice",
+      "ok": true,
+      "detail": "invoice=0a458cc6-4adb-481e-b7ae-0be1681eb568 status=ISSUED"
+    },
+    {
+      "step": "US-038a initiate",
+      "ok": true,
+      "detail": "intent=9844e13e-4428-409f-98d4-19c862a6487e adapterCalled=true"
+    },
+    {
+      "step": "US-038a callback settle/trace",
+      "ok": true,
+      "detail": "settled=true status=CONFIRMED"
+    },
+    {
+      "step": "US-038a audit desk headed (page)",
+      "ok": true,
+      "detail": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s5\\s5_us038a_audit_trace.png"
+    },
+    {
+      "step": "US-038b fresh invoice for outage",
+      "ok": true,
+      "detail": "invoice=6709e791-a9bc-4e79-b38f-13ea22afca6e"
+    },
+    {
+      "step": "US-038b audit disabled flag",
+      "ok": true,
+      "detail": "auditDisabled=true"
+    },
+    {
+      "step": "US-038b audit-down API",
+      "ok": true,
+      "detail": "503 AUDIT_UNAVAILABLE; simulatorCalls unchanged=1"
+    },
+    {
+      "step": "US-038b admin error on screen",
+      "ok": true,
+      "detail": "IADM04_AUDIT_UNAVAILABLE: The billing change cannot be confirmed because audit is unavailable.",
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s5\\s5_us038b_audit_disabled_error.png"
+    },
+    {
+      "step": "US-038b audit re-enabled",
+      "ok": true,
+      "detail": "auditDisabled=false"
+    },
+    {
+      "step": "US-038b retry no duplicate",
+      "ok": true,
+      "detail": "intent=cd9ad05b-96b7-466f-a600-ef23985a0952 replay=true"
+    },
+    {
+      "step": "US-038c notice DELAYED",
+      "ok": true,
+      "detail": "notice=1a438d95-2003-4570-a05b-d076fb58f7cd; billingState note=Billing notice is delayed because notifications are disabled. Billing state is unchanged."
+    },
+    {
+      "step": "US-038c billing state intact",
+      "ok": true,
+      "detail": "status=ACTIVE"
+    },
+    {
+      "step": "US-038c notices delivered after re-enable",
+      "ok": true,
+      "detail": "delivered=7 flushed=1"
+    },
+    {
+      "step": "Evidence 4a PENDING deny at choke",
+      "ok": true,
+      "detail": "entitlement={\"instituteId\":\"72ecbfe3-2077-41b5-8a20-b6d3e045311b\",\"featureKey\":\"billing.demo.documents\",\"allowed\":false,\"cached\":false,\"subscriptionStatus\":\"PENDING\",\"insti; gate={\"instituteId\":\"72ecbfe3-2077-41b5-8a20-b6d3e045311b\",\"allowed\":false,\"reason\":\"GATE_DENIED\",\"cached\":false}"
+    },
+    {
+      "step": "Evidence 4a R03 limited paths coded",
+      "ok": true,
+      "detail": "resolve-role subscriptionAllowsAccess=false keeps Institution Admin on /institution/billing + /institution/profile + sign-out"
+    },
+    {
+      "step": "Evidence 4a R03 UI skipped",
+      "ok": true,
+      "detail": "no institution admin password in seed; API gate documented"
+    },
+    {
+      "step": "Evidence 4b DEMO ACTIVE seed + rollback",
+      "ok": true,
+      "detail": "D:\\CampXSync\\CampXSync_V2.0\\database\\migrations\\20261125121000_iadm04_demo_seed.sql ; D:\\CampXSync\\CampXSync_V2.0\\database\\migrations\\20261125121000_rollback__iadm04_demo_seed.sql"
+    },
+    {
+      "step": "Evidence 4c onboarding catalogue + trial policy",
+      "ok": true,
+      "detail": "trial option visible from policy",
+      "screenshot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s5\\s5_evidence_4c_onboarding_catalogue.png"
+    },
+    {
+      "step": "FORCE RLS migration applied",
+      "ok": true,
+      "detail": "20261125160000_iadm04_s5_force_rls_notices via Supabase MCP"
+    }
+  ],
+  "passCount": 27,
+  "failCount": 0
+}

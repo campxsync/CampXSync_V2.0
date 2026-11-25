@@ -27,6 +27,11 @@ export interface ResolvedUserSession {
   departmentId: string | null;
   displayName: string;
   isPlatformAdmin: boolean;
+  /**
+   * IADM-04 dual access gate. False when institute is ACTIVE but subscription is not TRIAL|ACTIVE.
+   * Institution Admin (R03) may still reach subscription desk, own profile, and sign-out.
+   */
+  subscriptionAllowsAccess?: boolean;
 }
 
 export type RoleResolutionResult =
@@ -111,10 +116,47 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
 
     const userId = user.id;
 
-    // Check in-memory fast-cache to eliminate redundant PostgreSQL roundtrips
+    // Check in-memory fast-cache to eliminate redundant PostgreSQL roundtrips.
+    // Always re-check the subscription gate for institute sessions so PENDING ↔ ACTIVE
+    // flips are visible immediately (IADM-04 S5 evidence 4a).
     const cached = ROLE_RESOLUTION_CACHE.get(userId);
     if (cached && Date.now() < cached.expiresAt) {
-      return cached.result;
+      const cachedResult = cached.result;
+      if (
+        cachedResult.success &&
+        cachedResult.session.tenantId &&
+        !cachedResult.session.isPlatformAdmin
+      ) {
+        try {
+          const gateRes = await query(
+            'SELECT plat.subscription_allows_access($1::uuid) AS allowed',
+            [cachedResult.session.tenantId]
+          );
+          const allowed = gateRes.rows[0]?.allowed === true;
+          if (!allowed && cachedResult.session.role !== 'institution_admin') {
+            return { success: false, reason: 'subscription_inactive' };
+          }
+          return {
+            success: true,
+            session: {
+              ...cachedResult.session,
+              subscriptionAllowsAccess: allowed,
+            },
+          };
+        } catch {
+          if (cachedResult.session.role !== 'institution_admin') {
+            return { success: false, reason: 'subscription_inactive' };
+          }
+          return {
+            success: true,
+            session: {
+              ...cachedResult.session,
+              subscriptionAllowsAccess: false,
+            },
+          };
+        }
+      }
+      return cachedResult;
     }
 
     // Fast-fail on explicit inactive membership, missing profile, or suspended tenant
@@ -328,19 +370,18 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
     }
 
     // IADM-04 dual access gate (addition A): institute ACTIVE ∧ subscription TRIAL|ACTIVE.
-    // Same choke as tenant_suspended — institute-scoped users only; platform admins skip earlier.
+    // Institute-scoped users only; platform admins skip earlier.
+    // S5: Institution Admin (R03) keeps limited desk access when gate fails; other roles fail closed.
+    let subscriptionAllowsAccess = true;
     try {
       const gateRes = await query(
         'SELECT plat.subscription_allows_access($1::uuid) AS allowed',
         [tenantId]
       );
-      const allowed = gateRes.rows[0]?.allowed === true;
-      if (!allowed) {
-        return { success: false, reason: 'subscription_inactive' };
-      }
+      subscriptionAllowsAccess = gateRes.rows[0]?.allowed === true;
     } catch (err: any) {
       console.error('[resolveUserRole] Subscription access gate error:', err?.message || err);
-      return { success: false, reason: 'subscription_inactive' };
+      subscriptionAllowsAccess = false;
     }
 
     const tenantName = tenant?.name || 'Institutional Workspace';
@@ -439,7 +480,12 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
       return { success: false, reason: 'no_role_assigned' };
     }
 
-    return returnAndCache(userId, {
+    // PENDING / inactive subscription: only Institution Admin keeps a limited workspace.
+    if (!subscriptionAllowsAccess && resolvedRole !== 'institution_admin') {
+      return { success: false, reason: 'subscription_inactive' };
+    }
+
+    const sessionResult: RoleResolutionResult = {
       success: true,
       session: {
         userId,
@@ -453,6 +499,12 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
         departmentId: matchedDeptId,
         displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
         isPlatformAdmin: false,
+        subscriptionAllowsAccess,
       },
-    });
+    };
+    // Do not cache limited/denied subscription sessions so payment restore is visible immediately.
+    if (!subscriptionAllowsAccess) {
+      return sessionResult;
+    }
+    return returnAndCache(userId, sessionResult);
 });

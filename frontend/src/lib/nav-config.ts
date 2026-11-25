@@ -39,12 +39,13 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Technical identities', href: '/platform/identity/technical', icon: Link2 },
     { title: 'Billing (operational)', href: '/platform/billing', icon: Layers },
   ],
-  /** Auditor (R28) — IADM-02 configuration history + IADM-03 evidence read-only. */
+  /** Auditor (R28) — IADM-02 configuration history + IADM-03 evidence + IADM-04 billing evidence. */
   auditor: [
     { title: 'Configuration versions', href: '/platform/configuration/versions', icon: History },
     { title: 'Platform catalogue', href: '/platform/configuration', icon: Layers },
     { title: 'Identity & access', href: '/platform/identity', icon: Users },
     { title: 'Access evidence', href: '/platform/identity/evidence', icon: History },
+    { title: 'Billing evidence', href: '/platform/billing/audit', icon: History },
   ],
   /** Institution Admin (R03) — IADM-01 desk; colleges & handover live here (not Platform wizard). */
   institution_admin: [

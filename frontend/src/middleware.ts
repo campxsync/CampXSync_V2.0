@@ -4,13 +4,15 @@ import { isTestSessionAllowed } from '@/lib/auth/test-session-gate';
 import { verifySupabaseJwtLocally, extractAccessTokenFromCookies } from '@/lib/auth/jwt-verifier';
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   });
-
-  const pathname = request.nextUrl.pathname;
 
   // 1. Allow public routes
   if (
@@ -36,8 +38,10 @@ export async function middleware(request: NextRequest) {
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        const hdrs = new Headers(request.headers);
+        hdrs.set('x-pathname', pathname);
         response = NextResponse.next({
-          request,
+          request: { headers: hdrs },
         });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)

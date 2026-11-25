@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-25 (IADM-04 S4 COMMITTED)
+**Updated:** 2026-11-25 (IADM-04 S5 + evidence 4a local commits — not pushed)
 
 ## Owner decisions – IADM-04 Subscription, Billing & Entitlements (25-11-2026)
 
@@ -16,11 +16,13 @@
 | S2 US-017…025 | **`APPROVED S2 COMMIT`** `6b9ae23` — `IADM-04_S2_Report.md`; headed PASS |
 | S3 US-026…030 | **`APPROVED S3 COMMIT`** `e86e925` — `IADM-04_S3_Report.md`; headed PASS |
 | S4 US-031…040 | **`APPROVED S4 COMMIT`** `81c0715` — `IADM-04_S4_Report.md`; headed PASS |
+| S5 close-out | **`APPROVED S5 COMMIT` (local)** — `IADM-04_S5_Report.md`; US-038/040 completed; headed 27/27 PASS |
+| Evidence 4a | **Closed** — R03 DEMO persona + headed PENDING/NONE/TRIAL film **12/12 PASS**; local commit separate; **not pushed** |
 | Service / port | `iadm-04-billing-entitlements-service` **:8102** `/api/v1/iadm/04` |
-| Migrations on DEV | … + `iadm04_s3_online_payments` + `iadm04_s4_lifecycle_usage` |
-| Headed evidence S4 | `docs/iadm/iadm-04/evidence/s4/` — PASS (jobs + usage + renewals + reports) |
-| Monolith billing | Left in place (addition D); retirement proposed only |
-| Next | **Stop** — await new authorization; no push |
+| Migrations on DEV | … + `iadm04_s5_force_rls_notices` + `iadm04_s5_r03_demo_persona` |
+| Headed evidence S5 | `docs/iadm/iadm-04/evidence/s5/` — PASS (outage a/b/c + cutover + 4a gate film) |
+| Monolith billing | **410 cutover executed** (`IADM04_CUTOVER_GONE`); `plat.*` kept |
+| Next | **Stop** — await owner push authorization; do not push |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)

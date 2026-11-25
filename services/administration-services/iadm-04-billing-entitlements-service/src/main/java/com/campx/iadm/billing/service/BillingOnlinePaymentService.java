@@ -354,10 +354,13 @@ public class BillingOnlinePaymentService {
                 // Settle
                 settleIntent(conn, ctx, intent);
                 updateCallbackStatus(conn, callbackRowId, "ACCEPTED", "SUCCESS", null);
-                DurableAuditWriter.append(conn, ctx,
-                        UUID.fromString(String.valueOf(intent.get("tenantId"))),
+                UUID settleTenant = UUID.fromString(String.valueOf(intent.get("tenantId")));
+                DurableAuditWriter.append(conn, ctx, settleTenant,
                         "IADM04_CALLBACK_SETTLED", "online_payment_intent",
                         intentId.toString(), "Online payment confirmed via signed callback");
+                Map<String, Object> notice = BillingNoticeService.enqueue(conn, ctx, settleTenant,
+                        "PAYMENT_CONFIRMED", "online_payment_intent", intentId.toString(),
+                        "Online payment confirmed; subscription may move to ACTIVE.");
                 Map<String, Object> out = new LinkedHashMap<String, Object>();
                 out.put("processingStatus", "ACCEPTED");
                 out.put("settled", Boolean.TRUE);
@@ -365,6 +368,7 @@ public class BillingOnlinePaymentService {
                 out.put("invoiceStatus", "PAID");
                 out.put("intentId", intentId.toString());
                 out.put("callbackId", callbackRowId.toString());
+                out.put("notice", notice);
                 return out;
             }
         });
@@ -865,10 +869,16 @@ public class BillingOnlinePaymentService {
         throw forbidden(keys[0]);
     }
 
+    /** Super Admin (R01) only — System Admin (R02) must use permission keys (S5). */
     private boolean isPlatformOperator(Connection conn) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("SELECT iam.is_platform_admin()");
-             ResultSet rs = ps.executeQuery()) {
-            return rs.next() && rs.getBoolean(1);
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT EXISTS ("
+                        + "SELECT 1 FROM plat.platform_admins p "
+                        + "WHERE p.user_id = auth.uid() AND p.role_code = 'SUPER_ADMIN' "
+                        + "AND p.status = 'ACTIVE' AND p.deleted_at IS NULL)")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getBoolean(1);
+            }
         }
     }
 

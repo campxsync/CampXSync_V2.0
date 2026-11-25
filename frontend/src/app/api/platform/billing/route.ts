@@ -72,6 +72,12 @@ export async function GET(req: NextRequest) {
     path = tenantId
       ? `/api/v1/iadm/04/audit-evidence?tenantId=${encodeURIComponent(tenantId)}`
       : '/api/v1/iadm/04/audit-evidence';
+  } else if (view === 'billing-notices') {
+    path = tenantId
+      ? `/api/v1/iadm/04/billing-notices?tenantId=${encodeURIComponent(tenantId)}`
+      : '/api/v1/iadm/04/billing-notices';
+  } else if (view === 'outage-flags') {
+    path = '/api/v1/iadm/04/dev/outage-flags';
   } else if (view === 'plans') {
     path = status
       ? `/api/v1/iadm/04/plans?status=${encodeURIComponent(status)}`
@@ -163,6 +169,8 @@ export async function POST(req: NextRequest) {
     path = `/api/v1/iadm/04/renewals/${encodeURIComponent(id)}/act`;
   } else if (view === 'usage') {
     path = '/api/v1/iadm/04/usage';
+  } else if (view === 'outage-flags') {
+    path = '/api/v1/iadm/04/dev/outage-flags';
   } else {
     return NextResponse.json({ errorCode: 'IADM04_INVALID', detail: 'Unknown view.' }, { status: 400 });
   }

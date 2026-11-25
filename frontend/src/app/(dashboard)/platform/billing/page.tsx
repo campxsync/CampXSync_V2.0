@@ -453,13 +453,16 @@ export default function PlatformBillingPage() {
             setActionMsg(
               res.ok
                 ? `Online intent ${body.id?.slice?.(0, 8) || body.id} ${body.status} (adapter=${body.adapterOutcome || 'n/a'})`
-                : body.detail || 'online initiate failed'
+                : `${body.errorCode || 'ERROR'}: ${body.detail || body.message || 'online initiate failed'}`
             );
             void load();
           }}
         >
           Initiate online payment (DEV simulator)
         </button>
+        <p className="text-xs text-[#5B6573]" data-testid="iadm04-online-initiate-feedback">
+          {actionMsg}
+        </p>
         {onlinePayments.length === 0 ? (
           <p className="text-sm text-[#5B6573]">No online payment intents yet.</p>
         ) : (

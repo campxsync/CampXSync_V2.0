@@ -19,6 +19,8 @@ public final class DevPaymentSimulator implements PaymentProviderAdapter {
     public static final String DEV_DEFAULT_SECRET = "iadm04-dev-simulator-secret-not-for-prod";
 
     private final String secret;
+    /** Shared call counter for US-038 evidence (adapter must not run when audit is down). */
+    private static volatile long initiateCallCount = 0L;
 
     public DevPaymentSimulator() {
         String env = System.getenv("IADM04_PAYMENT_SIMULATOR_SECRET");
@@ -29,6 +31,14 @@ public final class DevPaymentSimulator implements PaymentProviderAdapter {
         this.secret = secret == null || secret.trim().isEmpty() ? DEV_DEFAULT_SECRET : secret.trim();
     }
 
+    public static long getInitiateCallCount() {
+        return initiateCallCount;
+    }
+
+    public static void resetInitiateCallCount() {
+        initiateCallCount = 0L;
+    }
+
     @Override
     public String providerName() {
         return PROVIDER_NAME;
@@ -36,6 +46,7 @@ public final class DevPaymentSimulator implements PaymentProviderAdapter {
 
     @Override
     public InitiateResult initiate(InitiateRequest request) {
+        initiateCallCount++;
         String outcome = normalizeOutcome(request.simulatorOutcome);
         String providerRef = "SIM-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT);
 

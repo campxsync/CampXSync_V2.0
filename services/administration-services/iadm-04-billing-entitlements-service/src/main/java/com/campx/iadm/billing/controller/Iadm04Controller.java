@@ -406,6 +406,23 @@ public class Iadm04Controller implements HttpHandler {
                 return;
             }
 
+            // ---- S5 / US-038: DEV outage flags + billing notices ----
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/dev/outage-flags")) {
+                sendJson(exchange, 200, toJson(service.getOutageFlags(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/dev/outage-flags")) {
+                sendJson(exchange, 200, toJson(service.setOutageFlags(ctx,
+                        parseBoolean(extract(body, "auditDisabled")),
+                        parseBoolean(extract(body, "notificationsDisabled")))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/billing-notices")) {
+                sendJson(exchange, 200, toJson(service.listBillingNotices(ctx,
+                        parseUuid(queryParam(exchange, "tenantId")))));
+                return;
+            }
+
             sendJson(exchange, 404, problem("IADM04_NOT_FOUND", "No IADM-04 route matched: " + path));
         } catch (UserProfileAccessDeniedException ex) {
             sendJson(exchange, 403, problem("IADM04_FORBIDDEN", ex.getMessage()));

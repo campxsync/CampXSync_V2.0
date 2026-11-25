@@ -44,7 +44,60 @@ public class BillingDomainService {
         out.put("port", Integer.valueOf(8102));
         out.put("scope", "Subscription, Billing and Entitlements");
         out.put("dbInitialized", Boolean.valueOf(db != null));
+        out.put("outageFlags", BillingOutageFlags.snapshot());
         return out;
+    }
+
+    /** US-038 DEV outage flags — Super Admin only. */
+    public Map<String, Object> getOutageFlags(final UserSecurityContext ctx) {
+        return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
+            public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
+                requirePermission(conn, ctx, "iadm04.plans.manage");
+                Map<String, Object> out = BillingOutageFlags.snapshot();
+                out.put("simulatorInitiateCalls",
+                        Long.valueOf(com.campx.iadm.billing.payments.DevPaymentSimulator.getInitiateCallCount()));
+                return out;
+            }
+        });
+    }
+
+    public Map<String, Object> setOutageFlags(final UserSecurityContext ctx, final Boolean auditDisabled,
+                                             final Boolean notificationsDisabled) {
+        return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
+            public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
+                requirePermission(conn, ctx, "iadm04.plans.manage");
+                boolean turningAuditOff = auditDisabled != null && auditDisabled.booleanValue()
+                        && !BillingOutageFlags.isAuditDisabled();
+                if (turningAuditOff) {
+                    DurableAuditWriter.append(conn, ctx, ctx.getTenantId(), "IADM04_OUTAGE_FLAGS",
+                            "outage_flags", "dev", "Disabling audit for US-038 demo (fail closed).");
+                }
+                BillingOutageFlags.set(auditDisabled, notificationsDisabled);
+                Map<String, Object> out = BillingOutageFlags.snapshot();
+                if (notificationsDisabled != null && !notificationsDisabled.booleanValue()) {
+                    out.put("flush", BillingNoticeService.flushDelayed(conn, ctx));
+                }
+                if (auditDisabled != null && !auditDisabled.booleanValue()) {
+                    com.campx.iadm.billing.payments.DevPaymentSimulator.resetInitiateCallCount();
+                }
+                if (!BillingOutageFlags.isAuditDisabled()) {
+                    DurableAuditWriter.append(conn, ctx, ctx.getTenantId(), "IADM04_OUTAGE_FLAGS",
+                            "outage_flags", "dev",
+                            "auditDisabled=" + BillingOutageFlags.isAuditDisabled()
+                                    + ";notificationsDisabled=" + BillingOutageFlags.isNotificationsDisabled());
+                }
+                return out;
+            }
+        });
+    }
+
+    public Map<String, Object> listBillingNotices(final UserSecurityContext ctx, final UUID tenantId) {
+        return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
+            public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
+                requireAny(conn, ctx, "iadm04.audit.view", "iadm04.plans.manage", "iadm04.invoices.manage");
+                return BillingNoticeService.listRecent(conn, tenantId, 50);
+            }
+        });
     }
 
     public Map<String, Object> listPlans(final UserSecurityContext ctx, final String statusFilter) {
@@ -639,10 +692,16 @@ public class BillingDomainService {
         throw forbidden(keys.length > 0 ? keys[0] : "iadm04");
     }
 
+    /** Super Admin (R01) only — System Admin (R02) must use permission keys (S5). */
     private boolean isPlatformOperator(Connection conn) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("SELECT iam.is_platform_admin()");
-             ResultSet rs = ps.executeQuery()) {
-            return rs.next() && rs.getBoolean(1);
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT EXISTS ("
+                        + "SELECT 1 FROM plat.platform_admins p "
+                        + "WHERE p.user_id = auth.uid() AND p.role_code = 'SUPER_ADMIN' "
+                        + "AND p.status = 'ACTIVE' AND p.deleted_at IS NULL)")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getBoolean(1);
+            }
         }
     }
 

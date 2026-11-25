@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "ran": false,
+    "errorCode": "IADM04_BILLING_TZ_INVALID",
+    "detail": "Expiry/renewal jobs did not run: billing.timezone is invalid (fail closed)."
+  }
+}

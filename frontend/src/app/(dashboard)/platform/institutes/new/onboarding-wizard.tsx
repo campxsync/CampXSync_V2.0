@@ -93,17 +93,31 @@ export function OnboardingWizard() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/platform/billing?view=plans&status=ACTIVE', { cache: 'no-store' });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok || !Array.isArray(body.items) || body.items.length === 0) return;
+        const [planRes, trialRes] = await Promise.all([
+          fetch('/api/platform/billing?view=plans&status=ACTIVE', { cache: 'no-store' }),
+          fetch('/api/platform/billing?view=trial-policy', { cache: 'no-store' }),
+        ]);
+        const body = await planRes.json().catch(() => ({}));
+        const trialBody = await trialRes.json().catch(() => ({}));
+        if (!planRes.ok || !Array.isArray(body.items) || body.items.length === 0) return;
         if (cancelled) return;
+        const durationRaw = trialBody?.policy?.['billing.trial.duration_days'];
+        const durationDays =
+          typeof durationRaw === 'number'
+            ? durationRaw
+            : typeof durationRaw === 'string'
+              ? Number(durationRaw)
+              : 30;
         const live = body.items
           .filter((p: { planCode?: string; planStatus?: string }) => p.planStatus === 'ACTIVE' && p.planCode)
           .map((p: { planCode: string; name?: string; priceMinorUnits?: number; currencyCode?: string }) => ({
             value: p.planCode,
             label: `${p.name || p.planCode} (${p.priceMinorUnits ?? 0} ${p.currencyCode || 'INR'} minor)`,
           }));
-        live.push({ value: 'TRIAL_STANDARD', label: 'DEMO Trial (Standard, 30 days)' });
+        live.push({
+          value: 'TRIAL_STANDARD',
+          label: `DEMO Trial (Standard, ${Number.isFinite(durationDays) ? durationDays : 30} days from trial policy)`,
+        });
         if (live.length > 0) setPlanOptions(live);
       } catch {
         /* keep fallback */

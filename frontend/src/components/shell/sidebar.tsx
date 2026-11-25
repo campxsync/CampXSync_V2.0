@@ -23,6 +23,8 @@ export interface SidebarProps {
   onToggleCollapsed: () => void;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
+  /** IADM-04 S5: R03 PENDING subscription — only subscription + profile links. */
+  subscriptionLimited?: boolean;
 }
 
 export function Sidebar({
@@ -32,9 +34,19 @@ export function Sidebar({
   onToggleCollapsed,
   mobileOpen = false,
   onCloseMobile,
+  subscriptionLimited = false,
 }: SidebarProps) {
   const pathname = usePathname();
-  const items: NavItem[] = navConfigs[role] || [];
+  const allItems: NavItem[] = navConfigs[role] || [];
+  const items: NavItem[] = subscriptionLimited
+    ? allItems.filter(
+        (i) =>
+          i.href === '/institution/billing' ||
+          i.href.startsWith('/institution/billing/') ||
+          i.href === '/institution/profile' ||
+          i.href.startsWith('/institution/profile/')
+      )
+    : allItems;
 
   const getRoleIcon = () => {
     switch (role) {

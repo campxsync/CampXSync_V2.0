@@ -53,7 +53,7 @@ function AccessDeniedContent() {
         return {
           title: 'Subscription Access Unavailable',
           description:
-            'Your institute is active, but commercial access requires a TRIAL or ACTIVE subscription. PENDING or missing subscriptions grant no entitlements until billing is confirmed.',
+            'Your institute is active, but commercial access requires a TRIAL or ACTIVE subscription. PENDING or missing subscriptions grant no entitlements until billing is confirmed. You may open the Institution Subscription Desk, your institute profile, or sign out.',
           icon: Building2,
         };
       case 'no_role_assigned':
@@ -85,19 +85,35 @@ function AccessDeniedContent() {
       <h1 className="mt-5 text-xl font-bold text-[#0B1F3A]">{title}</h1>
       <p className="mt-2 text-xs text-[#6B7688] leading-relaxed">{description}</p>
 
-      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-        <Link href="/login" className="w-full sm:w-auto">
-          <Button variant="outline" size="sm" className="w-full">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-            Return to Login
-          </Button>
-        </Link>
+      <div className="mt-8 flex flex-col items-center justify-center gap-3">
+        {reason === 'subscription_inactive' ? (
+          <>
+            <Link href="/institution/billing" className="w-full sm:w-auto" data-testid="iadm04-denied-open-subscription">
+              <Button variant="outline" size="sm" className="w-full">
+                Open Institution Subscription Desk
+              </Button>
+            </Link>
+            <Link href="/institution/profile" className="w-full sm:w-auto" data-testid="iadm04-denied-open-profile">
+              <Button variant="outline" size="sm" className="w-full">
+                Open institute profile
+              </Button>
+            </Link>
+          </>
+        ) : (
+          <Link href="/login" className="w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="w-full">
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              Return to Login
+            </Button>
+          </Link>
+        )}
 
         <Button
           variant="ghost"
           size="sm"
           onClick={handleLogout}
           className="w-full sm:w-auto text-[#D64545] hover:bg-[#FDECEC]"
+          data-testid="iadm04-denied-sign-out"
         >
           <LogOut className="mr-1.5 h-3.5 w-3.5" />
           Sign Out

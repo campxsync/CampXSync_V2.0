@@ -67,6 +67,9 @@ public class GatewayConfig {
         // Longer prefixes beat /api/v1/admin catch-all.
         routeTable.put("/api/v1/admin/configuration", "gone://iadm02-cutover-configuration");
         routeTable.put("/api/v1/admin/policies", "gone://iadm02-cutover-policies");
+        // IADM-04 S5 cutover: retire monolith billing + usage routes (410 Gone). plat.* tables kept.
+        routeTable.put("/api/v1/admin/billing", "gone://iadm04-cutover-billing");
+        routeTable.put("/api/v1/admin/usage", "gone://iadm04-cutover-usage");
         routeTable.put("/api/v1/admin", "http://localhost:8081/api/v1/admin");
         routeTable.put("/api/v1/user/preferences", "http://localhost:8081/api/v1/user/preferences");
         routeTable.put("/api/v1/user", "http://localhost:8081/api/v1/user");
@@ -148,7 +151,7 @@ public class GatewayConfig {
         routeTable.put("/v1/institutes", "http://localhost:8081/api/v1/admin/institutes");
         routeTable.put("/v1/platform-configs", "gone://iadm02-cutover-configuration");
         routeTable.put("/v1/platform-roles", "http://localhost:8081/api/v1/admin/roles");
-        routeTable.put("/v1/billing-accounts", "http://localhost:8081/api/v1/admin/billing/plans");
+        routeTable.put("/v1/billing-accounts", "gone://iadm04-cutover-billing");
         routeTable.put("/v1/platform-audit-logs", "http://localhost:8081/api/v1/admin/audit-logs");
         routeTable.put("/v1/onboard-tenant", "http://localhost:8081/api/v1/admin/onboard-tenant");
         routeTable.put("/v1/tenants/onboard", "http://localhost:8081/api/v1/admin/onboard-tenant");
