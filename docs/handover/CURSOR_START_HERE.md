@@ -2,14 +2,14 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (IADM-05 **S4 headed US-032 21/21 PASS** — await owner approval; not pushed)
+**Last current-state refresh:** 2026-11-25 (**APPROVED IADM-05 S4 COMMIT** `6d31085` — not pushed)
 
 ---
 
 ## What to do next
 
-1. Review S4 report `docs/iadm/IADM-05_S4_Report.md` and evidence `docs/iadm/iadm-05/evidence/us032/`.
-2. Owner: `APPROVED IADM-05 S4` or `APPROVED IADM-05 S4 COMMIT` / `CHANGES IADM-05 S4: …`.
+1. IADM-05 S4 is owner-approved and committed locally (`6d31085`).
+2. Await owner next instruction (module close, push, or next backlog item).
 3. Do **not** push until owner says.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -18,9 +18,9 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-05 S0–S4 work local; **not pushed**.
+1. **Branch:** `feature/java-backend-integration` — IADM-05 S0–S4 local; **`APPROVED S4 COMMIT`**; **not pushed**.
 2. **IADM-05:** `:8103` `/api/v1/iadm/05` — policy governance only; schema `gov` FORCE RLS on DEV.
-3. **IADM-05 commits:** `d3c2e74` (S0), `854d8f1` (S1), `2b566df` (S2/S3), plus S4 local commit when made.
+3. **IADM-05 commits:** `d3c2e74` (S0), `854d8f1` (S1), `2b566df` (S2/S3), `6d31085` (S4 approved).
 4. **Desks:** `/platform/governance`, `/institution/governance`, `/college/governance`, `/platform/governance/audit`.
 5. **Demo seeds on DEV:** classification/retention + export/erasure/sharing queues (DEMO ONLY; durations TBC).
 6. **Privacy publish:** hard-blocked `IADM05_LEGAL_GATE` (D-RBAC-M17) — no open path.

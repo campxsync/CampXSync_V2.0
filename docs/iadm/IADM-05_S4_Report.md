@@ -139,7 +139,7 @@ Build defaults recorded in `docs/iadm/iadm-05/BUILD_DEFAULTS.md`.
 
 ---
 
-## 6. Stop for owner
+## 6. Owner decision
 
-Await `APPROVED IADM-05 S4` or `APPROVED IADM-05 S4 COMMIT` / `CHANGES IADM-05 S4: …`.  
+**`APPROVED IADM-05 S4 COMMIT`** (2026-11-25) — feature commit `6d31085`.  
 **Do not push** unless the owner explicitly says so.
