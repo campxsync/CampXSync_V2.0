@@ -15,7 +15,7 @@ Full S4 narrative: `docs/iadm/IADM-05_S4_Report.md`.
 | `854d8f1` | S1 policy lifecycle, DEMO seed, governance desks |
 | `2b566df` | S2/S3 request queues, DEMO simulator seeds, privacy gate, evidence pack |
 | `5bad1b0` | docs — S2/S3 commit hash and progress/handover |
-| *(S4 commit follows this pack)* | S4 desks ACL, failure suite, headed US-032, G-15 harden |
+| `6d31085` | S4 desks ACL, failure suite, headed US-032, G-15 harden |
 
 ## Automated tests
 

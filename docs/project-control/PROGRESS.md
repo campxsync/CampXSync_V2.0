@@ -14,7 +14,7 @@
 | S0 US-022…025 | **committed** `d3c2e74` — service `:8103`, `iadm05.*` keys, `gov` FORCE RLS, shared audit |
 | S1 US-026/001–004/018/013/030 | **committed** `854d8f1` — lifecycle + DEMO seed + desks |
 | S2–S3 US-027…029/005/006/017/014/007/008/020/009/016/019/015 | **committed** `2b566df` — queues, simulator, privacy gate, seeds |
-| S4 US-010…012 / US-031 / US-032 | **completed locally** — headed **21/21 PASS**; smoke 10/10; report `docs/iadm/IADM-05_S4_Report.md`; evidence `docs/iadm/iadm-05/evidence/us032/` |
+| S4 US-010…012 / US-031 / US-032 | **local commit** `6d31085` — headed **21/21 PASS**; smoke 10/10; report `docs/iadm/IADM-05_S4_Report.md`; evidence `docs/iadm/iadm-05/evidence/us032/` |
 | Service / port | `iadm-05-data-governance-service` **:8103** `/api/v1/iadm/05` |
 | Migrations on DEV | `iadm05_foundation_keys`, `iadm05_gov_schema`, `iadm05_s1_demo_seed`, `iadm05_s2_demo_requests`, `iadm05_s3_erasure_sharing_seed` |
 | Next | Owner `APPROVED IADM-05 S4` / `… COMMIT`; **do not push** |
