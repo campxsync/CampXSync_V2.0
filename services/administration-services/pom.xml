@@ -26,6 +26,7 @@
         <module>iadm-02-platform-config-service</module>
         <module>iadm-03-identity-access-service</module>
         <module>iadm-04-billing-entitlements-service</module>
+        <module>iadm-05-data-governance-service</module>
     </modules>
 </project>
 

@@ -411,8 +411,44 @@ switch ($Service.ToLower()) {
         Wait-HealthCheck "http://127.0.0.1:8102/api/v1/iadm/04/health"
     }
 
+    { $_ -in @("iadm-05", "iadm-05-data-governance-service", "iadm05") } {
+        Write-Host "1. Building iadm-05-data-governance-service..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\iadm-05-data-governance-service"
+        if (-not (Test-Path "$iadmDir\classpath.txt")) {
+            Copy-Item "$baseDir\services\administration-services\iadm-04-billing-entitlements-service\classpath.txt" "$iadmDir\classpath.txt"
+        }
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "iadm-05 compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8103 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8103
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching iadm-05..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.iadm.governance.Iadm05Application",
+            "8103"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\iadm-05.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\iadm-05.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started iadm-05 PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        Wait-HealthCheck "http://127.0.0.1:8103/api/v1/iadm/05/health"
+    }
+
     default {
-        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01, iadm-02, iadm-03, iadm-04" -ForegroundColor Red
+        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01, iadm-02, iadm-03, iadm-04, iadm-05" -ForegroundColor Red
         exit 1
     }
 }

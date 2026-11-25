@@ -33,7 +33,7 @@ try {
 }
 
 # 2. Stop old listeners on core + academic ports
-$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 8099, 8100, 8101, 8102, 3000)
+$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 8099, 8100, 8101, 8102, 8103, 3000)
 foreach ($p in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
     if ($conns) {
@@ -159,6 +159,26 @@ if (Test-Path "$iadm04Dir\classpath.txt") {
     Write-Host "IADM-04 launched with PID $($iadm04Proc.Id)" -ForegroundColor DarkGray
 } else {
     Write-Host "IADM-04 classpath.txt missing — skip launch (build module first)" -ForegroundColor Yellow
+}
+
+# 3a1e. Launch IADM-05 Data Governance & Privacy on port 8103
+Write-Host "Starting IADM-05 Data Governance Service on port 8103 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$iadm05Dir = "$baseDir\services\administration-services\iadm-05-data-governance-service"
+if (Test-Path "$iadm05Dir\classpath.txt") {
+    $iadm05Cp = (Get-Content "$iadm05Dir\classpath.txt" -Raw).Trim()
+    $iadm05Proc = Start-Process -FilePath "java" -ArgumentList @(
+        "-Xms32m",
+        "-Xmx96m",
+        "-Dcampx.persistence.mode=postgres",
+        "-Dcampx.internal.auth.enabled=true",
+        "-cp",
+        "target\classes;$iadm05Cp",
+        "com.campx.iadm.governance.Iadm05Application",
+        "8103"
+    ) -WorkingDirectory $iadm05Dir -RedirectStandardOutput "$logDir\iadm-05.log" -RedirectStandardError "$logDir\iadm-05.err" -WindowStyle Minimized -PassThru
+    Write-Host "IADM-05 launched with PID $($iadm05Proc.Id)" -ForegroundColor DarkGray
+} else {
+    Write-Host "IADM-05 classpath.txt missing — skip launch (build module first)" -ForegroundColor Yellow
 }
 
 # Path C + STM-07 IAM role port client base (student-service)
