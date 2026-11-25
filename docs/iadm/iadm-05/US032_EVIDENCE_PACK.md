@@ -11,8 +11,9 @@
 |---|---|
 | `d3c2e74` | S0 scaffold — service, keys, gov FORCE RLS, shared audit |
 | `854d8f1` | S1 policy lifecycle, DEMO seed, governance desks |
+| `2b566df` | S2/S3 request queues, DEMO simulator seeds, privacy gate, evidence pack |
 
-*(S2/S3/S4 commit hashes appended when committed.)*
+Headed film: UI :3000 and gateway :8080 were **DOWN** at close-out; run `node scripts/demo/iadm05_headed.mjs` after `start_stack.ps1` to complete persona screenshots.
 
 ## Automated tests
 

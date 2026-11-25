@@ -2,14 +2,14 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (IADM-04 **S5 + evidence 4a local commits — not pushed**)
+**Last current-state refresh:** 2026-11-25 (IADM-05 **S0–S3 local commits — not pushed**; headed US-032 film pending stack)
 
 ---
 
 ## What to do next
 
-1. Review local commits for S5 and evidence 4a (`docs/iadm/IADM-04_S5_Report.md`, `docs/iadm/iadm-04/evidence/s5/`).
-2. Owner: authorize push, or `CHANGES S5: …` / further work.
+1. Review IADM-05 local commits `d3c2e74` / `854d8f1` / `2b566df` and reports under `docs/iadm/iadm-05/` + `IADM-05_S*_Report.md`.
+2. Start stack, run `node scripts/demo/iadm05_headed.mjs` for US-032 persona film, then owner `APPROVED IADM-05 …` or `CHANGES`.
 3. Do **not** push until owner says.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -18,16 +18,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — S5 + 4a committed locally; **not pushed**.
-2. **Gateway:** `:8080`; IADM-04 `:8102` `/api/v1/iadm/04`.
-3. **IADM-04 S0–S4** previously `APPROVED … COMMIT`.
-4. **IADM-04 S5** close-out: US-038 headed a/b/c PASS; US-040 cutover 410; FORCE RLS; evidence 4a–4d.
-5. **Evidence 4a closed:** R03 DEMO persona + headed PENDING/pay/ACTIVE + NONE deny + TRIAL allow — **12/12 PASS**.
-6. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-7. **Internal auth ON:** Bearer JWT → gateway → HMAC.
+1. **Branch:** `feature/java-backend-integration` — IADM-05 S0–S3 committed locally; **not pushed**.
+2. **IADM-05:** `:8103` `/api/v1/iadm/05` — policy governance only; schema `gov` FORCE RLS on DEV.
+3. **IADM-05 commits:** `d3c2e74` (S0), `854d8f1` (S1), `2b566df` (S2/S3 + evidence pack draft).
+4. **Desks:** `/platform/governance`, `/institution/governance`, `/college/governance`, `/platform/governance/audit`.
+5. **Demo seeds on DEV:** classification/retention + export/erasure/sharing queues (DEMO ONLY; durations TBC).
+6. **Privacy publish:** hard-blocked `IADM05_LEGAL_GATE` (D-RBAC-M17) — no open path.
+7. **Shared audit:** `audit.log_event` fail-closed; no second audit store.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-9. **Monolith billing routes:** HTTP 410 `IADM04_CUTOVER_GONE`.
-10. **Stopped:** await owner review / push authorization.
+9. **Parked for headed:** US-032 film needs UI :3000 + gateway :8080 up.
+10. **IADM-04** remains prior closed work (S5 local); do not push without owner.
 
 ---
 

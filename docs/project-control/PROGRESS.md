@@ -1,7 +1,24 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-25 (IADM-04 S5 + evidence 4a local commits — not pushed)
+**Updated:** 2026-11-25 (IADM-05 S0–S3 local commits — not pushed; headed US-032 pending)
+
+## Owner decisions – IADM-05 Data Governance & Privacy (25-11-2026)
+
+**Authorized by:** owner kickoff (IMPLEMENT, DEV only).  
+**Spec:** `docs/user-stories/IADM-05-user-stories.csv` + blueprint V1.2 at `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\`.
+
+| Item | Status |
+|---|---|
+| US-021 preflight | **completed** — `docs/iadm/iadm-05/US021_PREFLIGHT_REPORT.md` |
+| S0 US-022…025 | **committed** `d3c2e74` — service `:8103`, `iadm05.*` keys, `gov` FORCE RLS, shared audit |
+| S1 US-026/001–004/018/013/030 | **committed** `854d8f1` — lifecycle + DEMO seed + desks |
+| S2–S3 US-027…029/005/006/017/014/007/008/020/009/016/019/015 | **committed** `2b566df` — queues, simulator, privacy gate, seeds |
+| US-031 / US-032 | Offline tests PASS; evidence pack drafted; **headed film parked** (UI/gateway down) |
+| Service / port | `iadm-05-data-governance-service` **:8103** `/api/v1/iadm/05` |
+| Migrations on DEV | `iadm05_foundation_keys`, `iadm05_gov_schema`, `iadm05_s1_demo_seed`, `iadm05_s2_demo_requests`, `iadm05_s3_erasure_sharing_seed` |
+| Next | Start stack → headed US-032 → owner approval; **do not push** |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-04 Subscription, Billing & Entitlements (25-11-2026)
 
