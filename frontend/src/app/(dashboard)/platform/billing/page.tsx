@@ -32,28 +32,41 @@ type SubItem = {
 export default function PlatformBillingPage() {
   const [plans, setPlans] = useState<PlanItem[]>([]);
   const [subs, setSubs] = useState<SubItem[]>([]);
+  const [invoices, setInvoices] = useState<
+    Array<{ id: string; status?: string; amountMinorUnits?: number; currencyCode?: string; internalRef?: string }>
+  >([]);
+  const [planChanges, setPlanChanges] = useState<
+    Array<{ id: string; status?: string; tenantId?: string; requestedPlanId?: string; effectiveOn?: string }>
+  >([]);
   const [policy, setPolicy] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [checkResult, setCheckResult] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
       const qs = statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : '';
-      const [planRes, subRes, polRes] = await Promise.all([
+      const [planRes, subRes, polRes, invRes, pcRes] = await Promise.all([
         fetch('/api/platform/billing?view=plans'),
         fetch(`/api/platform/billing?view=subscriptions${qs}`),
         fetch('/api/platform/billing?view=trial-policy'),
+        fetch('/api/platform/billing?view=invoices'),
+        fetch('/api/platform/billing?view=plan-changes'),
       ]);
       const planBody = await planRes.json();
       const subBody = await subRes.json();
       const polBody = await polRes.json();
+      const invBody = await invRes.json();
+      const pcBody = await pcRes.json();
       if (!planRes.ok) throw new Error(planBody.detail || 'Plans unavailable');
       setPlans(Array.isArray(planBody.items) ? planBody.items : []);
       setSubs(Array.isArray(subBody.items) ? subBody.items : []);
+      setInvoices(Array.isArray(invBody.items) ? invBody.items : []);
+      setPlanChanges(Array.isArray(pcBody.items) ? pcBody.items : []);
       setPolicy(polBody.policy || null);
       if (!subRes.ok) setError(subBody.detail || 'Subscriptions partially unavailable');
     } catch (e) {
@@ -239,6 +252,154 @@ export default function PlatformBillingPage() {
         ) : (
           <p className="text-sm text-[#5B6573]">Policy not loaded.</p>
         )}
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-invoice-desk">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-medium text-[#1B2433]">Invoices</h2>
+          <button
+            type="button"
+            className="rounded border border-[#E3E8EF] px-3 py-1.5 text-sm"
+            data-testid="iadm04-generate-invoice"
+            onClick={async () => {
+              const sub = subs.find((s) => s.status === 'ACTIVE' || s.status === 'TRIAL' || s.status === 'PENDING');
+              if (!sub?.id) {
+                setActionMsg('No subscription available to invoice.');
+                return;
+              }
+              const res = await fetch('/api/platform/billing?view=invoices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  subscriptionId: sub.id,
+                  idempotencyKey: `desk-inv-${sub.id}-${Date.now()}`,
+                }),
+              });
+              const body = await res.json().catch(() => ({}));
+              setActionMsg(res.ok ? `Invoice ${body.internalRef || body.id} ${body.status}` : body.detail || 'failed');
+              void load();
+            }}
+          >
+            Generate invoice (first listed sub)
+          </button>
+        </div>
+        {actionMsg && (
+          <p className="text-sm text-[#5B6573]" data-testid="iadm04-action-msg">
+            {actionMsg}
+          </p>
+        )}
+        {invoices.length === 0 ? (
+          <p className="text-sm text-[#5B6573]">No invoices yet.</p>
+        ) : (
+          <ul className="space-y-1 text-sm" data-testid="iadm04-invoice-list">
+            {invoices.slice(0, 20).map((inv) => (
+              <li key={inv.id}>
+                {inv.internalRef || inv.id.slice(0, 8)} — {inv.status} — {inv.amountMinorUnits}{' '}
+                {inv.currencyCode}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-plan-change-desk">
+        <h2 className="text-lg font-medium text-[#1B2433]">Plan-change requests</h2>
+        {planChanges.length === 0 ? (
+          <p className="text-sm text-[#5B6573]">No plan-change requests.</p>
+        ) : (
+          <ul className="space-y-2 text-sm" data-testid="iadm04-plan-change-list">
+            {planChanges.slice(0, 20).map((pc) => (
+              <li key={pc.id} className="flex flex-wrap items-center gap-2">
+                <span>
+                  {pc.id.slice(0, 8)} — {pc.status} — effective {pc.effectiveOn}
+                </span>
+                {pc.status === 'PENDING' && (
+                  <>
+                    <button
+                      type="button"
+                      className="rounded border border-[#E3E8EF] px-2 py-1 text-xs"
+                      data-testid={`iadm04-plan-change-approve-${pc.id}`}
+                      onClick={async () => {
+                        const res = await fetch(
+                          `/api/platform/billing?view=plan-changes-decide&id=${encodeURIComponent(pc.id)}`,
+                          {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ decision: 'APPROVED', reason: 'S2 desk approve' }),
+                          }
+                        );
+                        const body = await res.json().catch(() => ({}));
+                        setActionMsg(res.ok ? `Approved ${pc.id.slice(0, 8)}` : body.detail || 'deny');
+                        void load();
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded border border-[#E3E8EF] px-2 py-1 text-xs"
+                      onClick={async () => {
+                        const res = await fetch(
+                          `/api/platform/billing?view=plan-changes-decide&id=${encodeURIComponent(pc.id)}`,
+                          {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ decision: 'REJECTED', reason: 'S2 desk reject' }),
+                          }
+                        );
+                        const body = await res.json().catch(() => ({}));
+                        setActionMsg(res.ok ? `Rejected ${pc.id.slice(0, 8)}` : body.detail || 'deny');
+                        void load();
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-[#5B6573]">Proration/credits not calculated (D9 pending).</p>
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-offline-desk">
+        <h2 className="text-lg font-medium text-[#1B2433]">Offline payment & reconciliation</h2>
+        <p className="text-sm text-[#5B6573]">
+          Record evidence (R01-A) then reconcile with a different Super Admin (R01-B). Same actor is denied.
+        </p>
+        <button
+          type="button"
+          className="rounded border border-[#E3E8EF] px-3 py-1.5 text-sm"
+          data-testid="iadm04-offline-record"
+          onClick={async () => {
+            const inv = invoices.find((i) => i.status === 'ISSUED' || i.status === 'DUE');
+            if (!inv) {
+              setActionMsg('Generate an ISSUED invoice first.');
+              return;
+            }
+            const res = await fetch('/api/platform/billing?view=offline-payments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                invoiceId: inv.id,
+                instrumentType: 'BANK_TRANSFER',
+                reference: `DEMO-UTR-${Date.now()}`,
+                amountMinorUnits: inv.amountMinorUnits,
+                currencyCode: inv.currencyCode || 'INR',
+                notes: 'S2 desk evidence',
+              }),
+            });
+            const body = await res.json().catch(() => ({}));
+            setActionMsg(
+              res.ok
+                ? `Evidence ${body.id} recorded (invoice not paid yet)`
+                : body.detail || 'evidence failed'
+            );
+          }}
+        >
+          Record offline evidence on first open invoice
+        </button>
       </section>
     </main>
   );

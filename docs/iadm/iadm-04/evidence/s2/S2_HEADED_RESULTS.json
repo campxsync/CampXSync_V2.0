@@ -1,0 +1,61 @@
+{
+  "story": "IADM-04-S2",
+  "at": "2026-11-25T06:09:06.241Z",
+  "results": [
+    {
+      "step": "Probe tenant baseline",
+      "pass": true,
+      "currentStatus": null,
+      "currentId": null
+    },
+    {
+      "step": "Attach DEMO TRIAL for S2",
+      "status": 200,
+      "pass": true,
+      "subId": "3ca7aaf1-d3d7-491e-8732-1cc80a02b10e"
+    },
+    {
+      "step": "US-020 trial convert",
+      "status": 200,
+      "pass": true,
+      "invoiceId": "286cc89b-f6e0-4be4-a61b-f9e6a51afb47"
+    },
+    {
+      "step": "US-019 generate invoice",
+      "status": 200,
+      "invoiceStatus": "ISSUED",
+      "amount": 999900,
+      "pass": true
+    },
+    {
+      "step": "US-023 record offline evidence",
+      "status": 200,
+      "invoicePaid": false,
+      "pass": true
+    },
+    {
+      "step": "US-024 same-actor reconcile denied",
+      "status": 403,
+      "code": "IADM04_SOD_SAME_ACTOR",
+      "pass": true
+    },
+    {
+      "step": "US-024/025 R01-B reconcile approved",
+      "status": 200,
+      "invoiceStatus": "PAID",
+      "subscriptionStatus": "ACTIVE",
+      "pass": true
+    },
+    {
+      "step": "US-022 headed invoice desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s2\\s2_platform_invoice_desk.png",
+      "pass": true
+    },
+    {
+      "step": "US-023 headed offline desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s2\\s2_offline_desk.png",
+      "pass": true
+    }
+  ],
+  "pass": true
+}

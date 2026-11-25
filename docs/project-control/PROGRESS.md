@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-25 (IADM-04 S1 — **APPROVED S1 COMMIT**)
+**Updated:** 2026-11-25 (IADM-04 S2 COMMITTED; S3 authorized)
 
 ## Owner decisions – IADM-04 Subscription, Billing & Entitlements (25-11-2026)
 
@@ -12,12 +12,14 @@
 |---|---|
 | S0 US-001…004 inspection | **completed** — `docs/iadm/IADM-04_S0_Inspection_Report.md` |
 | Pre-step P (IADM-03 US-033 + US-018) | **committed** `b4c7798` |
-| S1 US-005…016 | **`APPROVED S1 COMMIT`** — `docs/iadm/IADM-04_S1_Report.md`; headed PASS; D15 284 ms |
+| S1 US-005…016 | **`APPROVED S1 COMMIT`** `74ef789` — `IADM-04_S1_Report.md` |
+| S2 US-017…025 | **`APPROVED S2 COMMIT`** — `IADM-04_S2_Report.md`; headed PASS |
+| S3 US-026…030 | **in progress** — DEV payment simulator + callback |
 | Service / port | `iadm-04-billing-entitlements-service` **:8102** `/api/v1/iadm/04` |
-| Migrations on DEV | `iadm04_foundation_keys_v2`, `iadm04_plat_evolve`, `iadm04_demo_seed`, `iadm04_billing_rls` |
-| Headed evidence | `docs/iadm/iadm-04/evidence/s1/` — PASS; D15 **284 ms** |
+| Migrations on DEV | … + `iadm04_s2_finance` |
+| Headed evidence S2 | `docs/iadm/iadm-04/evidence/s2/` — PASS (SoD + PENDING→ACTIVE) |
 | Monolith billing | Left in place (addition D) |
-| Next | **Stop** — S2 only when newly authorized; no push unless owner says |
+| Next | Finish S3 → headed STOP for `APPROVED S3` / `APPROVED S3 COMMIT` |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)

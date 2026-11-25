@@ -116,8 +116,95 @@ export default function InstitutionBillingPage() {
               </ul>
             )}
           </section>
+
+          <InstitutionInvoices />
+          <InstitutionPlanChange />
         </>
       )}
     </main>
+  );
+}
+
+function InstitutionInvoices() {
+  const [items, setItems] = useState<Array<{ id: string; status?: string; amountMinorUnits?: number; currencyCode?: string }>>([]);
+  useEffect(() => {
+    (async () => {
+      const res = await fetch('/api/institution/billing/invoices', { cache: 'no-store' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(body.items)) setItems(body.items);
+    })();
+  }, []);
+  return (
+    <section className="space-y-2" data-testid="iadm04-own-invoices">
+      <h2 className="text-lg font-medium text-[#1B2433]">Invoices</h2>
+      {items.length === 0 ? (
+        <p className="text-sm text-[#5B6573]">No invoices yet.</p>
+      ) : (
+        <ul className="space-y-1 text-sm">
+          {items.map((inv) => (
+            <li key={inv.id}>
+              {inv.id.slice(0, 8)} — {inv.status} — {inv.amountMinorUnits} {inv.currencyCode}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function InstitutionPlanChange() {
+  const [msg, setMsg] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Array<{ id: string; planCode?: string }>>([]);
+  const [planId, setPlanId] = useState('');
+  useEffect(() => {
+    (async () => {
+      // Catalogue for R03 request UI — platform plans view may be denied; use BASIC/STANDARD/PREMIUM ids via own subscription desk fallback list from BFF plans is R01-only.
+      // Institution requests by plan UUID entered/selected from a minimal known DEMO set loaded via plan-change GET history or hard-coded fetch to platform is blocked.
+      // Load plan ids from own subscription entitlements page is insufficient — call plan-changes list only.
+      setPlans([]);
+    })();
+  }, []);
+  return (
+    <section className="space-y-2" data-testid="iadm04-plan-change-request">
+      <h2 className="text-lg font-medium text-[#1B2433]">Request plan change</h2>
+      <p className="text-sm text-[#5B6573]">Creates a request only — Super Admin must approve. Not applied directly.</p>
+      <label className="block text-sm">
+        Requested plan id (UUID)
+        <input
+          className="mt-1 w-full rounded border border-[#E3E8EF] px-2 py-1.5 text-sm"
+          data-testid="iadm04-plan-change-plan-id"
+          value={planId}
+          onChange={(e) => setPlanId(e.target.value)}
+          placeholder="uuid of ACTIVE plan"
+        />
+      </label>
+      <button
+        type="button"
+        className="rounded border border-[#E3E8EF] px-3 py-1.5 text-sm"
+        data-testid="iadm04-plan-change-submit"
+        onClick={async () => {
+          const res = await fetch('/api/institution/billing/plan-changes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestedPlanId: planId.trim(),
+              effectiveOn: new Date().toISOString().slice(0, 10),
+              reason: 'Institution desk upgrade/downgrade request',
+              idempotencyKey: `inst-pc-${planId.trim()}-${Date.now()}`,
+            }),
+          });
+          const body = await res.json().catch(() => ({}));
+          setMsg(res.ok ? `Request ${body.id} ${body.status}` : body.detail || 'failed');
+        }}
+      >
+        Submit request
+      </button>
+      {msg && (
+        <p className="text-sm text-[#5B6573]" data-testid="iadm04-plan-change-msg">
+          {msg}
+        </p>
+      )}
+      {plans.length > 0 && <p className="text-xs">{plans.map((p) => p.planCode).join(', ')}</p>}
+    </section>
   );
 }

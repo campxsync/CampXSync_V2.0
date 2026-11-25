@@ -2,15 +2,15 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (IADM-04 **APPROVED S1 COMMIT**)
+**Last current-state refresh:** 2026-11-25 (IADM-04 **S2 COMMITTED**; **S3 in progress**)
 
 ---
 
 ## What to do next
 
-1. Read `docs/prompts/NEXT_TASK.md` — S1 committed locally; wait for S2 authorization.
-2. `docs/iadm/IADM-04_S1_Report.md` + evidence `docs/iadm/iadm-04/evidence/s1/`.
-3. Do **not** start S2 until newly authorized. Do **not** push unless owner says.
+1. Complete IADM-04 **S3** (US-026…030): DEV payment simulator, initiate, signed callback, reconcile, R02 retry.
+2. Headed demo + report → STOP for `APPROVED S3` / `APPROVED S3 COMMIT` / `CHANGES S3`.
+3. Do **not** push unless owner says. Do **not** start S4 until S3 is approved.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -21,13 +21,13 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **Gateway:** `:8080`; IADM-01 `:8099`; IADM-02 `:8100`; IADM-03 `:8101`; **IADM-04 `:8102`** `/api/v1/iadm/04`.
 3. **IADM-01 / IADM-02 / IADM-03** close-out / US-040 done on DEV (prior commits).
-4. **IADM-04 S0** accepted; **Pre-step P** `b4c7798`; **S1 `APPROVED S1 COMMIT`**.
-5. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (plus DEMO ACTIVE subs on all institutes).
+4. **IADM-04 S1** `APPROVED S1 COMMIT` `74ef789`; **S2** `APPROVED S2 COMMIT` (this session).
+5. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b`.
 6. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
 7. **Internal auth ON:** Bearer JWT → gateway → HMAC.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-9. **S1 D15 lag:** PENDING entitlement deny reflected in **284 ms** (no entitlement cache).
-10. **Next:** S2 (plan-change, invoices, offline payment) only when newly authorized.
+9. **S2 headed:** offline SoD (R01-A/B) + trial convert + PENDING→ACTIVE PASS.
+10. **Now:** S3 online payment simulator (US-026…030) — authorized after S2 COMMIT.
 
 ---
 

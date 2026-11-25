@@ -5,6 +5,7 @@ import com.campx.iadm.billing.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.billing.security.GatewayHmacVerifier;
 import com.campx.iadm.billing.security.UserSecurityContext;
 import com.campx.iadm.billing.service.BillingDomainService;
+import com.campx.iadm.billing.service.BillingFinanceService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -32,12 +33,23 @@ public class Iadm04Controller implements HttpHandler {
     private static final Pattern PLAN_ID = Pattern.compile(".*/plans/([0-9a-fA-F-]{36})$");
     private static final Pattern PLAN_ENTS = Pattern.compile(".*/plans/([0-9a-fA-F-]{36})/entitlements$");
     private static final Pattern SUB_ID = Pattern.compile(".*/subscriptions/([0-9a-fA-F-]{36})$");
+    private static final Pattern PLAN_CHANGE_ID = Pattern.compile(".*/plan-changes/([0-9a-fA-F-]{36})/decide$");
+    private static final Pattern INVOICE_ID = Pattern.compile(".*/invoices/([0-9a-fA-F-]{36})$");
+    private static final Pattern INVOICE_VOID = Pattern.compile(".*/invoices/([0-9a-fA-F-]{36})/void$");
+    private static final Pattern OFFLINE_RECON = Pattern.compile(".*/offline-payments/([0-9a-fA-F-]{36})/reconcile$");
+    private static final Pattern TRIAL_CONVERT = Pattern.compile(".*/subscriptions/([0-9a-fA-F-]{36})/convert-trial$");
 
     private final BillingDomainService service;
+    private final BillingFinanceService finance;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm04Controller(BillingDomainService service) {
+        this(service, new BillingFinanceService());
+    }
+
+    public Iadm04Controller(BillingDomainService service, BillingFinanceService finance) {
         this.service = service == null ? new BillingDomainService() : service;
+        this.finance = finance == null ? new BillingFinanceService() : finance;
     }
 
     @Override
@@ -184,6 +196,83 @@ public class Iadm04Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.accessGateProbe(ctx,
                         parseUuid(firstNonEmpty(queryParam(exchange, "instituteId"),
                                 queryParam(exchange, "tenantId"))))));
+                return;
+            }
+
+            // ---- S2: plan-change / invoices / offline / trial convert ----
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/plan-changes")) {
+                sendJson(exchange, 200, toJson(finance.listPlanChanges(ctx, queryParam(exchange, "status"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/plan-changes")) {
+                sendJson(exchange, 200, toJson(finance.requestPlanChange(ctx,
+                        parseUuid(extract(body, "requestedPlanId")),
+                        extract(body, "effectiveOn"),
+                        extract(body, "reason"),
+                        extract(body, "idempotencyKey"))));
+                return;
+            }
+            Matcher planChangeDecide = PLAN_CHANGE_ID.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && planChangeDecide.matches()) {
+                sendJson(exchange, 200, toJson(finance.decidePlanChange(ctx,
+                        UUID.fromString(planChangeDecide.group(1)),
+                        extract(body, "decision"),
+                        extract(body, "reason"))));
+                return;
+            }
+
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/invoices")) {
+                sendJson(exchange, 200, toJson(finance.listInvoices(ctx,
+                        parseUuid(queryParam(exchange, "tenantId")))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/invoices")) {
+                sendJson(exchange, 200, toJson(finance.generateInvoice(ctx,
+                        parseUuid(extract(body, "subscriptionId")),
+                        extract(body, "idempotencyKey"))));
+                return;
+            }
+            Matcher invVoid = INVOICE_VOID.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && invVoid.matches()) {
+                sendJson(exchange, 200, toJson(finance.voidInvoice(ctx,
+                        UUID.fromString(invVoid.group(1)), extract(body, "reason"))));
+                return;
+            }
+            Matcher invId = INVOICE_ID.matcher(path);
+            if ("GET".equalsIgnoreCase(method) && invId.matches()) {
+                sendJson(exchange, 200, toJson(finance.getInvoice(ctx, UUID.fromString(invId.group(1)))));
+                return;
+            }
+
+            Matcher trialConvert = TRIAL_CONVERT.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && trialConvert.matches()) {
+                sendJson(exchange, 200, toJson(finance.convertTrial(ctx,
+                        UUID.fromString(trialConvert.group(1)),
+                        extract(body, "idempotencyKey"))));
+                return;
+            }
+
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/offline-payments")) {
+                sendJson(exchange, 200, toJson(finance.listOfflineEvidence(ctx,
+                        parseUuid(queryParam(exchange, "invoiceId")))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/offline-payments")) {
+                sendJson(exchange, 200, toJson(finance.recordOfflineEvidence(ctx,
+                        parseUuid(extract(body, "invoiceId")),
+                        extract(body, "instrumentType"),
+                        extract(body, "reference"),
+                        parseLong(extract(body, "amountMinorUnits")),
+                        extract(body, "currencyCode"),
+                        extract(body, "notes"))));
+                return;
+            }
+            Matcher offlineRecon = OFFLINE_RECON.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && offlineRecon.matches()) {
+                sendJson(exchange, 200, toJson(finance.reconcileOffline(ctx,
+                        UUID.fromString(offlineRecon.group(1)),
+                        extract(body, "decision"),
+                        extract(body, "reason"))));
                 return;
             }
 

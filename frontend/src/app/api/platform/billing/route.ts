@@ -36,6 +36,19 @@ export async function GET(req: NextRequest) {
     path = '/api/v1/iadm/04/trial-policy';
   } else if (view === 'feature-flags') {
     path = '/api/v1/iadm/04/feature-flags';
+  } else if (view === 'invoices') {
+    path = tenantId
+      ? `/api/v1/iadm/04/invoices?tenantId=${encodeURIComponent(tenantId)}`
+      : '/api/v1/iadm/04/invoices';
+  } else if (view === 'plan-changes') {
+    path = status
+      ? `/api/v1/iadm/04/plan-changes?status=${encodeURIComponent(status)}`
+      : '/api/v1/iadm/04/plan-changes';
+  } else if (view === 'offline-payments') {
+    const invoiceId = searchParams.get('invoiceId') || '';
+    path = invoiceId
+      ? `/api/v1/iadm/04/offline-payments?invoiceId=${encodeURIComponent(invoiceId)}`
+      : '/api/v1/iadm/04/offline-payments';
   } else if (view === 'plans') {
     path = status
       ? `/api/v1/iadm/04/plans?status=${encodeURIComponent(status)}`
@@ -79,6 +92,22 @@ export async function POST(req: NextRequest) {
     path = '/api/v1/iadm/04/plans';
   } else if (view === 'entitlements-check') {
     path = '/api/v1/iadm/04/entitlements/check';
+  } else if (view === 'invoices') {
+    path = '/api/v1/iadm/04/invoices';
+  } else if (view === 'invoice-void') {
+    const invoiceId = searchParams.get('id') || '';
+    path = `/api/v1/iadm/04/invoices/${encodeURIComponent(invoiceId)}/void`;
+  } else if (view === 'plan-changes-decide') {
+    const id = searchParams.get('id') || '';
+    path = `/api/v1/iadm/04/plan-changes/${encodeURIComponent(id)}/decide`;
+  } else if (view === 'offline-payments') {
+    path = '/api/v1/iadm/04/offline-payments';
+  } else if (view === 'offline-reconcile') {
+    const id = searchParams.get('id') || '';
+    path = `/api/v1/iadm/04/offline-payments/${encodeURIComponent(id)}/reconcile`;
+  } else if (view === 'convert-trial') {
+    const id = searchParams.get('subscriptionId') || '';
+    path = `/api/v1/iadm/04/subscriptions/${encodeURIComponent(id)}/convert-trial`;
   } else {
     return NextResponse.json({ errorCode: 'IADM04_INVALID', detail: 'Unknown view.' }, { status: 400 });
   }
