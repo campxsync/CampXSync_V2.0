@@ -1,7 +1,7 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-25 (IADM-04 S3 COMMITTED)
+**Updated:** 2026-11-25 (IADM-04 S4 COMMITTED)
 
 ## Owner decisions – IADM-04 Subscription, Billing & Entitlements (25-11-2026)
 
@@ -15,11 +15,12 @@
 | S1 US-005…016 | **`APPROVED S1 COMMIT`** `74ef789` — `IADM-04_S1_Report.md` |
 | S2 US-017…025 | **`APPROVED S2 COMMIT`** `6b9ae23` — `IADM-04_S2_Report.md`; headed PASS |
 | S3 US-026…030 | **`APPROVED S3 COMMIT`** `e86e925` — `IADM-04_S3_Report.md`; headed PASS |
+| S4 US-031…040 | **`APPROVED S4 COMMIT`** — `IADM-04_S4_Report.md`; headed PASS |
 | Service / port | `iadm-04-billing-entitlements-service` **:8102** `/api/v1/iadm/04` |
-| Migrations on DEV | … + `iadm04_s2_finance` + `iadm04_s3_online_payments` |
-| Headed evidence S3 | `docs/iadm/iadm-04/evidence/s3/` — PASS (simulator + callback + reconcile) |
-| Monolith billing | Left in place (addition D) |
-| Next | **Stop** — S4 only when newly authorized |
+| Migrations on DEV | … + `iadm04_s3_online_payments` + `iadm04_s4_lifecycle_usage` |
+| Headed evidence S4 | `docs/iadm/iadm-04/evidence/s4/` — PASS (jobs + usage + renewals + reports) |
+| Monolith billing | Left in place (addition D); retirement proposed only |
+| Next | **Stop** — await new authorization; no push |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)

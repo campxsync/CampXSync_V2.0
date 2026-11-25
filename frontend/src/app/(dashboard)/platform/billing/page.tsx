@@ -44,6 +44,10 @@ export default function PlatformBillingPage() {
   const [failedCallbacks, setFailedCallbacks] = useState<
     Array<{ id: string; processingStatus?: string; eventId?: string; errorDetail?: string; retryCount?: number }>
   >([]);
+  const [renewals, setRenewals] = useState<
+    Array<{ id: string; status?: string; bucket?: string; planCode?: string; tenantName?: string; endDate?: string }>
+  >([]);
+  const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [policy, setPolicy] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +60,18 @@ export default function PlatformBillingPage() {
     setError(null);
     try {
       const qs = statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : '';
-      const [planRes, subRes, polRes, invRes, pcRes, onlineRes, failRes] = await Promise.all([
-        fetch('/api/platform/billing?view=plans'),
-        fetch(`/api/platform/billing?view=subscriptions${qs}`),
-        fetch('/api/platform/billing?view=trial-policy'),
-        fetch('/api/platform/billing?view=invoices'),
-        fetch('/api/platform/billing?view=plan-changes'),
-        fetch('/api/platform/billing?view=online-payments'),
-        fetch('/api/platform/billing?view=payment-callback-failures'),
-      ]);
+      const [planRes, subRes, polRes, invRes, pcRes, onlineRes, failRes, renRes, repRes] =
+        await Promise.all([
+          fetch('/api/platform/billing?view=plans'),
+          fetch(`/api/platform/billing?view=subscriptions${qs}`),
+          fetch('/api/platform/billing?view=trial-policy'),
+          fetch('/api/platform/billing?view=invoices'),
+          fetch('/api/platform/billing?view=plan-changes'),
+          fetch('/api/platform/billing?view=online-payments'),
+          fetch('/api/platform/billing?view=payment-callback-failures'),
+          fetch('/api/platform/billing?view=renewals'),
+          fetch('/api/platform/billing?view=reports'),
+        ]);
       const planBody = await planRes.json();
       const subBody = await subRes.json();
       const polBody = await polRes.json();
@@ -72,6 +79,8 @@ export default function PlatformBillingPage() {
       const pcBody = await pcRes.json();
       const onlineBody = await onlineRes.json().catch(() => ({}));
       const failBody = await failRes.json().catch(() => ({}));
+      const renBody = await renRes.json().catch(() => ({}));
+      const repBody = await repRes.json().catch(() => ({}));
       if (!planRes.ok) throw new Error(planBody.detail || 'Plans unavailable');
       setPlans(Array.isArray(planBody.items) ? planBody.items : []);
       setSubs(Array.isArray(subBody.items) ? subBody.items : []);
@@ -79,6 +88,8 @@ export default function PlatformBillingPage() {
       setPlanChanges(Array.isArray(pcBody.items) ? pcBody.items : []);
       setOnlinePayments(Array.isArray(onlineBody.items) ? onlineBody.items : []);
       setFailedCallbacks(Array.isArray(failBody.items) ? failBody.items : []);
+      setRenewals(Array.isArray(renBody.items) ? renBody.items : []);
+      setReport(repBody.summary || null);
       setPolicy(polBody.policy || null);
       if (!subRes.ok) setError(subBody.detail || 'Subscriptions partially unavailable');
     } catch (e) {
@@ -524,6 +535,83 @@ export default function PlatformBillingPage() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-renewal-desk">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-medium text-[#1B2433]">Renewal & expiry</h2>
+          <button
+            type="button"
+            className="rounded border border-[#E3E8EF] px-3 py-1.5 text-sm"
+            data-testid="iadm04-jobs-run"
+            onClick={async () => {
+              const res = await fetch('/api/platform/billing?view=jobs-run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+              });
+              const body = await res.json().catch(() => ({}));
+              setActionMsg(
+                res.ok
+                  ? `Jobs ran asOf=${body.asOf} grace=${body.expiryTransitions?.toGrace ?? 0}`
+                  : body.detail || 'jobs failed'
+              );
+              void load();
+            }}
+          >
+            Run scheduled jobs
+          </button>
+        </div>
+        {renewals.length === 0 ? (
+          <p className="text-sm text-[#5B6573]">No renewals/expiries in window.</p>
+        ) : (
+          <ul className="space-y-2 text-sm" data-testid="iadm04-renewal-list">
+            {renewals.slice(0, 20).map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2">
+                <span>
+                  {r.tenantName || r.id.slice(0, 8)} — {r.status} / {r.bucket} — {r.planCode} — ends{' '}
+                  {r.endDate || 'n/a'}
+                </span>
+                {r.bucket === 'DUE' || r.status === 'GRACE' ? (
+                  <button
+                    type="button"
+                    className="rounded border border-[#E3E8EF] px-2 py-1 text-xs"
+                    data-testid={`iadm04-renewal-expire-${r.id}`}
+                    onClick={async () => {
+                      const res = await fetch(
+                        `/api/platform/billing?view=renewal-act&id=${encodeURIComponent(r.id)}`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: r.status === 'GRACE' ? 'MARK_EXPIRED' : 'MARK_GRACE',
+                            reason: 'S4 desk policy action',
+                          }),
+                        }
+                      );
+                      const body = await res.json().catch(() => ({}));
+                      setActionMsg(res.ok ? `Acted ${r.id.slice(0, 8)} → ${body.toStatus}` : body.detail || 'deny');
+                      void load();
+                    }}
+                  >
+                    Apply policy
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-billing-reports">
+        <h2 className="text-lg font-medium text-[#1B2433]">Billing reports</h2>
+        {!report ? (
+          <p className="text-sm text-[#5B6573]">No report loaded.</p>
+        ) : (
+          <pre className="overflow-x-auto rounded bg-[#F7F9FC] p-3 text-xs" data-testid="iadm04-report-summary">
+            {JSON.stringify(report, null, 2)}
+          </pre>
         )}
       </section>
     </main>

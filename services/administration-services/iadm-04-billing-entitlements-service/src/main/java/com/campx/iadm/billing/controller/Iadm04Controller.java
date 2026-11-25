@@ -6,7 +6,9 @@ import com.campx.iadm.billing.security.GatewayHmacVerifier;
 import com.campx.iadm.billing.security.UserSecurityContext;
 import com.campx.iadm.billing.service.BillingDomainService;
 import com.campx.iadm.billing.service.BillingFinanceService;
+import com.campx.iadm.billing.service.BillingLifecycleService;
 import com.campx.iadm.billing.service.BillingOnlinePaymentService;
+import com.campx.iadm.billing.service.BillingUsageReportService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -42,25 +44,39 @@ public class Iadm04Controller implements HttpHandler {
     private static final Pattern ONLINE_RECON = Pattern.compile(".*/online-payments/([0-9a-fA-F-]{36})/reconcile$");
     private static final Pattern ONLINE_DEV_CB = Pattern.compile(".*/online-payments/([0-9a-fA-F-]{36})/dev-callback$");
     private static final Pattern CALLBACK_RETRY = Pattern.compile(".*/payment-callbacks/([0-9a-fA-F-]{36})/retry$");
+    private static final Pattern RENEWAL_ACT = Pattern.compile(".*/renewals/([0-9a-fA-F-]{36})/act$");
 
     private final BillingDomainService service;
     private final BillingFinanceService finance;
     private final BillingOnlinePaymentService online;
+    private final BillingLifecycleService lifecycle;
+    private final BillingUsageReportService usageReports;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm04Controller(BillingDomainService service) {
-        this(service, new BillingFinanceService(), new BillingOnlinePaymentService());
+        this(service, new BillingFinanceService(), new BillingOnlinePaymentService(),
+                new BillingLifecycleService(), new BillingUsageReportService());
     }
 
     public Iadm04Controller(BillingDomainService service, BillingFinanceService finance) {
-        this(service, finance, new BillingOnlinePaymentService());
+        this(service, finance, new BillingOnlinePaymentService(),
+                new BillingLifecycleService(null, finance), new BillingUsageReportService());
     }
 
     public Iadm04Controller(BillingDomainService service, BillingFinanceService finance,
                             BillingOnlinePaymentService online) {
+        this(service, finance, online, new BillingLifecycleService(null, finance),
+                new BillingUsageReportService());
+    }
+
+    public Iadm04Controller(BillingDomainService service, BillingFinanceService finance,
+                            BillingOnlinePaymentService online, BillingLifecycleService lifecycle,
+                            BillingUsageReportService usageReports) {
         this.service = service == null ? new BillingDomainService() : service;
         this.finance = finance == null ? new BillingFinanceService() : finance;
         this.online = online == null ? new BillingOnlinePaymentService() : online;
+        this.lifecycle = lifecycle == null ? new BillingLifecycleService(null, this.finance) : lifecycle;
+        this.usageReports = usageReports == null ? new BillingUsageReportService() : usageReports;
     }
 
     @Override
@@ -343,6 +359,53 @@ public class Iadm04Controller implements HttpHandler {
                 return;
             }
 
+            // ---- S4: jobs / renewals / usage / reports / auditor ----
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/jobs/run")) {
+                sendJson(exchange, 200, toJson(lifecycle.runScheduledJobs(ctx)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/renewals")) {
+                sendJson(exchange, 200, toJson(lifecycle.listRenewals(ctx, queryParam(exchange, "bucket"))));
+                return;
+            }
+            Matcher renewalAct = RENEWAL_ACT.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && renewalAct.matches()) {
+                sendJson(exchange, 200, toJson(lifecycle.actOnRenewal(ctx,
+                        UUID.fromString(renewalAct.group(1)),
+                        extract(body, "action"),
+                        extract(body, "reason"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/usage")) {
+                sendJson(exchange, 200, toJson(usageReports.recordUsage(ctx,
+                        parseUuid(firstNonEmpty(extract(body, "tenantId"), extract(body, "instituteId"))),
+                        extract(body, "source"),
+                        extract(body, "periodStart"),
+                        extract(body, "periodEnd"),
+                        extract(body, "entitlementKey"),
+                        parseDouble(extract(body, "quantity")),
+                        extract(body, "unit"),
+                        extract(body, "dedupeKey"),
+                        parseBoolean(extract(body, "incomplete")),
+                        extract(body, "incompleteReason"))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/usage")) {
+                sendJson(exchange, 200, toJson(usageReports.getUsageAgainstQuota(ctx,
+                        parseUuid(queryParam(exchange, "tenantId")))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/reports/billing")) {
+                sendJson(exchange, 200, toJson(usageReports.billingReport(ctx,
+                        parseUuid(queryParam(exchange, "tenantId")))));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit-evidence")) {
+                sendJson(exchange, 200, toJson(usageReports.auditorEvidence(ctx,
+                        parseUuid(queryParam(exchange, "tenantId")))));
+                return;
+            }
+
             sendJson(exchange, 404, problem("IADM04_NOT_FOUND", "No IADM-04 route matched: " + path));
         } catch (UserProfileAccessDeniedException ex) {
             sendJson(exchange, 403, problem("IADM04_FORBIDDEN", ex.getMessage()));
@@ -462,6 +525,17 @@ public class Iadm04Controller implements HttpHandler {
             return Boolean.FALSE;
         }
         return null;
+    }
+
+    private static Double parseDouble(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Double.valueOf(raw.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private static String firstNonEmpty(String a, String b) {

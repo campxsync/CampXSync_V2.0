@@ -55,6 +55,23 @@ export async function GET(req: NextRequest) {
       : '/api/v1/iadm/04/online-payments';
   } else if (view === 'payment-callback-failures') {
     path = '/api/v1/iadm/04/payment-callbacks/failures';
+  } else if (view === 'renewals') {
+    const bucket = searchParams.get('bucket') || '';
+    path = bucket
+      ? `/api/v1/iadm/04/renewals?bucket=${encodeURIComponent(bucket)}`
+      : '/api/v1/iadm/04/renewals';
+  } else if (view === 'usage') {
+    path = tenantId
+      ? `/api/v1/iadm/04/usage?tenantId=${encodeURIComponent(tenantId)}`
+      : '/api/v1/iadm/04/usage';
+  } else if (view === 'reports') {
+    path = tenantId
+      ? `/api/v1/iadm/04/reports/billing?tenantId=${encodeURIComponent(tenantId)}`
+      : '/api/v1/iadm/04/reports/billing';
+  } else if (view === 'audit-evidence') {
+    path = tenantId
+      ? `/api/v1/iadm/04/audit-evidence?tenantId=${encodeURIComponent(tenantId)}`
+      : '/api/v1/iadm/04/audit-evidence';
   } else if (view === 'plans') {
     path = status
       ? `/api/v1/iadm/04/plans?status=${encodeURIComponent(status)}`
@@ -139,6 +156,13 @@ export async function POST(req: NextRequest) {
   } else if (view === 'callback-retry') {
     const id = searchParams.get('id') || '';
     path = `/api/v1/iadm/04/payment-callbacks/${encodeURIComponent(id)}/retry`;
+  } else if (view === 'jobs-run') {
+    path = '/api/v1/iadm/04/jobs/run';
+  } else if (view === 'renewal-act') {
+    const id = searchParams.get('id') || '';
+    path = `/api/v1/iadm/04/renewals/${encodeURIComponent(id)}/act`;
+  } else if (view === 'usage') {
+    path = '/api/v1/iadm/04/usage';
   } else {
     return NextResponse.json({ errorCode: 'IADM04_INVALID', detail: 'Unknown view.' }, { status: 400 });
   }

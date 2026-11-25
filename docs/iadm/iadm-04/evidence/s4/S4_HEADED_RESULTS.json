@@ -1,0 +1,70 @@
+{
+  "story": "IADM-04 S4",
+  "passed": true,
+  "at": "2026-11-25T06:36:07.999Z",
+  "results": [
+    {
+      "step": "jobs-run",
+      "ok": true,
+      "detail": "asOf=2026-11-25 tz=Asia/Kolkata"
+    },
+    {
+      "step": "jobs-idempotent",
+      "ok": true,
+      "detail": "checkpoint replay observed"
+    },
+    {
+      "step": "usage-record",
+      "ok": true,
+      "detail": "id=0cccd737-ba6e-4a0a-b3c9-bfc59c1278ba"
+    },
+    {
+      "step": "usage-dedupe",
+      "ok": true,
+      "detail": "duplicate ignored"
+    },
+    {
+      "step": "usage-read",
+      "ok": true,
+      "detail": "incomplete=false"
+    },
+    {
+      "step": "renewals-list",
+      "ok": true,
+      "detail": "count=13"
+    },
+    {
+      "step": "billing-report",
+      "ok": true,
+      "detail": "scope=PLATFORM"
+    },
+    {
+      "step": "audit-evidence",
+      "ok": true,
+      "detail": "invoices=7"
+    },
+    {
+      "step": "no-student-fees-route",
+      "ok": true,
+      "detail": "404 as expected"
+    },
+    {
+      "step": "ui-renewal-desk",
+      "ok": true,
+      "detail": "renewal desk visible",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s4\\s4_renewal_desk.png"
+    },
+    {
+      "step": "ui-reports",
+      "ok": true,
+      "detail": "reports visible",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s4\\s4_billing_reports.png"
+    },
+    {
+      "step": "ui-audit-desk",
+      "ok": true,
+      "detail": "auditor evidence desk visible",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s4\\s4_audit_evidence.png"
+    }
+  ]
+}

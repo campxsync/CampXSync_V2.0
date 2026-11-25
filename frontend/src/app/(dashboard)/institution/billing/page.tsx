@@ -118,10 +118,52 @@ export default function InstitutionBillingPage() {
           </section>
 
           <InstitutionInvoices />
+          <InstitutionUsage />
           <InstitutionPlanChange />
         </>
       )}
     </main>
+  );
+}
+
+function InstitutionUsage() {
+  const [payload, setPayload] = useState<{
+    limits?: Array<{ entitlementKey?: string; limitValue?: number; limitUnit?: string }>;
+    usage?: Array<{ entitlementKey?: string; used?: number; incomplete?: boolean }>;
+    incompleteData?: boolean;
+    incompleteNote?: string;
+  } | null>(null);
+  useEffect(() => {
+    (async () => {
+      const res = await fetch('/api/institution/billing/usage', { cache: 'no-store' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) setPayload(body);
+    })();
+  }, []);
+  return (
+    <section className="space-y-2" data-testid="iadm04-own-usage">
+      <h2 className="text-lg font-medium text-[#1B2433]">Usage vs quota</h2>
+      {payload?.incompleteData && (
+        <p className="text-sm text-amber-800" data-testid="iadm04-usage-incomplete">
+          {payload.incompleteNote || 'Incomplete usage data — values were not invented.'}
+        </p>
+      )}
+      {(payload?.limits || []).length === 0 && (payload?.usage || []).length === 0 ? (
+        <p className="text-sm text-[#5B6573]">No usage recorded for this period.</p>
+      ) : (
+        <ul className="space-y-1 text-sm" data-testid="iadm04-usage-list">
+          {(payload?.limits || []).map((lim) => {
+            const used = (payload?.usage || []).find((u) => u.entitlementKey === lim.entitlementKey);
+            return (
+              <li key={lim.entitlementKey}>
+                {lim.entitlementKey}: used {used?.used ?? 0} / limit {lim.limitValue} {lim.limitUnit || ''}
+                {used?.incomplete ? ' (incomplete source)' : ''}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 
