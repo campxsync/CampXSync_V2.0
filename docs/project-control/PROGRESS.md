@@ -15,7 +15,7 @@
 | S1 US-005…016 | **`APPROVED S1 COMMIT`** `74ef789` — `IADM-04_S1_Report.md` |
 | S2 US-017…025 | **`APPROVED S2 COMMIT`** `6b9ae23` — `IADM-04_S2_Report.md`; headed PASS |
 | S3 US-026…030 | **`APPROVED S3 COMMIT`** `e86e925` — `IADM-04_S3_Report.md`; headed PASS |
-| S4 US-031…040 | **`APPROVED S4 COMMIT`** — `IADM-04_S4_Report.md`; headed PASS |
+| S4 US-031…040 | **`APPROVED S4 COMMIT`** `81c0715` — `IADM-04_S4_Report.md`; headed PASS |
 | Service / port | `iadm-04-billing-entitlements-service` **:8102** `/api/v1/iadm/04` |
 | Migrations on DEV | … + `iadm04_s3_online_payments` + `iadm04_s4_lifecycle_usage` |
 | Headed evidence S4 | `docs/iadm/iadm-04/evidence/s4/` — PASS (jobs + usage + renewals + reports) |

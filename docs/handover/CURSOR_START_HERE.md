@@ -21,7 +21,7 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
 2. **Gateway:** `:8080`; IADM-01 `:8099`; IADM-02 `:8100`; IADM-03 `:8101`; **IADM-04 `:8102`** `/api/v1/iadm/04`.
 3. **IADM-01 / IADM-02 / IADM-03** close-out / US-040 done on DEV (prior commits).
-4. **IADM-04 S1–S4** `APPROVED … COMMIT` (this session; S4 commit pending hash below after commit).
+4. **IADM-04 S1–S4** `APPROVED … COMMIT` — S4 `81c0715`.
 5. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b`.
 6. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
 7. **Internal auth ON:** Bearer JWT → gateway → HMAC.
