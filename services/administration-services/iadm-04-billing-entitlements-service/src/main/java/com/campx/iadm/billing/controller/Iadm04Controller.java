@@ -400,6 +400,13 @@ public class Iadm04Controller implements HttpHandler {
                         parseUuid(queryParam(exchange, "tenantId")))));
                 return;
             }
+            // Additive read-only aggregates for IADM-06 (no change to existing behaviour)
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/analytics-aggregates")) {
+                sendJson(exchange, 200, toJson(usageReports.getAnalyticsAggregates(ctx,
+                        queryParam(exchange, "window"),
+                        parseUuid(queryParam(exchange, "tenantId")))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit-evidence")) {
                 sendJson(exchange, 200, toJson(usageReports.auditorEvidence(ctx,
                         parseUuid(queryParam(exchange, "tenantId")))));

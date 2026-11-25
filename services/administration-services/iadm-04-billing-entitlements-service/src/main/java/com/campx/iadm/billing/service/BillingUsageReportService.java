@@ -333,6 +333,152 @@ public class BillingUsageReportService {
         }
     }
 
+    /**
+     * Additive read-only aggregates for IADM-06 (M07–M10).
+     * Plain language: subscription/entitlement counts only; DEMO label preserved. No behaviour change to existing APIs.
+     */
+    public Map<String, Object> getAnalyticsAggregates(final UserSecurityContext ctx, final String window,
+                                                      final UUID tenantFilter) {
+        return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
+            public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
+                boolean platform = isPlatformOperator(conn) || hasPermission(conn, "iadm04.reports.view")
+                        || hasPermission(conn, "iadm04.subscriptions.view");
+                boolean own = hasPermission(conn, "iadm04.subscriptions.view.own");
+                if (!platform && !own) {
+                    throw forbidden("iadm04.reports.view");
+                }
+                UUID scope = tenantFilter;
+                if (!platform) {
+                    scope = ctx.getTenantId();
+                    if (scope == null) {
+                        throw new InstituteAdminException(403, "IADM04_FORBIDDEN", "Tenant context required.");
+                    }
+                }
+                Map<String, Object> out = new LinkedHashMap<String, Object>();
+                out.put("queryTime", java.time.Instant.now().toString());
+                out.put("demoLabel", "DEMO values");
+
+                List<Map<String, Object>> byPlan = new ArrayList<Map<String, Object>>();
+                String planSql = scope == null
+                        ? "SELECT coalesce(p.code,'UNKNOWN') AS plan_code, count(s.id)::int AS cnt "
+                        + "FROM plat.subscriptions s LEFT JOIN plat.plans p ON p.id = s.plan_id "
+                        + "WHERE s.deleted_at IS NULL GROUP BY 1 ORDER BY 1"
+                        : "SELECT coalesce(p.code,'UNKNOWN') AS plan_code, count(s.id)::int AS cnt "
+                        + "FROM plat.subscriptions s LEFT JOIN plat.plans p ON p.id = s.plan_id "
+                        + "WHERE s.deleted_at IS NULL AND s.tenant_id = ? GROUP BY 1 ORDER BY 1";
+                try (PreparedStatement ps = conn.prepareStatement(planSql)) {
+                    if (scope != null) {
+                        ps.setObject(1, scope);
+                    }
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Map<String, Object> g = new LinkedHashMap<String, Object>();
+                            g.put("key", rs.getString("plan_code"));
+                            g.put("planCode", rs.getString("plan_code"));
+                            g.put("count", Integer.valueOf(rs.getInt("cnt")));
+                            byPlan.add(g);
+                        }
+                    }
+                }
+                out.put("subscriptionsByPlan", byPlan);
+
+                List<Map<String, Object>> byState = new ArrayList<Map<String, Object>>();
+                String stateSql = scope == null
+                        ? "SELECT upper(status) AS status, count(*)::int AS cnt FROM plat.subscriptions "
+                        + "WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 1"
+                        : "SELECT upper(status) AS status, count(*)::int AS cnt FROM plat.subscriptions "
+                        + "WHERE deleted_at IS NULL AND tenant_id = ? GROUP BY 1 ORDER BY 1";
+                try (PreparedStatement ps = conn.prepareStatement(stateSql)) {
+                    if (scope != null) {
+                        ps.setObject(1, scope);
+                    }
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Map<String, Object> g = new LinkedHashMap<String, Object>();
+                            g.put("key", rs.getString("status"));
+                            g.put("status", rs.getString("status"));
+                            g.put("count", Integer.valueOf(rs.getInt("cnt")));
+                            byState.add(g);
+                        }
+                    }
+                }
+                out.put("subscriptionsByState", byState);
+
+                List<Map<String, Object>> consumption = new ArrayList<Map<String, Object>>();
+                String consSql = scope == null
+                        ? "SELECT u.entitlement_key, SUM(u.quantity)::float8 AS used_qty, "
+                        + "MAX(e.limit_value)::float8 AS limit_val "
+                        + "FROM plat.usage_measurements u "
+                        + "LEFT JOIN plat.subscriptions s ON s.tenant_id = u.tenant_id AND s.deleted_at IS NULL "
+                        + "LEFT JOIN plat.plan_entitlements e ON e.plan_id = s.plan_id "
+                        + "AND e.entitlement_key = u.entitlement_key AND e.deleted_at IS NULL "
+                        + "WHERE u.deleted_at IS NULL GROUP BY u.entitlement_key ORDER BY 1"
+                        : "SELECT u.entitlement_key, SUM(u.quantity)::float8 AS used_qty, "
+                        + "MAX(e.limit_value)::float8 AS limit_val "
+                        + "FROM plat.usage_measurements u "
+                        + "LEFT JOIN plat.subscriptions s ON s.tenant_id = u.tenant_id AND s.deleted_at IS NULL "
+                        + "LEFT JOIN plat.plan_entitlements e ON e.plan_id = s.plan_id "
+                        + "AND e.entitlement_key = u.entitlement_key AND e.deleted_at IS NULL "
+                        + "WHERE u.deleted_at IS NULL AND u.tenant_id = ? GROUP BY u.entitlement_key ORDER BY 1";
+                try (PreparedStatement ps = conn.prepareStatement(consSql)) {
+                    if (scope != null) {
+                        ps.setObject(1, scope);
+                    }
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Map<String, Object> g = new LinkedHashMap<String, Object>();
+                            g.put("key", rs.getString("entitlement_key"));
+                            g.put("entitlementKey", rs.getString("entitlement_key"));
+                            int used = (int) Math.round(rs.getDouble("used_qty"));
+                            g.put("count", Integer.valueOf(used));
+                            g.put("used", Integer.valueOf(used));
+                            Object lim = rs.getObject("limit_val");
+                            g.put("limit", lim == null ? null : String.valueOf(lim));
+                            consumption.add(g);
+                        }
+                    }
+                } catch (SQLException ex) {
+                    // empty consumption if tables sparse
+                }
+                out.put("entitlementConsumption", consumption);
+
+                String trunc = "month";
+                if (window != null) {
+                    String w = window.trim().toLowerCase();
+                    if ("day".equals(w) || "month".equals(w) || "quarter".equals(w)) {
+                        trunc = w;
+                    }
+                }
+                List<Map<String, Object>> trend = new ArrayList<Map<String, Object>>();
+                String trendSql = scope == null
+                        ? "SELECT to_char(date_trunc('" + trunc + "', coalesce(updated_at, created_at)), 'YYYY-MM-DD') AS bucket, "
+                        + "upper(status) AS status, count(*)::int AS cnt FROM plat.subscriptions "
+                        + "WHERE deleted_at IS NULL GROUP BY 1, 2 ORDER BY 1, 2"
+                        : "SELECT to_char(date_trunc('" + trunc + "', coalesce(updated_at, created_at)), 'YYYY-MM-DD') AS bucket, "
+                        + "upper(status) AS status, count(*)::int AS cnt FROM plat.subscriptions "
+                        + "WHERE deleted_at IS NULL AND tenant_id = ? GROUP BY 1, 2 ORDER BY 1, 2";
+                try (PreparedStatement ps = conn.prepareStatement(trendSql)) {
+                    if (scope != null) {
+                        ps.setObject(1, scope);
+                    }
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Map<String, Object> g = new LinkedHashMap<String, Object>();
+                            g.put("key", rs.getString("bucket") + ":" + rs.getString("status"));
+                            g.put("bucket", rs.getString("bucket"));
+                            g.put("status", rs.getString("status"));
+                            g.put("count", Integer.valueOf(rs.getInt("cnt")));
+                            trend.add(g);
+                        }
+                    }
+                }
+                out.put("subscriptionStateTrend", trend);
+                out.put("subscriptionStateTrendWindow", trunc);
+                return out;
+            }
+        });
+    }
+
     private Map<String, Integer> countBy(Connection conn, String sql, UUID tenantId) throws SQLException {
         Map<String, Integer> m = new LinkedHashMap<String, Integer>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
