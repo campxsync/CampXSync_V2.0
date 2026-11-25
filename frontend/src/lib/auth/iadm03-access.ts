@@ -1,5 +1,6 @@
 /**
  * IADM-03 BFF gates. Java remains authoritative for permission keys and ceilings.
+ * Auditor may attempt mutations so Java can return "Auditor access is read-only."
  */
 export function canReadIadm03Access(role: string | null | undefined): boolean {
   return (
@@ -11,7 +12,17 @@ export function canReadIadm03Access(role: string | null | undefined): boolean {
 }
 
 export function canMutateIadm03Profiles(role: string | null | undefined): boolean {
-  return role === 'platform_admin' || role === 'institution_admin' || role === 'auditor';
+  return (
+    role === 'platform_admin' ||
+    role === 'institution_admin' ||
+    role === 'auditor' ||
+    role === 'system_admin'
+  );
+}
+
+/** US-018 — System Admin technical identity assign only (UI gate; Java enforces ceiling). */
+export function canAssignIadm03Technical(role: string | null | undefined): boolean {
+  return role === 'platform_admin' || role === 'system_admin';
 }
 
 /** R04 may submit access requests only (US-023). */

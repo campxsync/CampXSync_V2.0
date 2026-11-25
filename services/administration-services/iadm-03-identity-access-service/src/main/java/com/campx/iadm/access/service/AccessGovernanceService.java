@@ -46,6 +46,34 @@ public class AccessGovernanceService {
         return out;
     }
 
+    /**
+     * IADM-03-US-033 — Auditor (R28) mutations are denied with a clear message
+     * (same wording as IADM-02 US-028).
+     */
+    public void assertNotAuditorMutation(final UserSecurityContext ctx) {
+        ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Void>() {
+            @Override
+            public Void execute(Connection conn) throws SQLException, InstituteAdminException {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT 1 FROM iam.role_assignments ra "
+                                + "JOIN iam.roles r ON r.id = ra.role_id AND r.deleted_at IS NULL "
+                                + "WHERE ra.user_id = ? AND ra.deleted_at IS NULL "
+                                + "AND upper(r.code) IN ('AUDITOR','R28') "
+                                + "AND (ra.valid_to IS NULL OR ra.valid_to > now()) "
+                                + "LIMIT 1")) {
+                    ps.setObject(1, ctx.getUserId());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            throw new InstituteAdminException(403, "IADM03_AUDITOR_READONLY",
+                                    "Auditor access is read-only.");
+                        }
+                    }
+                }
+                return null;
+            }
+        });
+    }
+
     /** IADM-03-US-005 — reuse iam.role_templates; scope by actor. */
     public Map<String, Object> listRoleCatalogue(final UserSecurityContext ctx) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {

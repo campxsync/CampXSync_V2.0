@@ -20,6 +20,12 @@ export default async function HomePage() {
   switch (role) {
     case 'platform_admin':
       redirect('/platform');
+    case 'system_admin':
+      redirect('/platform/identity/technical');
+    case 'auditor':
+      redirect('/platform/identity/evidence');
+    case 'institution_admin':
+      redirect('/institution');
     case 'college_admin':
       redirect('/college');
     case 'registrar':

@@ -43,7 +43,7 @@ public final class GrantorCeiling {
             return "API Client (R27) has no grant authority in IADM-03.";
         }
         if ("R28".equals(g)) {
-            return "Auditor (R28) is read-only.";
+            return "Auditor access is read-only.";
         }
         if ("R04".equals(g)) {
             return "College Admin (R04) is request-only in IADM-03; direct grants are unavailable.";

@@ -6,6 +6,7 @@ import { verifySupabaseJwtLocally, extractAccessTokenFromCookies } from '@/lib/a
 
 export type UserRole =
   | 'platform_admin'
+  | 'system_admin'
   | 'auditor'
   | 'institution_admin'
   | 'college_admin'
@@ -155,19 +156,23 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
     }
 
     if (platAdmin) {
+      // IADM-03 US-018 — distinguish System Admin (R02) from Super Admin (R01).
+      const roleCode = String(platAdmin.role_code || '').toUpperCase();
+      const isSystemAdmin = roleCode === 'SYSTEM_ADMIN';
       return {
         success: true,
         session: {
           userId,
           email: userEmail,
-          role: 'platform_admin',
+          role: isSystemAdmin ? 'system_admin' : 'platform_admin',
+          iamRoleCode: roleCode || null,
           tenantId: null,
           tenantName: 'CampSync Platform',
           tenantStatus: 'ACTIVE',
           collegeId: null,
           departmentId: null,
           displayName: user.user_metadata?.full_name || userEmail.split('@')[0],
-          isPlatformAdmin: true,
+          isPlatformAdmin: !isSystemAdmin,
         },
       };
     }

@@ -59,6 +59,10 @@ export function gatewayActorRoleHint(uiRole: UserRole | string | null | undefine
   switch (uiRole) {
     case 'platform_admin':
       return 'PLATFORM_ADMIN';
+    case 'system_admin':
+      return 'SYSTEM_ADMIN';
+    case 'auditor':
+      return 'AUDITOR';
     case 'institution_admin':
       return 'INSTITUTION_ADMIN';
     case 'registrar':
@@ -77,8 +81,10 @@ export function defaultDashboardForRole(role: UserRole): string {
   switch (role) {
     case 'platform_admin':
       return '/platform';
+    case 'system_admin':
+      return '/platform/identity/technical';
     case 'auditor':
-      return '/platform/configuration/versions';
+      return '/platform/identity/evidence';
     case 'institution_admin':
       return '/institution';
     case 'college_admin':
@@ -101,7 +107,21 @@ export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): b
   ) {
     return true;
   }
-  if (role === 'auditor' && returnTo.startsWith('/platform/configuration')) return true;
+  if (
+    role === 'system_admin' &&
+    (returnTo === '/platform/identity' || returnTo.startsWith('/platform/identity/'))
+  ) {
+    return true;
+  }
+  if (
+    role === 'auditor' &&
+    (returnTo.startsWith('/platform/configuration') ||
+      returnTo === '/platform/identity' ||
+      returnTo.startsWith('/platform/identity/'))
+  ) {
+    return true;
+  }
+  if (role === 'institution_admin' && returnTo.startsWith('/institution')) return true;
   if (role === 'college_admin' && returnTo.startsWith('/college')) return true;
   if (role === 'registrar' && canRegistrarAccessCollegePath(returnTo)) return true;
   if (

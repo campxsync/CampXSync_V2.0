@@ -121,6 +121,20 @@ export default function PlatformIdentityPage() {
           >
             Governance read
           </Link>
+          <Link
+            href="/platform/identity/evidence"
+            className="rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-evidence"
+          >
+            Access evidence (Auditor)
+          </Link>
+          <Link
+            href="/platform/identity/technical"
+            className="rounded border border-slate-300 px-4 py-2 text-sm"
+            data-testid="iadm03-open-technical"
+          >
+            Technical identities (R02)
+          </Link>
           <button
             type="button"
             className="rounded border border-slate-300 px-4 py-2 text-sm"

@@ -8,6 +8,7 @@ import com.campx.iadm.access.security.UserSecurityContext;
 import com.campx.iadm.access.service.AccessGovernanceService;
 import com.campx.iadm.access.service.AccessRequestGovernanceService;
 import com.campx.iadm.access.service.AccessReviewGovernanceService;
+import com.campx.iadm.access.service.AuditEvidenceService;
 import com.campx.iadm.access.service.CatalogChangeGovernanceService;
 import com.campx.iadm.access.service.DelegationGovernanceService;
 import com.campx.iadm.access.service.GovernanceReadService;
@@ -43,6 +44,7 @@ public class Iadm03Controller implements HttpHandler {
     private final CatalogChangeGovernanceService catalogChanges;
     private final GovernanceReadService governanceRead;
     private final AccessReviewGovernanceService accessReviews;
+    private final AuditEvidenceService auditEvidence = new AuditEvidenceService();
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
@@ -197,6 +199,26 @@ public class Iadm03Controller implements HttpHandler {
             tracker.step("authenticated");
 
             UserSecurityContext ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
+
+            // US-033 — Auditor (R28) may read; every mutation is denied with a clear message.
+            if (!"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
+                service.assertNotAuditorMutation(ctx);
+            }
+
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/audit-evidence")
+                    || path.endsWith("/audit-evidence/"))) {
+                int limit = 50;
+                String limRaw = queryParam(exchange, "limit");
+                if (limRaw != null && !limRaw.trim().isEmpty()) {
+                    try {
+                        limit = Integer.parseInt(limRaw.trim());
+                    } catch (NumberFormatException ignored) {
+                        limit = 50;
+                    }
+                }
+                sendJson(exchange, 200, toJson(auditEvidence.listEvidence(ctx, limit)));
+                return;
+            }
 
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/roles") || path.endsWith("/roles/"))) {
                 sendJson(exchange, 200, toJson(service.listRoleCatalogue(ctx)));

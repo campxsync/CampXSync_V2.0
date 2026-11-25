@@ -1,0 +1,59 @@
+{
+  "story": "IADM-03 Pre-step P (US-033 + US-018)",
+  "filmedAt": "2026-11-25T05:32:39.026Z",
+  "pass": true,
+  "results": [
+    {
+      "step": "US-033 API GET audit-evidence",
+      "status": 200,
+      "count": 19,
+      "pass": true
+    },
+    {
+      "step": "US-033 API mutation denied",
+      "status": 403,
+      "detail": "Auditor access is read-only.",
+      "errorCode": "IADM03_AUDITOR_READONLY",
+      "pass": true
+    },
+    {
+      "step": "US-033 headed evidence desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\prestep-p\\us033_evidence_desk.png",
+      "pass": true
+    },
+    {
+      "step": "US-033 no grant form on evidence desk",
+      "count": 0,
+      "pass": true
+    },
+    {
+      "step": "US-033 headed mutation probe denied",
+      "detail": "403: Auditor access is read-only. (errorCode=IADM03_AUDITOR_READONLY)",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\prestep-p\\us033_mutation_denied.png",
+      "pass": true
+    },
+    {
+      "step": "US-018 API deny INSTITUTION_ADMIN",
+      "status": 403,
+      "detail": "System Admin (R02) may assign platform technical service identities only.",
+      "pass": true
+    },
+    {
+      "step": "US-018 ceiling allows SERVICE",
+      "status": 200,
+      "allowed": true,
+      "pass": true
+    },
+    {
+      "step": "US-018 headed technical desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\prestep-p\\us018_technical_desk.png",
+      "pass": true
+    },
+    {
+      "step": "US-018 headed R03 probe denied",
+      "detail": "403: System Admin (R02) may assign platform technical service identities only.",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\prestep-p\\us018_r03_denied.png",
+      "pass": true
+    }
+  ]
+}

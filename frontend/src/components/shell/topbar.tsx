@@ -56,6 +56,12 @@ export function Topbar({
     switch (role) {
       case 'platform_admin':
         return <Badge variant="role" roleType="platform">Platform Admin</Badge>;
+      case 'system_admin':
+        return <Badge variant="role" roleType="platform">System Admin</Badge>;
+      case 'auditor':
+        return <Badge variant="role" roleType="platform">Auditor</Badge>;
+      case 'institution_admin':
+        return <Badge variant="role" roleType="college">Institution Admin</Badge>;
       case 'college_admin':
         return <Badge variant="role" roleType="college">College Admin</Badge>;
       case 'registrar':

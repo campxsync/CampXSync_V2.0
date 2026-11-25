@@ -40,6 +40,10 @@ export function Sidebar({
     switch (role) {
       case 'platform_admin':
         return Building;
+      case 'system_admin':
+        return ShieldCheck;
+      case 'auditor':
+        return ShieldCheck;
       case 'institution_admin':
         return Building;
       case 'college_admin':

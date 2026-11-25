@@ -127,11 +127,12 @@ export async function middleware(request: NextRequest) {
   const email = (user.email || '').toLowerCase();
   const rawRole = (user.app_metadata?.role || '').toUpperCase();
 
-  // SYSTEM_ADMIN (R02) is a platform operator with a narrower IADM-02 ceiling.
+  // Super Admin (R01) — full platform. System Admin (R02) is narrower (identity desks only).
+  const isSystemAdminUser = rawRole === 'SYSTEM_ADMIN' || rawRole === 'R02';
   const isPlatformUser =
     rawRole === 'SUPER_ADMIN' ||
     rawRole === 'PLATFORM_ADMIN' ||
-    rawRole === 'SYSTEM_ADMIN';
+    isSystemAdminUser;
   // Institution Admin (R03) is NOT College Admin (R04) — US-005 / FINDING-IADM01-UI-01
   const isInstitutionAdminUser =
     (rawRole === 'INSTITUTION_ADMIN' || rawRole === 'R03') && !isPlatformUser;
@@ -223,11 +224,14 @@ export async function middleware(request: NextRequest) {
   if (rawRole) {
     // If visiting root '/', redirect based on user role (fail closed if unassigned)
     if (pathname === '/') {
+      if (isSystemAdminUser) {
+        return NextResponse.redirect(new URL('/platform/identity/technical', request.url));
+      }
       if (isPlatformUser) {
         return NextResponse.redirect(new URL('/platform', request.url));
       }
       if (isAuditorUser) {
-        return NextResponse.redirect(new URL('/platform/configuration/versions', request.url));
+        return NextResponse.redirect(new URL('/platform/identity/evidence', request.url));
       }
       if (isInstitutionAdminUser) {
         return NextResponse.redirect(new URL('/institution', request.url));
@@ -255,6 +259,12 @@ export async function middleware(request: NextRequest) {
           pathname.startsWith('/platform/configuration/') ||
           pathname === '/platform/identity' ||
           pathname.startsWith('/platform/identity/'));
+      const systemAdminIdentityOk =
+        isSystemAdminUser &&
+        (pathname === '/platform/identity' || pathname.startsWith('/platform/identity/'));
+      if (isSystemAdminUser && !systemAdminIdentityOk) {
+        return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
+      }
       if (!isPlatformUser && !auditorConfigOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
