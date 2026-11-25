@@ -1,7 +1,22 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-25 (**APPROVED IADM-05 S4 COMMIT** `6d31085` — not pushed)
+**Updated:** 2026-11-25 (IADM-06 S0 in progress — DEV only; not pushed)
+
+## Owner decisions – IADM-06 Platform Analytics & Usage Insights (25-11-2026)
+
+**Authorized by:** owner kickoff (IMPLEMENT, DEV only).  
+**Spec:** `docs/user-stories/IADM-06-user-stories.csv` + blueprint V1.2 at `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\`.
+
+| Item | Status |
+|---|---|
+| US-016 preflight | **completed** — `docs/iadm/iadm-06/US016_PREFLIGHT_REPORT.md` |
+| S0 US-017…022 | **in progress / API-ready** — service `:8104`, `iadm06.*` keys, `anl` FORCE RLS, shared audit, IADM-05/01/04 clients |
+| Additive IADM-01/04 read contracts | Applied in owners (separate commits) |
+| Migrations on DEV | `iadm06_foundation_keys`, `iadm06_anl_schema`, `iadm06_catalogue_and_policy_seed` |
+| Service / port | `iadm-06-platform-analytics-service` **:8104** `/api/v1/iadm/06` |
+| Next | Continue S1→S4 without small-approval stops; local commits only; **do not push** |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-05 Data Governance & Privacy (25-11-2026)
 

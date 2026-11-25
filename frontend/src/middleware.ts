@@ -264,13 +264,17 @@ export async function middleware(request: NextRequest) {
           pathname === '/platform/identity' ||
           pathname.startsWith('/platform/identity/') ||
           pathname === '/platform/governance' ||
-          pathname.startsWith('/platform/governance/'));
+          pathname.startsWith('/platform/governance/') ||
+          pathname === '/platform/analytics' ||
+          pathname.startsWith('/platform/analytics/'));
       const systemAdminOk =
         isSystemAdminUser &&
         (pathname === '/platform/identity' ||
           pathname.startsWith('/platform/identity/') ||
           pathname === '/platform/governance' ||
-          pathname.startsWith('/platform/governance/'));
+          pathname.startsWith('/platform/governance/') ||
+          pathname === '/platform/analytics' ||
+          pathname.startsWith('/platform/analytics/'));
       if (isSystemAdminUser && !systemAdminOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }

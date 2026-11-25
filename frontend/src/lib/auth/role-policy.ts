@@ -112,7 +112,9 @@ export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): b
     (returnTo === '/platform/identity' ||
       returnTo.startsWith('/platform/identity/') ||
       returnTo === '/platform/governance' ||
-      returnTo.startsWith('/platform/governance/'))
+      returnTo.startsWith('/platform/governance/') ||
+      returnTo === '/platform/analytics' ||
+      returnTo.startsWith('/platform/analytics/'))
   ) {
     return true;
   }
@@ -122,7 +124,9 @@ export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): b
       returnTo === '/platform/identity' ||
       returnTo.startsWith('/platform/identity/') ||
       returnTo === '/platform/governance' ||
-      returnTo.startsWith('/platform/governance/'))
+      returnTo.startsWith('/platform/governance/') ||
+      returnTo === '/platform/analytics' ||
+      returnTo.startsWith('/platform/analytics/'))
   ) {
     return true;
   }

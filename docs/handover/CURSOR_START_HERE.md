@@ -2,14 +2,14 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (**APPROVED IADM-05 S4 COMMIT** `6d31085` — not pushed)
+**Last current-state refresh:** 2026-11-25 (IADM-06 S0 foundation on DEV — not pushed)
 
 ---
 
 ## What to do next
 
-1. IADM-05 S4 is owner-approved and committed locally (`6d31085`).
-2. Await owner next instruction (module close, push, or next backlog item).
+1. Continue IADM-06 backlog S1→S4 (owner kickoff: no small-approval stops).
+2. Local commits only on `feature/java-backend-integration`.
 3. Do **not** push until owner says.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -18,16 +18,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-05 S0–S4 local; **`APPROVED S4 COMMIT`**; **not pushed**.
-2. **IADM-05:** `:8103` `/api/v1/iadm/05` — policy governance only; schema `gov` FORCE RLS on DEV.
-3. **IADM-05 commits:** `d3c2e74` (S0), `854d8f1` (S1), `2b566df` (S2/S3), `6d31085` (S4 approved).
-4. **Desks:** `/platform/governance`, `/institution/governance`, `/college/governance`, `/platform/governance/audit`.
-5. **Demo seeds on DEV:** classification/retention + export/erasure/sharing queues (DEMO ONLY; durations TBC).
-6. **Privacy publish:** hard-blocked `IADM05_LEGAL_GATE` (D-RBAC-M17) — no open path.
+1. **Branch:** `feature/java-backend-integration` — IADM-06 S0 building; **not pushed**.
+2. **IADM-06:** `:8104` `/api/v1/iadm/06` — aggregates only; schema `anl` FORCE RLS on DEV.
+3. **Preflight:** `docs/iadm/iadm-06/US016_PREFLIGHT_REPORT.md` — DEV target verified; shared audit cleared.
+4. **Desks started:** `/platform/analytics`, `/institution/analytics`, `/platform/analytics/audit`.
+5. **Sources:** IADM-01/04 additive `/analytics-aggregates`; IADM-05 resolve RETENTION+ANALYTICS / EXPORT DEMO policies.
+6. **Catalogue:** M01–M10 seeded; DEMO ONLY adoption fixture labelled.
 7. **Shared audit:** `audit.log_event` fail-closed; no second audit store.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-9. **US-032 headed:** **21/21 PASS** — personas R01/R02/R03/R04/R28 with real propose/approve/submit/close work.
-10. **IADM-04** remains prior closed work (S5 local); do not push without owner.
+9. **IADM-05** remains approved S4 local (`6d31085`); do not push without owner.
+10. **Suppression threshold:** DEMO ONLY runtime (low then raise for headed film); production OWNER-OPEN.
 
 ---
 
