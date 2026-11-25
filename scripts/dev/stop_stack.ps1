@@ -1,9 +1,10 @@
-# scripts/dev/stop_stack.ps1
+﻿# scripts/dev/stop_stack.ps1
 $ErrorActionPreference = "SilentlyContinue"
 
 Write-Host "Stopping CampXSync stack services..." -ForegroundColor Yellow
 
-$targetPorts = @(8080, 8098, 3000) + (8081..8097)
+# Includes IADM-01..04 (:8099–:8102). Range 8081..8097 covers STM/ACD peers.
+$targetPorts = @(8080, 8098, 8099, 8100, 8101, 8102, 3000) + (8081..8097)
 
 foreach ($port in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue

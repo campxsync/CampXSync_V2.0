@@ -29,6 +29,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Onboard Institute', href: '/platform/institutes/new', icon: BookOpen },
     { title: 'Platform configuration', href: '/platform/configuration', icon: Layers },
     { title: 'Identity & access', href: '/platform/identity', icon: Users },
+    { title: 'Billing & subscriptions', href: '/platform/billing', icon: Layers },
     { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],
@@ -36,6 +37,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
   system_admin: [
     { title: 'Identity & access', href: '/platform/identity', icon: Users },
     { title: 'Technical identities', href: '/platform/identity/technical', icon: Link2 },
+    { title: 'Billing (operational)', href: '/platform/billing', icon: Layers },
   ],
   /** Auditor (R28) — IADM-02 configuration history + IADM-03 evidence read-only. */
   auditor: [
@@ -50,6 +52,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Institute profile', href: '/institution/profile', icon: Building2 },
     { title: 'Colleges', href: '/institution/colleges', icon: GraduationCap },
     { title: 'Institute access', href: '/institution/access', icon: Users },
+    { title: 'Subscription', href: '/institution/billing', icon: Layers },
   ],
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },

@@ -2,17 +2,15 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-24 (IADM-03 US-040 — **APPROVED US040 COMMIT**)
+**Last current-state refresh:** 2026-11-25 (IADM-04 **APPROVED S1 COMMIT**)
 
 ---
 
 ## What to do next
 
-Read and follow only:
-
-1. `docs/prompts/NEXT_TASK.md` — US-040 committed; owner picks next open item.
-2. `docs/project-control/PROGRESS.md` — source of truth.
-3. Report: `docs/iadm/iadm-03/US040_CLOSEOUT_REPORT.md`.
+1. Read `docs/prompts/NEXT_TASK.md` — S1 committed locally; wait for S2 authorization.
+2. `docs/iadm/IADM-04_S1_Report.md` + evidence `docs/iadm/iadm-04/evidence/s1/`.
+3. Do **not** start S2 until newly authorized. Do **not** push unless owner says.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -21,23 +19,23 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 ## 1. Current State in 10 Bullets (context)
 
 1. **Branch:** `feature/java-backend-integration` — local commits when story completes; **no push** unless owner says.
-2. **Gateway:** Ingress `:8080`; **IADM-01** `:8099`; **IADM-02** `:8100`; **IADM-03** `/api/v1/iadm/03` → `:8101`.
-3. **IADM-01 / IADM-02** close-out done on DEV.
-4. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b`.
-5. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
-6. **Internal auth ON** (H-3): Bearer JWT → gateway → HMAC.
-7. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-8. **IADM-03 S0–S4** committed locally after owner APPROVED … COMMIT.
-9. **US-040 close-out:** **`APPROVED US040 COMMIT`**; hard checks PASS; 56-cell PASS; **RBAC v3.0 Compliant NOT CLAIMED**.
-10. **Open:** US-033 (D3), US-036/037 later integration, US-038/039 PARKED.
+2. **Gateway:** `:8080`; IADM-01 `:8099`; IADM-02 `:8100`; IADM-03 `:8101`; **IADM-04 `:8102`** `/api/v1/iadm/04`.
+3. **IADM-01 / IADM-02 / IADM-03** close-out / US-040 done on DEV (prior commits).
+4. **IADM-04 S0** accepted; **Pre-step P** `b4c7798`; **S1 `APPROVED S1 COMMIT`**.
+5. **Working ACTIVE demo institute:** `MAC` / `72ecbfe3-2077-41b5-8a20-b6d3e045311b` (plus DEMO ACTIVE subs on all institutes).
+6. **Governing agreement:** `docs/AGREEMENT_V2.1.md`.
+7. **Internal auth ON:** Bearer JWT → gateway → HMAC.
+8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
+9. **S1 D15 lag:** PENDING entitlement deny reflected in **284 ms** (no entitlement cache).
+10. **Next:** S2 (plan-change, invoices, offline payment) only when newly authorized.
 
 ---
 
 ## 2. File Map & Project Artifacts
 
-- **Progress / next task / reports:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`
-- **IADM-03 close-out:** `docs/iadm/iadm-03/US040_CLOSEOUT_REPORT.md`, `evidence/closeout/`
-- **Demo:** `node scripts/demo/iadm03_us040_closeout.mjs`
+- **IADM-04 S1:** `docs/iadm/IADM-04_S1_Report.md`, evidence `docs/iadm/iadm-04/evidence/s1/`
+- **Headed:** `node scripts/demo/iadm04_s1_headed.mjs` (set `IADM04_S1_PENDING_FLIPPED=1` after MCP PENDING flip for D15)
+- **Progress / next task:** `docs/project-control/PROGRESS.md`, `docs/prompts/NEXT_TASK.md`
 - **Architecture & Rules:** `AGENTS.md` and `.cursor/rules/*.mdc`
 
 ---
@@ -54,14 +52,3 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 8. **PowerShell:** Quote Maven `-D` flags; avoid `&&` chaining issues.
 9. **Unit tests under auth ON:** Force `campx.internal.auth.enabled=false` in `@Before`.
 10. **Live DB read-backs mandatory** for story DoD when claiming persistence.
-
----
-
-## 4. Handover instructions that worked / failed (2026-11-14 H-4)
-
-| Instruction | Result |
-| :--- | :--- |
-| Pilot CLI dry-run + invalid CSV reject | **Worked**. |
-| Gated UI onboarding saga without live write | **Worked**. |
-| Free RAM ≥3 GB with stack + Java LS | **Failed / tight** — stopped stack JVMs for demo; Java LS still ~1.3 GB. |
-| Live Auth user mint for imported roster | **Out of scope** for H-4 without separate approval. |

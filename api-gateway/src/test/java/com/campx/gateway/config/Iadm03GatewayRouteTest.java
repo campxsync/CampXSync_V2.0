@@ -20,5 +20,6 @@ public class Iadm03GatewayRouteTest {
         assertTrue("legacy admin catch-all must remain", routeTable.containsKey("/api/v1/admin"));
         assertTrue("IADM-01 sibling must remain", routeTable.containsKey("/api/v1/iadm/01"));
         assertTrue("IADM-02 sibling must remain", routeTable.containsKey("/api/v1/iadm/02"));
+        assertTrue("IADM-04 sibling must remain", routeTable.containsKey("/api/v1/iadm/04"));
     }
 }

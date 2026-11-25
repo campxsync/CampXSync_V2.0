@@ -1,0 +1,54 @@
+{
+  "story": "IADM-04-S1",
+  "at": "2026-11-25T05:52:08.410Z",
+  "results": [
+    {
+      "step": "IADM-04 direct health",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "step": "US-006 R01 list plans",
+      "status": 200,
+      "count": 7,
+      "pass": true
+    },
+    {
+      "step": "US-012 R01 list ACTIVE subscriptions",
+      "status": 200,
+      "count": 12,
+      "pass": true
+    },
+    {
+      "step": "US-016 entitlement check (pre-PENDING probe)",
+      "status": 200,
+      "allowed": false,
+      "reason": "PENDING_ZERO_ENTITLEMENTS",
+      "pass": true
+    },
+    {
+      "step": "US-016 PENDING zero entitlements + D15 lag_ms",
+      "status": 200,
+      "allowed": false,
+      "reason": "PENDING_ZERO_ENTITLEMENTS",
+      "lagMs": 284,
+      "pass": true
+    },
+    {
+      "step": "US-006 headed platform billing desk",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s1\\s1_platform_billing_desk.png",
+      "pass": true
+    },
+    {
+      "step": "US-016 headed entitlement probe button",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s1\\s1_entitlement_probe.png",
+      "pass": true
+    },
+    {
+      "step": "US-006 college BFF deny (best-effort cookie)",
+      "status": 401,
+      "pass": true
+    }
+  ],
+  "pass": true
+}

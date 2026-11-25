@@ -1,0 +1,35 @@
+{
+  "storyId": "IADM-04-S1",
+  "title": "IADM-04 S1 — plans, subscriptions, entitlement gate",
+  "slowMo": 200,
+  "steps": [
+    {
+      "title": "Platform Admin opens billing desk",
+      "description": "R01 lands on IADM-04 platform billing & subscriptions desk",
+      "action": "goto",
+      "url": "http://localhost:3000/api/auth/test-session?role=platform_admin&returnTo=/platform/billing",
+      "highlight": null
+    },
+    {
+      "title": "Plan catalogue visible",
+      "description": "DEMO BASIC/STANDARD/PREMIUM catalogue renders",
+      "action": "wait_for",
+      "selector": "[data-testid=\"iadm04-plan-catalogue\"]",
+      "highlight": "[data-testid=\"iadm04-platform-desk\"]"
+    },
+    {
+      "title": "Subscription overview",
+      "description": "ACTIVE DEMO subscriptions listed",
+      "action": "wait_for",
+      "selector": "[data-testid=\"iadm04-subscription-overview\"]",
+      "highlight": "[data-testid=\"iadm04-subscription-overview\"]"
+    }
+  ],
+  "dbAssertions": [
+    {
+      "title": "DEMO ACTIVE subscriptions present",
+      "query": "SELECT count(*)::int AS n FROM plat.subscriptions WHERE demo_label = 'DEMO' AND status = 'ACTIVE' AND deleted_at IS NULL",
+      "expect": { "n": { "gte": 1 } }
+    }
+  ]
+}

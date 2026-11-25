@@ -49,6 +49,13 @@ function AccessDeniedContent() {
             'Access for this educational institution is currently suspended. Platform administrators may resolve status transitions.',
           icon: Building2,
         };
+      case 'subscription_inactive':
+        return {
+          title: 'Subscription Access Unavailable',
+          description:
+            'Your institute is active, but commercial access requires a TRIAL or ACTIVE subscription. PENDING or missing subscriptions grant no entitlements until billing is confirmed.',
+          icon: Building2,
+        };
       case 'no_role_assigned':
         return {
           title: 'No Authoritative Role Assigned',

@@ -26,7 +26,7 @@
 - **Check Stack Health:** `powershell -ExecutionPolicy Bypass -File scripts/dev/check_stack.ps1`
 - **Stop Stack:** `powershell -ExecutionPolicy Bypass -File scripts/dev/stop_stack.ps1`
 - **Fast Service Restart:** `powershell -ExecutionPolicy Bypass -File scripts/dev/restart_service.ps1 <service-name>` (e.g. `lifecycle-service`, `document-service`)
-- **Port Map:** Next.js UI (:3000), Gateway (:8080), STM-02 Admissions (:8094), STM-03 Enrollment (:8095), STM-04 Lifecycle (:8096), STM-05 Guardian (:8097), STM-06 Documents (:8098).
+- **Port Map:** Next.js UI (:3000), Gateway (:8080), IADM-01 (:8099), IADM-02 (:8100), IADM-03 (:8101), IADM-04 Billing (:8102), STM-02 Admissions (:8094), STM-03 Enrollment (:8095), STM-04 Lifecycle (:8096), STM-05 Guardian (:8097), STM-06 Documents (:8098).
 - **Core Desks:** `/college/lifecycle`, `/college/documents`, `/faculty/advisees`, `/student/lifecycle`, `/student/documents`. Accounts configured in `.env.audit`.
 
 ## 3. Testing & Demo Harness

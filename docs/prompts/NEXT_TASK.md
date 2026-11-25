@@ -1,21 +1,21 @@
 # Next Task
 
-**STATUS: IADM-03 US-040 close-out — `APPROVED US040 COMMIT` (local). Module open items remain.**
+**STATUS: IADM-04 S1 — `APPROVED S1 COMMIT` (local). Stop until S2 authorized.**
 
 ## This run
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| IADM-03 S0–S4 | | **`APPROVED … COMMIT`** |
-| US-040 close-out | checklist + 56-cell | **`APPROVED US040 COMMIT`** — `docs/iadm/iadm-03/US040_CLOSEOUT_REPORT.md` |
-| RBAC v3.0 Compliant | label | **NOT CLAIMED** (US-033 blocked; 036/037 later; 038/039 parked) |
-| 56-cell | IADM-02 + IADM-03 sample | **PASS** |
+| IADM-04 S0 | US-001…004 | **accepted** |
+| Pre-step P | IADM-03 US-033 + US-018 | **committed** `b4c7798` |
+| IADM-04 S1 | US-005…016 | **`APPROVED S1 COMMIT`** — `IADM-04_S1_Report.md` |
+| Headed evidence | `docs/iadm/iadm-04/evidence/s1/` | PASS; D15 **284 ms** |
 
 ## Stop gate
 
-Owner decides next: clear US-033/D3, later CADM-03/STM-07, or park module. Do **not** push unless owner says.
+Do **not** start S2 until newly authorized. Do **not** push unless owner says.
 
 ## Rules
 
 - DEV only (`azulbaxszsqxymqmlwfe`).
-- PARKED: break-glass, two-person R03 appointment, R27; `adm03` dormant.
+- Monolith billing left until cutover (addition D).

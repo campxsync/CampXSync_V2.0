@@ -1,7 +1,24 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-24 (IADM-03 US-040 — **APPROVED US040 COMMIT**)
+**Updated:** 2026-11-25 (IADM-04 S1 — **APPROVED S1 COMMIT**)
+
+## Owner decisions – IADM-04 Subscription, Billing & Entitlements (25-11-2026)
+
+**Authorized by:** Niranjan V.G. (S0 accepted; Pre-step P; S1 with additions A–D; DEV only).  
+**Spec:** `docs/user-stories/IADM-04_User_Stories.csv` + blueprint V1.3.
+
+| Item | Status |
+|---|---|
+| S0 US-001…004 inspection | **completed** — `docs/iadm/IADM-04_S0_Inspection_Report.md` |
+| Pre-step P (IADM-03 US-033 + US-018) | **committed** `b4c7798` |
+| S1 US-005…016 | **`APPROVED S1 COMMIT`** — `docs/iadm/IADM-04_S1_Report.md`; headed PASS; D15 284 ms |
+| Service / port | `iadm-04-billing-entitlements-service` **:8102** `/api/v1/iadm/04` |
+| Migrations on DEV | `iadm04_foundation_keys_v2`, `iadm04_plat_evolve`, `iadm04_demo_seed`, `iadm04_billing_rls` |
+| Headed evidence | `docs/iadm/iadm-04/evidence/s1/` — PASS; D15 **284 ms** |
+| Monolith billing | Left in place (addition D) |
+| Next | **Stop** — S2 only when newly authorized; no push unless owner says |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-03 Platform Identity & Access Governance (24-11-2026)
 

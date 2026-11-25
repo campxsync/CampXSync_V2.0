@@ -31,7 +31,7 @@ export interface ResolvedUserSession {
 
 export type RoleResolutionResult =
   | { success: true; session: ResolvedUserSession }
-  | { success: false; reason: 'unauthenticated' | 'no_profile' | 'inactive_membership' | 'tenant_suspended' | 'no_role_assigned' | 'db_error' };
+  | { success: false; reason: 'unauthenticated' | 'no_profile' | 'inactive_membership' | 'tenant_suspended' | 'subscription_inactive' | 'no_role_assigned' | 'db_error' };
 
 interface RoleCacheEntry {
   result: RoleResolutionResult;
@@ -325,6 +325,22 @@ function returnAndCache(userId: string, result: RoleResolutionResult): RoleResol
 
     if (tenant.deleted_at !== null || tenant.status === 'SUSPENDED') {
       return { success: false, reason: 'tenant_suspended' };
+    }
+
+    // IADM-04 dual access gate (addition A): institute ACTIVE ∧ subscription TRIAL|ACTIVE.
+    // Same choke as tenant_suspended — institute-scoped users only; platform admins skip earlier.
+    try {
+      const gateRes = await query(
+        'SELECT plat.subscription_allows_access($1::uuid) AS allowed',
+        [tenantId]
+      );
+      const allowed = gateRes.rows[0]?.allowed === true;
+      if (!allowed) {
+        return { success: false, reason: 'subscription_inactive' };
+      }
+    } catch (err: any) {
+      console.error('[resolveUserRole] Subscription access gate error:', err?.message || err);
+      return { success: false, reason: 'subscription_inactive' };
     }
 
     const tenantName = tenant?.name || 'Institutional Workspace';

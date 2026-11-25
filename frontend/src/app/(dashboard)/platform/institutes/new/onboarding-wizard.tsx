@@ -32,15 +32,14 @@ const INSTITUTE_TYPES = [
 ] as const;
 
 /**
- * Plan reference codes (US-001). Link/reference only — IADM-04 owns real plan limits.
- * Aligns with existing onboard-tenant enum plus Custom / Trial 30 days.
+ * IADM-04 catalogue codes (addition C). Wizard loads live ACTIVE plans when available;
+ * fallback keeps DEMO catalogue codes for offline/dev.
  */
-const PLAN_REFERENCES = [
-  { value: 'ENTERPRISE', label: 'Enterprise' },
-  { value: 'GROWTH', label: 'Growth' },
-  { value: 'STANDARD', label: 'Standard' },
-  { value: 'TRIAL_30_DAYS', label: 'Trial for 30 days' },
-  { value: 'CUSTOM', label: 'Custom' },
+const PLAN_REFERENCES_FALLBACK = [
+  { value: 'BASIC', label: 'DEMO Basic' },
+  { value: 'STANDARD', label: 'DEMO Standard' },
+  { value: 'PREMIUM', label: 'DEMO Premium' },
+  { value: 'TRIAL_STANDARD', label: 'DEMO Trial (Standard, 30 days)' },
 ] as const;
 
 const selectClassName =
@@ -86,6 +85,34 @@ export function OnboardingWizard() {
     adminEmail: '',
     adminDisplayName: '',
   });
+  const [planOptions, setPlanOptions] = useState<Array<{ value: string; label: string }>>(
+    PLAN_REFERENCES_FALLBACK.map((p) => ({ value: p.value, label: p.label }))
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/platform/billing?view=plans&status=ACTIVE', { cache: 'no-store' });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || !Array.isArray(body.items) || body.items.length === 0) return;
+        if (cancelled) return;
+        const live = body.items
+          .filter((p: { planCode?: string; planStatus?: string }) => p.planStatus === 'ACTIVE' && p.planCode)
+          .map((p: { planCode: string; name?: string; priceMinorUnits?: number; currencyCode?: string }) => ({
+            value: p.planCode,
+            label: `${p.name || p.planCode} (${p.priceMinorUnits ?? 0} ${p.currencyCode || 'INR'} minor)`,
+          }));
+        live.push({ value: 'TRIAL_STANDARD', label: 'DEMO Trial (Standard, 30 days)' });
+        if (live.length > 0) setPlanOptions(live);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Resume first-admin for an existing ONBOARDING institute (do not POST a new tenant).
   useEffect(() => {
@@ -163,6 +190,37 @@ export function OnboardingWizard() {
       const id = body.instituteId || body.tenantId;
       setInstituteId(id);
       if (body.notificationMessage) setNotificationNote(body.notificationMessage);
+
+      // IADM-04 attach (US-010): trial or PENDING — never activates institute.
+      if (id) {
+        const isTrial = form.planReference === 'TRIAL_STANDARD' || form.planReference.startsWith('TRIAL_');
+        const planCode = isTrial ? 'STANDARD' : form.planReference;
+        const attachRes = await fetch('/api/platform/billing/subscriptions/attach', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: id,
+            planCode,
+            mode: isTrial ? 'TRIAL' : 'PENDING',
+            idempotencyKey: `onboard-attach-${id}`,
+          }),
+        });
+        const attachBody = await attachRes.json().catch(() => ({}));
+        if (!attachRes.ok) {
+          setErrorMessage(
+            attachBody.detail ||
+              'Institute registered, but subscription attach failed. Resume from institutes list.'
+          );
+          setUiStep(3);
+          return;
+        }
+        if (attachBody.status === 'PENDING') {
+          setNotificationNote(
+            (body.notificationMessage ? body.notificationMessage + ' ' : '') +
+              'Subscription is PENDING — commercial access stays closed until payment (S2).'
+          );
+        }
+      }
       setUiStep(3);
     } catch {
       setErrorMessage('unavailable');
@@ -332,7 +390,7 @@ export function OnboardingWizard() {
                 onChange={(e) => update('planReference', e.target.value)}
               >
                 <option value="">Select plan…</option>
-                {PLAN_REFERENCES.map((p) => (
+                {planOptions.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
                   </option>
@@ -390,7 +448,7 @@ export function OnboardingWizard() {
             </p>
             <p>
               <strong>Plan:</strong>{' '}
-              {PLAN_REFERENCES.find((p) => p.value === form.planReference)?.label || form.planReference}
+              {planOptions.find((p) => p.value === form.planReference)?.label || form.planReference}
             </p>
             <p>
               <strong>Primary contact:</strong> {form.contact}
