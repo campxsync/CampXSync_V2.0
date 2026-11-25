@@ -6,6 +6,7 @@ import com.campx.iadm.billing.security.GatewayHmacVerifier;
 import com.campx.iadm.billing.security.UserSecurityContext;
 import com.campx.iadm.billing.service.BillingDomainService;
 import com.campx.iadm.billing.service.BillingFinanceService;
+import com.campx.iadm.billing.service.BillingOnlinePaymentService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -38,18 +39,28 @@ public class Iadm04Controller implements HttpHandler {
     private static final Pattern INVOICE_VOID = Pattern.compile(".*/invoices/([0-9a-fA-F-]{36})/void$");
     private static final Pattern OFFLINE_RECON = Pattern.compile(".*/offline-payments/([0-9a-fA-F-]{36})/reconcile$");
     private static final Pattern TRIAL_CONVERT = Pattern.compile(".*/subscriptions/([0-9a-fA-F-]{36})/convert-trial$");
+    private static final Pattern ONLINE_RECON = Pattern.compile(".*/online-payments/([0-9a-fA-F-]{36})/reconcile$");
+    private static final Pattern ONLINE_DEV_CB = Pattern.compile(".*/online-payments/([0-9a-fA-F-]{36})/dev-callback$");
+    private static final Pattern CALLBACK_RETRY = Pattern.compile(".*/payment-callbacks/([0-9a-fA-F-]{36})/retry$");
 
     private final BillingDomainService service;
     private final BillingFinanceService finance;
+    private final BillingOnlinePaymentService online;
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm04Controller(BillingDomainService service) {
-        this(service, new BillingFinanceService());
+        this(service, new BillingFinanceService(), new BillingOnlinePaymentService());
     }
 
     public Iadm04Controller(BillingDomainService service, BillingFinanceService finance) {
+        this(service, finance, new BillingOnlinePaymentService());
+    }
+
+    public Iadm04Controller(BillingDomainService service, BillingFinanceService finance,
+                            BillingOnlinePaymentService online) {
         this.service = service == null ? new BillingDomainService() : service;
         this.finance = finance == null ? new BillingFinanceService() : finance;
+        this.online = online == null ? new BillingOnlinePaymentService() : online;
     }
 
     @Override
@@ -273,6 +284,62 @@ public class Iadm04Controller implements HttpHandler {
                         UUID.fromString(offlineRecon.group(1)),
                         extract(body, "decision"),
                         extract(body, "reason"))));
+                return;
+            }
+
+            // ---- S3: online payments / signed callback / reconcile / R02 retry ----
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/online-payments")) {
+                sendJson(exchange, 200, toJson(online.listOnlinePayments(ctx,
+                        queryParam(exchange, "status"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/online-payments/initiate")) {
+                sendJson(exchange, 200, toJson(online.initiate(ctx,
+                        parseUuid(extract(body, "invoiceId")),
+                        extract(body, "idempotencyKey"),
+                        extract(body, "simulatorOutcome"))));
+                return;
+            }
+            Matcher onlineDevCb = ONLINE_DEV_CB.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && onlineDevCb.matches()) {
+                sendJson(exchange, 200, toJson(online.buildDevSuccessCallback(ctx,
+                        UUID.fromString(onlineDevCb.group(1)),
+                        parseLong(extract(body, "amountMinorUnits")))));
+                return;
+            }
+            Matcher onlineRecon = ONLINE_RECON.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && onlineRecon.matches()) {
+                sendJson(exchange, 200, toJson(online.reconcileOnline(ctx,
+                        UUID.fromString(onlineRecon.group(1)),
+                        extract(body, "decision"),
+                        extract(body, "reason"))));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/payments/callback")) {
+                // Machine ingress: settlement authorized by provider signature headers.
+                Map<String, Object> cbBody = new LinkedHashMap<String, Object>();
+                cbBody.put("eventId", extract(body, "eventId"));
+                cbBody.put("intentId", extract(body, "intentId"));
+                cbBody.put("providerRef", extract(body, "providerRef"));
+                cbBody.put("settlementStatus", extract(body, "settlementStatus"));
+                cbBody.put("amountMinorUnits", parseLong(extract(body, "amountMinorUnits")));
+                cbBody.put("currencyCode", extract(body, "currencyCode"));
+                cbBody.put("provider", extract(body, "provider"));
+                String ts = firstNonEmpty(header(exchange, "X-IADM04-Provider-Timestamp"),
+                        header(exchange, "X-Provider-Timestamp"));
+                String sig = firstNonEmpty(header(exchange, "X-IADM04-Provider-Signature"),
+                        header(exchange, "X-Provider-Signature"));
+                sendJson(exchange, 200, toJson(online.handleCallback(ctx, ts, sig, body, cbBody)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/payment-callbacks/failures")) {
+                sendJson(exchange, 200, toJson(online.listFailedCallbacks(ctx)));
+                return;
+            }
+            Matcher cbRetry = CALLBACK_RETRY.matcher(path);
+            if ("POST".equalsIgnoreCase(method) && cbRetry.matches()) {
+                sendJson(exchange, 200, toJson(online.retryFailedCallback(ctx,
+                        UUID.fromString(cbRetry.group(1)))));
                 return;
             }
 

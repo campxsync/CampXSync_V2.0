@@ -38,6 +38,12 @@ export default function PlatformBillingPage() {
   const [planChanges, setPlanChanges] = useState<
     Array<{ id: string; status?: string; tenantId?: string; requestedPlanId?: string; effectiveOn?: string }>
   >([]);
+  const [onlinePayments, setOnlinePayments] = useState<
+    Array<{ id: string; status?: string; invoiceId?: string; amountMinorUnits?: number; providerRef?: string }>
+  >([]);
+  const [failedCallbacks, setFailedCallbacks] = useState<
+    Array<{ id: string; processingStatus?: string; eventId?: string; errorDetail?: string; retryCount?: number }>
+  >([]);
   const [policy, setPolicy] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,23 +56,29 @@ export default function PlatformBillingPage() {
     setError(null);
     try {
       const qs = statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : '';
-      const [planRes, subRes, polRes, invRes, pcRes] = await Promise.all([
+      const [planRes, subRes, polRes, invRes, pcRes, onlineRes, failRes] = await Promise.all([
         fetch('/api/platform/billing?view=plans'),
         fetch(`/api/platform/billing?view=subscriptions${qs}`),
         fetch('/api/platform/billing?view=trial-policy'),
         fetch('/api/platform/billing?view=invoices'),
         fetch('/api/platform/billing?view=plan-changes'),
+        fetch('/api/platform/billing?view=online-payments'),
+        fetch('/api/platform/billing?view=payment-callback-failures'),
       ]);
       const planBody = await planRes.json();
       const subBody = await subRes.json();
       const polBody = await polRes.json();
       const invBody = await invRes.json();
       const pcBody = await pcRes.json();
+      const onlineBody = await onlineRes.json().catch(() => ({}));
+      const failBody = await failRes.json().catch(() => ({}));
       if (!planRes.ok) throw new Error(planBody.detail || 'Plans unavailable');
       setPlans(Array.isArray(planBody.items) ? planBody.items : []);
       setSubs(Array.isArray(subBody.items) ? subBody.items : []);
       setInvoices(Array.isArray(invBody.items) ? invBody.items : []);
       setPlanChanges(Array.isArray(pcBody.items) ? pcBody.items : []);
+      setOnlinePayments(Array.isArray(onlineBody.items) ? onlineBody.items : []);
+      setFailedCallbacks(Array.isArray(failBody.items) ? failBody.items : []);
       setPolicy(polBody.policy || null);
       if (!subRes.ok) setError(subBody.detail || 'Subscriptions partially unavailable');
     } catch (e) {
@@ -400,6 +412,119 @@ export default function PlatformBillingPage() {
         >
           Record offline evidence on first open invoice
         </button>
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-online-payment-desk">
+        <h2 className="text-lg font-medium text-[#1B2433]">Online payment & reconciliation</h2>
+        <p className="text-sm text-[#5B6573]">
+          DEV simulator only — initiate is not settlement. Signed callback confirms payment.
+        </p>
+        <button
+          type="button"
+          className="rounded border border-[#E3E8EF] px-3 py-1.5 text-sm"
+          data-testid="iadm04-online-initiate"
+          onClick={async () => {
+            const inv = invoices.find((i) => i.status === 'ISSUED' || i.status === 'DUE');
+            if (!inv) {
+              setActionMsg('Generate an ISSUED invoice first.');
+              return;
+            }
+            const res = await fetch('/api/platform/billing?view=online-initiate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                invoiceId: inv.id,
+                idempotencyKey: `desk-online-${inv.id}-${Date.now()}`,
+                simulatorOutcome: 'SUCCESS',
+              }),
+            });
+            const body = await res.json().catch(() => ({}));
+            setActionMsg(
+              res.ok
+                ? `Online intent ${body.id?.slice?.(0, 8) || body.id} ${body.status} (adapter=${body.adapterOutcome || 'n/a'})`
+                : body.detail || 'online initiate failed'
+            );
+            void load();
+          }}
+        >
+          Initiate online payment (DEV simulator)
+        </button>
+        {onlinePayments.length === 0 ? (
+          <p className="text-sm text-[#5B6573]">No online payment intents yet.</p>
+        ) : (
+          <ul className="space-y-2 text-sm" data-testid="iadm04-online-payment-list">
+            {onlinePayments.slice(0, 20).map((op) => (
+              <li key={op.id} className="flex flex-wrap items-center gap-2">
+                <span>
+                  {op.id.slice(0, 8)} — {op.status} — {op.amountMinorUnits} — {op.providerRef || 'no-ref'}
+                </span>
+                {(op.status === 'MISMATCHED' || op.status === 'UNMATCHED' || op.status === 'FAILED') && (
+                  <button
+                    type="button"
+                    className="rounded border border-[#E3E8EF] px-2 py-1 text-xs"
+                    data-testid={`iadm04-online-reconcile-${op.id}`}
+                    onClick={async () => {
+                      const res = await fetch(
+                        `/api/platform/billing?view=online-reconcile&id=${encodeURIComponent(op.id)}`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            decision: op.status === 'FAILED' ? 'MARK_FAILED' : 'FORCE_MATCH',
+                            reason: 'S3 desk reconcile',
+                          }),
+                        }
+                      );
+                      const body = await res.json().catch(() => ({}));
+                      setActionMsg(res.ok ? `Reconciled ${op.id.slice(0, 8)}` : body.detail || 'deny');
+                      void load();
+                    }}
+                  >
+                    Reconcile
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3" data-testid="iadm04-ops-callback-desk">
+        <h2 className="text-lg font-medium text-[#1B2433]">System ops — failed callbacks</h2>
+        <p className="text-sm text-[#5B6573]">
+          System Admin may inspect and retry failed callbacks only (no commercial authority).
+        </p>
+        {failedCallbacks.length === 0 ? (
+          <p className="text-sm text-[#5B6573]" data-testid="iadm04-callback-failures-empty">
+            No failed callbacks.
+          </p>
+        ) : (
+          <ul className="space-y-2 text-sm" data-testid="iadm04-callback-failures">
+            {failedCallbacks.slice(0, 20).map((cb) => (
+              <li key={cb.id} className="flex flex-wrap items-center gap-2">
+                <span>
+                  {cb.eventId || cb.id.slice(0, 8)} — {cb.processingStatus} — retries {cb.retryCount ?? 0}
+                </span>
+                <button
+                  type="button"
+                  className="rounded border border-[#E3E8EF] px-2 py-1 text-xs"
+                  data-testid={`iadm04-callback-retry-${cb.id}`}
+                  onClick={async () => {
+                    const res = await fetch(
+                      `/api/platform/billing?view=callback-retry&id=${encodeURIComponent(cb.id)}`,
+                      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+                    );
+                    const body = await res.json().catch(() => ({}));
+                    setActionMsg(res.ok ? `Retry queued ${cb.id.slice(0, 8)}` : body.detail || 'deny');
+                    void load();
+                  }}
+                >
+                  Retry
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );

@@ -1,0 +1,70 @@
+{
+  "story": "IADM-04 S3",
+  "passed": true,
+  "at": "2026-11-25T06:24:52.075Z",
+  "results": [
+    {
+      "step": "open-invoice",
+      "ok": true,
+      "detail": "invoiceId=f347f08a-6c11-4962-a787-76da249674e9"
+    },
+    {
+      "step": "initiate",
+      "ok": true,
+      "detail": "intent=afcd868d-445f-4d28-83f4-c3eb1273cba6 status=PENDING adapter=undefined",
+      "status": 200
+    },
+    {
+      "step": "duplicate-initiate",
+      "ok": true,
+      "detail": "same intent afcd868d-445f-4d28-83f4-c3eb1273cba6"
+    },
+    {
+      "step": "invalid-signature",
+      "ok": true,
+      "detail": "callbackId=e5b2f14e-d7eb-487f-a480-6de03f41c67c"
+    },
+    {
+      "step": "valid-callback-settle",
+      "ok": true,
+      "detail": "intent=CONFIRMED"
+    },
+    {
+      "step": "duplicate-callback",
+      "ok": true,
+      "detail": "safely acknowledged"
+    },
+    {
+      "step": "mismatch-hold",
+      "ok": true,
+      "detail": "invoice unchanged"
+    },
+    {
+      "step": "online-reconcile",
+      "ok": true,
+      "detail": "decision=FORCE_MATCH"
+    },
+    {
+      "step": "r02-retry",
+      "ok": true,
+      "detail": "callback=6e2c86ca-93bb-438f-98ba-0b9363fe7501"
+    },
+    {
+      "step": "auditor-commercial-deny-skip",
+      "ok": true,
+      "detail": "Auditor password not available"
+    },
+    {
+      "step": "ui-online-desk",
+      "ok": true,
+      "detail": "platform online payment desk visible",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s3\\s3_online_payment_desk.png"
+    },
+    {
+      "step": "ui-ops-desk",
+      "ok": true,
+      "detail": "ops callback desk visible",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-04\\evidence\\s3\\s3_ops_callback_desk.png"
+    }
+  ]
+}

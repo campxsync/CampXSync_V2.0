@@ -49,6 +49,12 @@ export async function GET(req: NextRequest) {
     path = invoiceId
       ? `/api/v1/iadm/04/offline-payments?invoiceId=${encodeURIComponent(invoiceId)}`
       : '/api/v1/iadm/04/offline-payments';
+  } else if (view === 'online-payments') {
+    path = status
+      ? `/api/v1/iadm/04/online-payments?status=${encodeURIComponent(status)}`
+      : '/api/v1/iadm/04/online-payments';
+  } else if (view === 'payment-callback-failures') {
+    path = '/api/v1/iadm/04/payment-callbacks/failures';
   } else if (view === 'plans') {
     path = status
       ? `/api/v1/iadm/04/plans?status=${encodeURIComponent(status)}`
@@ -78,7 +84,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const resolution = await resolveUserRole(supabase);
-  if (!resolution.success || resolution.session.role !== 'platform_admin') {
+  if (!resolution.success) {
     return NextResponse.json(
       { errorCode: 'FORBIDDEN', detail: 'You are not authorized for this action.' },
       { status: 403 }
@@ -86,6 +92,23 @@ export async function POST(req: NextRequest) {
   }
   const { searchParams } = new URL(req.url);
   const view = searchParams.get('view') || 'plans';
+  const role = resolution.session.role;
+  const isR01 = role === 'platform_admin';
+  const isR02 = role === 'system_admin';
+  // R02 may only retry failed callbacks (US-030); all other POSTs require R01.
+  if (view === 'callback-retry') {
+    if (!isR01 && !isR02) {
+      return NextResponse.json(
+        { errorCode: 'FORBIDDEN', detail: 'You are not authorized for this action.' },
+        { status: 403 }
+      );
+    }
+  } else if (!isR01) {
+    return NextResponse.json(
+      { errorCode: 'FORBIDDEN', detail: 'You are not authorized for this action.' },
+      { status: 403 }
+    );
+  }
   const raw = await req.text();
   let path = '/api/v1/iadm/04/plans';
   if (view === 'plans') {
@@ -108,6 +131,14 @@ export async function POST(req: NextRequest) {
   } else if (view === 'convert-trial') {
     const id = searchParams.get('subscriptionId') || '';
     path = `/api/v1/iadm/04/subscriptions/${encodeURIComponent(id)}/convert-trial`;
+  } else if (view === 'online-initiate') {
+    path = '/api/v1/iadm/04/online-payments/initiate';
+  } else if (view === 'online-reconcile') {
+    const id = searchParams.get('id') || '';
+    path = `/api/v1/iadm/04/online-payments/${encodeURIComponent(id)}/reconcile`;
+  } else if (view === 'callback-retry') {
+    const id = searchParams.get('id') || '';
+    path = `/api/v1/iadm/04/payment-callbacks/${encodeURIComponent(id)}/retry`;
   } else {
     return NextResponse.json({ errorCode: 'IADM04_INVALID', detail: 'Unknown view.' }, { status: 400 });
   }
