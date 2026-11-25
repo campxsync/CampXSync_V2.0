@@ -152,6 +152,6 @@ All green on this run: **27/27** US-038 headed steps; **12/12** evidence 4a step
 ## 7. Local commits (not pushed)
 
 1. `97eaba6` — `feat(iadm04): S5 close-out — US-038/040, 410 cutover, FORCE RLS`  
-2. (this commit) — `test(iadm04): S5 evidence 4a — R03 DEMO persona and headed gate film`  
+2. `0dbf35d` — `test(iadm04): S5 evidence 4a — R03 DEMO persona and headed gate film`  
 
 No push until owner authorizes.
