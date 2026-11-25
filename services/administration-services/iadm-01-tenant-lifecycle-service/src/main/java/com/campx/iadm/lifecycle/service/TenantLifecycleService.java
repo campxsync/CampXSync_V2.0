@@ -253,6 +253,173 @@ public class TenantLifecycleService {
         });
     }
 
+    /**
+     * Additive read-only aggregate contract for IADM-06 (M01–M06).
+     * Plain language: counts only — no person-level rows. Does not change existing endpoints.
+     */
+    public Map<String, Object> getAnalyticsAggregates(UserSecurityContext ctx, String window, UUID tenantFilter) {
+        return ctx.executeInTransaction(db, conn -> {
+            boolean platform = false;
+            try {
+                ctx.checkPlatformAdmin(conn);
+                platform = true;
+            } catch (Exception ignored) {
+                platform = false;
+            }
+            UUID scope = tenantFilter;
+            if (!platform) {
+                scope = ctx.getTenantId();
+                if (scope == null) {
+                    throw new InstituteAdminException(403, "IADM01_FORBIDDEN", "Tenant context required.");
+                }
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("queryTime", java.time.Instant.now().toString());
+            out.put("demoLabel", null);
+
+            // M01 institutes by lifecycle status
+            List<Map<String, Object>> byStatus = new ArrayList<>();
+            String statusSql = platform && scope == null
+                    ? "SELECT upper(status) AS status, count(*)::int AS cnt FROM core.tenants WHERE deleted_at IS NULL GROUP BY 1"
+                    : "SELECT upper(status) AS status, count(*)::int AS cnt FROM core.tenants WHERE deleted_at IS NULL AND id = ? GROUP BY 1";
+            try (PreparedStatement ps = conn.prepareStatement(statusSql)) {
+                if (!(platform && scope == null)) {
+                    ps.setObject(1, scope);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> g = new LinkedHashMap<>();
+                        g.put("key", rs.getString("status"));
+                        g.put("status", rs.getString("status"));
+                        g.put("count", rs.getInt("cnt"));
+                        byStatus.add(g);
+                    }
+                }
+            }
+            out.put("institutesByStatus", byStatus);
+
+            // M02 total institutes
+            int totalInst = 0;
+            String totalSql = platform && scope == null
+                    ? "SELECT count(*)::int FROM core.tenants WHERE deleted_at IS NULL"
+                    : "SELECT count(*)::int FROM core.tenants WHERE deleted_at IS NULL AND id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(totalSql)) {
+                if (!(platform && scope == null)) {
+                    ps.setObject(1, scope);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    totalInst = rs.next() ? rs.getInt(1) : 0;
+                }
+            }
+            out.put("totalInstitutes", totalInst);
+
+            // M03 colleges per institute
+            List<Map<String, Object>> perInst = new ArrayList<>();
+            String perSql = platform && scope == null
+                    ? "SELECT t.id::text AS institute_id, t.code AS institute_code, count(c.id)::int AS cnt "
+                    + "FROM core.tenants t LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL "
+                    + "WHERE t.deleted_at IS NULL GROUP BY t.id, t.code ORDER BY t.code"
+                    : "SELECT t.id::text AS institute_id, t.code AS institute_code, count(c.id)::int AS cnt "
+                    + "FROM core.tenants t LEFT JOIN core.colleges c ON c.tenant_id = t.id AND c.deleted_at IS NULL "
+                    + "WHERE t.deleted_at IS NULL AND t.id = ? GROUP BY t.id, t.code";
+            try (PreparedStatement ps = conn.prepareStatement(perSql)) {
+                if (!(platform && scope == null)) {
+                    ps.setObject(1, scope);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> g = new LinkedHashMap<>();
+                        g.put("key", rs.getString("institute_code"));
+                        g.put("instituteId", rs.getString("institute_id"));
+                        g.put("count", rs.getInt("cnt"));
+                        perInst.add(g);
+                    }
+                }
+            }
+            out.put("collegesPerInstitute", perInst);
+
+            // M04 colleges by lifecycle status
+            List<Map<String, Object>> colByStatus = new ArrayList<>();
+            String colStatusSql = platform && scope == null
+                    ? "SELECT upper(status) AS status, count(*)::int AS cnt FROM core.colleges WHERE deleted_at IS NULL GROUP BY 1"
+                    : "SELECT upper(status) AS status, count(*)::int AS cnt FROM core.colleges WHERE deleted_at IS NULL AND tenant_id = ? GROUP BY 1";
+            try (PreparedStatement ps = conn.prepareStatement(colStatusSql)) {
+                if (!(platform && scope == null)) {
+                    ps.setObject(1, scope);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> g = new LinkedHashMap<>();
+                        g.put("key", rs.getString("status"));
+                        g.put("status", rs.getString("status"));
+                        g.put("count", rs.getInt("cnt"));
+                        colByStatus.add(g);
+                    }
+                }
+            }
+            out.put("collegesByStatus", colByStatus);
+
+            // M05 / M06 created in window (day/month/quarter) where created_at exists
+            String trunc = "month";
+            if (window != null) {
+                String w = window.trim().toLowerCase();
+                if ("day".equals(w) || "month".equals(w) || "quarter".equals(w)) {
+                    trunc = w;
+                }
+            }
+            List<Map<String, Object>> instCreated = new ArrayList<>();
+            String icSql = platform && scope == null
+                    ? "SELECT to_char(date_trunc('" + trunc + "', created_at), 'YYYY-MM-DD') AS bucket, count(*)::int AS cnt "
+                    + "FROM core.tenants WHERE deleted_at IS NULL AND created_at IS NOT NULL "
+                    + "GROUP BY 1 ORDER BY 1"
+                    : "SELECT to_char(date_trunc('" + trunc + "', created_at), 'YYYY-MM-DD') AS bucket, count(*)::int AS cnt "
+                    + "FROM core.tenants WHERE deleted_at IS NULL AND created_at IS NOT NULL AND id = ? "
+                    + "GROUP BY 1 ORDER BY 1";
+            try (PreparedStatement ps = conn.prepareStatement(icSql)) {
+                if (!(platform && scope == null)) {
+                    ps.setObject(1, scope);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> g = new LinkedHashMap<>();
+                        g.put("key", rs.getString("bucket"));
+                        g.put("bucket", rs.getString("bucket"));
+                        g.put("count", rs.getInt("cnt"));
+                        instCreated.add(g);
+                    }
+                }
+            }
+            out.put("institutesCreated", instCreated);
+            out.put("institutesCreatedWindow", trunc);
+
+            List<Map<String, Object>> colCreated = new ArrayList<>();
+            String ccSql = platform && scope == null
+                    ? "SELECT to_char(date_trunc('" + trunc + "', created_at), 'YYYY-MM-DD') AS bucket, count(*)::int AS cnt "
+                    + "FROM core.colleges WHERE deleted_at IS NULL AND created_at IS NOT NULL "
+                    + "GROUP BY 1 ORDER BY 1"
+                    : "SELECT to_char(date_trunc('" + trunc + "', created_at), 'YYYY-MM-DD') AS bucket, count(*)::int AS cnt "
+                    + "FROM core.colleges WHERE deleted_at IS NULL AND created_at IS NOT NULL AND tenant_id = ? "
+                    + "GROUP BY 1 ORDER BY 1";
+            try (PreparedStatement ps = conn.prepareStatement(ccSql)) {
+                if (!(platform && scope == null)) {
+                    ps.setObject(1, scope);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> g = new LinkedHashMap<>();
+                        g.put("key", rs.getString("bucket"));
+                        g.put("bucket", rs.getString("bucket"));
+                        g.put("count", rs.getInt("cnt"));
+                        colCreated.add(g);
+                    }
+                }
+            }
+            out.put("collegesCreated", colCreated);
+            out.put("collegesCreatedWindow", trunc);
+            return out;
+        });
+    }
+
     public Map<String, Object> getOnboarding(UserSecurityContext ctx, UUID instituteId) {
         return ctx.executeInTransaction(db, conn -> {
             requirePlatformOrOwnView(conn, ctx, instituteId);

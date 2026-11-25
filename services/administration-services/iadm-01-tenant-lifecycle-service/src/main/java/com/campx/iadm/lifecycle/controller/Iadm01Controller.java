@@ -115,6 +115,18 @@ public class Iadm01Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.getSummary(ctx)));
                 return;
             }
+            // Additive read-only aggregates for IADM-06 (no change to existing behaviour)
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/analytics-aggregates")) {
+                String q = exchange.getRequestURI().getQuery();
+                String window = queryParam(q, "window");
+                String tenantId = queryParam(q, "tenantId");
+                UUID tenantFilter = null;
+                if (tenantId != null && !tenantId.trim().isEmpty()) {
+                    tenantFilter = UUID.fromString(tenantId.trim());
+                }
+                sendJson(exchange, 200, toJson(service.getAnalyticsAggregates(ctx, window, tenantFilter)));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/institutes") || path.endsWith("/institutes/"))) {
                 String q = exchange.getRequestURI().getQuery();
                 String status = queryParam(q, "status");
