@@ -1,0 +1,79 @@
+{
+  "generatedAt": "2026-11-25T07:18:46.241Z",
+  "results": [
+    {
+      "phase": "pending",
+      "step": "PENDING gate API",
+      "ok": true,
+      "detail": "{\"instituteId\":\"d4000000-0000-4000-8000-000000000004\",\"allowed\":false,\"reason\":\"GATE_DENIED\",\"cached\":false}"
+    },
+    {
+      "phase": "pending",
+      "step": "PENDING desk + pay path",
+      "ok": true,
+      "detail": "visible"
+    },
+    {
+      "phase": "pending",
+      "step": "PENDING profile allowed",
+      "ok": true,
+      "detail": "http://127.0.0.1:3000/institution/profile"
+    },
+    {
+      "phase": "pending",
+      "step": "PENDING colleges blocked with message",
+      "ok": true,
+      "detail": "http://127.0.0.1:3000/access-denied?reason=subscription_inactive"
+    },
+    {
+      "phase": "pending",
+      "step": "PENDING simulator settle",
+      "ok": true,
+      "detail": "ACTIVE"
+    },
+    {
+      "phase": "pending",
+      "step": "ACTIVE access restored",
+      "ok": true,
+      "detail": "status=ACTIVE"
+    },
+    {
+      "phase": "none",
+      "step": "NONE gate API deny",
+      "ok": true,
+      "detail": "{\"instituteId\":\"d4000000-0000-4000-8000-000000000004\",\"allowed\":false,\"reason\":\"GATE_DENIED\",\"cached\":false}"
+    },
+    {
+      "phase": "none",
+      "step": "NONE desk deny UI",
+      "ok": true,
+      "detail": "noSub=true limited=true"
+    },
+    {
+      "phase": "none",
+      "step": "NONE colleges blocked",
+      "ok": true,
+      "detail": "http://127.0.0.1:3000/access-denied?reason=subscription_inactive"
+    },
+    {
+      "phase": "trial",
+      "step": "TRIAL gate API allow",
+      "ok": true,
+      "detail": "{\"instituteId\":\"d4000000-0000-4000-8000-000000000004\",\"allowed\":true,\"reason\":\"ACTIVE_AND_TRIAL_OR_ACTIVE_SUB\",\"cached\":false}"
+    },
+    {
+      "phase": "trial",
+      "step": "TRIAL desk not limited",
+      "ok": true,
+      "detail": "status="
+    },
+    {
+      "phase": "trial",
+      "step": "TRIAL colleges allowed",
+      "ok": true,
+      "detail": "http://127.0.0.1:3000/institution/colleges"
+    }
+  ],
+  "passCount": 12,
+  "failCount": 0
+}
