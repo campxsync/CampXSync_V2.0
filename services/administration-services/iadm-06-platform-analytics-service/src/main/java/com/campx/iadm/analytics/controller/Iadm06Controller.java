@@ -162,7 +162,8 @@ public class Iadm06Controller implements HttpHandler {
                         parseBoolean(bodyMap.get("auditDisabled")),
                         parseBoolean(bodyMap.get("iadm01Disabled")),
                         parseBoolean(bodyMap.get("iadm04Disabled")),
-                        parseBoolean(bodyMap.get("iadm05Disabled")))));
+                        parseBoolean(bodyMap.get("iadm05Disabled")),
+                        parseBoolean(bodyMap.get("exportFailOnce")))));
                 return;
             }
 
@@ -327,7 +328,7 @@ public class Iadm06Controller implements HttpHandler {
         // Minimal key extractor for simple flat JSON used by our clients
         String[] keys = new String[]{
                 "threshold", "tenantId", "scopeType", "window", "auditDisabled",
-                "iadm01Disabled", "iadm04Disabled", "iadm05Disabled"
+                "iadm01Disabled", "iadm04Disabled", "iadm05Disabled", "exportFailOnce"
         };
         for (int i = 0; i < keys.length; i++) {
             String v = extract(body, keys[i]);

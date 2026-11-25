@@ -1,0 +1,34 @@
+[
+  {
+    "step": "propose",
+    "status": 200,
+    "policyId": "4c3c9937-627d-40c8-ad7d-117381234ef0",
+    "versionNo": 2
+  },
+  {
+    "step": "submit-review",
+    "status": 200,
+    "statusField": "IN_REVIEW"
+  },
+  {
+    "step": "approve",
+    "status": 200,
+    "statusField": "APPROVED",
+    "authorNeApprover": true
+  },
+  {
+    "step": "publish",
+    "status": 200,
+    "statusField": "PUBLISHED",
+    "code": "DEMO-ANALYTICS-HANDLING",
+    "versionNo": 2,
+    "effectiveFrom": "2026-11-25T12:22:47.974Z"
+  },
+  {
+    "step": "resolve-check",
+    "status": 200,
+    "code": "DEMO-ANALYTICS-HANDLING",
+    "versionNo": 2,
+    "policyId": "4c3c9937-627d-40c8-ad7d-117381234ef0"
+  }
+]

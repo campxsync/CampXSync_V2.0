@@ -10,6 +10,8 @@ public final class AnalyticsOutageFlags {
     private static volatile boolean iadm01Disabled;
     private static volatile boolean iadm04Disabled;
     private static volatile boolean iadm05Disabled;
+    /** DEMO ONLY: next export process marks FAILED once, then clears. */
+    private static volatile boolean exportFailOnce;
 
     private AnalyticsOutageFlags() {
     }
@@ -30,7 +32,19 @@ public final class AnalyticsOutageFlags {
         return iadm05Disabled;
     }
 
+    public static boolean consumeExportFailOnce() {
+        if (!exportFailOnce) {
+            return false;
+        }
+        exportFailOnce = false;
+        return true;
+    }
+
     public static void set(Boolean audit, Boolean src01, Boolean src04, Boolean src05) {
+        set(audit, src01, src04, src05, null);
+    }
+
+    public static void set(Boolean audit, Boolean src01, Boolean src04, Boolean src05, Boolean failExportOnce) {
         if (audit != null) {
             auditDisabled = audit.booleanValue();
         }
@@ -43,6 +57,9 @@ public final class AnalyticsOutageFlags {
         if (src05 != null) {
             iadm05Disabled = src05.booleanValue();
         }
+        if (failExportOnce != null) {
+            exportFailOnce = failExportOnce.booleanValue();
+        }
     }
 
     public static java.util.Map<String, Object> snapshot() {
@@ -51,6 +68,7 @@ public final class AnalyticsOutageFlags {
         m.put("iadm01Disabled", Boolean.valueOf(iadm01Disabled));
         m.put("iadm04Disabled", Boolean.valueOf(iadm04Disabled));
         m.put("iadm05Disabled", Boolean.valueOf(iadm05Disabled));
+        m.put("exportFailOnce", Boolean.valueOf(exportFailOnce));
         m.put("label", "DEMO ONLY");
         return m;
     }

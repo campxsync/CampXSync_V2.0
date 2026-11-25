@@ -341,7 +341,9 @@ public class BillingUsageReportService {
                                                       final UUID tenantFilter) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                boolean platform = isPlatformOperator(conn) || hasPermission(conn, "iadm04.reports.view")
+                // Additive IADM-06 read: Super Admin OR System Admin OR report/subscription viewers
+                boolean platform = isPlatformOperator(conn) || isSystemAdmin(conn)
+                        || hasPermission(conn, "iadm04.reports.view")
                         || hasPermission(conn, "iadm04.subscriptions.view");
                 boolean own = hasPermission(conn, "iadm04.subscriptions.view.own");
                 if (!platform && !own) {
@@ -360,11 +362,11 @@ public class BillingUsageReportService {
 
                 List<Map<String, Object>> byPlan = new ArrayList<Map<String, Object>>();
                 String planSql = scope == null
-                        ? "SELECT coalesce(p.code,'UNKNOWN') AS plan_code, count(s.id)::int AS cnt "
-                        + "FROM plat.subscriptions s LEFT JOIN plat.plans p ON p.id = s.plan_id "
+                        ? "SELECT coalesce(p.plan_code,'UNKNOWN') AS plan_code, count(s.id)::int AS cnt "
+                        + "FROM plat.subscriptions s LEFT JOIN plat.subscription_plans p ON p.id = s.plan_id "
                         + "WHERE s.deleted_at IS NULL GROUP BY 1 ORDER BY 1"
-                        : "SELECT coalesce(p.code,'UNKNOWN') AS plan_code, count(s.id)::int AS cnt "
-                        + "FROM plat.subscriptions s LEFT JOIN plat.plans p ON p.id = s.plan_id "
+                        : "SELECT coalesce(p.plan_code,'UNKNOWN') AS plan_code, count(s.id)::int AS cnt "
+                        + "FROM plat.subscriptions s LEFT JOIN plat.subscription_plans p ON p.id = s.plan_id "
                         + "WHERE s.deleted_at IS NULL AND s.tenant_id = ? GROUP BY 1 ORDER BY 1";
                 try (PreparedStatement ps = conn.prepareStatement(planSql)) {
                     if (scope != null) {
@@ -515,6 +517,19 @@ public class BillingUsageReportService {
                 "SELECT EXISTS ("
                         + "SELECT 1 FROM plat.platform_admins p "
                         + "WHERE p.user_id = auth.uid() AND p.role_code = 'SUPER_ADMIN' "
+                        + "AND p.status = 'ACTIVE' AND p.deleted_at IS NULL)")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getBoolean(1);
+            }
+        }
+    }
+
+    /** System Admin (R02) — allowed for additive analytics-aggregates only. */
+    private boolean isSystemAdmin(Connection conn) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT EXISTS ("
+                        + "SELECT 1 FROM plat.platform_admins p "
+                        + "WHERE p.user_id = auth.uid() AND p.role_code = 'SYSTEM_ADMIN' "
                         + "AND p.status = 'ACTIVE' AND p.deleted_at IS NULL)")) {
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() && rs.getBoolean(1);

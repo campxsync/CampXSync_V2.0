@@ -114,6 +114,29 @@ export default function PlatformAnalyticsPage() {
     await load();
   };
 
+  const setOutage = async (flags: Record<string, boolean>) => {
+    const res = await fetch('/api/platform/analytics?view=outage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(flags),
+    });
+    const body = await res.json();
+    setActionMsg(`DEMO ONLY outage flags: ${JSON.stringify(body)}`);
+    setError(null);
+    await load();
+  };
+
+  const retryExport = async (exportId: string) => {
+    const res = await fetch(`/api/platform/analytics?view=export-retry&id=${encodeURIComponent(exportId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const body = await res.json();
+    setActionMsg(res.ok ? `Retry ${body.status}: ${body.id}` : body.detail || 'Retry refused');
+    await loadTab('export');
+  };
+
   const metricsOf = (payload: Record<string, unknown> | null): Record<string, MetricBlock> => {
     if (!payload || typeof payload.metrics !== 'object' || !payload.metrics) return {};
     return payload.metrics as Record<string, MetricBlock>;
@@ -169,32 +192,8 @@ export default function PlatformAnalyticsPage() {
     );
   };
 
-  if (loading) {
-    return (
-      <main data-testid="iadm06-platform-desk" className="mx-auto max-w-5xl p-6">
-        Loading analytics…
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main data-testid="iadm06-platform-desk" className="mx-auto max-w-5xl space-y-4 p-6">
-        <h1 className="text-2xl font-semibold">Platform Analytics</h1>
-        <p data-testid="iadm06-access-denied" className="text-red-700">
-          {error}
-        </p>
-      </main>
-    );
-  }
-
-  return (
-    <main data-testid="iadm06-platform-desk" className="mx-auto max-w-5xl space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Platform Analytics &amp; Usage Insights</h1>
-        <p className="text-slate-600">Aggregates only — no raw or person-level rows.</p>
-      </header>
-
+  const controls = (
+    <>
       <div className="flex flex-wrap gap-2" data-testid="iadm06-tabs">
         {(['overview', 'catalogue', 'comparison', 'entitlements', 'trends', 'export'] as const).map((t) => (
           <button
@@ -234,7 +233,59 @@ export default function PlatformAnalyticsPage() {
         </button>
       </div>
 
+      <div className="flex flex-wrap gap-2" data-testid="iadm06-fault-controls">
+        <span className="text-sm text-slate-500">DEMO ONLY faults:</span>
+        <button type="button" data-testid="iadm06-fault-policy" className="rounded bg-amber-100 px-2 py-1 text-sm" onClick={() => void setOutage({ iadm05Disabled: true })}>
+          Unresolved policy
+        </button>
+        <button type="button" data-testid="iadm06-fault-source" className="rounded bg-amber-100 px-2 py-1 text-sm" onClick={() => void setOutage({ iadm01Disabled: true })}>
+          Source stopped
+        </button>
+        <button type="button" data-testid="iadm06-fault-audit" className="rounded bg-amber-100 px-2 py-1 text-sm" onClick={() => void setOutage({ auditDisabled: true })}>
+          Audit unavailable
+        </button>
+        <button type="button" data-testid="iadm06-fault-export" className="rounded bg-amber-100 px-2 py-1 text-sm" onClick={() => void setOutage({ exportFailOnce: true })}>
+          Fail next export
+        </button>
+        <button type="button" data-testid="iadm06-fault-clear" className="rounded bg-slate-100 px-2 py-1 text-sm" onClick={() => void setOutage({ auditDisabled: false, iadm01Disabled: false, iadm04Disabled: false, iadm05Disabled: false, exportFailOnce: false })}>
+          Clear faults
+        </button>
+      </div>
+
       {actionMsg ? <p data-testid="iadm06-action-msg">{actionMsg}</p> : null}
+    </>
+  );
+
+  if (loading) {
+    return (
+      <main data-testid="iadm06-platform-desk" className="mx-auto max-w-5xl space-y-4 p-6">
+        <h1 className="text-2xl font-semibold">Platform Analytics &amp; Usage Insights</h1>
+        {controls}
+        <p>Loading analytics…</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main data-testid="iadm06-platform-desk" className="mx-auto max-w-5xl space-y-4 p-6">
+        <h1 className="text-2xl font-semibold">Platform Analytics &amp; Usage Insights</h1>
+        {controls}
+        <p data-testid="iadm06-access-denied" className="text-red-700">
+          {error}
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <main data-testid="iadm06-platform-desk" className="mx-auto max-w-5xl space-y-6 p-6">
+      <header>
+        <h1 className="text-2xl font-semibold">Platform Analytics &amp; Usage Insights</h1>
+        <p className="text-slate-600">Aggregates only — no raw or person-level rows.</p>
+      </header>
+
+      {controls}
 
       {tab === 'overview' ? (
         <section data-testid="iadm06-overview">{renderMetrics(overview)}</section>
@@ -281,8 +332,20 @@ export default function PlatformAnalyticsPage() {
           </button>
           <ul className="space-y-1 text-sm">
             {exports.map((ex) => (
-              <li key={String(ex.id)} data-testid={`iadm06-export-row-${ex.id}`}>
-                {String(ex.id)} · {String(ex.status)} · {String(ex.scopeType)} · policy {String(ex.resolvedPolicyCode)}
+              <li key={String(ex.id)} data-testid={`iadm06-export-row-${ex.id}`} className="flex flex-wrap items-center gap-2">
+                <span>
+                  {String(ex.id)} · {String(ex.status)} · {String(ex.scopeType)} · policy {String(ex.resolvedPolicyCode)}
+                </span>
+                {String(ex.status) === 'FAILED' ? (
+                  <button
+                    type="button"
+                    data-testid={`iadm06-export-retry-${ex.id}`}
+                    className="rounded bg-slate-200 px-2 py-0.5 text-xs"
+                    onClick={() => void retryExport(String(ex.id))}
+                  >
+                    Retry
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

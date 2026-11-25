@@ -1,0 +1,126 @@
+[
+  {
+    "step": "IADM-06 health :8104",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "step": "Pre-clear DEMO outage flags",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "step": "R01 platform overview shows seeded figures (threshold=1)",
+    "ok": true,
+    "detail": "metrics=6",
+    "shot": "R01_overview.png",
+    "demoThresholds": {
+      "low": 1,
+      "raised": 50
+    }
+  },
+  {
+    "step": "R01 metric catalogue M01–M10",
+    "ok": true,
+    "detail": "rows=10",
+    "shot": "R01_catalogue.png"
+  },
+  {
+    "step": "R01 compare institutes",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_comparison.png"
+  },
+  {
+    "step": "R01 entitlement insight",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_entitlements.png"
+  },
+  {
+    "step": "R01 trend series",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_trends.png"
+  },
+  {
+    "step": "R01 raised threshold shows suppression (threshold=50)",
+    "ok": true,
+    "detail": "withheld=24",
+    "shot": "R01_suppression.png"
+  },
+  {
+    "step": "Fault: unresolved policy withholds dataset",
+    "ok": true,
+    "detail": "DEMO ONLY outage flags: {\"auditDisabled\":false,\"iadm01Disabled\":false,\"iadm04Disabled\":false,\"iadm05Disabled\":true,\"exportFailOnce\":false,\"label\":\"DEMO ONLY\"}",
+    "shot": "R01_fault_policy.png"
+  },
+  {
+    "step": "Fault: source stopped shows unavailable",
+    "ok": true,
+    "detail": "DEMO valuesPolicy: DEMO-ANALYTICS-HANDLING v2Refresh (query time): 2026-11-25T13:16:07.777ZM01Status: UNAVAILABLEAnalytics source is temporarily unavailableM02S",
+    "shot": "R01_fault_source.png"
+  },
+  {
+    "step": "Fault: audit unavailable refuses action",
+    "ok": true,
+    "detail": "Action could not be recorded; please retry.",
+    "shot": "R01_fault_audit.png"
+  },
+  {
+    "step": "Fault: failed export appears",
+    "ok": true,
+    "detail": "failedRows=2",
+    "shot": "R01_fault_export_failed.png"
+  },
+  {
+    "step": "Fault: failed export retry succeeds without duplicate completed id",
+    "ok": true,
+    "detail": "completed=9",
+    "shot": "R01_export_retry.png"
+  },
+  {
+    "step": "R02 platform aggregates visible",
+    "ok": true,
+    "detail": "metrics=6",
+    "shot": "R02_overview.png"
+  },
+  {
+    "step": "R02 export platform aggregates",
+    "ok": true,
+    "detail": " completedRows=3",
+    "shot": "R02_export.png"
+  },
+  {
+    "step": "R03 institute A own analytics",
+    "ok": true,
+    "detail": "scope=Scope: d4000000-0000-4000-8000-000000000004 metrics=10",
+    "shot": "R03A_institute.png",
+    "tenantId": "d4000000-0000-4000-8000-000000000004"
+  },
+  {
+    "step": "R03 institute A export own aggregates",
+    "ok": true,
+    "detail": "Export COMPLETED: e06dc986-dc6f-4354-8bce-f7021b382738",
+    "shot": "R03A_export.png"
+  },
+  {
+    "step": "R03 institute B own analytics (no institute A data)",
+    "ok": true,
+    "detail": "mode=magic scope=Scope: 72ecbfe3-2077-41b5-8a20-b6d3e045311b metrics=10",
+    "shot": "R03B_institute.png",
+    "tenantId": "72ecbfe3-2077-41b5-8a20-b6d3e045311b"
+  },
+  {
+    "step": "R04 College Admin denied",
+    "ok": true,
+    "detail": "url=http://127.0.0.1:3000/platform/analytics",
+    "shot": "R04_denied.png"
+  },
+  {
+    "step": "R28 read-only; export denied",
+    "ok": true,
+    "detail": "403 Auditor cannot export or change analytics settings",
+    "shot": "R28_audit.png"
+  }
+]

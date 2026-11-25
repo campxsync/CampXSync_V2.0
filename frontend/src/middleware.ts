@@ -278,7 +278,7 @@ export async function middleware(request: NextRequest) {
       if (isSystemAdminUser && !systemAdminOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
-      if (!isPlatformUser && !auditorConfigOk) {
+      if (!isPlatformUser && !auditorConfigOk && !systemAdminOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
     }

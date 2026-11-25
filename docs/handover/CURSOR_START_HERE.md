@@ -2,15 +2,15 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (IADM-06 S0 foundation on DEV — not pushed)
+**Last current-state refresh:** 2026-11-25 (IADM-06 S4 filmed — awaiting owner approval; not pushed)
 
 ---
 
 ## What to do next
 
-1. Continue IADM-06 backlog S1→S4 (owner kickoff: no small-approval stops).
-2. Local commits only on `feature/java-backend-integration`.
-3. Do **not** push until owner says.
+1. Await owner `APPROVED IADM-06` or `APPROVED IADM-06 COMMIT`.
+2. Do **not** push until owner says.
+3. Close-out report: `docs/iadm/IADM-06_S4_Report.md`; headed evidence `docs/iadm/iadm-06/evidence/us028/`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -18,16 +18,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-06 S0 building; **not pushed**.
+1. **Branch:** `feature/java-backend-integration` — IADM-06 S4 close-out filmed; **not pushed**.
 2. **IADM-06:** `:8104` `/api/v1/iadm/06` — aggregates only; schema `anl` FORCE RLS on DEV.
-3. **Preflight:** `docs/iadm/iadm-06/US016_PREFLIGHT_REPORT.md` — DEV target verified; shared audit cleared.
-4. **Desks started:** `/platform/analytics`, `/institution/analytics`, `/platform/analytics/audit`.
-5. **Sources:** IADM-01/04 additive `/analytics-aggregates`; IADM-05 resolve RETENTION+ANALYTICS / EXPORT DEMO policies.
+3. **Headed US-028:** **20/20 PASS** (R01/R02/R03×2/R04/R28 + faults); thresholds low=1 raised=50.
+4. **US-027:** 18/18 unit PASS + headed failure film.
+5. **DEMO policy:** `DEMO-ANALYTICS-HANDLING` v2 via IADM-05 lifecycle (R02≠R01); export gate uses RETENTION+ANALYTICS.
 6. **Catalogue:** M01–M10 seeded; DEMO ONLY adoption fixture labelled.
-7. **Shared audit:** `audit.log_event` fail-closed; no second audit store.
+7. **Shared audit:** `audit.log_event` fail-closed; view outcome via audit (F-01 partial).
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
 9. **IADM-05** remains approved S4 local (`6d31085`); do not push without owner.
-10. **Suppression threshold:** DEMO ONLY runtime (low then raise for headed film); production OWNER-OPEN.
+10. **Partial:** US-021 view outcome cannot use IADM-05 request_id (documented F-01).
 
 ---
 

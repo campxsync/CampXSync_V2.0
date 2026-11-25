@@ -1,4 +1,4 @@
-# scripts/dev/restart_service.ps1
+﻿# scripts/dev/restart_service.ps1
 # Fast single-service compile & restart tool for CampXSync
 # Usage: powershell -File scripts/dev/restart_service.ps1 <service-name>
 # Examples:
@@ -30,32 +30,30 @@ function Stop-PortListener([int]$port) {
 }
 
 function Wait-HealthCheck([string]$url, [int]$timeoutSec = 20) {
-    Write-Host "Waiting for $url to become healthy..." -ForegroundColor Gray
+    # Hard wall-clock timeout — WebRequest.Create can hang past its Timeout on Windows;
+    # use Invoke-WebRequest -TimeoutSec and always exit the wait loop.
+    Write-Host "Waiting for $url to become healthy (max ${timeoutSec}s)..." -ForegroundColor Gray
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt $timeoutSec) {
         try {
-            $req = [System.Net.WebRequest]::Create($url)
-            $req.Timeout = 2000
-            $req.Proxy = $null
-            $resp = $req.GetResponse()
+            $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             $code = [int]$resp.StatusCode
-            $resp.Close()
-            if ($code -ge 200 -and $code -lt 400) {
+            if ($code -ge 200 -and $code -lt 500) {
+                # 401/403 still prove the listener is up (HMAC challenge)
                 Write-Host "[+] Service is HEALTHY on $url (HTTP $code)" -ForegroundColor Green
                 return $true
             }
         } catch {
-            if ($_.Exception.Response) {
-                $code = [int]$_.Exception.Response.StatusCode
-                if ($code -ge 200 -and $code -lt 400) {
-                    Write-Host "[+] Service is HEALTHY on $url (HTTP $code)" -ForegroundColor Green
-                    return $true
-                }
+            $ex = $_.Exception
+            if ($ex.Response -and [int]$ex.Response.StatusCode -ge 200 -and [int]$ex.Response.StatusCode -lt 500) {
+                Write-Host "[+] Service is HEALTHY on $url (HTTP $([int]$ex.Response.StatusCode))" -ForegroundColor Green
+                return $true
             }
+            # connection refused / timeout — keep polling until wall clock expires
         }
-        Start-Sleep -Milliseconds 600
+        Start-Sleep -Milliseconds 500
     }
-    Write-Host "[-] Timed out waiting for $url" -ForegroundColor Red
+    Write-Host "[-] Timed out waiting for $url after ${timeoutSec}s" -ForegroundColor Red
     return $false
 }
 
@@ -480,7 +478,10 @@ switch ($Service.ToLower()) {
             "8104"
         ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\iadm-06.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\iadm-06.err" -WindowStyle Minimized -PassThru
         Write-Host "Started iadm-06 PID $($iadmProc.Id)" -ForegroundColor DarkGray
-        Wait-HealthCheck "http://127.0.0.1:8104/api/v1/iadm/06/health"
+        if (-not (Wait-HealthCheck "http://127.0.0.1:8104/api/v1/iadm/06/health" 25)) {
+            Write-Host "iadm-06 health check timed out — aborting." -ForegroundColor Red
+            exit 1
+        }
     }
 
     default {

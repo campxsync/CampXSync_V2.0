@@ -88,6 +88,7 @@ public class Iadm01Controller implements HttpHandler {
             boolean noTenant = auth.getTenantId() == null || auth.getTenantId().trim().isEmpty();
             boolean platformOp = (path.endsWith("/institutes") || path.endsWith("/institutes/"))
                     || path.endsWith("/institutes/summary")
+                    || path.endsWith("/analytics-aggregates")
                     || path.endsWith("/platform-defaults") || path.endsWith("/platform-defaults/")
                     || path.contains("/first-admin/onboarding")
                     || path.matches(".*/colleges/[^/]+/first-admin/onboarding/?$")

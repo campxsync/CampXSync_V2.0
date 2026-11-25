@@ -62,10 +62,15 @@ public class AnalyticsDomainService {
 
     public Map<String, Object> setOutageFlags(UserSecurityContext ctx, Boolean audit, Boolean s01,
                                               Boolean s04, Boolean s05) {
+        return setOutageFlags(ctx, audit, s01, s04, s05, null);
+    }
+
+    public Map<String, Object> setOutageFlags(UserSecurityContext ctx, Boolean audit, Boolean s01,
+                                              Boolean s04, Boolean s05, Boolean exportFailOnce) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException {
                 requireSuperOrSystem(conn);
-                AnalyticsOutageFlags.set(audit, s01, s04, s05);
+                AnalyticsOutageFlags.set(audit, s01, s04, s05, exportFailOnce);
                 return AnalyticsOutageFlags.snapshot();
             }
         });
@@ -203,7 +208,8 @@ public class AnalyticsDomainService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException {
                 requireAny(conn, "iadm06.entitlement.view");
-                boolean platform = isSuperAdmin(conn) || hasPermission(conn, "iadm06.platform.view");
+                boolean platform = isSuperAdmin(conn) || isSystemAdmin(conn)
+                        || hasPermission(conn, "iadm06.platform.view");
                 UUID scope = null;
                 if (!platform) {
                     scope = resolveOwnScope(conn, ctx, tenantId);
@@ -230,9 +236,11 @@ public class AnalyticsDomainService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException {
                 requireAny(conn, "iadm06.platform.view", "iadm06.institute.view");
-                boolean platform = isSuperAdmin(conn) || hasPermission(conn, "iadm06.platform.view");
+                boolean platform = isSuperAdmin(conn) || isSystemAdmin(conn)
+                        || hasPermission(conn, "iadm06.platform.view");
                 UUID scope = null;
-                if (!platform || (tenantId != null && !hasPermission(conn, "iadm06.platform.view") && !isSuperAdmin(conn))) {
+                if (!platform || (tenantId != null && !hasPermission(conn, "iadm06.platform.view")
+                        && !isSuperAdmin(conn) && !isSystemAdmin(conn))) {
                     scope = resolveOwnScope(conn, ctx, tenantId);
                     platform = false;
                 } else if (!platform) {
@@ -258,11 +266,13 @@ public class AnalyticsDomainService {
             public Map<String, Object> execute(Connection conn) throws SQLException {
                 requireAny(conn, "iadm06.export.request");
                 // Auditor must never reach here if keys correct; belt-and-braces:
-                if (hasPermission(conn, "iadm06.export.request") == false && !isSuperAdmin(conn)) {
+                if (hasPermission(conn, "iadm06.export.request") == false
+                        && !isSuperAdmin(conn) && !isSystemAdmin(conn)) {
                     throw new UserProfileAccessDeniedException("Export denied");
                 }
                 Map<String, Object> exportPolicy = policyClient.resolveExportPolicy(forwardHeaders);
-                boolean platform = isSuperAdmin(conn) || hasPermission(conn, "iadm06.platform.view");
+                boolean platform = isSuperAdmin(conn) || isSystemAdmin(conn)
+                        || hasPermission(conn, "iadm06.platform.view");
                 String scopeType = platform && (body == null || !"INSTITUTE".equals(String.valueOf(body.get("scopeType"))))
                         ? "PLATFORM" : "INSTITUTE";
                 UUID scopeTenant = null;
@@ -415,6 +425,18 @@ public class AnalyticsDomainService {
             ps.setObject(1, id);
             ps.executeUpdate();
         }
+        if (AnalyticsOutageFlags.consumeExportFailOnce()) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE anl.export_requests SET status = 'FAILED', error_message = ?, updated_at = now() "
+                            + "WHERE id = ?")) {
+                ps.setString(1, "DEMO ONLY simulated export failure");
+                ps.setObject(2, id);
+                ps.executeUpdate();
+            }
+            DurableAuditWriter.append(conn, ctx, scopeTenant,
+                    "IADM06_EXPORT_RESULT", "export_request", id.toString(), "FAILED");
+            return;
+        }
         try {
             // Regeneration is on-the-fly at download; mark COMPLETED after successful policy+scope check
             try (PreparedStatement ps = conn.prepareStatement(
@@ -433,8 +455,10 @@ public class AnalyticsDomainService {
                 ps.setObject(2, id);
                 ps.executeUpdate();
             }
-            DurableAuditWriter.append(conn, ctx, scopeTenant,
-                    "IADM06_EXPORT_RESULT", "export_request", id.toString(), "FAILED");
+            if (!AnalyticsOutageFlags.isAuditDisabled()) {
+                DurableAuditWriter.append(conn, ctx, scopeTenant,
+                        "IADM06_EXPORT_RESULT", "export_request", id.toString(), "FAILED");
+            }
         }
     }
 
@@ -699,7 +723,7 @@ public class AnalyticsDomainService {
 
     private UUID resolveOwnScope(Connection conn, UserSecurityContext ctx, String requested)
             throws SQLException {
-        if (isSuperAdmin(conn) || hasPermission(conn, "iadm06.platform.view")) {
+        if (isSuperAdmin(conn) || isSystemAdmin(conn) || hasPermission(conn, "iadm06.platform.view")) {
             if (requested != null && !requested.trim().isEmpty()) {
                 return UUID.fromString(requested.trim());
             }
@@ -710,12 +734,12 @@ public class AnalyticsDomainService {
         }
         if (requested != null && !requested.trim().isEmpty()) {
             UUID req = UUID.fromString(requested.trim());
-            if (!req.equals(ctx.getTenantId()) && !isSuperAdmin(conn)
+            if (!req.equals(ctx.getTenantId()) && !isSuperAdmin(conn) && !isSystemAdmin(conn)
                     && !hasPermission(conn, "iadm06.platform.view")) {
                 throw new UserProfileAccessDeniedException(
                         "Requesting another institute's data is refused");
             }
-            if (!isSuperAdmin(conn) && !hasPermission(conn, "iadm06.platform.view")) {
+            if (!isSuperAdmin(conn) && !isSystemAdmin(conn) && !hasPermission(conn, "iadm06.platform.view")) {
                 return ctx.getTenantId();
             }
             return req;
@@ -724,8 +748,9 @@ public class AnalyticsDomainService {
     }
 
     private void requireAny(Connection conn, String... keys) throws SQLException {
-        if (isSuperAdmin(conn)) {
-            // Super Admin (R01) may use all implemented keys; manage still reserved
+        if (isSuperAdmin(conn) || isSystemAdmin(conn)) {
+            // R01 Super Admin / R02 System Admin: all implemented keys; manage reserved
+            // (iam.has_permission does not always resolve plat.platform_admins SYSTEM_ADMIN)
             for (int i = 0; i < keys.length; i++) {
                 if ("iadm06.catalogue.manage".equals(keys[i])) {
                     throw new UserProfileAccessDeniedException("Manage catalogue is reserved and not implemented");
@@ -742,7 +767,7 @@ public class AnalyticsDomainService {
     }
 
     private void requireSuperOrSystem(Connection conn) throws SQLException {
-        if (isSuperAdmin(conn) || hasPermission(conn, "iadm06.platform.view")) {
+        if (isSuperAdmin(conn) || isSystemAdmin(conn) || hasPermission(conn, "iadm06.platform.view")) {
             return;
         }
         throw new UserProfileAccessDeniedException("Platform operator required");
@@ -753,6 +778,16 @@ public class AnalyticsDomainService {
                 "SELECT 1 FROM plat.platform_admins p "
                         + "WHERE p.user_id = auth.uid() AND p.role_code = 'SUPER_ADMIN' "
                         + "AND p.deleted_at IS NULL LIMIT 1");
+             ResultSet rs = ps.executeQuery()) {
+            return rs.next();
+        }
+    }
+
+    private boolean isSystemAdmin(Connection conn) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM plat.platform_admins p "
+                        + "WHERE p.user_id = auth.uid() AND p.role_code = 'SYSTEM_ADMIN' "
+                        + "AND p.status = 'ACTIVE' AND p.deleted_at IS NULL LIMIT 1");
              ResultSet rs = ps.executeQuery()) {
             return rs.next();
         }

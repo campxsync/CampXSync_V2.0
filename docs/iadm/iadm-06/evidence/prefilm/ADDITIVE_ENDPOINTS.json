@@ -1,0 +1,47 @@
+[
+  {
+    "name": "IADM-01 analytics-aggregates 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "name": "IADM-01 aggregates only (no person fields)",
+    "ok": true,
+    "detail": "keys=queryTime,demoLabel,institutesByStatus,totalInstitutes,collegesPerInstitute,collegesByStatus,institutesCreated,institutesCreatedWindow,collegesCreated,collegesCreatedWindow"
+  },
+  {
+    "name": "IADM-01 has aggregate shapes",
+    "ok": true,
+    "detail": "totalInstitutes=14"
+  },
+  {
+    "name": "IADM-04 analytics-aggregates 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "name": "IADM-04 aggregates only (no person fields)",
+    "ok": true,
+    "detail": "keys=queryTime,demoLabel,subscriptionsByPlan,subscriptionsByState,entitlementConsumption,subscriptionStateTrend,subscriptionStateTrendWindow"
+  },
+  {
+    "name": "IADM-01 R03 scoped 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "name": "IADM-01 R03 tenant-scoped (own institute count)",
+    "ok": true,
+    "detail": "totalInstitutes=1"
+  },
+  {
+    "name": "IADM-01 R03 cannot broaden to foreign tenant",
+    "ok": true,
+    "detail": "status=200 total=1"
+  },
+  {
+    "name": "IADM-06 health via gateway",
+    "ok": true,
+    "detail": "status=200"
+  }
+]

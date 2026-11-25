@@ -15,7 +15,13 @@ public class Iadm05PolicyClient {
 
     public static final String DATA_HANDLING_TYPE = "RETENTION";
     public static final String DATA_HANDLING_DOMAIN = "ANALYTICS";
-    public static final String EXPORT_POLICY_TYPE = "EXPORT";
+    /**
+     * Finding (no IADM-05 code change): IADM-05 has no propose/publish path for policy_type=EXPORT
+     * (EXPORT is a governance-request type). Export gate therefore resolves the same analytics-domain
+     * RETENTION published version as data-handling.
+     */
+    public static final String EXPORT_POLICY_TYPE = "RETENTION";
+    public static final String EXPORT_POLICY_DOMAIN = "ANALYTICS";
 
     private final HttpJsonClient http;
 
@@ -28,7 +34,7 @@ public class Iadm05PolicyClient {
     }
 
     public Map<String, Object> resolveExportPolicy(Map<String, String> forwardHeaders) {
-        return resolve(EXPORT_POLICY_TYPE, null, forwardHeaders);
+        return resolve(EXPORT_POLICY_TYPE, EXPORT_POLICY_DOMAIN, forwardHeaders);
     }
 
     public Map<String, Object> resolve(String policyType, String domainCode, Map<String, String> forwardHeaders) {
