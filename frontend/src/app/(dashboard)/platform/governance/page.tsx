@@ -44,6 +44,7 @@ export default function PlatformGovernancePage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [retention, setRetention] = useState<RetentionItem[]>([]);
   const [policies, setPolicies] = useState<PolicyItem[]>([]);
+  const [requests, setRequests] = useState<Array<Record<string, unknown>>>([]);
   const [history, setHistory] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,18 +66,21 @@ export default function PlatformGovernancePage() {
     setLoading(true);
     setError(null);
     try {
-      const [cRes, rRes, pRes] = await Promise.all([
+      const [cRes, rRes, pRes, qRes] = await Promise.all([
         fetch('/api/platform/governance?view=classifications'),
         fetch('/api/platform/governance?view=retention'),
         fetch('/api/platform/governance?view=policies'),
+        fetch('/api/platform/governance?view=requests'),
       ]);
       const cBody = await cRes.json();
       const rBody = await rRes.json();
       const pBody = await pRes.json();
+      const qBody = await qRes.json().catch(() => ({}));
       if (!cRes.ok) throw new Error(cBody.detail || 'Classifications unavailable');
       setClasses(Array.isArray(cBody.items) ? cBody.items : []);
       setRetention(Array.isArray(rBody.items) ? rBody.items : []);
       setPolicies(Array.isArray(pBody.items) ? pBody.items : []);
+      setRequests(Array.isArray(qBody.items) ? qBody.items : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load governance desk');
     } finally {
@@ -333,6 +337,169 @@ export default function PlatformGovernancePage() {
               </div>
             </li>
           ))}
+        </ul>
+      </section>
+
+      <section data-testid="iadm05-export-queue" className="space-y-3">
+        <h2 className="text-lg font-medium">Governance request queue</h2>
+        <p className="text-xs text-neutral-600">
+          Export / erasure / sharing metadata only — no payloads. Approval ≠ domain execution.
+          Partial outcomes stay partial (US-006 / US-014).
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            data-testid="iadm05-export-submit-btn"
+            className="border bg-neutral-900 px-3 py-1 text-sm text-white"
+            onClick={() =>
+              void post('exports', {
+                purpose: 'DEMO desk export',
+                domainCodes: ['DEMO_DOMAIN_A'],
+                fieldsRequested: ['id', 'status'],
+                destinationNote: 'TBC',
+                idempotencyKey: `desk-export-${Date.now()}`,
+              })
+            }
+          >
+            Submit export request
+          </button>
+          <button
+            type="button"
+            data-testid="iadm05-erasure-submit-btn"
+            className="border px-3 py-1 text-sm"
+            onClick={() =>
+              void post('erasures', {
+                purpose: 'DEMO erasure governance',
+                domainCodes: ['DEMO_DOMAIN_A', 'DEMO_DOMAIN_B'],
+                subjectRefOpaque: `opaque-desk-${Date.now()}`,
+                idempotencyKey: `desk-erasure-${Date.now()}`,
+              })
+            }
+          >
+            Submit erasure request
+          </button>
+          <button
+            type="button"
+            data-testid="iadm05-sharing-submit-btn"
+            className="border px-3 py-1 text-sm"
+            onClick={() =>
+              void post('sharing', {
+                purpose: 'DEMO sharing agreement',
+                provider: 'DEMO_PROVIDER',
+                consumer: 'DEMO_CONSUMER_DESK',
+                domainCodes: ['STM'],
+                fieldsRequested: ['status'],
+                validityEnd: new Date(Date.now() + 7 * 86400000).toISOString(),
+                legalBasisRef: 'TBC',
+                idempotencyKey: `desk-share-${Date.now()}`,
+              })
+            }
+          >
+            Submit sharing agreement
+          </button>
+          <button
+            type="button"
+            data-testid="iadm05-privacy-propose-btn"
+            className="border px-3 py-1 text-sm"
+            onClick={() =>
+              void post('privacy', {
+                code: `DEMO-PRIVACY-${Date.now()}`,
+                title: 'Demo privacy revision (publish gated)',
+              })
+            }
+          >
+            Propose privacy/consent
+          </button>
+        </div>
+        <ul className="divide-y border border-neutral-200">
+          {requests.map((r) => {
+            const id = String(r.requestId || '');
+            const outcomes = Array.isArray(r.domainOutcomes) ? r.domainOutcomes : [];
+            const unresolved = outcomes.some((o) => {
+              const row = o as Record<string, unknown>;
+              return row.outcome !== 'COMPLETED' && row.outcome !== 'REJECTED';
+            });
+            return (
+              <li
+                key={id}
+                data-testid={`iadm05-request-row-${id}`}
+                className="space-y-1 p-3 text-sm"
+              >
+                <div className="font-medium">
+                  {String(r.requestType)} · {String(r.status)} · {String(r.demoLabel)}
+                </div>
+                <div className="text-neutral-600">
+                  correlation {String(r.correlationId)} · purpose {String(r.purpose)}
+                </div>
+                {unresolved && (
+                  <div data-testid={`iadm05-unresolved-${id}`} className="text-amber-800">
+                    Unresolved domain outcomes present
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {r.status === 'SUBMITTED' || r.status === 'IN_REVIEW' ? (
+                    <>
+                      <button
+                        type="button"
+                        data-testid={`iadm05-req-approve-${id}`}
+                        className="underline"
+                        onClick={() =>
+                          void post(
+                            'request-decide',
+                            { decision: 'APPROVE', rationaleRef: 'desk-export-approve' },
+                            id
+                          )
+                        }
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`iadm05-req-reject-${id}`}
+                        className="underline"
+                        onClick={() =>
+                          void post(
+                            'request-decide',
+                            { decision: 'REJECT', rationaleRef: 'desk-export-reject' },
+                            id
+                          )
+                        }
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : null}
+                  {(r.status === 'APPROVED' ||
+                    r.status === 'PARTIALLY_COMPLETED' ||
+                    r.status === 'FAILED' ||
+                    r.status === 'DISPATCHED' ||
+                    r.status === 'IN_PROGRESS') && (
+                    <button
+                      type="button"
+                      data-testid={`iadm05-req-dispatch-${id}`}
+                      className="underline"
+                      onClick={() => void post('dispatch', {}, id)}
+                    >
+                      Re-dispatch unresolved (DEMO simulator)
+                    </button>
+                  )}
+                  {r.requestType === 'ERASURE' && r.status !== 'CLOSED' && (
+                    <button
+                      type="button"
+                      data-testid={`iadm05-erasure-close-${id}`}
+                      className="underline"
+                      onClick={() => void post('erasure-close', {}, id)}
+                    >
+                      Close erasure (technical rule)
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+          {!loading && requests.length === 0 && (
+            <li className="p-3 text-sm text-neutral-500">No governance requests yet</li>
+          )}
         </ul>
       </section>
 
