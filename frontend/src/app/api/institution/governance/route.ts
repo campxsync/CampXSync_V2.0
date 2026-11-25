@@ -40,3 +40,14 @@ export async function GET() {
     return NextResponse.json({ errorCode: 'UNAVAILABLE', detail: 'unavailable' }, { status: 503 });
   }
 }
+
+/** IADM-05-US-010 / G-16 — Institution Admin (R03) has no write path. */
+export async function POST() {
+  return NextResponse.json(
+    {
+      errorCode: 'FORBIDDEN',
+      detail: 'Institution Admin (R03) adherence is view-only; writes are not accepted (G-16).',
+    },
+    { status: 403 }
+  );
+}

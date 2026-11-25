@@ -224,9 +224,7 @@ public class GovernanceRequestService {
                 String type = String.valueOf(req.get("requestType"));
                 String decideKey = "EXPORT".equals(type) ? "iadm05.export.decide"
                         : "SHARING".equals(type) ? "iadm05.sharing.decide" : "iadm05.erasure.decide";
-                if (!isPlatform(conn)) {
-                    requireAny(conn, decideKey);
-                }
+                assertSuperAdminApprover(conn, ctx, decideKey);
                 String requester = String.valueOf(req.get("requesterUserId"));
                 if (requester.equals(ctx.getUserId().toString())) {
                     throw new InstituteAdminException(403, "IADM05_SOD_VIOLATION",
@@ -336,9 +334,7 @@ public class GovernanceRequestService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             @Override
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                if (!isPlatform(conn)) {
-                    requireAny(conn, "iadm05.erasure.close");
-                }
+                assertSuperAdminApprover(conn, ctx, "iadm05.erasure.close");
                 Map<String, Object> req = loadRequest(conn, requestId);
                 if (!"ERASURE".equals(String.valueOf(req.get("requestType")))) {
                     throw new InstituteAdminException(400, "IADM05_VALIDATION", "Only erasure requests can be closed.");
@@ -655,6 +651,28 @@ public class GovernanceRequestService {
         try (PreparedStatement ps = conn.prepareStatement("SELECT iam.is_platform_admin()");
              ResultSet rs = ps.executeQuery()) {
             return rs.next() && rs.getBoolean(1);
+        }
+    }
+
+    /** G-15: System Admin in plat.platform_admins must not decide/close. */
+    private void assertSuperAdminApprover(Connection conn, UserSecurityContext ctx, String permissionKey)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT role_code FROM plat.platform_admins "
+                        + "WHERE user_id = ? AND deleted_at IS NULL LIMIT 1")) {
+            ps.setObject(1, ctx.getUserId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String code = rs.getString(1);
+                    if (code != null && ("SYSTEM_ADMIN".equalsIgnoreCase(code) || "R02".equalsIgnoreCase(code))) {
+                        throw new UserProfileAccessDeniedException(
+                                "System Admin (R02) cannot approve, decide, or close governance requests (G-15).");
+                    }
+                }
+            }
+        }
+        if (!isPlatform(conn)) {
+            requireAny(conn, permissionKey);
         }
     }
 

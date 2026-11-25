@@ -1,0 +1,52 @@
+[
+  {
+    "name": "R03 adherence 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "name": "R03 sees platform DEMO policies",
+    "ok": true,
+    "detail": "DEMO-CLASS-H389294,DEMO-CLASS-H604598,DEMO-CLASS-PUBLIC,DEMO-RET-STUDENT-RECORD"
+  },
+  {
+    "name": "R03 isolation vs other-institute DEMO-RET-INST-A/B",
+    "ok": true,
+    "detail": "none"
+  },
+  {
+    "name": "R03 write 403",
+    "ok": true,
+    "detail": "status=403"
+  },
+  {
+    "name": "R04 college-view 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "name": "R04 canEditPolicy false",
+    "ok": true,
+    "detail": "false"
+  },
+  {
+    "name": "R04 write 403",
+    "ok": true,
+    "detail": "status=403"
+  },
+  {
+    "name": "R28 write 403",
+    "ok": true,
+    "detail": "status=403"
+  },
+  {
+    "name": "Privacy publish legal gate",
+    "ok": true,
+    "detail": "status=423"
+  },
+  {
+    "name": "R10/faculty classifications denied",
+    "ok": true,
+    "detail": "status=403"
+  }
+]

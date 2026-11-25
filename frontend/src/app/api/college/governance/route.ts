@@ -40,3 +40,14 @@ export async function GET() {
     return NextResponse.json({ errorCode: 'UNAVAILABLE', detail: 'unavailable' }, { status: 503 });
   }
 }
+
+/** IADM-05-US-011 / G-02 — College Admin (R04) cannot edit or override policy. */
+export async function POST() {
+  return NextResponse.json(
+    {
+      errorCode: 'FORBIDDEN',
+      detail: 'College Admin (R04) cannot edit or override IADM-05 policy (G-02).',
+    },
+    { status: 403 }
+  );
+}

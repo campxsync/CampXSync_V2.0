@@ -262,11 +262,16 @@ export async function middleware(request: NextRequest) {
         (pathname === '/platform/configuration' ||
           pathname.startsWith('/platform/configuration/') ||
           pathname === '/platform/identity' ||
-          pathname.startsWith('/platform/identity/'));
-      const systemAdminIdentityOk =
+          pathname.startsWith('/platform/identity/') ||
+          pathname === '/platform/governance' ||
+          pathname.startsWith('/platform/governance/'));
+      const systemAdminOk =
         isSystemAdminUser &&
-        (pathname === '/platform/identity' || pathname.startsWith('/platform/identity/'));
-      if (isSystemAdminUser && !systemAdminIdentityOk) {
+        (pathname === '/platform/identity' ||
+          pathname.startsWith('/platform/identity/') ||
+          pathname === '/platform/governance' ||
+          pathname.startsWith('/platform/governance/'));
+      if (isSystemAdminUser && !systemAdminOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }
       if (!isPlatformUser && !auditorConfigOk) {

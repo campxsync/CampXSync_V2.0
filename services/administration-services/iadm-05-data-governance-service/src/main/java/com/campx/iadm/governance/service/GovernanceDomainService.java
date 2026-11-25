@@ -54,13 +54,14 @@ public class GovernanceDomainService {
                         + "FROM gov.classification_defs c "
                         + "JOIN gov.policies p ON p.id = c.policy_id "
                         + "WHERE 1=1";
-                if (!isPlatform(conn) && ctx.getTenantId() != null) {
+                boolean restrictPublished = !canSeeNonPublished(conn);
+                if (restrictPublished && ctx.getTenantId() != null) {
                     sql += " AND p.status = 'PUBLISHED' AND (p.scope_tenant_id IS NULL OR p.scope_tenant_id = ?)";
                 }
                 sql += " ORDER BY c.class_code, p.version_no DESC";
                 List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    if (!isPlatform(conn) && ctx.getTenantId() != null) {
+                    if (restrictPublished && ctx.getTenantId() != null) {
                         ps.setObject(1, ctx.getTenantId());
                     }
                     try (ResultSet rs = ps.executeQuery()) {
@@ -98,14 +99,15 @@ public class GovernanceDomainService {
                         "iadm05.college.view", "iadm05.audit.view");
                 String sql = "SELECT r.*, p.status, p.version_no, p.title, p.code AS policy_code "
                         + "FROM gov.retention_rules r JOIN gov.policies p ON p.id = r.policy_id WHERE 1=1";
-                if (!isPlatform(conn) && ctx.getTenantId() != null) {
+                boolean restrictPublished = !canSeeNonPublished(conn);
+                if (restrictPublished && ctx.getTenantId() != null) {
                     sql += " AND p.status IN ('PUBLISHED','SUPERSEDED') "
                             + "AND (p.scope_tenant_id IS NULL OR p.scope_tenant_id = ?)";
                 }
                 sql += " ORDER BY r.domain_code, p.version_no DESC";
                 List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    if (!isPlatform(conn) && ctx.getTenantId() != null) {
+                    if (restrictPublished && ctx.getTenantId() != null) {
                         ps.setObject(1, ctx.getTenantId());
                     }
                     try (ResultSet rs = ps.executeQuery()) {
@@ -289,6 +291,29 @@ public class GovernanceDomainService {
              ResultSet rs = ps.executeQuery()) {
             return rs.next() && rs.getBoolean(1);
         }
+    }
+
+    /** Super Admin or System Admin with propose keys may see draft/in-review rows. */
+    private boolean canSeeNonPublished(Connection conn) throws SQLException {
+        if (isPlatform(conn)) {
+            return true;
+        }
+        String[] proposeKeys = new String[] {
+                "iadm05.classification.propose",
+                "iadm05.retention.propose",
+                "iadm05.privacy.propose"
+        };
+        for (int i = 0; i < proposeKeys.length; i++) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT iam.has_permission(?)")) {
+                ps.setString(1, proposeKeys[i]);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getBoolean(1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void requireAny(Connection conn, String... keys) throws SQLException {

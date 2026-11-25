@@ -49,7 +49,9 @@ public class PolicyLifecycleService {
                     sql.append(" AND status = ?");
                     params.add(statusFilter.trim().toUpperCase());
                 }
-                if (!isPlatformOperator(conn) && ctx.getTenantId() != null) {
+                // Platform Super Admin sees all; System Admin with propose keys sees drafts
+                // for their own workflow. Institute actors only see published/superseded.
+                if (!canSeeNonPublishedPolicies(conn) && ctx.getTenantId() != null) {
                     sql.append(" AND (scope_tenant_id IS NULL OR scope_tenant_id = ?)");
                     params.add(ctx.getTenantId());
                     sql.append(" AND status IN ('PUBLISHED','SUPERSEDED')");
@@ -238,10 +240,9 @@ public class PolicyLifecycleService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             @Override
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                // G-15: R01 only — platform admin path OR iadm05.policy.approve (never on R02 template)
-                if (!isPlatformOperator(conn)) {
-                    requirePermission(conn, "iadm05.policy.approve");
-                }
+                // G-15: Super Admin (R01) only — System Admin may sit in plat.platform_admins
+                // but must never approve (deny before SoD so author-self is not the only block).
+                assertSuperAdminApprover(conn, ctx, "iadm05.policy.approve");
                 PolicyRow row = loadPolicy(conn, policyId);
                 if (!"IN_REVIEW".equals(row.status)) {
                     throw new InstituteAdminException(409, "IADM05_INVALID_STATE",
@@ -290,9 +291,7 @@ public class PolicyLifecycleService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             @Override
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                if (!isPlatformOperator(conn)) {
-                    requirePermission(conn, "iadm05.policy.publish");
-                }
+                assertSuperAdminApprover(conn, ctx, "iadm05.policy.publish");
                 PolicyRow row = loadPolicy(conn, policyId);
                 if ("PRIVACY_CONSENT".equals(row.policyType)) {
                     // US-015: hard legal gate — no way to open in this build
@@ -553,6 +552,58 @@ public class PolicyLifecycleService {
              ResultSet rs = ps.executeQuery()) {
             return rs.next() && rs.getBoolean(1);
         }
+    }
+
+    /**
+     * G-15: only Super Admin (R01) may approve/publish.
+     * System Admin (R02) can appear in plat.platform_admins with role_code SYSTEM_ADMIN —
+     * that must not open the approve path.
+     */
+    private void assertSuperAdminApprover(Connection conn, UserSecurityContext ctx, String permissionKey)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT role_code FROM plat.platform_admins "
+                        + "WHERE user_id = ? AND deleted_at IS NULL LIMIT 1")) {
+            ps.setObject(1, ctx.getUserId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String code = rs.getString(1);
+                    if (code != null && ("SYSTEM_ADMIN".equalsIgnoreCase(code) || "R02".equalsIgnoreCase(code))) {
+                        throw new UserProfileAccessDeniedException(
+                                "System Admin (R02) cannot approve or publish governance policies (G-15).");
+                    }
+                }
+            }
+        }
+        if (!isPlatformOperator(conn)) {
+            requirePermission(conn, permissionKey);
+        }
+    }
+
+    /**
+     * Super Admin (R01) via platform_admin, or System Admin (R02) via propose keys,
+     * may see DRAFT / IN_REVIEW rows. Institute actors stay on published only.
+     */
+    private boolean canSeeNonPublishedPolicies(Connection conn) throws SQLException {
+        if (isPlatformOperator(conn)) {
+            return true;
+        }
+        String[] proposeKeys = new String[] {
+                "iadm05.classification.propose",
+                "iadm05.retention.propose",
+                "iadm05.privacy.propose"
+        };
+        for (int i = 0; i < proposeKeys.length; i++) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT iam.has_permission(?)")) {
+                ps.setString(1, proposeKeys[i]);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getBoolean(1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void requirePermission(Connection conn, String key) throws SQLException {

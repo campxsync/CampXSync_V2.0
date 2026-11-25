@@ -109,7 +109,10 @@ export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): b
   }
   if (
     role === 'system_admin' &&
-    (returnTo === '/platform/identity' || returnTo.startsWith('/platform/identity/'))
+    (returnTo === '/platform/identity' ||
+      returnTo.startsWith('/platform/identity/') ||
+      returnTo === '/platform/governance' ||
+      returnTo.startsWith('/platform/governance/'))
   ) {
     return true;
   }
@@ -117,7 +120,9 @@ export function isReturnToAuthorizedForRole(role: UserRole, returnTo: string): b
     role === 'auditor' &&
     (returnTo.startsWith('/platform/configuration') ||
       returnTo === '/platform/identity' ||
-      returnTo.startsWith('/platform/identity/'))
+      returnTo.startsWith('/platform/identity/') ||
+      returnTo === '/platform/governance' ||
+      returnTo.startsWith('/platform/governance/'))
   ) {
     return true;
   }

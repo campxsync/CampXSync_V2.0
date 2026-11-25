@@ -5,6 +5,8 @@
 **DEV:** `azulbaxszsqxymqmlwfe`  
 **Service:** IADM-05 Data Governance & Privacy (`:8103` / `/api/v1/iadm/05`)
 
+Full S4 narrative: `docs/iadm/IADM-05_S4_Report.md`.
+
 ## Commits (local only — not pushed)
 
 | Hash | One-line label |
@@ -12,83 +14,43 @@
 | `d3c2e74` | S0 scaffold — service, keys, gov FORCE RLS, shared audit |
 | `854d8f1` | S1 policy lifecycle, DEMO seed, governance desks |
 | `2b566df` | S2/S3 request queues, DEMO simulator seeds, privacy gate, evidence pack |
-
-Headed film: UI :3000 and gateway :8080 were **DOWN** at close-out; run `node scripts/demo/iadm05_headed.mjs` after `start_stack.ps1` to complete persona screenshots.
+| `5bad1b0` | docs — S2/S3 commit hash and progress/handover |
+| *(S4 commit follows this pack)* | S4 desks ACL, failure suite, headed US-032, G-15 harden |
 
 ## Automated tests
 
-| Suite | Meaning | Result |
-|---|---|---|
-| `GovernancePermissionMatrixTest` | Offline role×key denials (US-023) | PASS |
-| `GovernanceAuditFailClosedTest` | Audit unavailable refuses action (US-025) | PASS |
-| `GovernanceFailureTableTest` | Failure-table offline behaviours (US-031) | PASS |
-| `npx tsc --noEmit` | Frontend TypeScript check | PASS (0 errors) |
+| Suite (plain meaning) | Result |
+|---|---|
+| `GovernancePermissionMatrixTest` — offline role×key denials (US-023) | PASS |
+| `GovernanceAuditFailClosedTest` — audit unavailable refuses action (US-025) | PASS |
+| `GovernanceFailureTableTest` — failure-table + R05–R39 sample + log-leak (US-031) | PASS |
+| `npx tsc --noEmit` — Frontend TypeScript typecheck | PASS (0 errors) |
+| `iadm05_s4_api_smoke.mjs` — live R03/R04/R28/privacy/faculty | 10/10 PASS |
 
 ## Headed persona runs
 
 Runner: `node scripts/demo/iadm05_headed.mjs`  
-Evidence dir: `docs/iadm/iadm-05/evidence/us032/`
+Evidence dir: `docs/iadm/iadm-05/evidence/us032/`  
+**Result: 21/21 PASS** (2026-11-25T10:14:16Z)
 
-| Persona | Plain role | Desk | Status |
+| Persona code | Plain role | Desk | Status |
 |---|---|---|---|
-| R01 | Super Admin | `/platform/governance` | Run required — see DEMO.md after headed |
-| R02 | System Admin | `/platform/governance` | Run required |
-| R03 | Institution Admin | `/institution/governance` | Run required |
-| R04 | College Admin | `/college/governance` | Run required |
-| R28 | Auditor | `/platform/governance/audit` | Run required |
+| R01 | Super Admin | `/platform/governance` | PASS — approve, publish, export decide, erasure close attempt |
+| R02 | System Admin | `/platform/governance` | PASS — propose, submit, export; approve 403 FORBIDDEN |
+| R03 | Institution Admin | `/institution/governance` | PASS — adherence seeded; isolation; write 403 |
+| R04 | College Admin | `/college/governance` | PASS — view; write 403 |
+| R28 | Auditor | `/platform/governance/audit` | PASS — evidence view; write/approve 403 |
 
 ## Blueprint §15.2 checklist
 
-| Item | Evidence |
-|---|---|
-| R01 platform scope ≠ R03 institute scope | Institute policies DEMO-RET-INST-A/B + adherence API scopes by tenant |
-| R02 write ≠ policy approval | Matrix + BFF deny approve/publish for system_admin |
-| R03 cannot view/govern other institute | RLS + adherence filter on `scope_tenant_id` |
-| R03 adherence view-only (G-16) | Desk `writeControls=false`; no POST BFF for institution |
-| R04 cannot override IADM policy | College desk `canEditPolicy=false`; no write routes |
-| R04 entry points informational only (G-02) | Entry list `triggerable=false` |
-| R28 read-only | Auditor desk; no mutate controls |
-| No R05–R39 inferred access | Matrix empty for R05/R10/R25/R31 |
-| Cross-tenant sharing default deny | Wildcard provider/consumer rejected; deny seed row |
-| V ≠ E/X/D/approve | Matrix tests |
-| Export approval ≠ execution | Decide then dispatch/simulator |
-| Erasure by domain owners not IADM-05 | Simulator / contract only; no domain DB access |
-| Partial ≠ global success | Aggregate status logic + seeded partial rows |
-| CADM-08 remains import owner | Not built / not claimed |
-| IADM-07 remains security owner | Not built / not claimed |
-| Shared audit used; no second store | `DurableAuditWriter` → `audit.log_event` |
-| Shared identity/authz/logging reused | Gateway HMAC + `iam.has_permission` + CampXLogger |
-| Missing tenant/policy fail closed | `IADM05_NO_APPLICABLE_POLICY`, tenant checks |
-| No sensitive payloads in logs | Audit payload refs only; controller avoids body dumps |
-| No Kafka | None introduced |
-| Schema/API/keys treated as build proposal | Documented in S0/S1 reports (G-09/G-01 closed by build default) |
-| Queues seeded (not empty mocks) | S2/S3 DEMO seeds applied on DEV |
-| Retention/consent/sharing are IADM-05 records | Schema `gov`; not IADM-02 `cfg.*` |
+See ticked table in `docs/iadm/IADM-05_S4_Report.md` §2 (all items evidenced).
 
-## Gaps G-01…G-18 — what this build assumed
+## Gaps G-01…G-18
 
-| Gap | Assumed in this build |
-|---|---|
-| G-01 | Keys = `iadm05.*` catalogue |
-| G-02 | R04 informational entry points only |
-| G-03/G-04 | Privacy publish hard-blocked; no open path |
-| G-05 | Technical closure only |
-| G-06 | DEMO ONLY classification labels |
-| G-07 | Destination notes TBC |
-| G-08 | DEMO simulator; contracts TBC per domain |
-| G-09 | Schema `gov` as build proposal |
-| G-10 | One published version or conflict/none fail closed |
-| G-11 | Reuse `audit.log_event` fields |
-| G-12 | State machine as implemented |
-| G-13 | Holds = TBC text fields |
-| G-14 | Port 8103 / prefix `/api/v1/iadm/05` |
-| G-15 | Approver = R01 only; SoD |
-| G-16 | R03 view-only |
-| G-17 | Data-subject access/correction/grievance **not** in IADM-05 this build |
-| G-18 | Invoice retention / college archive D1 placeholders only |
+See `docs/iadm/IADM-05_S4_Report.md` §3 and `docs/iadm/iadm-05/BUILD_DEFAULTS.md`.
 
 ## Parked
 
-- Full headed film PASS for all five personas (run `iadm05_headed.mjs` when UI session accounts confirmed)
-- Real domain-service wiring (explicitly out of this build)
-- Legal durations / taxonomy / DPDP interpretation
+- Real domain-service wiring (G-08)
+- Legal durations / taxonomy / opening privacy gate
+- Remote push (owner authorization required)

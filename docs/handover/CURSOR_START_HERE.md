@@ -2,14 +2,14 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (IADM-05 **S0–S3 local commits — not pushed**; headed US-032 film pending stack)
+**Last current-state refresh:** 2026-11-25 (IADM-05 **S4 headed US-032 21/21 PASS** — await owner approval; not pushed)
 
 ---
 
 ## What to do next
 
-1. Review IADM-05 local commits `d3c2e74` / `854d8f1` / `2b566df` and reports under `docs/iadm/iadm-05/` + `IADM-05_S*_Report.md`.
-2. Start stack, run `node scripts/demo/iadm05_headed.mjs` for US-032 persona film, then owner `APPROVED IADM-05 …` or `CHANGES`.
+1. Review S4 report `docs/iadm/IADM-05_S4_Report.md` and evidence `docs/iadm/iadm-05/evidence/us032/`.
+2. Owner: `APPROVED IADM-05 S4` or `APPROVED IADM-05 S4 COMMIT` / `CHANGES IADM-05 S4: …`.
 3. Do **not** push until owner says.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
@@ -18,15 +18,15 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-05 S0–S3 committed locally; **not pushed**.
+1. **Branch:** `feature/java-backend-integration` — IADM-05 S0–S4 work local; **not pushed**.
 2. **IADM-05:** `:8103` `/api/v1/iadm/05` — policy governance only; schema `gov` FORCE RLS on DEV.
-3. **IADM-05 commits:** `d3c2e74` (S0), `854d8f1` (S1), `2b566df` (S2/S3 + evidence pack draft).
+3. **IADM-05 commits:** `d3c2e74` (S0), `854d8f1` (S1), `2b566df` (S2/S3), plus S4 local commit when made.
 4. **Desks:** `/platform/governance`, `/institution/governance`, `/college/governance`, `/platform/governance/audit`.
 5. **Demo seeds on DEV:** classification/retention + export/erasure/sharing queues (DEMO ONLY; durations TBC).
 6. **Privacy publish:** hard-blocked `IADM05_LEGAL_GATE` (D-RBAC-M17) — no open path.
 7. **Shared audit:** `audit.log_event` fail-closed; no second audit store.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-9. **Parked for headed:** US-032 film needs UI :3000 + gateway :8080 up.
+9. **US-032 headed:** **21/21 PASS** — personas R01/R02/R03/R04/R28 with real propose/approve/submit/close work.
 10. **IADM-04** remains prior closed work (S5 local); do not push without owner.
 
 ---

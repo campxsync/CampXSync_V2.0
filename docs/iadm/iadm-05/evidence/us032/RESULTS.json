@@ -1,0 +1,120 @@
+[
+  {
+    "step": "IADM-05 health :8103",
+    "pass": true,
+    "detail": "status=200"
+  },
+  {
+    "step": "R02 desk shows seeded classifications",
+    "pass": true,
+    "detail": "rows=4",
+    "shot": "R02_desk.png"
+  },
+  {
+    "step": "R02 propose classification",
+    "pass": true,
+    "detail": "OK: classifications",
+    "shot": "R02_propose.png"
+  },
+  {
+    "step": "R02 submit classification for review",
+    "pass": true,
+    "detail": "OK: submit-review",
+    "shot": "R02_submit.png"
+  },
+  {
+    "step": "R02 approve denied",
+    "pass": true,
+    "detail": "status=403 FORBIDDEN"
+  },
+  {
+    "step": "R02 submit export request",
+    "pass": true,
+    "detail": "OK: exports",
+    "shot": "R02_export_submit.png"
+  },
+  {
+    "step": "R01 desk seeded rows",
+    "pass": true,
+    "detail": "",
+    "shot": "R01_desk.png"
+  },
+  {
+    "step": "R01 export/erasure/sharing queue seeded",
+    "pass": true,
+    "detail": "rows=10",
+    "shot": "R01_queue.png"
+  },
+  {
+    "step": "R01 approve R02 proposal (SoD)",
+    "pass": true,
+    "detail": "OK: decide",
+    "shot": "R01_approve.png"
+  },
+  {
+    "step": "R01 publish classification",
+    "pass": true,
+    "detail": "OK: publish",
+    "shot": "R01_publish.png"
+  },
+  {
+    "step": "R01 privacy publish blocked (legal gate)",
+    "pass": true,
+    "detail": "status=423 IADM05_LEGAL_GATE"
+  },
+  {
+    "step": "R01 approve export/request from desk",
+    "pass": true,
+    "detail": "clicked approve",
+    "shot": "R01_req_approve.png"
+  },
+  {
+    "step": "R01 close erasure (technical rule)",
+    "pass": true,
+    "detail": "Closure blocked: one or more required domains are unresolved (technical rule only; legal closure criteria TBC â€” G-05).",
+    "shot": "R01_erasure_close.png"
+  },
+  {
+    "step": "R03 adherence shows seeded published policies",
+    "pass": true,
+    "detail": "Applicable published policies\nDEMO-CLASS-H389294 · CLASSIFICATION · v1 · DEMO ONLY\nDEMO-CLASS-H604598 · CLASSIFICATION ·",
+    "shot": "R03_adherence.png"
+  },
+  {
+    "step": "R03 cannot see other-institute scoped rows",
+    "pass": true,
+    "detail": "isolated"
+  },
+  {
+    "step": "R03 write returns 403",
+    "pass": true,
+    "detail": "status=403"
+  },
+  {
+    "step": "R04 college view shows policy + entry points",
+    "pass": true,
+    "detail": "",
+    "shot": "R04_college.png"
+  },
+  {
+    "step": "R04 write returns 403",
+    "pass": true,
+    "detail": "status=403"
+  },
+  {
+    "step": "R28 evidence desk shows seeded refs",
+    "pass": true,
+    "detail": "",
+    "shot": "R28_audit.png"
+  },
+  {
+    "step": "R28 write/approve returns 403",
+    "pass": true,
+    "detail": "status=403"
+  },
+  {
+    "step": "R28 BFF approve returns 403",
+    "pass": true,
+    "detail": "status=403"
+  }
+]
