@@ -2,15 +2,14 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-25 (IADM-06 S4 filmed — awaiting owner approval; not pushed)
+**Last current-state refresh:** 2026-11-26 (IADM-07 approved + commit/push authorized; next module awaiting owner)
 
 ---
 
 ## What to do next
 
-1. Await owner `APPROVED IADM-07` or `APPROVED IADM-07 COMMIT`.
-2. Do **not** push until owner says.
-3. Close-out report: `docs/iadm/IADM-07_S4_Report.md`; headed evidence `docs/iadm/iadm-07/evidence/us032/`.
+1. IADM-07 closed (`APPROVED IADM-07` + owner **commit and push**).
+2. **Next module not auto-picked** — no IADM-08 Detailed Blueprint/CSV in the MicroServices folder (IADM-01…07 only). Await owner choice: IADM-08 rework, CADM, or named STM/other ID.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -18,16 +17,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-07 S4 close-out filmed; **not pushed**.
+1. **Branch:** `feature/java-backend-integration` — IADM-07 approved; CSV statuses + handover committed; owner-authorized push.
 2. **IADM-07:** `:8105` `/api/v1/iadm/07` — schema `sec` FORCE RLS on DEV; registers only (never enforces).
 3. **Headed US-032:** **10/10 PASS** (R01/R02/R03×2/R04/R28); stale threshold DEMO ONLY default 10080 → filmed 1440.
-4. **Partials:** US-006 denial-event display omitted (no denial read path); US-009 no live enforcing-service contract.
+4. **Partials:** US-006 denial-event display omitted; US-009 no live enforcing-service contract (CSV: `partially completed`).
 5. **Catalogue:** 11 `iadm07.*` keys additive; legacy `adm07.*` (8) untouched.
 6. **Shared audit:** `audit.log_event` fail-closed; general read via `audit.events` `IADM07_%`.
 7. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
 8. **IADM-06** remains local S4 (`fad012b`); do not push without owner.
-9. **Notifications:** shared notification service absent — in-app alerts only (never blocks).
-10. **PNG blueprint for IADM-07:** not found; Markdown V1.1 used.
+9. **IADM-08:** Wave B/F stories marked completed in `IADM_User_Stories.md`; **no** `iadm-08-*` service / `:8106` route in current tree; no Detailed Blueprint for a full rework.
+10. **Root `pom.xml`:** unchanged (aggregator `services/administration-services` already includes IADM-07).
 ---
 
 ## 2. File Map & Project Artifacts

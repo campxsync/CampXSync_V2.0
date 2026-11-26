@@ -1,16 +1,20 @@
 # Next Task
 
-**STATUS: IADM-06 S4 filmed and documented. Local commits pending owner `APPROVED IADM-06` / `APPROVED IADM-06 COMMIT`. Not pushed.**
+**STATUS: IADM-07 closed — `APPROVED IADM-07` + owner commit/push (2026-11-26). Awaiting owner authorization for the next module.**
 
-## This run
+## Closed this cycle
 
 | Plain name | Code / ref | Status |
 |---|---|---|
-| IADM-06 S0–S4 | US-016…028 / US-001…015 | Close-out `docs/iadm/IADM-06_S4_Report.md`; headed **20/20 PASS** |
-| IADM-05 S4 | US-010…012, US-031, US-032 | **`APPROVED S4 COMMIT`** `6d31085` — headed 21/21 PASS |
-| IADM-04 S5 + 4a | prior | Local commits; not pushed |
+| IADM-07 S0–S4 | US-021…032 / US-001…020 | **APPROVED** — `docs/iadm/IADM-07_S4_Report.md`; headed **10/10 PASS** |
+| CSV statuses | `docs/user-stories/IADM-07-user-stories.csv` | 30 `completed` · 2 `partially completed` (US-006, US-009) |
+| Implementation commit | `8c6f243` | Security & Compliance Governance |
+| IADM-06 S0–S4 | `fad012b` | Included in owner-authorized push of this branch tip |
 
-## Stop gate
+## Stop gate — pick next
 
-Await owner `APPROVED IADM-06` or `APPROVED IADM-06 COMMIT`.  
-Do **not** push unless owner says.
+No further detailed blueprint/CSV in `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\` after IADM-07 (IADM-01…07 only). Owner must authorize **one** of:
+
+1. **IADM-08** — full Audit/Health/Ops rework (needs owner CSV + Detailed Blueprint; Wave B/F stories exist but no `:8106` service in tree today).
+2. **CADM** — College Administration Module.
+3. **STM / other** — name the exact backlog ID or CSV path.

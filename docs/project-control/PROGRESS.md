@@ -1,7 +1,24 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-25 (IADM-06 S4 close-out filmed — DEV only; **not pushed**; awaiting owner approval)
+**Updated:** 2026-11-26 (IADM-07 approved + owner commit/push; next module awaiting owner)
+
+## Owner decisions – IADM-07 Security & Compliance Governance (26-11-2026)
+
+**Authorized by:** owner kickoff (IMPLEMENT, DEV only) + **`APPROVED IADM-07`** + **commit and push** (2026-11-26).  
+**Spec:** `docs/user-stories/IADM-07-user-stories.csv` + blueprint V1.1 at `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\`.
+
+| Item | Status |
+|---|---|
+| US-021 preflight | **completed** — `docs/iadm/iadm-07/US021_PREFLIGHT_REPORT.md` |
+| S0–S4 US-022…032 / US-001…020 | **Demo-verified / API-ready per row** — report `docs/iadm/IADM-07_S4_Report.md` |
+| Headed film US-032 | **10/10 PASS** — `docs/iadm/iadm-07/evidence/us032/` |
+| CSV Implementation status | 30 `completed` · 2 `partially completed` (US-006, US-009) |
+| Service / port | `iadm-07-security-compliance-service` **:8105** `/api/v1/iadm/07` |
+| Commits | `8c6f243` (implementation) + approval/CSV/handover commit; owner-authorized push |
+| Next | Await owner next-module authorization (IADM-08 / CADM / STM) |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
+| Honest partial | US-006 no denial read path; US-009 no live enforcing-service contract |
 
 ## Owner decisions – IADM-06 Platform Analytics & Usage Insights (25-11-2026)
 
