@@ -37,6 +37,7 @@ $services = @(
     @{ Name = "IADM-04 Billing Entitlements"; Port = 8102; HealthUrl = "http://127.0.0.1:8102/api/v1/iadm/04/health"; AcceptAuthChallenge = $true },
     @{ Name = "IADM-05 Data Governance"; Port = 8103; HealthUrl = "http://127.0.0.1:8103/api/v1/iadm/05/health"; AcceptAuthChallenge = $true },
     @{ Name = "IADM-06 Platform Analytics"; Port = 8104; HealthUrl = "http://127.0.0.1:8104/api/v1/iadm/06/health"; AcceptAuthChallenge = $true },
+    @{ Name = "IADM-07 Security Compliance"; Port = 8105; HealthUrl = "http://127.0.0.1:8105/api/v1/iadm/07/health"; AcceptAuthChallenge = $true },
     @{ Name = "Student Service (STM-01/07)"; Port = 8093; HealthUrl = "http://127.0.0.1:8093/actuator/health"; AcceptAuthChallenge = $true },
     @{ Name = "Admissions Service (STM-02)"; Port = 8094; HealthUrl = "http://127.0.0.1:8094/health"; AcceptAuthChallenge = $true },
     @{ Name = "Enrollment Service (STM-03)"; Port = 8095; HealthUrl = "http://127.0.0.1:8095/health"; AcceptAuthChallenge = $true },

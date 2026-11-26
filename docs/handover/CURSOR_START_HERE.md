@@ -8,9 +8,9 @@
 
 ## What to do next
 
-1. Await owner `APPROVED IADM-06` or `APPROVED IADM-06 COMMIT`.
+1. Await owner `APPROVED IADM-07` or `APPROVED IADM-07 COMMIT`.
 2. Do **not** push until owner says.
-3. Close-out report: `docs/iadm/IADM-06_S4_Report.md`; headed evidence `docs/iadm/iadm-06/evidence/us028/`.
+3. Close-out report: `docs/iadm/IADM-07_S4_Report.md`; headed evidence `docs/iadm/iadm-07/evidence/us032/`.
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -18,17 +18,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-06 S4 close-out filmed; **not pushed**.
-2. **IADM-06:** `:8104` `/api/v1/iadm/06` — aggregates only; schema `anl` FORCE RLS on DEV.
-3. **Headed US-028:** **20/20 PASS** (R01/R02/R03×2/R04/R28 + faults); thresholds low=1 raised=50.
-4. **US-027:** 18/18 unit PASS + headed failure film.
-5. **DEMO policy:** `DEMO-ANALYTICS-HANDLING` v2 via IADM-05 lifecycle (R02≠R01); export gate uses RETENTION+ANALYTICS.
-6. **Catalogue:** M01–M10 seeded; DEMO ONLY adoption fixture labelled.
-7. **Shared audit:** `audit.log_event` fail-closed; view outcome via audit (F-01 partial).
-8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-9. **IADM-05** remains approved S4 local (`6d31085`); do not push without owner.
-10. **Partial:** US-021 view outcome cannot use IADM-05 request_id (documented F-01).
-
+1. **Branch:** `feature/java-backend-integration` — IADM-07 S4 close-out filmed; **not pushed**.
+2. **IADM-07:** `:8105` `/api/v1/iadm/07` — schema `sec` FORCE RLS on DEV; registers only (never enforces).
+3. **Headed US-032:** **10/10 PASS** (R01/R02/R03×2/R04/R28); stale threshold DEMO ONLY default 10080 → filmed 1440.
+4. **Partials:** US-006 denial-event display omitted (no denial read path); US-009 no live enforcing-service contract.
+5. **Catalogue:** 11 `iadm07.*` keys additive; legacy `adm07.*` (8) untouched.
+6. **Shared audit:** `audit.log_event` fail-closed; general read via `audit.events` `IADM07_%`.
+7. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
+8. **IADM-06** remains local S4 (`fad012b`); do not push without owner.
+9. **Notifications:** shared notification service absent — in-app alerts only (never blocks).
+10. **PNG blueprint for IADM-07:** not found; Markdown V1.1 used.
 ---
 
 ## 2. File Map & Project Artifacts

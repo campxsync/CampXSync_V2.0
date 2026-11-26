@@ -30,6 +30,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Platform configuration', href: '/platform/configuration', icon: Layers },
     { title: 'Identity & access', href: '/platform/identity', icon: Users },
     { title: 'Billing & subscriptions', href: '/platform/billing', icon: Layers },
+    { title: 'Security & compliance', href: '/platform/security', icon: ClipboardCheck },
     { title: 'Account Provisioning', href: '/college/account-provisioning', icon: Link2 },
     { title: 'Platform Audit', href: '/platform/audit', icon: History },
   ],
@@ -38,6 +39,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Identity & access', href: '/platform/identity', icon: Users },
     { title: 'Technical identities', href: '/platform/identity/technical', icon: Link2 },
     { title: 'Billing (operational)', href: '/platform/billing', icon: Layers },
+    { title: 'Security & compliance', href: '/platform/security', icon: ClipboardCheck },
   ],
   /** Auditor (R28) — IADM-02 configuration history + IADM-03 evidence + IADM-04 billing evidence. */
   auditor: [
@@ -46,6 +48,7 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Identity & access', href: '/platform/identity', icon: Users },
     { title: 'Access evidence', href: '/platform/identity/evidence', icon: History },
     { title: 'Billing evidence', href: '/platform/billing/audit', icon: History },
+    { title: 'Security evidence', href: '/platform/security/audit', icon: History },
   ],
   /** Institution Admin (R03) — IADM-01 desk; colleges & handover live here (not Platform wizard). */
   institution_admin: [
@@ -54,9 +57,11 @@ export const navConfigs: Record<UserRole, NavItem[]> = {
     { title: 'Colleges', href: '/institution/colleges', icon: GraduationCap },
     { title: 'Institute access', href: '/institution/access', icon: Users },
     { title: 'Subscription', href: '/institution/billing', icon: Layers },
+    { title: 'Security posture', href: '/institution/security', icon: ClipboardCheck },
   ],
   college_admin: [
     { title: 'Dashboard', href: '/college', icon: LayoutDashboard },
+    { title: 'Security summary', href: '/college/security', icon: ClipboardCheck },
     { title: 'Admissions & Applications', href: '/college/admissions', icon: FileText },
     { title: 'Course Registration Desk', href: '/college/enrollment', icon: BookOpen },
     { title: 'Lifecycle Desk', href: '/college/lifecycle', icon: GraduationCap },

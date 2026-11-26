@@ -28,6 +28,7 @@
         <module>iadm-04-billing-entitlements-service</module>
         <module>iadm-05-data-governance-service</module>
         <module>iadm-06-platform-analytics-service</module>
+        <module>iadm-07-security-compliance-service</module>
     </modules>
 </project>
 

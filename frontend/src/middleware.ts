@@ -266,7 +266,9 @@ export async function middleware(request: NextRequest) {
           pathname === '/platform/governance' ||
           pathname.startsWith('/platform/governance/') ||
           pathname === '/platform/analytics' ||
-          pathname.startsWith('/platform/analytics/'));
+          pathname.startsWith('/platform/analytics/') ||
+          pathname === '/platform/security' ||
+          pathname.startsWith('/platform/security/'));
       const systemAdminOk =
         isSystemAdminUser &&
         (pathname === '/platform/identity' ||
@@ -274,7 +276,9 @@ export async function middleware(request: NextRequest) {
           pathname === '/platform/governance' ||
           pathname.startsWith('/platform/governance/') ||
           pathname === '/platform/analytics' ||
-          pathname.startsWith('/platform/analytics/'));
+          pathname.startsWith('/platform/analytics/') ||
+          pathname === '/platform/security' ||
+          pathname.startsWith('/platform/security/'));
       if (isSystemAdminUser && !systemAdminOk) {
         return NextResponse.redirect(new URL('/access-denied?reason=forbidden', request.url));
       }

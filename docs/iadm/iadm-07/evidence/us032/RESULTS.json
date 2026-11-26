@@ -1,0 +1,60 @@
+[
+  {
+    "step": "IADM-07 health :8105",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "step": "R01 seeded SEC-FIND-001 visible",
+    "ok": true,
+    "detail": "count=1",
+    "shot": "R01_findings.png"
+  },
+  {
+    "step": "R01 SEC-ALERT-001 listed",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "R01 set stale threshold",
+    "ok": true,
+    "detail": "thr=Stale threshold (minutes): 1440 action="
+  },
+  {
+    "step": "R02 platform security desk",
+    "ok": true,
+    "detail": "",
+    "shot": "R02_desk.png"
+  },
+  {
+    "step": "R03A institute finding SEC-FIND-001",
+    "ok": true,
+    "detail": "scope=Scope: d4000000-0000-4000-8000-000000000004",
+    "shot": "R03A_institute.png",
+    "tenantId": "d4000000-0000-4000-8000-000000000004"
+  },
+  {
+    "step": "R03A finding transition",
+    "ok": true,
+    "detail": "advance clicked"
+  },
+  {
+    "step": "R03B scoped institute (not A)",
+    "ok": true,
+    "detail": "mode=magic scope=Scope: 72ecbfe3-2077-41b5-8a20-b6d3e045311b",
+    "shot": "R03B_institute.png",
+    "tenantId": "72ecbfe3-2077-41b5-8a20-b6d3e045311b"
+  },
+  {
+    "step": "R04 college summary only",
+    "ok": true,
+    "detail": "",
+    "shot": "R04_college.png"
+  },
+  {
+    "step": "R28 mutation denied 403",
+    "ok": true,
+    "detail": "403 Auditor cannot change security registers",
+    "shot": "R28_audit.png"
+  }
+]

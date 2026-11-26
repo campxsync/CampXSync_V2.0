@@ -63,6 +63,8 @@ public class GatewayConfig {
         routeTable.put("/api/v1/iadm/05", "http://localhost:8103/api/v1/iadm/05");
         // IADM-06 Platform Analytics & Usage Insights (port 8104) — before legacy /api/v1/admin catch-all
         routeTable.put("/api/v1/iadm/06", "http://localhost:8104/api/v1/iadm/06");
+        // IADM-07 Security & Compliance Governance (port 8105) — before legacy /api/v1/admin catch-all
+        routeTable.put("/api/v1/iadm/07", "http://localhost:8105/api/v1/iadm/07");
         routeTable.put("/api/v1/admin/internal/delegations",
                 "http://localhost:8081/api/v1/admin/internal/delegations");
         routeTable.put("/api/v1/admin/internal/roles",

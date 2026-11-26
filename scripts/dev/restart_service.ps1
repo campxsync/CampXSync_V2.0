@@ -484,8 +484,47 @@ switch ($Service.ToLower()) {
         }
     }
 
+    { $_ -in @("iadm-07", "iadm-07-security-compliance-service", "iadm07") } {
+        Write-Host "1. Building iadm-07-security-compliance-service..." -ForegroundColor Cyan
+        $iadmDir = "$baseDir\services\administration-services\iadm-07-security-compliance-service"
+        if (-not (Test-Path "$iadmDir\classpath.txt")) {
+            Copy-Item "$baseDir\services\administration-services\iadm-06-platform-analytics-service\classpath.txt" "$iadmDir\classpath.txt"
+        }
+        $cp = (Get-Content "$iadmDir\classpath.txt" -Raw).Trim()
+        $srcFiles = Get-ChildItem -Path "$iadmDir\src\main\java" -Recurse -Filter *.java | Select-Object -ExpandProperty FullName
+        if (-not (Test-Path "$iadmDir\target\classes")) {
+            New-Item -ItemType Directory -Path "$iadmDir\target\classes" -Force | Out-Null
+        }
+        & javac -cp "$iadmDir\target\classes;$cp" -d "$iadmDir\target\classes" $srcFiles
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "iadm-07 compilation failed! Aborting restart." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "2. Stopping port 8105 listener..." -ForegroundColor Cyan
+        Stop-PortListener 8105
+        Start-Sleep -Milliseconds 500
+
+        Write-Host "3. Launching iadm-07..." -ForegroundColor Cyan
+        $iadmProc = Start-Process -FilePath "java" -ArgumentList @(
+            "-Xms32m",
+            "-Xmx96m",
+            "-Dcampx.persistence.mode=postgres",
+            "-Dcampx.internal.auth.enabled=true",
+            "-cp",
+            "target\classes;$cp",
+            "com.campx.iadm.security.Iadm07Application",
+            "8105"
+        ) -WorkingDirectory $iadmDir -RedirectStandardOutput "$baseDir\docs\latency-audit\logs\iadm-07.log" -RedirectStandardError "$baseDir\docs\latency-audit\logs\iadm-07.err" -WindowStyle Minimized -PassThru
+        Write-Host "Started iadm-07 PID $($iadmProc.Id)" -ForegroundColor DarkGray
+        if (-not (Wait-HealthCheck "http://127.0.0.1:8105/api/v1/iadm/07/health" 25)) {
+            Write-Host "iadm-07 health check timed out — aborting." -ForegroundColor Red
+            exit 1
+        }
+    }
+
     default {
-        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01, iadm-02, iadm-03, iadm-04, iadm-05, iadm-06" -ForegroundColor Red
+        Write-Host "Unknown service: $Service. Supported: document-service, api-gateway, lifecycle-service, frontend, attendance-service, subject-management-service, analytics-service, iadm-01, iadm-02, iadm-03, iadm-04, iadm-05, iadm-06, iadm-07" -ForegroundColor Red
         exit 1
     }
 }
