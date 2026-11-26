@@ -1,7 +1,24 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-26 (IADM-07 approved + owner commit/push; next module awaiting owner)
+**Updated:** 2026-11-26 (IADM-08 S0–S4 built; awaiting owner approval)
+
+## Owner decisions – IADM-08 Audit, Health & Operations Oversight (26-11-2026)
+
+**Authorized by:** owner kickoff (IMPLEMENT, DEV only).  
+**Spec:** working `docs/user-stories/IADM-08-user-stories.csv` (reconstructed — owner path missing at preflight) + Blueprint V1.2.
+
+| Item | Status |
+|---|---|
+| US-001 preflight | **completed** — `docs/iadm/iadm-08/US001_PREFLIGHT_REPORT.md` |
+| S0–S4 US-016…023 / US-002…015 | **Demo-verified / API-ready per row** — report `docs/iadm/IADM-08_S4_Report.md` |
+| Headed film US-023 | **10/10 PASS** — `docs/iadm/iadm-08/evidence/us023/` |
+| Service / port | `iadm-08-audit-health-ops-service` **:8106** `/api/v1/iadm/08` |
+| Persistence | **None** (no IADM-08 schema/tables) |
+| Migration on DEV | `iadm08_foundation_keys` (keys only) |
+| Limits | DEMO ONLY **31 days** / **50 rows** |
+| Next | **STOP** — await `APPROVED IADM-08` / `APPROVED IADM-08 COMMIT`; **do not push** |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-07 Security & Compliance Governance (26-11-2026)
 

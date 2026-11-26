@@ -33,7 +33,7 @@ try {
 }
 
 # 2. Stop old listeners on core + academic ports
-$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 8099, 8100, 8101, 8102, 8103, 8104, 8105, 3000)
+$targetPorts = @(8080, 8081, 8093, 8098, 8096, 8085, 8088, 8092, 8099, 8100, 8101, 8102, 8103, 8104, 8105, 8106, 3000)
 foreach ($p in $targetPorts) {
     $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
     if ($conns) {
@@ -219,6 +219,26 @@ if (Test-Path "$iadm07Dir\classpath.txt") {
     Write-Host "IADM-07 launched with PID $($iadm07Proc.Id)" -ForegroundColor DarkGray
 } else {
     Write-Host "IADM-07 classpath.txt missing — skip launch (build module first)" -ForegroundColor Yellow
+}
+
+# 3a1h. Launch IADM-08 Audit, Health & Operations Oversight on port 8106
+Write-Host "Starting IADM-08 Audit Health & Operations Service on port 8106 (-Xms32m -Xmx96m)..." -ForegroundColor Cyan
+$iadm08Dir = "$baseDir\services\administration-services\iadm-08-audit-health-ops-service"
+if (Test-Path "$iadm08Dir\classpath.txt") {
+    $iadm08Cp = (Get-Content "$iadm08Dir\classpath.txt" -Raw).Trim()
+    $iadm08Proc = Start-Process -FilePath "java" -ArgumentList @(
+        "-Xms32m",
+        "-Xmx96m",
+        "-Dcampx.persistence.mode=postgres",
+        "-Dcampx.internal.auth.enabled=true",
+        "-cp",
+        "target\classes;$iadm08Cp",
+        "com.campx.iadm.ops.Iadm08Application",
+        "8106"
+    ) -WorkingDirectory $iadm08Dir -RedirectStandardOutput "$logDir\iadm-08.log" -RedirectStandardError "$logDir\iadm-08.err" -WindowStyle Minimized -PassThru
+    Write-Host "IADM-08 launched with PID $($iadm08Proc.Id)" -ForegroundColor DarkGray
+} else {
+    Write-Host "IADM-08 classpath.txt missing — skip launch (build module first)" -ForegroundColor Yellow
 }
 
 # Path C + STM-07 IAM role port client base (student-service)

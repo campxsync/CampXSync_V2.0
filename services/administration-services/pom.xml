@@ -29,6 +29,7 @@
         <module>iadm-05-data-governance-service</module>
         <module>iadm-06-platform-analytics-service</module>
         <module>iadm-07-security-compliance-service</module>
+        <module>iadm-08-audit-health-ops-service</module>
     </modules>
 </project>
 

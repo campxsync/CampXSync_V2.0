@@ -1,0 +1,62 @@
+{
+  "pass": 10,
+  "total": 10,
+  "results": [
+    {
+      "step": "R01 platform operations desk",
+      "ok": true,
+      "detail": "",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R01_overview.png"
+    },
+    {
+      "step": "R01 health overview visible",
+      "ok": true,
+      "detail": "panel=1 err="
+    },
+    {
+      "step": "R01 audit search returns rows",
+      "ok": true,
+      "detail": "rows=50",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R01_audit.png"
+    },
+    {
+      "step": "R01 SLA not available",
+      "ok": true,
+      "detail": "SLA: not available"
+    },
+    {
+      "step": "R02 platform operations desk",
+      "ok": true,
+      "detail": "",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R02_desk.png"
+    },
+    {
+      "step": "R03 institute activity desk",
+      "ok": true,
+      "detail": "",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R03_institute.png"
+    },
+    {
+      "step": "R03 health view denied",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "step": "R04 denied IADM-08 platform desk",
+      "ok": true,
+      "detail": "http://127.0.0.1:3000/platform/operations",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R04_deny.png"
+    },
+    {
+      "step": "R28 operations desk",
+      "ok": true,
+      "detail": "",
+      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R28_desk.png"
+    },
+    {
+      "step": "R28 export denied",
+      "ok": true,
+      "detail": "Export attempt: 404 This feature is not available."
+    }
+  ]
+}
