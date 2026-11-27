@@ -1,7 +1,22 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-26 (IADM-08 S0–S4 built; awaiting owner approval)
+**Updated:** 2026-11-27 (IADM-03 V2.0 S0–S4 built on DEV; awaiting owner approval)
+
+## Owner decisions – IADM-03 V2.0 Platform Identity & Access Governance (27-11-2026)
+
+**Authorized by:** owner kickoff (IMPLEMENT, DEV only).  
+**Spec:** `docs/user-stories/IADM-03-user-stories.csv` (25 rows, S0–S4) + Blueprint V1.1.
+
+| Item | Status |
+|---|---|
+| Step 0 US-016 inventory | **completed** — `docs/iadm/iadm-03/IAM_INVENTORY.md` |
+| S0–S4 US-017…025 / US-001…015 | **completed / Demo-verified / Partial per row** — `docs/iadm/iadm-03/IADM-03_FINAL_REPORT.md` |
+| Service / port / schema | `iadm-03-identity-access-service` **:8101** `/api/v1/iadm/03` · schema `iadm03` (6 tables, `FORCE RLS`) |
+| Migration on DEV | `20261127010000_iadm03_v2_keys_and_schema.sql` (+12 `iadm03.*` additive keys; 663/2223 existing unchanged) |
+| Tests & typecheck | **45/45 JUnit PASS** (`Iadm03V2S0S1Test`, `Iadm03V2FailureAndIsolationTest`, +8 owner suites); `tsc --noEmit` **0 errors** |
+| Next | **STOP** — await owner approval; **do not push** |
+| DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-08 Audit, Health & Operations Oversight (26-11-2026)
 
