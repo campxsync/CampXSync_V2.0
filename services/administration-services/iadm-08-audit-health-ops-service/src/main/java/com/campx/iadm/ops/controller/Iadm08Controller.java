@@ -4,6 +4,7 @@ import com.campx.iadm.ops.exception.InstituteAdminException;
 import com.campx.iadm.ops.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.ops.security.GatewayHmacVerifier;
 import com.campx.iadm.ops.security.UserSecurityContext;
+import com.campx.iadm.ops.service.HealthTargetInventory;
 import com.campx.iadm.ops.service.OpsDomainService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
@@ -125,15 +126,18 @@ public class Iadm08Controller implements HttpHandler {
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health/inventory")) {
+                rejectClientHealthTargetParams(exchange);
                 sendJson(exchange, 200, toJson(service.healthInventory(ctx)));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/health/overview")) {
+                rejectClientHealthTargetParams(exchange);
                 sendJson(exchange, 200, toJson(service.healthOverview(ctx, fwd)));
                 return;
             }
             Matcher hDetail = HEALTH_DETAIL.matcher(path);
             if ("GET".equalsIgnoreCase(method) && hDetail.matches()) {
+                rejectClientHealthTargetParams(exchange);
                 sendJson(exchange, 200, toJson(service.healthDetail(ctx, fwd, hDetail.group(1))));
                 return;
             }
@@ -150,9 +154,8 @@ public class Iadm08Controller implements HttpHandler {
                 return;
             }
             // Deferred features — verify absence / refuse attempts (US-010, US-015)
-            if (path.contains("/alerts/acknowledge") || path.endsWith("/acknowledge")
-                    || path.contains("/export")) {
-                sendJson(exchange, 404, problem("IADM08_NOT_AVAILABLE", "This feature is not available."));
+            if (isDeferredMutationPath(path)) {
+                sendJson(exchange, 404, refuseAcknowledgeOrExportJson());
                 return;
             }
             sendJson(exchange, 404, problem("IADM08_NOT_FOUND", "No route for " + method + " " + path));
@@ -186,6 +189,45 @@ public class Iadm08Controller implements HttpHandler {
 
     private static String header(HttpExchange exchange, String name) {
         return exchange.getRequestHeaders().getFirst(name);
+    }
+
+    private static void rejectClientHealthTargetParams(HttpExchange exchange) {
+        HealthTargetInventory.rejectClientSuppliedTarget(
+                queryParam(exchange, "url"),
+                queryParam(exchange, "host"),
+                queryParam(exchange, "address"));
+    }
+
+    /**
+     * Acknowledge / export are never available (US-010). Role does not change the refusal.
+     * Plain language: every persona gets the same not-available response.
+     */
+    public static boolean isDeferredMutationPath(String path) {
+        if (path == null) {
+            return false;
+        }
+        return path.contains("/alerts/acknowledge") || path.endsWith("/acknowledge")
+                || path.contains("/export");
+    }
+
+    /** JSON body returned for any acknowledge/export attempt (all roles). */
+    public static String refuseAcknowledgeOrExportJson() {
+        return problem("IADM08_NOT_AVAILABLE", "This feature is not available.");
+    }
+
+    /**
+     * API contract: acknowledge is refused for the given role code (role is informational only).
+     *
+     * @return map with httpStatus 404 and errorCode IADM08_NOT_AVAILABLE
+     */
+    public static Map<String, Object> refuseAcknowledgeForRole(String roleCode) {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("role", roleCode == null ? "" : roleCode);
+        m.put("httpStatus", Integer.valueOf(404));
+        m.put("errorCode", "IADM08_NOT_AVAILABLE");
+        m.put("detail", "This feature is not available.");
+        m.put("acknowledgeSupported", Boolean.FALSE);
+        return m;
     }
 
     private static String queryParam(HttpExchange exchange, String name) {

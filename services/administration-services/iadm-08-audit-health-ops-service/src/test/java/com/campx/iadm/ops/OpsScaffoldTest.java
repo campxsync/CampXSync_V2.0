@@ -34,6 +34,7 @@ public class OpsScaffoldTest {
     public void healthInventoryIsServerSideOnly() {
         assertTrue(HealthTargetInventory.all().size() >= 5);
         assertTrue(HealthTargetInventory.SOURCE_LABEL.contains("minimal-read-only"));
+        assertTrue(HealthTargetInventory.SOURCE_LABEL.contains("not live gateway route registry"));
         assertEquals(null, HealthTargetInventory.find("http://evil.example"));
         Map<String, String> gw = HealthTargetInventory.find("gateway");
         assertTrue(gw.get("url").startsWith("http://127.0.0.1:"));

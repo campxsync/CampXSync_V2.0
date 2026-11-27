@@ -9,12 +9,20 @@ import java.util.Map;
 /**
  * Server-side health target inventory (IADM-08-US-021 / decision D5).
  * Plain language: only these loopback health URLs may be called; never a client-supplied address.
- * Labelled minimal in-service list aligned with GatewayConfig.routeTable + DEV start-script checks.
+ * <p>
+ * Why a labelled minimal list instead of the live gateway route registry: the registry mixes
+ * business routes and can change without a health-probe contract; this fixed DEV family list
+ * (gateway + IADM-01…08) is the only set IADM-08 will dial, so SSRF via client url/host/address
+ * cannot expand the target set.
  */
 public final class HealthTargetInventory {
 
     public static final String SOURCE_LABEL =
-            "minimal-read-only-in-service-list (aligned with gateway route table + DEV health family)";
+            "minimal-read-only-in-service-list (gateway + IADM-01..08; not live gateway route registry)";
+
+    public static final String SOURCE_RATIONALE =
+            "Fixed labelled list used instead of gateway route registry so health probes stay "
+                    + "bounded to known loopback actuators and cannot follow client-supplied addresses.";
 
     private HealthTargetInventory() {
     }
@@ -44,6 +52,21 @@ public final class HealthTargetInventory {
             }
         }
         return null;
+    }
+
+    /**
+     * Reject client-supplied url / host / address so no outbound call can be aimed at them.
+     * Inventory remains the labelled minimal list and is never mutated by these parameters.
+     */
+    public static void rejectClientSuppliedTarget(String url, String host, String address) {
+        if (nonEmpty(url) || nonEmpty(host) || nonEmpty(address)) {
+            throw new com.campx.iadm.ops.exception.InstituteAdminException(400, "IADM08_TARGET_REJECTED",
+                    "Client-supplied health targets are not allowed.");
+        }
+    }
+
+    private static boolean nonEmpty(String s) {
+        return s != null && !s.trim().isEmpty();
     }
 
     private static Map<String, String> target(String id, String name, String url) {

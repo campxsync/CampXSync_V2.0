@@ -127,12 +127,6 @@ export default function PlatformOperationsPage() {
     setActionMsg(`Export attempt: ${res.status} ${body.detail || body.errorCode}`);
   };
 
-  const tryAcknowledge = async () => {
-    const res = await fetch('/api/platform/operations?view=acknowledge', { method: 'POST' });
-    const body = await res.json();
-    setActionMsg(`Acknowledge attempt: ${res.status} ${body.detail || body.errorCode}`);
-  };
-
   useEffect(() => {
     void loadOverview();
   }, []);
@@ -310,14 +304,6 @@ export default function PlatformOperationsPage() {
             {String(alerts.acknowledgeSupported)} · IADM-07 included:{' '}
             {String(alerts.iadm07AlertsIncluded)}
           </p>
-          <button
-            type="button"
-            data-testid="iadm08-ack-attempt"
-            className="mt-2 rounded border px-3 py-1.5 text-sm"
-            onClick={() => void tryAcknowledge()}
-          >
-            Acknowledge (should fail)
-          </button>
           <pre className="mt-3 overflow-auto rounded bg-neutral-50 p-3 text-xs" data-testid="iadm08-alerts-body">
             {JSON.stringify(alerts, null, 2)}
           </pre>

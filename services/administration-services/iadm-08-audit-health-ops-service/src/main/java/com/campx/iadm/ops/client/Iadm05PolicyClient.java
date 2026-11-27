@@ -40,20 +40,32 @@ public class Iadm05PolicyClient {
             String raw = http.get(q.toString(), forwardHeaders);
             return parseMinimal(raw);
         } catch (InstituteAdminException ex) {
-            if (ex.getStatus() == 404) {
-                throw new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
-                        "No single published policy version resolved; data withheld.");
-            }
-            if (ex.getStatus() == 409) {
-                throw new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
-                        "Conflicting published policy versions; data withheld.");
-            }
-            if ("IADM08_POLICY_RESOLVE".equals(ex.getErrorCode())) {
-                throw new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
-                        "Policy could not be resolved; data withheld.");
-            }
-            throw ex;
+            throw mapResolveFailure(ex);
         }
+    }
+
+    /**
+     * Missing (404) or ambiguous/conflicting (409) IADM-05 policy withholds data.
+     * Visible for Fix Part A API contract tests.
+     */
+    public static InstituteAdminException mapResolveFailure(InstituteAdminException ex) {
+        if (ex == null) {
+            return new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
+                    "Policy could not be resolved; data withheld.");
+        }
+        if (ex.getStatus() == 404) {
+            return new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
+                    "No single published policy version resolved; data withheld.");
+        }
+        if (ex.getStatus() == 409) {
+            return new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
+                    "Conflicting published policy versions; data withheld.");
+        }
+        if ("IADM08_POLICY_RESOLVE".equals(ex.getErrorCode())) {
+            return new InstituteAdminException(403, "IADM08_POLICY_UNRESOLVED",
+                    "Policy could not be resolved; data withheld.");
+        }
+        return ex;
     }
 
     private static String url(String s) {

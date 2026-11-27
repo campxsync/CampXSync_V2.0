@@ -289,12 +289,16 @@ public class OpsDomainService {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
                 requireAny(conn, OpsPermissionMatrix.KEY_ALERTS);
                 gatePolicy(headers);
+                // R03 always binds to trusted claims institute; only R01/R02/R28 may select.
+                boolean canSelect = canSelectAlertsInstitute(conn);
+                String scopedTenant = OpsAlertsScope.resolve(canSelect, ctx.getTenantId(), tenantId);
                 DurableAuditWriter.append(conn, ctx, ctx.getTenantId(),
                         "IADM08_ALERTS_READ", "alerts", null,
-                        "tenant=" + nullToEmpty(tenantId));
+                        "tenant=" + nullToEmpty(scopedTenant));
                 Map<String, Object> out = new LinkedHashMap<String, Object>();
                 out.put("acknowledgeSupported", Boolean.FALSE);
                 out.put("localAlertState", Boolean.FALSE);
+                out.put("scopedTenantId", scopedTenant);
                 List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
                 if (!OpsOutageFlags.isIadm07Disabled()) {
                     try {
@@ -303,8 +307,8 @@ public class OpsDomainService {
                             fwd.putAll(headers);
                         }
                         String path = "/alerts";
-                        if (tenantId != null && !tenantId.trim().isEmpty()) {
-                            path = "/alerts?tenantId=" + url(tenantId.trim());
+                        if (scopedTenant != null && !scopedTenant.isEmpty()) {
+                            path = "/alerts?tenantId=" + url(scopedTenant);
                         }
                         String raw = iadm07Client.get(path, fwd);
                         items.add(refItem("iadm07-alerts", "IADM-07 security alerts (read-only)", raw));
@@ -542,6 +546,14 @@ public class OpsDomainService {
         return brief;
     }
 
+    /**
+     * Public API contract entry for time-window validation (Fix Part A).
+     * Over-max windows are rejected with IADM08_RANGE_TOO_LARGE (never truncated).
+     */
+    public Instant[] validateMandatoryRange(String fromIso, String toIso) {
+        return parseMandatoryRange(fromIso, toIso);
+    }
+
     private Instant[] parseMandatoryRange(String fromIso, String toIso) {
         if (fromIso == null || fromIso.trim().isEmpty() || toIso == null || toIso.trim().isEmpty()) {
             throw new InstituteAdminException(400, "IADM08_RANGE_REQUIRED",
@@ -631,6 +643,11 @@ public class OpsDomainService {
     private boolean isPlatformWideAudit(Connection conn) throws SQLException {
         return isSuperAdmin(conn) || isSystemAdmin(conn)
                 || hasPermission(conn, OpsPermissionMatrix.KEY_AUDIT_PLATFORM);
+    }
+
+    /** R01 / R02 / R28 may select an institute on alerts; R03 may not. */
+    private boolean canSelectAlertsInstitute(Connection conn) throws SQLException {
+        return isPlatformWideAudit(conn);
     }
 
     /**
