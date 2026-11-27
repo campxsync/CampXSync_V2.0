@@ -1,12 +1,12 @@
 {
-  "pass": 10,
-  "total": 10,
+  "pass": 25,
+  "total": 25,
   "results": [
     {
       "step": "R01 platform operations desk",
       "ok": true,
       "detail": "",
-      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R01_overview.png"
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R01_overview.png"
     },
     {
       "step": "R01 health overview visible",
@@ -17,7 +17,7 @@
       "step": "R01 audit search returns rows",
       "ok": true,
       "detail": "rows=50",
-      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R01_audit.png"
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R01_audit.png"
     },
     {
       "step": "R01 SLA not available",
@@ -25,16 +25,36 @@
       "detail": "SLA: not available"
     },
     {
+      "step": "Part B.5: 6 reads return 200",
+      "ok": true,
+      "detail": "statuses=200,200,200,200,200,200"
+    },
+    {
+      "step": "Part B.5: all 6 IADM08_* rows recorded in shared audit",
+      "ok": true,
+      "detail": "IADM08_AUDIT_SEARCH=bd6e1766-97bd-4397-8349-b92808ea6659; IADM08_AUDIT_DETAIL=e85101aa-c87a-4de2-a260-ecc26dfbab9a; IADM08_AUDIT_TIMELINE=917082a8-d9e4-4bc9-a81c-4ad07abd4e22; IADM08_HEALTH_OVERVIEW=69ab2e87-feb4-4faf-907b-b56563e11cbf; IADM08_HEALTH_DETAIL=fe2cb8fa-53bc-4fa5-8c86-67fd658b8780; IADM08_ALERTS_READ=bc978e59-e758-44f1-89bf-157a0a2571b4"
+    },
+    {
+      "step": "Part B.5: auditDisabled=true refuses all 6 reads (503 IADM08_AUDIT_UNAVAILABLE)",
+      "ok": true,
+      "detail": "503:IADM08_AUDIT_UNAVAILABLE,503:IADM08_AUDIT_UNAVAILABLE,503:IADM08_AUDIT_UNAVAILABLE,503:IADM08_AUDIT_UNAVAILABLE,503:IADM08_AUDIT_UNAVAILABLE,503:IADM08_AUDIT_UNAVAILABLE"
+    },
+    {
+      "step": "Part B.5: auditDisabled=false recovers all 6 reads (200)",
+      "ok": true,
+      "detail": "statuses=200,200,200,200,200,200"
+    },
+    {
       "step": "R02 platform operations desk",
       "ok": true,
       "detail": "",
-      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R02_desk.png"
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R02_desk.png"
     },
     {
       "step": "R03 institute activity desk",
       "ok": true,
       "detail": "",
-      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R03_institute.png"
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R03_institute.png"
     },
     {
       "step": "R03 health view denied",
@@ -42,21 +62,83 @@
       "detail": "count=1"
     },
     {
+      "step": "Part B.6: R03 sees only own institute; unattributed hidden",
+      "ok": true,
+      "detail": "rows=50, unattributedSampleInDb=fa5c6e81-fde9-4455-89ae-7ae6a2b361a2"
+    },
+    {
+      "step": "Part B.6: R03 cross-institute refused (403 IADM08_SCOPE_DENIED)",
+      "ok": true,
+      "detail": "status=403 code=IADM08_SCOPE_DENIED"
+    },
+    {
+      "step": "Part B.6: R03 unattributed event detail refused/hidden (403/404)",
+      "ok": true,
+      "detail": "eventId=fa5c6e81-fde9-4455-89ae-7ae6a2b361a2 status=404 code=IADM08_NOT_FOUND"
+    },
+    {
       "step": "R04 denied IADM-08 platform desk",
       "ok": true,
       "detail": "http://127.0.0.1:3000/platform/operations",
-      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R04_deny.png"
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R04_deny.png"
     },
     {
-      "step": "R28 operations desk",
+      "step": "R28 operations desk (health read-only)",
       "ok": true,
       "detail": "",
-      "shot": "d:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R28_desk.png"
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R28_desk.png"
+    },
+    {
+      "step": "Part B.7: R28 audit search + detail read-only",
+      "ok": true,
+      "detail": "rows=50 detail=true",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R28_audit_detail.png"
+    },
+    {
+      "step": "Part B.7: R28 alerts read-only (no ack control)",
+      "ok": true,
+      "detail": "panel=true ackControls=0",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R28_alerts.png"
+    },
+    {
+      "step": "Part B.7: R28 search recorded in shared audit",
+      "ok": true,
+      "detail": "count=3 latest=e465b76d-0a63-46be-9480-c9702f3ae072"
     },
     {
       "step": "R28 export denied",
       "ok": true,
-      "detail": "Export attempt: 404 This feature is not available."
+      "detail": "Export attempt: 404 This feature is not available.",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\R28_export_denied.png"
+    },
+    {
+      "step": "Part B.7: R28 acknowledge mutation refused (404)",
+      "ok": true,
+      "detail": "status=404 code=IADM08_NOT_AVAILABLE"
+    },
+    {
+      "step": "Part B.8: stopped DEV service (iadm-06) shows Unavailable",
+      "ok": true,
+      "detail": "status=Unavailable",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\failure_unavailable.png"
+    },
+    {
+      "step": "Part B.8: silent/delayed target (iadm-06) shows Unknown",
+      "ok": true,
+      "detail": "status=Unknown",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\failure_unknown.png"
+    },
+    {
+      "step": "Part B.8: recovered DEV service (iadm-06) shows Healthy",
+      "ok": true,
+      "detail": "status=Healthy",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\failure_recovered.png"
+    },
+    {
+      "step": "Part B.8: denial-only audit search (IADM02_*_DENIED or honest empty)",
+      "ok": true,
+      "detail": "rows=4 sample=2026-11-24T07:37:38.259234ZIADM02_CONSUMER_READ_DENIED69822238-2ca1-4e3b-86d4-c7",
+      "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-08\\evidence\\us023\\failure_denial_only.png"
     }
   ]
 }

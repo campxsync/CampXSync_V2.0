@@ -432,7 +432,7 @@ public class OpsDomainService {
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setConnectTimeout(1500);
+            conn.setConnectTimeout(2500);
             conn.setReadTimeout(2000);
             conn.setRequestMethod("GET");
             int code = conn.getResponseCode();
