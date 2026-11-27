@@ -15,7 +15,7 @@ type Registration = {
 export default function ServiceRegistrationsPage() {
   const [items, setItems] = useState<Registration[]>([]);
   const [serviceCode, setServiceCode] = useState('IADM-09-DEMO');
-  const [keyManifest, setKeyManifest] = useState('["iadm09.demo.view"]');
+  const [keyManifest, setKeyManifest] = useState('iadm09.demo.view');
   const [migrationRef, setMigrationRef] = useState('20261127990000_demo.sql');
   const [rollbackRef, setRollbackRef] = useState('20261127990000_rollback__demo.sql');
   const [msg, setMsg] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export default function ServiceRegistrationsPage() {
       body: JSON.stringify({
         serviceCode,
         keyManifest,
-        roleGrantProposal: '{"R01":["iadm09.demo.view"]}',
+        roleGrantProposal: 'R01:iadm09.demo.view',
         migrationRef,
         rollbackRef,
         testEvidenceRef: 'unit-suite-pass',

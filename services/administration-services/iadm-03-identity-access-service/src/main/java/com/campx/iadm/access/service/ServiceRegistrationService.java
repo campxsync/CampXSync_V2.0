@@ -17,7 +17,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * IADM-03-US-011 — Register a new service's permission keys through an additive manifest.
+ * IADM-03-US-011 — Register a new service's permission keys through an additive
+ * manifest.
  * Never applies a migration, removes/renames a key, or touches legacy keys.
  */
 public class ServiceRegistrationService {
@@ -35,10 +36,11 @@ public class ServiceRegistrationService {
                 List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
                 try (PreparedStatement ps = conn.prepareStatement(
                         "SELECT id, service_code, owner_user_id, key_manifest::text, role_grant_proposal::text, " +
-                                "holder_impact::text, migration_ref, rollback_ref, test_evidence_ref, audit_evidence_ref, " +
+                                "holder_impact::text, migration_ref, rollback_ref, test_evidence_ref, audit_evidence_ref, "
+                                +
                                 "status, validation_notes, decision_reason, created_at " +
                                 "FROM iadm03.service_registrations ORDER BY created_at DESC LIMIT 50");
-                     ResultSet rs = ps.executeQuery()) {
+                        ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Map<String, Object> m = new LinkedHashMap<String, Object>();
                         m.put("id", String.valueOf(rs.getObject("id")));
@@ -73,14 +75,14 @@ public class ServiceRegistrationService {
     }
 
     public Map<String, Object> submit(UserSecurityContext ctx,
-                                      String serviceCode,
-                                      String keyManifestJson,
-                                      String roleGrantProposalJson,
-                                      String migrationRef,
-                                      String rollbackRef,
-                                      String testEvidenceRef,
-                                      String auditEvidenceRef,
-                                      String correlationId) {
+            String serviceCode,
+            String keyManifestJson,
+            String roleGrantProposalJson,
+            String migrationRef,
+            String rollbackRef,
+            String testEvidenceRef,
+            String auditEvidenceRef,
+            String correlationId) {
         if (serviceCode == null || serviceCode.trim().isEmpty()
                 || keyManifestJson == null || keyManifestJson.trim().isEmpty()
                 || migrationRef == null || migrationRef.trim().isEmpty()
@@ -91,12 +93,20 @@ public class ServiceRegistrationService {
                     "serviceCode, keyManifest, migrationRef, rollbackRef, testEvidenceRef, and auditEvidenceRef are required.");
         }
         String lower = keyManifestJson.toLowerCase(Locale.ROOT);
-        if (lower.contains("adm0") || lower.contains("delete") || lower.contains("drop") || lower.contains("*")) {
+        if (lower.matches(".*(?<![a-z])adm[0-9].*") || lower.contains("delete") || lower.contains("drop") || lower.contains("*")) {
             throw new InstituteAdminException(400, "IADM03_ADDITIVE_ONLY_VIOLATION",
                     "Service registration manifest must be additive-only; wildcards and legacy adm* mutations are forbidden.");
         }
+        String manifestJson = keyManifestJson.trim();
+        if (!manifestJson.startsWith("[") && !manifestJson.startsWith("{")) {
+            manifestJson = "[\"" + manifestJson.replace("\"", "\\\"") + "\"]";
+        }
         String proposalJson = (roleGrantProposalJson == null || roleGrantProposalJson.trim().isEmpty())
-                ? "{}" : roleGrantProposalJson.trim();
+                ? "{}"
+                : roleGrantProposalJson.trim();
+        if (!proposalJson.startsWith("{") && !proposalJson.startsWith("[")) {
+            proposalJson = "{\"note\":\"" + proposalJson.replace("\"", "\\\"") + "\"}";
+        }
 
         try (Connection conn = DatabaseConnectionManager.getInstance().getConnection()) {
             conn.setAutoCommit(false);
@@ -126,7 +136,7 @@ public class ServiceRegistrationService {
                     ps.setObject(1, regId);
                     ps.setString(2, serviceCode.trim().toUpperCase(Locale.ROOT));
                     ps.setObject(3, ctx.getUserId());
-                    ps.setString(4, keyManifestJson.trim());
+                    ps.setString(4, manifestJson);
                     ps.setString(5, proposalJson);
                     ps.setString(6, migrationRef.trim());
                     ps.setString(7, rollbackRef.trim());
@@ -197,7 +207,7 @@ public class ServiceRegistrationService {
     }
 
     public Map<String, Object> decide(UserSecurityContext ctx, UUID regId, String decisionRaw,
-                                      String reason, String correlationId) {
+            String reason, String correlationId) {
         if (decisionRaw == null || reason == null || reason.trim().isEmpty()) {
             throw new InstituteAdminException(400, "IADM03_VALIDATION", "decision and reason are required.");
         }

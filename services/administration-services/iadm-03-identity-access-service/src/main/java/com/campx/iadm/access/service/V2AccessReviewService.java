@@ -326,6 +326,8 @@ public class V2AccessReviewService {
     }
 
     private int populateItemsFromLiveGrants(Connection conn, UUID campaignId, UUID tenantId) throws SQLException {
+        // R01 has already been verified against plat.platform_admins; read live role_assignments
+        // on a dedicated read connection because iam.role_assignments RLS requires tenant_id = current_tenant_id().
         StringBuilder sql = new StringBuilder(
                 "SELECT ra.tenant_id, ra.user_id, r.code AS role_code, ra.granted_by, ra.valid_to " +
                         "FROM iam.role_assignments ra " +
@@ -334,10 +336,11 @@ public class V2AccessReviewService {
         if (tenantId != null) {
             sql.append("AND ra.tenant_id = ? ");
         }
-        sql.append("ORDER BY ra.created_at DESC LIMIT 25");
+        sql.append("ORDER BY ra.created_at DESC LIMIT 10");
 
         int count = 0;
-        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+        try (Connection readConn = DatabaseConnectionManager.getInstance().getConnection();
+             PreparedStatement ps = readConn.prepareStatement(sql.toString())) {
             if (tenantId != null) {
                 ps.setObject(1, tenantId);
             }

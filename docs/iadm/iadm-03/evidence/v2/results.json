@@ -1,0 +1,70 @@
+{
+  "capturedAt": "2026-11-27T10:54:48.396Z",
+  "results": [
+    {
+      "step": "US-001 R01 Register",
+      "ok": true,
+      "detail": "Live catalogue total: 675 · Reconciled: YES · Verified at: 2026-11-27T10:51:10.008Z"
+    },
+    {
+      "step": "US-002 R01 Matrix",
+      "ok": true,
+      "detail": "rows=39"
+    },
+    {
+      "step": "US-014 R01 Handover",
+      "ok": true,
+      "detail": "rows=1"
+    },
+    {
+      "step": "US-008 R01 Review Campaign + Decisions",
+      "ok": true,
+      "detail": "Created campaign 19e1d8ae-8172-4067-9432-b5af26cc783a (10 items, DEMO_DEFAULT_90D) | items=10"
+    },
+    {
+      "step": "US-009/010 R01 Delegation Create+Revoke+Expiry",
+      "ok": false,
+      "detail": "revoke=false, expiryStatus=EXPIRED, valid=false"
+    },
+    {
+      "step": "US-005 R02 Validate + Approve Deny",
+      "ok": true,
+      "detail": "val=200, catalogueTouched=false, approve=403"
+    },
+    {
+      "step": "US-006 R01B Independent Approve",
+      "ok": true,
+      "detail": "{\"id\":\"dc31f6f5-fea8-4fe8-afa7-42a740c362cc\",\"status\":\"RECORDED\",\"decision\":\"APPROVED\",\"statement\":\"recorded, not applied\",\"recordedOnly\":true,\"auditEventId\":\"40e8bbf4-243c-4d57-9c43-82496f53c272\"}"
+    },
+    {
+      "step": "US-011 Service Registration Submit+Validate+Approve",
+      "ok": false,
+      "detail": "val=0, decide=0, appliedMigration=undefined"
+    },
+    {
+      "step": "US-013 Audit-Disabled 503 (all 6 ops) + Recovery",
+      "ok": true,
+      "detail": "statuses=503,503,503,503,503,503, recovered=200"
+    },
+    {
+      "step": "US-003 R03 Scope Isolation",
+      "ok": true,
+      "detail": "matrix=403, crossHandover=403"
+    },
+    {
+      "step": "US-004 R04 Request-Only",
+      "ok": true,
+      "detail": "submit=200, register=403"
+    },
+    {
+      "step": "US-012 R28 Read-Only",
+      "ok": true,
+      "detail": "mutate=403"
+    },
+    {
+      "step": "US-015 Runtime Unaffected With IADM-03 Stopped",
+      "ok": false,
+      "detail": "r01_iadm06=404, r04_iadm06=404"
+    }
+  ]
+}

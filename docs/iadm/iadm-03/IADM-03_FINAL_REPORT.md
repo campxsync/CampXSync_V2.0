@@ -24,18 +24,18 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 ## 2. Exact Keys, Routes, and Audit Events
 
 - **12 additive `iadm03.*` keys:**
-  - `iadm03.register.view` (R01, R02, R28)
-  - `iadm03.matrix.view` (R01, R02, R28)
-  - `iadm03.holders.view` (R01, R02, R03 own institute, R28)
-  - `iadm03.grant.request.submit` (R01, R02, R03 own institute, R04 own college)
-  - `iadm03.grant.review` (R01, R02)
-  - `iadm03.grant.approve` (R01 only)
-  - `iadm03.review.manage` (R01, R02)
-  - `iadm03.delegation.manage` (R01, R03 own institute)
-  - `iadm03.registration.submit` (R01, R02)
-  - `iadm03.registration.approve` (R01 only)
-  - `iadm03.handover.view` (R01, R02, R03 own institute, R28)
-  - `iadm03.evidence.view` (R01, R02, R28)
+  - `iadm03.register.view` (Super Admin `R01`, System Admin `R02`, Auditor `R28`)
+  - `iadm03.matrix.view` (Super Admin `R01`, System Admin `R02`, Auditor `R28`)
+  - `iadm03.holders.view` (Super Admin `R01`, System Admin `R02`, Institution Admin `R03` own institute, Auditor `R28`)
+  - `iadm03.grant.request.submit` (Super Admin `R01`, System Admin `R02`, Institution Admin `R03` own institute, College Admin `R04` own college)
+  - `iadm03.grant.review` (Super Admin `R01`, System Admin `R02`)
+  - `iadm03.grant.approve` (Super Admin `R01` only)
+  - `iadm03.review.manage` (Super Admin `R01`, System Admin `R02`)
+  - `iadm03.delegation.manage` (Super Admin `R01`, Institution Admin `R03` own institute)
+  - `iadm03.registration.submit` (Super Admin `R01`, System Admin `R02`)
+  - `iadm03.registration.approve` (Super Admin `R01` only)
+  - `iadm03.handover.view` (Super Admin `R01`, System Admin `R02`, Institution Admin `R03` own institute, Auditor `R28`)
+  - `iadm03.evidence.view` (Super Admin `R01`, System Admin `R02`, Auditor `R28`)
 - **API endpoints (`/api/v1/iadm/03`):**
   - `GET /health`, `GET /register`, `GET /register/{key}/holders`, `GET /matrix`, `GET /evidence`
   - `GET /grant-requests`, `POST /grant-requests`, `POST /grant-requests/{id}/validate`, `POST /grant-requests/{id}/decision`
@@ -60,28 +60,28 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 | `IADM-03-US-016` | IAM inventory and preflight | API-ready | **Completed** | `docs/iadm/iadm-03/IAM_INVENTORY.md` (live DEV `azulbaxszsqxymqmlwfe` read-backs) |
 | `IADM-03-US-017` | IADM-03 service scaffold | API-ready | **Completed** | `IdentityAccessScaffoldTest` (`:8101`, `/api/v1/iadm/03`), `docs/iadm/iadm-03/TECHNICAL_DOCUMENTATION.md` |
 | `IADM-03-US-018` | IADM-03 permission keys (`iadm03.*`) and role mapping | API-ready | **Completed** | `20261127010000_iadm03_v2_keys_and_schema.sql`, `Iadm03V2S0S1Test` (45/45 JUnit pass) |
-| `IADM-03-US-019` | Schema, tenant scoping and FORCE RLS | API-ready | **Completed** | `s0_catalogue_snapshot.json` (all 6 `iadm03.*` tables `relrowsecurity=true`, `relforcerowsecurity=true`) |
+| `IADM-03-US-019` | Schema, tenant scoping and FORCE Row-Level Security | API-ready | **Completed** | `s0_catalogue_snapshot.json` (6 `iadm03.*` tables `relforcerowsecurity=true`), `rls_two_institutes.json` (`t1OwnCount=2, t2CrossReadT1Count=0`) |
 | `IADM-03-US-020` | Shared audit integration with refusal | API-ready | **Completed** | `DurableAuditWriter.java`, `Iadm03V2S0S1Test.demoAuditDisabledSwitchFailsClosed`, 20 `IADM03_*` rows in `final_db_verification.json` |
 | `IADM-03-US-021` | Catalogue, holders and role-matrix read engine | API-ready | **Completed** | `CatalogueReadService.java`, `Iadm03V2S0S1Test.owningServiceAndStatusDerivationFollowsPrefixRules` |
-| `IADM-03-US-001` | Inspect the permission-key register (R01, R02) | Demo-verified | **Demo-verified** | `01_r01_register.png` (`Live catalogue total: 675 · Reconciled: YES`), `page@608091a19d485f480a6ba6c735711fd3.webm` |
-| `IADM-03-US-002` | Inspect the role-to-permission matrix (R01, R02, R28) | Demo-verified | **Demo-verified** | `02_r01_matrix.png` (39 roles `R01`–`R39`, `RBAC v3.0`, flagged differences) |
-| `IADM-03-US-012` | Auditor (R28) read-only access evidence | Demo-verified | **Demo-verified** | `12_r28_readonly.png`, headed log `PASS \| US-012 R28 Read-Only \| mutate=403` |
-| `IADM-03-US-015` | Runtime enforcement unaffected by IADM-03 | Demo-verified | **Partial (API-ready)** | Code check (`GatewayConfig.java` route-only, zero per-request call in gateway/IADM-06); headed IADM-06 probe interrupted by server restart after `stopPort(8101)` |
+| `IADM-03-US-001` | Inspect the permission-key register (R01, R02) | Demo-verified | **Demo-verified** | `01_r01_register.png` (`Live catalogue total: 675 · Reconciled: YES`), `results.json` |
+| `IADM-03-US-002` | Inspect the role-to-permission matrix (R01, R02, R28) | Demo-verified | **Demo-verified** | `02_r01_matrix.png` (39 roles `R01`–`R39`, `RBAC v3.0`, flagged differences), `results.json` |
+| `IADM-03-US-012` | Auditor (R28) read-only access evidence | Demo-verified | **Demo-verified** | `12_r28_readonly.png`, `results.json` (`PASS \| US-012 R28 Read-Only \| mutate=403`) |
+| `IADM-03-US-015` | Runtime enforcement unaffected by IADM-03 | Demo-verified | **Demo-verified** | `13_us015_iadm06_with_iadm03_stopped.png`, `us015_result.json` (`r01_iadm06: 200, r04_iadm06: 403` with `:8101` stopped) + `GatewayConfig.java` |
 | `IADM-03-US-022` | Grant request workflow engine (record-only) | API-ready | **Completed** | `RecordOnlyGrantWorkflowService.java`, `Iadm03V2FailureAndIsolationTest.noApplyEndpointExistsInControllerSource` |
-| `IADM-03-US-005` | System Admin (R02) validate and prepare diff | Demo-verified | **Partial (Screen-ready)** | `07_r02_validate_and_approve_deny.png`, `iadm-03.log` (`POST .../validate` executed in 325ms, R02 approve `403`; headed assert got `400` on `SVC-DEMO` because `SVC-DEMO` is not in `iam.role_templates`) |
-| `IADM-03-US-003` | Institution Admin (R03) view and request own institute | Demo-verified | **Demo-verified** | `10_r03_institute_scope.png`, headed log `PASS \| US-003 R03 Scope Isolation \| matrix=403, crossHandover=403` |
-| `IADM-03-US-004` | College Admin (R04) submit access request only | Demo-verified | **Demo-verified** | `11_r04_request_only.png`, headed log `PASS \| US-004 R04 Request-Only \| submit=200, register=403` |
-| `IADM-03-US-006` | Super Admin (R01) approve or reject another account's request | Demo-verified | **Demo-verified** | `08_r01b_approve_recorded.png`, headed `r01b` approved `r02` request (`status="RECORDED"`, `statement="recorded, not applied"`, `auditEventId="030f80fe-eca5-43d3-85c3-f47130844672"`) |
-| `IADM-03-US-007` | Reject self-grant, self-approval and scope escalation | Demo-verified | **Completed (API-ready)** | `Iadm03V2FailureAndIsolationTest.ceilingMatrixCoversAllGrantorRows`, `GrantorCeilingDenialTest` (45/45 JUnit pass) |
-| `IADM-03-US-013` | Refuse when audit cannot be recorded | Demo-verified | **Demo-verified** | `08_r01b_approve_recorded.png`, headed log `PASS \| US-013 Audit-Disabled Refusal \| status=503` |
-| `IADM-03-US-008` | Run an access review campaign | Demo-verified | **Partial (Screen-ready)** | `04_r01_reviews.png`, headed log `Created campaign 7e4d1b32-e3a7-4ece-a238-8ef004525213 (0 items, DEMO_DEFAULT_90D)` — 0 items populated under R01 platform context |
-| `IADM-03-US-009` | Create a recorded, scoped, time-bound delegation | Demo-verified | **Partial (Screen-ready)** | `05_r01_delegations.png` (UI rendered; headed `page.fill` ran before hydration); `V2DelegationService.java` built; no consuming service yet (partial by design) |
-| `IADM-03-US-010` | Revoke or expire a delegation | Demo-verified | **Partial (Screen-ready)** | `V2DelegationService.java` (`revokeDelegation` + read-time `EXPIRED` calculation); no consuming service yet (partial by design) |
-| `IADM-03-US-011` | Register a new service's permission keys | Demo-verified | **Screen-ready** | `ServiceRegistrationService.java`, `/platform/identity/registrations/page.tsx` (API+UI built, `tsc` clean; not clicked in headed film) |
-| `IADM-03-US-014` | View first-admin handover status | Demo-verified | **Partial (Screen-ready)** | `03_r01_handover.png` (`HandoverStatusService.java` reads `plat.college_cadm_handovers`; 0 rows visible under `authenticated` RLS) |
+| `IADM-03-US-005` | System Admin (R02) validate and prepare diff | Demo-verified | **Demo-verified** | `07_r02_validate_and_approve_deny.png`, `results.json` (`val=200, catalogueTouched=false, approve=403`) |
+| `IADM-03-US-003` | Institution Admin (R03) view and request own institute | Demo-verified | **Demo-verified** | `10_r03_institute_scope.png`, `results.json` (`matrix=403, crossHandover=403`), `rls_two_institutes.json` |
+| `IADM-03-US-004` | College Admin (R04) submit access request only | Demo-verified | **Demo-verified** | `11_r04_request_only.png`, `results.json` (`submit=200, register=403`) |
+| `IADM-03-US-006` | Super Admin (R01) approve or reject another account's request | Demo-verified | **Demo-verified** | `08_r01b_approve_recorded.png`, `results.json` (`status="RECORDED"`, `statement="recorded, not applied"`, `auditEventId="40e8bbf4-243c-4d57-9c43-82496f53c272"`) |
+| `IADM-03-US-007` | Reject self-grant, self-approval and scope escalation | Demo-verified | **Demo-verified** | `Iadm03V2FailureAndIsolationTest.ceilingMatrixCoversAllGrantorRows`, `GrantorCeilingDenialTest`, `results.json` (`R02 approve=403, R03 crossHandover=403`) |
+| `IADM-03-US-013` | Refuse when audit cannot be recorded | Demo-verified | **Demo-verified** | `08_r01b_approve_recorded.png`, `results.json` (`statuses=503,503,503,503,503,503, recovered=200` across all 6 governed ops) |
+| `IADM-03-US-008` | Run an access review campaign | Demo-verified | **Demo-verified** | `04_r01_reviews.png`, `results.json` (`Created campaign 19e1d8ae-8172-4067-9432-b5af26cc783a (10 items, DEMO_DEFAULT_90D) \| items=10`, Attest + Revoke + Exception) |
+| `IADM-03-US-009` | Create a recorded, scoped, time-bound delegation | Demo-verified | **Partial (by design)** | `05_r01_delegations.png` (UI create `ACTIVE`, `REVOKED`, `EXPIRED`); partial by design because no consuming service reads delegations yet |
+| `IADM-03-US-010` | Revoke or expire a delegation | Demo-verified | **Partial (by design)** | `05_r01_delegations.png` (`REVOKED (valid=false)` and `EXPIRED (valid=false)` on read); partial by design until a consuming service adopts it |
+| `IADM-03-US-011` | Register a new service's permission keys | Demo-verified | **Demo-verified** | `06_r01_registrations.png` (`IADM-09-DEMO · APPROVED`), `us011_result.json` (`sub: 200, val: 200, dec: 200, appliedMigration: false`) |
+| `IADM-03-US-014` | View first-admin handover status | Demo-verified | **Demo-verified** | `03_r01_handover.png`, `results.json` (`PASS \| US-014 R01 Handover \| rows=1` from `plat.college_cadm_handovers`) |
 | `IADM-03-US-023` | Demo data check (no invention) | Demo-verified | **Completed** | Reused existing `.env.audit` + `seed_accounts.json` (`r01a`, `r01b`, `r02`, `r03demo`, `auditor`, `COLLEGE_ADMIN`); zero invented emails |
 | `IADM-03-US-024` | Failure, isolation and role test suite | API-ready | **Completed** | `Iadm03V2FailureAndIsolationTest` + full 10-class JUnit suite: **45/45 PASS**; `frontend npx tsc --noEmit` **0 errors** |
-| `IADM-03-US-025` | Evidence pack and close-out | Demo-verified | **Completed** | `IADM-03_FINAL_REPORT.md`, `s0_catalogue_snapshot.json`, `final_db_verification.json`, 10 headed PNGs + `.webm` video |
+| `IADM-03-US-025` | Evidence pack and close-out | Demo-verified | **Completed** | `IADM-03_FINAL_REPORT.md`, `s0_catalogue_snapshot.json`, `final_db_verification.json`, `rls_two_institutes.json`, `us015_result.json`, `us011_result.json`, 12 headed PNGs + `.webm` video |
 
 ---
 
@@ -109,5 +109,5 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 - S1: `30ed281` — `feat(iadm03): S1 read engine — permission register, holder lookup, R01-R39 matrix, R28 read-only UI`
 - S2: `2892540` — `feat(iadm03): S2 record-only grant workflow — submit, R02 validate diff, R01 approve/reject, self/scope/audit refusals`
 - S3: `03def57` — `feat(iadm03): S3 reviews, delegations, and additive service registrations`
-- S4: committed locally in this close-out (handover, failure/isolation suite, headed evidence pack, final report).
-- **Not pushed.** Awaiting owner approval.
+- S4: `61d2f53` — `feat(iadm03): S4 handover, failure/isolation suite, headed evidence pack, and final report`
+- Close-out fix & verification commit: committed locally on `feature/java-backend-integration` (**not pushed**).

@@ -1,134 +1,150 @@
 {
-  "capturedAt": "2026-11-27T07:32:04.040Z",
+  "capturedAt": "2026-11-27T11:12:45.850Z",
   "nonIadm03PermCount": 663,
   "nonIadm03PermHash": "3e9f16d43435c59ad307ad540816c2a0e0f08731ea31f88b910d9b691d497379",
   "nonIadm03RtpCount": 2223,
   "nonIadm03RtpHash": "81f23604bbca64b0dbd2e3df9323cd32c5b838156ff92103462024be6b443b5c",
   "recentIadm03AuditEvents": [
     {
-      "id": "c91c4d19-ab34-4928-b48f-387410470e6d",
-      "action": "IADM03_REGISTER_READ",
-      "resource_type": "PERMISSION_REGISTER",
-      "created_at": "2026-11-27T07:30:15.007Z"
+      "id": "27d9656e-6534-48b5-9b07-0afbb8799963",
+      "action": "IADM03_REGISTRATION_DECIDED",
+      "resource_type": "SERVICE_REGISTRATION",
+      "created_at": "2026-11-27T11:11:46.353Z"
     },
     {
-      "id": "26855acd-9b07-4900-8d32-b1d9c1445142",
-      "action": "IADM03_GRANT_REQUEST_SUBMITTED",
-      "resource_type": "GRANT_REQUEST",
-      "created_at": "2026-11-27T07:29:59.864Z"
+      "id": "2cb32121-a1de-486f-9159-7f6c0e921c43",
+      "action": "IADM03_REGISTRATION_VALIDATED",
+      "resource_type": "SERVICE_REGISTRATION",
+      "created_at": "2026-11-27T11:11:31.801Z"
     },
     {
-      "id": "d0f1ce4b-a43d-43a9-b4df-31a423cf25a2",
+      "id": "516b0217-d09e-428d-ab78-79b11a52eede",
+      "action": "IADM03_REGISTRATION_SUBMITTED",
+      "resource_type": "SERVICE_REGISTRATION",
+      "created_at": "2026-11-27T11:11:26.604Z"
+    },
+    {
+      "id": "b74869a8-7668-4518-b870-5b9fcbb92c6c",
       "action": "IADM03_CROSS_TENANT_DENIED",
       "resource_type": "HANDOVER",
-      "created_at": "2026-11-27T07:29:51.203Z"
+      "created_at": "2026-11-27T10:58:28.798Z"
     },
     {
-      "id": "030f80fe-eca5-43d3-85c3-f47130844672",
+      "id": "1286ce6c-e85c-4db5-9897-91695a052999",
+      "action": "IADM03_HOLDERS_READ",
+      "resource_type": "PERMISSION_HOLDERS",
+      "created_at": "2026-11-27T10:57:57.608Z"
+    },
+    {
+      "id": "8c58ae7b-9a59-4063-b898-05b143211242",
       "action": "IADM03_GRANT_DECISION_RECORDED",
       "resource_type": "GRANT_REQUEST",
-      "created_at": "2026-11-27T07:29:29.277Z"
+      "created_at": "2026-11-27T10:57:45.520Z"
     },
     {
-      "id": "f2f53776-c93c-418b-aa6f-25f5adc8020d",
+      "id": "9ea9afeb-5fce-4e84-b487-ca1db6b00045",
       "action": "IADM03_GRANT_APPROVE_DENIED",
       "resource_type": "GRANT_REQUEST",
-      "created_at": "2026-11-27T07:29:14.819Z"
+      "created_at": "2026-11-27T10:57:24.655Z"
     },
     {
-      "id": "50a8768e-4964-46d8-a8e5-96f6beb2065b",
+      "id": "33f5e5a7-7fcd-46c8-87e3-6caf611f3f79",
+      "action": "IADM03_GRANT_REQUEST_VALIDATED",
+      "resource_type": "GRANT_REQUEST",
+      "created_at": "2026-11-27T10:57:22.579Z"
+    },
+    {
+      "id": "d2b075ee-2846-4a6e-a2e3-df06e5fc7def",
       "action": "IADM03_GRANT_REQUEST_SUBMITTED",
       "resource_type": "GRANT_REQUEST",
-      "created_at": "2026-11-27T07:29:02.950Z"
+      "created_at": "2026-11-27T10:57:19.735Z"
     },
     {
-      "id": "f6638899-8436-473d-87c8-85b75dd42b19",
-      "action": "IADM03_REVIEW_CAMPAIGN_CREATED",
-      "resource_type": "ACCESS_REVIEW_CAMPAIGN",
-      "created_at": "2026-11-27T07:27:32.262Z"
+      "id": "aab7ca3e-313d-442c-a1fb-b54bdb3a40e1",
+      "action": "IADM03_DELEGATION_CREATED",
+      "resource_type": "DELEGATION",
+      "created_at": "2026-11-27T10:56:55.582Z"
     },
     {
-      "id": "ababd730-b2cd-4f87-9d95-75b70cd2e911",
-      "action": "IADM03_HANDOVER_READ",
-      "resource_type": "HANDOVER",
-      "created_at": "2026-11-27T07:27:29.883Z"
+      "id": "632e6717-3604-44ac-a7f2-0422b4160719",
+      "action": "IADM03_DELEGATION_REVOKED",
+      "resource_type": "DELEGATION",
+      "created_at": "2026-11-27T10:56:53.702Z"
     },
     {
-      "id": "0218522d-24d5-4443-bfbb-a95f7df9a987",
-      "action": "IADM03_MATRIX_READ",
-      "resource_type": "ROLE_MATRIX",
-      "created_at": "2026-11-27T07:27:26.426Z"
+      "id": "1479bf46-9238-413e-b3c3-8d19903c99c4",
+      "action": "IADM03_DELEGATION_CREATED",
+      "resource_type": "DELEGATION",
+      "created_at": "2026-11-27T10:56:51.032Z"
     },
     {
-      "id": "2cee32a3-94c7-4483-8c82-51b655ef8bfa",
-      "action": "IADM03_REGISTER_READ",
-      "resource_type": "PERMISSION_REGISTER",
-      "created_at": "2026-11-27T07:27:18.343Z"
-    },
-    {
-      "id": "4bac48f8-e6ad-4058-81e1-0cdf7cd4867b",
-      "action": "IADM03_REVIEW_CAMPAIGN_CREATED",
-      "resource_type": "ACCESS_REVIEW_CAMPAIGN",
-      "created_at": "2026-11-27T07:24:36.070Z"
-    },
-    {
-      "id": "c5550d69-ba88-4067-b119-458eec260bbe",
-      "action": "IADM03_HANDOVER_READ",
-      "resource_type": "HANDOVER",
-      "created_at": "2026-11-27T07:24:31.601Z"
-    },
-    {
-      "id": "7ed9bd45-f093-41b3-aefa-3a5a4c50988f",
-      "action": "IADM03_MATRIX_READ",
-      "resource_type": "ROLE_MATRIX",
-      "created_at": "2026-11-27T07:24:23.248Z"
-    },
-    {
-      "id": "8d0c5f2a-503f-49d2-92e4-fd0c707901dd",
-      "action": "IADM03_REGISTER_READ",
-      "resource_type": "PERMISSION_REGISTER",
-      "created_at": "2026-11-27T07:24:17.785Z"
-    },
-    {
-      "id": "db0b02e2-41d9-4f77-bc3e-a542d787f0da",
-      "action": "IADM03_REVIEW_CAMPAIGN_CREATED",
-      "resource_type": "ACCESS_REVIEW_CAMPAIGN",
-      "created_at": "2026-11-27T07:21:27.724Z"
-    },
-    {
-      "id": "ec64a89a-576d-47a6-bd18-b2f6dafb380f",
-      "action": "IADM03_HANDOVER_READ",
-      "resource_type": "HANDOVER",
-      "created_at": "2026-11-27T07:21:23.988Z"
-    },
-    {
-      "id": "f5adcce5-4bfe-4773-8f90-1a838afbca85",
-      "action": "IADM03_MATRIX_READ",
-      "resource_type": "ROLE_MATRIX",
-      "created_at": "2026-11-27T07:21:21.282Z"
-    },
-    {
-      "id": "e568a2bd-1db8-4f77-b771-3ad4c507744a",
-      "action": "IADM03_REGISTER_READ",
-      "resource_type": "PERMISSION_REGISTER",
-      "created_at": "2026-11-27T07:21:17.002Z"
-    },
-    {
-      "id": "52d78811-213f-4de7-b1de-569d2c4a7b0f",
-      "action": "IADM03_ACCESS_REVIEW_DECIDED",
+      "id": "22a42985-decc-48a8-aee2-1df1846fa8f2",
+      "action": "IADM03_REVIEW_ITEM_DECIDED",
       "resource_type": "ACCESS_REVIEW_ITEM",
-      "created_at": "2026-11-24T10:50:12.410Z"
+      "created_at": "2026-11-27T10:56:39.486Z"
     },
     {
-      "id": "48382360-d5fe-4b9b-9a4b-3cd8aa22ab59",
-      "action": "IADM03_ACCESS_REVIEW_DECIDED",
+      "id": "d85877b4-3f61-454d-b74c-af1e3f187315",
+      "action": "IADM03_REVIEW_ITEM_DECIDED",
       "resource_type": "ACCESS_REVIEW_ITEM",
-      "created_at": "2026-11-24T10:50:10.595Z"
+      "created_at": "2026-11-27T10:56:38.482Z"
+    },
+    {
+      "id": "94d0009e-480b-49ef-814f-bfed6c60b81e",
+      "action": "IADM03_REVIEW_ITEM_DECIDED",
+      "resource_type": "ACCESS_REVIEW_ITEM",
+      "created_at": "2026-11-27T10:56:37.345Z"
+    },
+    {
+      "id": "5ffa746e-9b99-463e-9e33-a4d0ef571969",
+      "action": "IADM03_REVIEW_CAMPAIGN_CREATED",
+      "resource_type": "ACCESS_REVIEW_CAMPAIGN",
+      "created_at": "2026-11-27T10:56:31.546Z"
+    },
+    {
+      "id": "a23435a8-dc3f-4d34-bc16-dc83169df7f4",
+      "action": "IADM03_HANDOVER_READ",
+      "resource_type": "HANDOVER",
+      "created_at": "2026-11-27T10:56:20.101Z"
+    },
+    {
+      "id": "360519c7-ddb2-4764-b052-a19d63eda326",
+      "action": "IADM03_MATRIX_READ",
+      "resource_type": "ROLE_MATRIX",
+      "created_at": "2026-11-27T10:56:12.983Z"
+    },
+    {
+      "id": "20fdef7b-200a-465a-813a-332c452b565a",
+      "action": "IADM03_REGISTER_READ",
+      "resource_type": "PERMISSION_REGISTER",
+      "created_at": "2026-11-27T10:56:00.940Z"
+    },
+    {
+      "id": "eb15d558-04cd-457d-b24b-e8ecf77bdbf9",
+      "action": "IADM03_REGISTER_READ",
+      "resource_type": "PERMISSION_REGISTER",
+      "created_at": "2026-11-27T10:53:59.908Z"
     }
   ],
   "recentGrantRequests": [
     {
-      "id": "55fdc5f5-a135-4252-b280-c398a4c07491",
+      "id": "a5269f0c-2c03-4e2b-b235-fbd422d52da2",
+      "target_kind": "PERMISSION",
+      "target_code": "iadm06.catalogue.view",
+      "scope_type": "PLATFORM",
+      "status": "RECORDED",
+      "decision_reason": "Independent R01B approval"
+    },
+    {
+      "id": "e4981fe0-1fc5-45e3-bae8-c7e693c77748",
+      "target_kind": "ROLE",
+      "target_code": "FACULTY:REVOKE",
+      "scope_type": "INSTITUTE",
+      "status": "REQUESTED",
+      "decision_reason": null
+    },
+    {
+      "id": "f9475146-407d-4017-9b8f-47391449feef",
       "target_kind": "ROLE",
       "target_code": "FACULTY",
       "scope_type": "COLLEGE",
@@ -136,12 +152,60 @@
       "decision_reason": null
     },
     {
-      "id": "b2ef5936-d783-425d-a5e3-01f1ba836aa4",
-      "target_kind": "ROLE",
-      "target_code": "SVC-DEMO",
+      "id": "dc31f6f5-fea8-4fe8-afa7-42a740c362cc",
+      "target_kind": "PERMISSION",
+      "target_code": "iadm06.catalogue.view",
       "scope_type": "PLATFORM",
       "status": "RECORDED",
       "decision_reason": "Independent R01B approval"
+    },
+    {
+      "id": "84a238dc-673c-4ec3-8af9-294917fed540",
+      "target_kind": "ROLE",
+      "target_code": "FACULTY:REVOKE",
+      "scope_type": "INSTITUTE",
+      "status": "REQUESTED",
+      "decision_reason": null
+    },
+    {
+      "id": "71680567-2daa-4a54-b95b-590fdb8374b7",
+      "target_kind": "PERMISSION",
+      "target_code": "iadm06.catalogue.view",
+      "scope_type": "PLATFORM",
+      "status": "RECORDED",
+      "decision_reason": "Independent R01B approval"
+    },
+    {
+      "id": "98104724-a3a6-42de-80f6-110ccf36ebf3",
+      "target_kind": "ROLE",
+      "target_code": "FACULTY:REVOKE",
+      "scope_type": "INSTITUTE",
+      "status": "REQUESTED",
+      "decision_reason": null
+    },
+    {
+      "id": "2ffb4fb5-2621-4c9a-a653-5a167ec6f5d8",
+      "target_kind": "ROLE",
+      "target_code": "FACULTY:REVOKE",
+      "scope_type": "INSTITUTE",
+      "status": "REQUESTED",
+      "decision_reason": null
+    },
+    {
+      "id": "af658072-459d-4a95-aa0d-f492c0d8c9cc",
+      "target_kind": "PERMISSION",
+      "target_code": "iadm06.catalogue.view",
+      "scope_type": "PLATFORM",
+      "status": "VALIDATED",
+      "decision_reason": null
+    },
+    {
+      "id": "296ada05-951b-4e2b-82a8-3996b24705fa",
+      "target_kind": "ROLE",
+      "target_code": "FACULTY:REVOKE",
+      "scope_type": "INSTITUTE",
+      "status": "REQUESTED",
+      "decision_reason": null
     }
   ]
 }

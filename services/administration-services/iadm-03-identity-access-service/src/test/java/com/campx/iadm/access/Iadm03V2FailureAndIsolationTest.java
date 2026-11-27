@@ -84,11 +84,19 @@ public class Iadm03V2FailureAndIsolationTest {
         String ctrl = new String(Files.readAllBytes(Paths.get(
                 "src/main/java/com/campx/iadm/access/controller/Iadm03Controller.java")),
                 StandardCharsets.UTF_8);
-        assertFalse("Must not expose /grants/assign", ctrl.contains("/grants/assign"));
-        assertFalse("Must not expose /grants/revoke", ctrl.contains("/grants/revoke"));
-        assertFalse("Must not expose /grants/appoint-r03", ctrl.contains("/grants/appoint-r03"));
-        assertFalse("Must not expose /grant-changes/", ctrl.contains("/grant-changes/"));
-        assertFalse("Must not expose /catalog-changes/", ctrl.contains("/catalog-changes/"));
+        String[] forbiddenApplyRoutes = {
+                "/grants/assign",
+                "/grants/revoke",
+                "/grants/appoint-r03",
+                "/grant-changes/",
+                "/catalog-changes/",
+                "/apply"
+        };
+        for (String role : AccessPermissionMatrix.PERSONAS) {
+            for (String route : forbiddenApplyRoutes) {
+                assertFalse(role + " must not have apply route " + route, ctrl.contains(route));
+            }
+        }
     }
 
     @Test

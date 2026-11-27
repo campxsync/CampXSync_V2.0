@@ -356,11 +356,11 @@ public class Iadm03Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(delegations.delegationContract()));
                 return;
             }
-            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/delegations") || path.endsWith("/delegations/"))) {
+            if ("GET".equalsIgnoreCase(method) && !path.contains("/v2/") && (path.endsWith("/delegations") || path.endsWith("/delegations/"))) {
                 sendJson(exchange, 200, toJson(delegations.listDelegations(ctx)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.endsWith("/delegations")) {
+            if ("POST".equalsIgnoreCase(method) && !path.contains("/v2/") && path.endsWith("/delegations")) {
                 String body = new String(bodyBytes, StandardCharsets.UTF_8);
                 UUID toUser = parseUuid(extract(body, "toUserId"), "toUserId");
                 String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
@@ -370,7 +370,7 @@ public class Iadm03Controller implements HttpHandler {
                         extract(body, "reason"), key, correlationId)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.contains("/delegations/") && path.endsWith("/revoke")) {
+            if ("POST".equalsIgnoreCase(method) && !path.contains("/v2/") && path.contains("/delegations/") && path.endsWith("/revoke")) {
                 String body = new String(bodyBytes, StandardCharsets.UTF_8);
                 UUID delegationId = parseUuidOptional(extract(body, "delegationId"));
                 if (delegationId == null) {

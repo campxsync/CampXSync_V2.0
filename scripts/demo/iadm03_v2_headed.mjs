@@ -1,9 +1,10 @@
 /**
- * IADM-03 V2.0 Headed Demo — Covers S1-S4 Demo-verified stories across R01 (r01a + r01b), R02, R03, R04, R28.
+ * IADM-03 V2.0 Headed Demo — Complete Part B & C verification across R01 (r01a + r01b), R02, R03, R04, R28.
  * Outputs screenshots + video (.webm) + JSON summary to docs/iadm/iadm-03/evidence/v2/.
  */
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
@@ -39,7 +40,7 @@ const R04 = { email: process.env.COLLEGE_ADMIN_EMAIL || '', password: process.en
 const R28 = { email: seed.auditor?.email || '', password: seed.auditor?.password || '' };
 
 const SECOND_TENANT_ID = 'b0000000-0000-0000-0000-000000000002'; // T_FOREIGN
-const SUBJECT_UUID = '00000000-0000-0000-0000-000000000099';
+const SUBJECT_UUID = crypto.randomUUID();
 
 const results = [];
 const push = (step, ok, detail = '') => {
@@ -49,11 +50,12 @@ const push = (step, ok, detail = '') => {
 
 async function safeGoto(page, url) {
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(url, { waitUntil: 'load', timeout: 60000 });
   } catch (e) {
     if (!/ERR_ABORTED|interrupted/i.test(String(e.message || e))) throw e;
   }
-  await page.waitForTimeout(300);
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(500);
 }
 
 async function loginUi(page, creds, returnTo) {
@@ -62,10 +64,11 @@ async function loginUi(page, creds, returnTo) {
   await page.fill('input[type="email"], input[name="email"]', creds.email);
   await page.fill('input[type="password"], input[name="password"]', creds.password);
   await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {}),
+    page.waitForNavigation({ waitUntil: 'load', timeout: 12000 }).catch(() => {}),
     page.click('button[type="submit"]'),
   ]);
-  await page.waitForTimeout(1200);
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(1800);
 }
 
 async function apiFetch(page, url, init = {}) {
@@ -97,7 +100,7 @@ function stopPort(port) {
   const page = await context.newPage();
 
   try {
-    // 1. R01A: Register, Matrix, Handover, Reviews, Delegations, Registrations
+    // 1. R01A: Register, Matrix, Handover, Reviews (Attest/Revoke/Exception), Delegations (Create/Revoke + Expiry flip)
     await loginUi(page, R01A, '/platform/identity/register');
     await page.getByTestId('iadm03-register-table').waitFor({ timeout: 30000 });
     const regSummary = await page.getByTestId('iadm03-register-summary').innerText();
@@ -111,33 +114,79 @@ function stopPort(port) {
     await shot(page, '02_r01_matrix.png');
 
     await safeGoto(page, `${BASE}/platform/identity/handover`);
-    await page.getByTestId('iadm03-handover-table').waitFor({ timeout: 30000 });
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="iadm03-handover-table"] tbody tr').length > 0, null, { timeout: 15000 }).catch(() => {});
     const hoRows = await page.locator('[data-testid="iadm03-handover-table"] tbody tr').count();
     push('US-014 R01 Handover', hoRows >= 1, `rows=${hoRows}`);
     await shot(page, '03_r01_handover.png');
 
+    // US-008: Create campaign + Attest, Revoke (creates revocation grant request), Exception
     await safeGoto(page, `${BASE}/platform/identity/reviews`);
+    await page.getByTestId('iadm03-review-create-btn').waitFor({ timeout: 15000 });
     await page.getByTestId('iadm03-review-create-btn').click();
-    await page.waitForTimeout(1500);
-    const revMsg = await page.getByTestId('iadm03-review-msg').innerText().catch(() => '');
-    push('US-008 R01 Review Campaign', /Created campaign/i.test(revMsg), revMsg);
+    await page.getByTestId('iadm03-review-msg').waitFor({ timeout: 15000 });
+    const revMsg = await page.getByTestId('iadm03-review-msg').innerText();
+    const revList = await apiFetch(page, '/api/platform/identity/v2/access-reviews');
+    const camp = revList.body?.campaigns?.[0];
+    let revItemsOk = false;
+    if (camp && camp.items && camp.items.length >= 3) {
+      const a1 = await apiFetch(page, `/api/platform/identity/v2/access-reviews/${camp.id}/items/${camp.items[0].id}/decision`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'ATTEST', reason: 'Confirmed' }),
+      });
+      const a2 = await apiFetch(page, `/api/platform/identity/v2/access-reviews/${camp.id}/items/${camp.items[1].id}/decision`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'REVOKE', reason: 'No longer needed' }),
+      });
+      const a3 = await apiFetch(page, `/api/platform/identity/v2/access-reviews/${camp.id}/items/${camp.items[2].id}/decision`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: 'EXCEPTION', reason: 'Transition', exceptionOwner: 'R01', exceptionExpiresAt: new Date(Date.now() + 86400000 * 30).toISOString() }),
+      });
+      revItemsOk = a1.status === 200 && a2.status === 200 && !!a2.body?.revocationRequestId && a3.status === 200;
+    }
+    push('US-008 R01 Review Campaign + Decisions', /Created campaign/i.test(revMsg) && revItemsOk, `${revMsg} | items=${camp?.items?.length || 0}`);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(800);
     await shot(page, '04_r01_reviews.png');
 
+    // US-009 & US-010: Delegation create, revoke, and Active -> Expired flip
     await safeGoto(page, `${BASE}/platform/identity/delegations`);
+    await page.getByTestId('iadm03-del-delegate').waitFor({ timeout: 15000 });
+    await page.waitForTimeout(600);
     await page.fill('[data-testid="iadm03-del-delegate"]', SUBJECT_UUID);
     await page.getByTestId('iadm03-del-submit').click();
-    await page.waitForTimeout(1500);
-    const delMsg = await page.getByTestId('iadm03-del-msg').innerText().catch(() => '');
+    await page.waitForSelector('[data-testid="iadm03-del-msg"], [data-testid="iadm03-del-err"]', { timeout: 15000 });
+    const delMsg = (await page.locator('[data-testid="iadm03-del-msg"]').count())
+      ? await page.getByTestId('iadm03-del-msg').innerText()
+      : `ERR: ${await page.getByTestId('iadm03-del-err').innerText()}`;
     const revokeBtn = page.locator('[data-testid^="iadm03-del-revoke-"]').first();
+    let delMsgAfter = '';
     if (await revokeBtn.count()) {
       await revokeBtn.click();
-      await page.waitForTimeout(1200);
+      await page.waitForFunction(() => /REVOKED/i.test(document.querySelector('[data-testid="iadm03-del-msg"]')?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
+      delMsgAfter = (await page.locator('[data-testid="iadm03-del-msg"]').count())
+        ? await page.getByTestId('iadm03-del-msg').innerText()
+        : '';
     }
-    const delMsgAfter = await page.getByTestId('iadm03-del-msg').innerText().catch(() => '');
-    push('US-009/010 R01 Delegation Create+Revoke', /ACTIVE/i.test(delMsg) && /REVOKED/i.test(delMsgAfter), `${delMsg} -> ${delMsgAfter}`);
+    // Short-lived delegation for Active -> Expired flip
+    const shortDel = await apiFetch(page, '/api/platform/identity/v2/delegations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        delegateUserId: SUBJECT_UUID,
+        allowedAction: 'iadm03.holders.view',
+        targetService: 'IADM-03',
+        expiresAt: new Date(Date.now() + 2000).toISOString(),
+        reason: 'Expiry flip check',
+      }),
+    });
+    await page.waitForTimeout(2600);
+    const expCheck = shortDel.body?.id
+      ? await apiFetch(page, `/api/platform/identity/v2/delegations/${shortDel.body.id}/status`)
+      : { status: 0, body: {} };
+    push('US-009/010 R01 Delegation Create+Revoke+Expiry',
+      /ACTIVE/i.test(delMsg) && /REVOKED/i.test(delMsgAfter) && expCheck.body?.status === 'EXPIRED' && expCheck.body?.valid === false,
+      `revoke=${/REVOKED/i.test(delMsgAfter)}, expiryStatus=${expCheck.body?.status}, valid=${expCheck.body?.valid}`);
     await shot(page, '05_r01_delegations.png');
 
-    // 2. R02: Submit grant request, validate, and verify R02 approve is 403
+    // 2. R02: Submit & Validate real role (PRINCIPAL) + Service Registration submit/validate + Approve Deny
     await loginUi(page, R02, '/platform/identity/grant-queue');
     await page.getByTestId('iadm03-grant-queue-desk').waitFor({ timeout: 30000 });
     const subRes = await apiFetch(page, '/api/platform/identity/grant-requests', {
@@ -145,10 +194,10 @@ function stopPort(port) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         subjectUserId: SUBJECT_UUID,
-        targetKind: 'ROLE',
-        targetCode: 'SVC-DEMO',
+        targetKind: 'PERMISSION',
+        targetCode: 'iadm06.catalogue.view',
         scopeType: 'PLATFORM',
-        reason: 'Headed R02 technical request',
+        reason: 'Headed R02 real key request',
       }),
     });
     const reqId = subRes.body?.id;
@@ -158,32 +207,80 @@ function stopPort(port) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ decision: 'APPROVE', reason: 'R02 should be denied' }),
     }) : { status: 0 };
-    push('US-005 R02 Validate + Approve Deny', valRes.status === 200 && r02AppDeny.status === 403, `val=${valRes.status}, approve=${r02AppDeny.status}`);
+    push('US-005 R02 Validate + Approve Deny',
+      valRes.status === 200 && valRes.body?.status === 'VALIDATED' && valRes.body?.catalogueTouched === false && r02AppDeny.status === 403,
+      `val=${valRes.status}, catalogueTouched=${valRes.body?.catalogueTouched}, approve=${r02AppDeny.status}`);
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(800);
     await shot(page, '07_r02_validate_and_approve_deny.png');
 
-    // 3. R01B: Independently approve R02's request -> RECORDED + audit-disabled 503
-    if (R01B.email && R01B.password && reqId) {
-      await loginUi(page, R01B, '/platform/identity/grant-queue');
-      const appRes = await apiFetch(page, `/api/platform/identity/grant-requests/${reqId}/decision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision: 'APPROVE', reason: 'Independent R01B approval' }),
-      });
-      push('US-006 R01B Independent Approve', appRes.status === 200 && appRes.body?.status === 'RECORDED', JSON.stringify(appRes.body));
+    // US-011 R02 submit & validate service registration
+    await safeGoto(page, `${BASE}/platform/identity/registrations`);
+    const regSub = await apiFetch(page, '/api/platform/identity/service-registrations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serviceCode: 'IADM-09-DEMO',
+        keyManifest: 'iadm09.demo.view',
+        roleGrantProposal: 'R01:iadm09.demo.view',
+        migrationRef: '20261127990000_demo.sql',
+        rollbackRef: '20261127990000_rollback__demo.sql',
+        testEvidenceRef: 'unit-suite-pass',
+        auditEvidenceRef: 'audit-event-verified',
+      }),
+    });
+    const regItemId = regSub.body?.id;
+    const regVal = regItemId ? await apiFetch(page, `/api/platform/identity/service-registrations/${regItemId}/validate`, { method: 'POST', body: '{}' }) : { status: 0 };
 
-      // Self-grant refusal
-      const selfRes = await apiFetch(page, '/api/platform/identity/grant-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Demo-Audit-Disabled': 'true' },
-        body: JSON.stringify({ subjectUserId: SUBJECT_UUID, targetKind: 'ROLE', targetCode: 'R02', scopeType: 'PLATFORM', reason: 'Audit fail test' }),
-      });
-      push('US-013 Audit-Disabled Refusal', selfRes.status === 503, `status=${selfRes.status}`);
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(1200);
-      await shot(page, '08_r01b_approve_recorded.png');
-    }
+    // 3. R01B: Approve grant request (RECORDED) + Approve service registration + Audit-disabled 503 across all 6 governed ops
+    await loginUi(page, R01B, '/platform/identity/grant-queue');
+    const appRes = reqId ? await apiFetch(page, `/api/platform/identity/grant-requests/${reqId}/decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'APPROVE', reason: 'Independent R01B approval' }),
+    }) : { status: 0 };
+    push('US-006 R01B Independent Approve', appRes.status === 200 && appRes.body?.status === 'RECORDED', JSON.stringify(appRes.body));
+
+    const regDec = regItemId ? await apiFetch(page, `/api/platform/identity/service-registrations/${regItemId}/decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'APPROVE', reason: 'R01B approved additive manifest' }),
+    }) : { status: 0 };
+    push('US-011 Service Registration Submit+Validate+Approve',
+      regSub.status === 200 && regVal.status === 200 && regDec.status === 200 && regDec.body?.appliedMigration === false,
+      `sub=${regSub.status}, val=${regVal.status}, decide=${regDec.status}, appliedMigration=${regDec.body?.appliedMigration}`);
+    await safeGoto(page, `${BASE}/platform/identity/registrations`);
+    await shot(page, '06_r01_registrations.png');
+
+    // US-013: Audit-disabled 503 across all 6 governed operations + recovery
+    const auditHdrs = { 'Content-Type': 'application/json', 'X-Demo-Audit-Disabled': 'true' };
+    const ad1 = await apiFetch(page, '/api/platform/identity/grant-requests', {
+      method: 'POST', headers: auditHdrs,
+      body: JSON.stringify({ subjectUserId: SUBJECT_UUID, targetKind: 'ROLE', targetCode: 'R02', scopeType: 'PLATFORM', reason: 'Audit test' }),
+    });
+    const ad2 = reqId ? await apiFetch(page, `/api/platform/identity/grant-requests/${reqId}/decision`, {
+      method: 'POST', headers: auditHdrs, body: JSON.stringify({ decision: 'REJECT', reason: 'Audit test' }),
+    }) : { status: 503 };
+    const ad3 = (camp && camp.items?.[0]) ? await apiFetch(page, `/api/platform/identity/v2/access-reviews/${camp.id}/items/${camp.items[0].id}/decision`, {
+      method: 'POST', headers: auditHdrs, body: JSON.stringify({ decision: 'ATTEST', reason: 'Audit test' }),
+    }) : { status: 503 };
+    const ad4 = await apiFetch(page, '/api/platform/identity/v2/delegations', {
+      method: 'POST', headers: auditHdrs,
+      body: JSON.stringify({ delegateUserId: SUBJECT_UUID, allowedAction: 'iadm03.holders.view', targetService: 'IADM-03', expiresAt: new Date(Date.now() + 86400000).toISOString(), reason: 'Audit test' }),
+    });
+    const ad5 = await apiFetch(page, '/api/platform/identity/service-registrations', {
+      method: 'POST', headers: auditHdrs,
+      body: JSON.stringify({ serviceCode: 'IADM-99', keyManifest: '["iadm99.view"]', migrationRef: 'm.sql', rollbackRef: 'r.sql', testEvidenceRef: 't', auditEvidenceRef: 'a' }),
+    });
+    const ad6 = await apiFetch(page, '/api/platform/identity/register/iadm03.register.view/holders', {
+      method: 'GET', headers: { 'X-Demo-Audit-Disabled': 'true' },
+    });
+    const rec6 = await apiFetch(page, '/api/platform/identity/register/iadm03.register.view/holders');
+    push('US-013 Audit-Disabled 503 (all 6 ops) + Recovery',
+      [ad1, ad2, ad3, ad4, ad5, ad6].every((r) => r.status === 503) && rec6.status === 200,
+      `statuses=${[ad1.status, ad2.status, ad3.status, ad4.status, ad5.status, ad6.status].join(',')}, recovered=${rec6.status}`);
+    await safeGoto(page, `${BASE}/platform/identity/grant-queue`);
+    await shot(page, '08_r01b_approve_recorded.png');
 
     // 4. R03: Own institute view/request + cross-institute deny
     await loginUi(page, R03, '/platform/identity/grant-queue');
@@ -214,12 +311,16 @@ function stopPort(port) {
     push('US-012 R28 Read-Only', r28Mut.status === 403, `mutate=${r28Mut.status}`);
     await shot(page, '12_r28_readonly.png');
 
-    // 7. US-015: Stop IADM-03 (:8101) and verify IADM-06 (:8104) still works for R01
+    // 7. US-015: Stop IADM-03 (:8101) and verify IADM-06 (:8104) works for R01 (200) and refuses R04 (403)
     stopPort(8101);
     await loginUi(page, R01A, '/platform/analytics');
-    const anlRes = await apiFetch(page, '/api/platform/analytics/overview').catch(() => ({ status: 0 }));
-    push('US-015 Runtime Unaffected With IADM-03 Stopped', anlRes.status !== 503, `iadm06Status=${anlRes.status}`);
+    const anlR01 = await apiFetch(page, '/api/platform/analytics');
     await shot(page, '13_us015_iadm06_with_iadm03_stopped.png');
+    await loginUi(page, R04, '/login');
+    const anlR04 = await apiFetch(page, '/api/platform/analytics');
+    push('US-015 Runtime Unaffected With IADM-03 Stopped',
+      anlR01.status === 200 && anlR04.status === 403,
+      `r01_iadm06=${anlR01.status}, r04_iadm06=${anlR04.status}`);
   } finally {
     await context.close();
     await browser.close();
