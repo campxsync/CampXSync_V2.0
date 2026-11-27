@@ -1,0 +1,8 @@
+{
+  "catalogChangesStatus": 200,
+  "iamCount": 20,
+  "allLabeledLegacy": true,
+  "assignProbeStatus": 403,
+  "revokeProbeStatus": 404,
+  "appointProbeStatus": 400
+}

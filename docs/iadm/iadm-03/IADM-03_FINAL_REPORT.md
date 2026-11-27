@@ -21,9 +21,16 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 
 ---
 
-## 2. Exact Keys, Routes, and Audit Events
+## 2. Coexistence of Legacy V1.4 & V2.0 (D-03 Owner-Open)
 
-- **12 additive `iadm03.*` keys:**
+- **Prior state:** IADM-03 V1.4 already existed on port `8101` (`/api/v1/iadm/03`) prior to this kickoff. V2.0 now **coexists** with V1.4 until the owner decides **D-03 (apply versus record-only)** deliberately. V2 code never calls legacy V1.4 services, and legacy V1.4 services never write to V2 `iadm03.*` tables.
+- **Legacy V1.4 inventory (kept until D-03 is resolved):**
+  - **Tables:** `iam.governance_idempotency`, `iam.access_requests`, `iam.catalog_change_requests`, `iam.access_reviews`, `iam.access_review_items`, `iam.delegations`.
+  - **Keys:** 20 `iam.*` keys (labeled **`IADM-03 V1.4 (legacy)`** in the V2 permission-key register).
+  - **Restored Legacy V1.4 Endpoints (`/api/v1/iadm/03`):** `POST /grants/appoint-r03`, `POST /grants/assign`, `POST /grants/revoke`, `POST /grants/r03-change/{id}/decide`, `GET /catalog-changes`, `POST /catalog-changes`, `POST /catalog-changes/{id}/decide` (plus existing V1.4 `/profiles/**`, `/access-requests/**`, `/delegations/**`, `/access-reviews/**`).
+  - **Legacy V1.4 Pages:** `/institution/access/**` and `/platform/identity/catalog-changes`, `/platform/identity/requests`, `/platform/identity/profiles/**`, `/platform/identity/technical`.
+- **V2.0 inventory (record-only, `iadm03` schema):**
+  - **12 additive `iadm03.*` keys:**
   - `iadm03.register.view` (Super Admin `R01`, System Admin `R02`, Auditor `R28`)
   - `iadm03.matrix.view` (Super Admin `R01`, System Admin `R02`, Auditor `R28`)
   - `iadm03.holders.view` (Super Admin `R01`, System Admin `R02`, Institution Admin `R03` own institute, Auditor `R28`)
@@ -36,14 +43,13 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
   - `iadm03.registration.approve` (Super Admin `R01` only)
   - `iadm03.handover.view` (Super Admin `R01`, System Admin `R02`, Institution Admin `R03` own institute, Auditor `R28`)
   - `iadm03.evidence.view` (Super Admin `R01`, System Admin `R02`, Auditor `R28`)
-- **API endpoints (`/api/v1/iadm/03`):**
+- **V2.0 API endpoints (`/api/v1/iadm/03`):**
   - `GET /health`, `GET /register`, `GET /register/{key}/holders`, `GET /matrix`, `GET /evidence`
   - `GET /grant-requests`, `POST /grant-requests`, `POST /grant-requests/{id}/validate`, `POST /grant-requests/{id}/decision`
   - `GET /v2/access-reviews`, `POST /v2/access-reviews`, `POST /v2/access-reviews/{id}/items/{itemId}/decision`
   - `GET /v2/delegations`, `POST /v2/delegations`, `GET /v2/delegations/{id}/status`, `POST /v2/delegations/{id}/revoke`
   - `GET /service-registrations`, `POST /service-registrations`, `POST /service-registrations/{id}/validate`, `POST /service-registrations/{id}/decision`
   - `GET /handover/first-admin`
-  - **Removed:** `/grants/assign`, `/grants/revoke`, `/grants/appoint-r03`, `/grants/r03-change/{id}/decide`, `/catalog-changes/{id}/decide` (zero apply-grant endpoints exist).
 - **Shared audit events (`audit.log_event` -> `audit.events`):**
   - `IADM03_REGISTER_READ`, `IADM03_REGISTER_DENIED`, `IADM03_HOLDERS_READ`, `IADM03_HOLDERS_DENIED`, `IADM03_MATRIX_READ`, `IADM03_MATRIX_DENIED`
   - `IADM03_GRANT_REQUEST_SUBMITTED`, `IADM03_GRANT_REQUEST_VALIDATED`, `IADM03_GRANT_DECISION_RECORDED`, `IADM03_GRANT_REQUEST_REJECTED`
@@ -62,12 +68,12 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 | `IADM-03-US-018` | IADM-03 permission keys (`iadm03.*`) and role mapping | API-ready | **Completed** | `20261127010000_iadm03_v2_keys_and_schema.sql`, `Iadm03V2S0S1Test` (45/45 JUnit pass) |
 | `IADM-03-US-019` | Schema, tenant scoping and FORCE Row-Level Security | API-ready | **Completed** | `s0_catalogue_snapshot.json` (6 `iadm03.*` tables `relforcerowsecurity=true`), `rls_two_institutes.json` (`t1OwnCount=2, t2CrossReadT1Count=0`) |
 | `IADM-03-US-020` | Shared audit integration with refusal | API-ready | **Completed** | `DurableAuditWriter.java`, `Iadm03V2S0S1Test.demoAuditDisabledSwitchFailsClosed`, 20 `IADM03_*` rows in `final_db_verification.json` |
-| `IADM-03-US-021` | Catalogue, holders and role-matrix read engine | API-ready | **Completed** | `CatalogueReadService.java`, `Iadm03V2S0S1Test.owningServiceAndStatusDerivationFollowsPrefixRules` |
-| `IADM-03-US-001` | Inspect the permission-key register (R01, R02) | Demo-verified | **Demo-verified** | `01_r01_register.png` (`Live catalogue total: 675 · Reconciled: YES`), `results.json` |
+| `IADM-03-US-021` | Catalogue, holders and role-matrix read engine | API-ready | **Completed** | `CatalogueReadService.java` (20 `iam.*` keys labeled `IADM-03 V1.4 (legacy)`), `v14_restore_result.json` (`allLabeledLegacy: true`) |
+| `IADM-03-US-001` | Inspect the permission-key register (R01, R02) | Demo-verified | **Demo-verified** | `01_r01_register.png` (`Live catalogue total: 675 · Reconciled: YES`), `v14_restore_result.json` (`iamCount: 20, allLabeledLegacy: true`) |
 | `IADM-03-US-002` | Inspect the role-to-permission matrix (R01, R02, R28) | Demo-verified | **Demo-verified** | `02_r01_matrix.png` (39 roles `R01`–`R39`, `RBAC v3.0`, flagged differences), `results.json` |
 | `IADM-03-US-012` | Auditor (R28) read-only access evidence | Demo-verified | **Demo-verified** | `12_r28_readonly.png`, `results.json` (`PASS \| US-012 R28 Read-Only \| mutate=403`) |
 | `IADM-03-US-015` | Runtime enforcement unaffected by IADM-03 | Demo-verified | **Demo-verified** | `13_us015_iadm06_with_iadm03_stopped.png`, `us015_result.json` (`r01_iadm06: 200, r04_iadm06: 403` with `:8101` stopped) + `GatewayConfig.java` |
-| `IADM-03-US-022` | Grant request workflow engine (record-only) | API-ready | **Completed** | `RecordOnlyGrantWorkflowService.java`, `Iadm03V2FailureAndIsolationTest.noApplyEndpointExistsInControllerSource` |
+| `IADM-03-US-022` | Grant request workflow engine (record-only) | API-ready | **Completed** | `RecordOnlyGrantWorkflowService.java`, `Iadm03V2FailureAndIsolationTest.v2GrantWorkflowNeverMutatesCatalogueOrGrants` & `restoredLegacyEndpointsAreMarkedLegacyAndIsolatedFromV2` |
 | `IADM-03-US-005` | System Admin (R02) validate and prepare diff | Demo-verified | **Demo-verified** | `07_r02_validate_and_approve_deny.png`, `results.json` (`val=200, catalogueTouched=false, approve=403`) |
 | `IADM-03-US-003` | Institution Admin (R03) view and request own institute | Demo-verified | **Demo-verified** | `10_r03_institute_scope.png`, `results.json` (`matrix=403, crossHandover=403`), `rls_two_institutes.json` |
 | `IADM-03-US-004` | College Admin (R04) submit access request only | Demo-verified | **Demo-verified** | `11_r04_request_only.png`, `results.json` (`submit=200, register=403`) |
@@ -89,7 +95,7 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 
 - **D-01 (No per-request runtime call):** IADM-03 is never called per request by Gateway or other services.
 - **D-02 (Computed views):** Register, holders, and role matrix are computed live on request, never stored.
-- **D-03 (Apply vs record-only):** Record-only (`status = RECORDED`, `"recorded, not applied"`); zero apply-grant endpoints exist.
+- **D-03 (Apply vs record-only):** Owner-open. V2 (`iadm03.*`) is strictly record-only (`status = RECORDED`, `"recorded, not applied"`); legacy V1.4 apply endpoints are restored and isolated until D-03 is decided deliberately.
 - **D-04 (Key family & roles):** 12 additive `iadm03.*` keys mapped to R01/R02/R03/R04/R28 only; zero wildcards; `R04` request-only confirmed in RBAC v3.0 §8.
 - **D-05 (Review cadence):** No review cadence setting found in IADM-02 (`cfg.setting_definitions`); used `DEMO ONLY` runtime default `90` days (`DEMO_DEFAULT_90D`), reviewers R01 and R02.
 - **D-06 (Delegation storage & max validity):** Owned `iadm03.delegations` table with `FORCE RLS`; reads `iam.delegation.max_validity_days` from IADM-02 when available, else `DEMO ONLY` default `90` days; partial by design (no consuming service yet).

@@ -505,10 +505,87 @@ public class Iadm03Controller implements HttpHandler {
                 return;
             }
 
-            // Boundary 3 (V2.0 record-only): no apply-grant or catalogue-mutation endpoints exist.
+            // LEGACY V1.4 (kept until D-03 is decided; never writes to iadm03.* tables)
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/appoint-r03")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String email = extract(body, "email");
+                String displayName = extract(body, "displayName");
+                UUID tenantId = parseUuid(extract(body, "tenantId"), "tenantId");
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grants.appointInstitutionAdmin(
+                        ctx, email, displayName, tenantId, key, correlationId)));
+                return;
+            }
+            // LEGACY V1.4
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/assign")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID subject = parseUuid(extract(body, "subjectUserId"), "subjectUserId");
+                String targetRole = extract(body, "targetRole");
+                UUID tenantId = parseUuidOptional(extract(body, "tenantId"));
+                UUID collegeId = parseUuidOptional(extract(body, "collegeId"));
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grants.assignGrant(
+                        ctx, subject, targetRole, tenantId, collegeId,
+                        extract(body, "validFrom"), extract(body, "validTo"),
+                        extract(body, "reason"), key, correlationId)));
+                return;
+            }
+            // LEGACY V1.4
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/revoke")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID assignmentId = parseUuid(extract(body, "assignmentId"), "assignmentId");
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grants.revokeGrant(
+                        ctx, assignmentId, extract(body, "reason"), key, correlationId)));
+                return;
+            }
+            // LEGACY V1.4
+            if ("POST".equalsIgnoreCase(method) && path.contains("/grants/r03-change/") && path.endsWith("/decide")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String requestId = extract(body, "requestId");
+                if (requestId == null || requestId.trim().isEmpty()) {
+                    int i = path.indexOf("/grants/r03-change/");
+                    String rest = path.substring(i + "/grants/r03-change/".length());
+                    int slash = rest.indexOf('/');
+                    requestId = slash < 0 ? rest : rest.substring(0, slash);
+                }
+                sendJson(exchange, 200, toJson(grants.decideR03GrantChange(
+                        ctx, requestId, extract(body, "decision"), extract(body, "reason"))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/governance/snapshot")
                     || path.endsWith("/governance/snapshot/"))) {
                 sendJson(exchange, 200, toJson(governanceRead.snapshot(ctx)));
+                return;
+            }
+            // LEGACY V1.4 (kept until D-03 is decided; never writes to iadm03.* tables)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/catalog-changes")
+                    || path.endsWith("/catalog-changes/"))) {
+                sendJson(exchange, 200, toJson(catalogChanges.list(ctx, queryParam(exchange, "status"))));
+                return;
+            }
+            // LEGACY V1.4
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/catalog-changes")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(catalogChanges.propose(
+                        ctx, extract(body, "changeType"), extract(body, "roleCode"),
+                        extract(body, "permissionCode"), extract(body, "justification"),
+                        key, correlationId)));
+                return;
+            }
+            // LEGACY V1.4
+            if ("POST".equalsIgnoreCase(method) && path.contains("/catalog-changes/") && path.endsWith("/decide")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID changeId = parseUuidOptional(extract(body, "requestId"));
+                if (changeId == null) {
+                    int i = path.indexOf("/catalog-changes/");
+                    String rest = path.substring(i + "/catalog-changes/".length());
+                    int slash = rest.indexOf('/');
+                    changeId = parseUuid(slash < 0 ? rest : rest.substring(0, slash), "requestId");
+                }
+                sendJson(exchange, 200, toJson(catalogChanges.decide(
+                        ctx, changeId, extract(body, "decision"), extract(body, "reason"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/access-reviews")

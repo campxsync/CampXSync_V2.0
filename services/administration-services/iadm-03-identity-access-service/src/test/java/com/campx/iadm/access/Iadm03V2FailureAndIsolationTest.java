@@ -80,23 +80,53 @@ public class Iadm03V2FailureAndIsolationTest {
     }
 
     @Test
-    public void noApplyEndpointExistsInControllerSource() throws Exception {
+    public void v2GrantWorkflowNeverMutatesCatalogueOrGrants() throws Exception {
+        // (a) V2 grant-request workflow writes only to iadm03.grant_requests / iadm03.grant_decisions;
+        // never mutates iam.permissions, iam.role_permissions, iam.role_template_permissions, or iam.role_assignments.
+        String v2Workflow = new String(Files.readAllBytes(Paths.get(
+                "src/main/java/com/campx/iadm/access/service/RecordOnlyGrantWorkflowService.java")),
+                StandardCharsets.UTF_8);
+        assertFalse(v2Workflow.contains("INSERT INTO iam."));
+        assertFalse(v2Workflow.contains("UPDATE iam."));
+        assertFalse(v2Workflow.contains("DELETE FROM iam."));
+        assertFalse(v2Workflow.contains("GrantGovernanceService"));
+        assertFalse(v2Workflow.contains("CatalogChangeGovernanceService"));
+        // Only R01 holds iadm03.grant.approve; R02/R03/R04/R28 cannot approve in V2
+        assertTrue(AccessPermissionMatrix.allowsIadm03("R01", "iadm03.grant.approve"));
+        assertFalse(AccessPermissionMatrix.allowsIadm03("R02", "iadm03.grant.approve"));
+        assertFalse(AccessPermissionMatrix.allowsIadm03("R03", "iadm03.grant.approve"));
+        assertFalse(AccessPermissionMatrix.allowsIadm03("R04", "iadm03.grant.approve"));
+        assertFalse(AccessPermissionMatrix.allowsIadm03("R28", "iadm03.grant.approve"));
+    }
+
+    @Test
+    public void restoredLegacyEndpointsAreMarkedLegacyAndIsolatedFromV2() throws Exception {
+        // (b) Restored legacy V1.4 endpoints exist in Iadm03Controller, are marked LEGACY V1.4,
+        // and legacy services never write to V2 iadm03.* tables.
         String ctrl = new String(Files.readAllBytes(Paths.get(
                 "src/main/java/com/campx/iadm/access/controller/Iadm03Controller.java")),
                 StandardCharsets.UTF_8);
-        String[] forbiddenApplyRoutes = {
+        String[] legacyRoutes = {
+                "/grants/appoint-r03",
                 "/grants/assign",
                 "/grants/revoke",
-                "/grants/appoint-r03",
-                "/grant-changes/",
-                "/catalog-changes/",
-                "/apply"
+                "/grants/r03-change/",
+                "/catalog-changes"
         };
-        for (String role : AccessPermissionMatrix.PERSONAS) {
-            for (String route : forbiddenApplyRoutes) {
-                assertFalse(role + " must not have apply route " + route, ctrl.contains(route));
-            }
+        for (String r : legacyRoutes) {
+            assertTrue("Restored legacy route missing: " + r, ctrl.contains(r));
         }
+        assertTrue("Legacy routes must be marked LEGACY V1.4", ctrl.contains("LEGACY V1.4"));
+
+        String legacyGrantSvc = new String(Files.readAllBytes(Paths.get(
+                "src/main/java/com/campx/iadm/access/service/GrantGovernanceService.java")),
+                StandardCharsets.UTF_8);
+        String legacyCatalogSvc = new String(Files.readAllBytes(Paths.get(
+                "src/main/java/com/campx/iadm/access/service/CatalogChangeGovernanceService.java")),
+                StandardCharsets.UTF_8);
+        assertFalse("Legacy GrantGovernanceService must not write to iadm03.*", legacyGrantSvc.contains("iadm03."));
+        assertFalse("Legacy CatalogChangeGovernanceService must not write to iadm03.*", legacyCatalogSvc.contains("iadm03."));
+        assertEquals("IADM-03 V1.4 (legacy)", CatalogueReadService.deriveOwningService("iam.grant.assign"));
     }
 
     @Test
@@ -133,6 +163,7 @@ public class Iadm03V2FailureAndIsolationTest {
         assertEquals("IADM-07", CatalogueReadService.deriveOwningService("iadm07.register.read"));
         assertEquals("IADM-08", CatalogueReadService.deriveOwningService("iadm08.manage"));
         assertEquals("Legacy", CatalogueReadService.deriveOwningService("adm08.view"));
-        assertEquals("Unknown", CatalogueReadService.deriveOwningService("iam.grant.assign"));
+        assertEquals("IADM-03 V1.4 (legacy)", CatalogueReadService.deriveOwningService("iam.grant.assign"));
+        assertEquals("Unknown", CatalogueReadService.deriveOwningService("cfg.view"));
     }
 }

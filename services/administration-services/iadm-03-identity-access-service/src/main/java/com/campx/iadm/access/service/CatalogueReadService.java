@@ -80,6 +80,9 @@ public class CatalogueReadService {
                 return "IADM-0" + i;
             }
         }
+        if (k.startsWith("iam.")) {
+            return "IADM-03 V1.4 (legacy)";
+        }
         if (k.startsWith("adm")) {
             return "Legacy";
         }
