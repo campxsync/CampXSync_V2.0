@@ -16,7 +16,12 @@ import com.campx.iadm.access.service.DelegationGovernanceService;
 import com.campx.iadm.access.service.DurableAuditWriter;
 import com.campx.iadm.access.service.GovernanceReadService;
 import com.campx.iadm.access.service.GrantGovernanceService;
+import com.campx.iadm.access.service.HandoverStatusService;
 import com.campx.iadm.access.service.ProfileGovernanceService;
+import com.campx.iadm.access.service.RecordOnlyGrantWorkflowService;
+import com.campx.iadm.access.service.ServiceRegistrationService;
+import com.campx.iadm.access.service.V2AccessReviewService;
+import com.campx.iadm.access.service.V2DelegationService;
 import com.campx.logger.CampXLogger;
 import com.campx.logger.CampXLoggerFactory;
 import com.campx.logger.api.FlowTracker;
@@ -49,6 +54,11 @@ public class Iadm03Controller implements HttpHandler {
     private final AccessReviewGovernanceService accessReviews;
     private final AuditEvidenceService auditEvidence = new AuditEvidenceService();
     private final CatalogueReadService catalogueRead = new CatalogueReadService();
+    private final RecordOnlyGrantWorkflowService grantWorkflow = new RecordOnlyGrantWorkflowService();
+    private final V2AccessReviewService v2Reviews = new V2AccessReviewService();
+    private final V2DelegationService v2Delegations = new V2DelegationService();
+    private final ServiceRegistrationService serviceRegistrations = new ServiceRegistrationService();
+    private final HandoverStatusService handoverStatus = new HandoverStatusService();
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
@@ -375,6 +385,126 @@ public class Iadm03Controller implements HttpHandler {
                         ctx, delegationId, extract(body, "reason"), key, correlationId)));
                 return;
             }
+            // S2: Record-only grant workflow (US-022, US-003..007, US-013)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/grant-requests") || path.endsWith("/grant-requests/"))) {
+                UUID tenantFilter = parseUuidOptional(queryParam(exchange, "tenantId"));
+                sendJson(exchange, 200, toJson(grantWorkflow.listRequests(
+                        ctx, tenantFilter, queryParam(exchange, "status"), correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grant-requests")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID subject = parseUuid(extract(body, "subjectUserId"), "subjectUserId");
+                UUID scopeId = parseUuidOptional(extract(body, "scopeId"));
+                UUID tenantId = parseUuidOptional(extract(body, "tenantId"));
+                UUID collegeId = parseUuidOptional(extract(body, "collegeId"));
+                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
+                sendJson(exchange, 200, toJson(grantWorkflow.submitRequest(
+                        ctx, subject, extract(body, "targetKind"), extract(body, "targetCode"),
+                        extract(body, "scopeType"), scopeId, tenantId, collegeId,
+                        extract(body, "validTo"), extract(body, "reason"), key, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/grant-requests/") && path.endsWith("/validate")) {
+                UUID reqId = extractPathUuid(path, "/grant-requests/");
+                sendJson(exchange, 200, toJson(grantWorkflow.validateRequest(ctx, reqId, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/grant-requests/") && path.endsWith("/decision")) {
+                UUID reqId = extractPathUuid(path, "/grant-requests/");
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(grantWorkflow.decideRequest(
+                        ctx, reqId, extract(body, "decision"), extract(body, "reason"), correlationId)));
+                return;
+            }
+
+            // S3: Access review campaigns (US-008)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/v2/access-reviews") || path.endsWith("/v2/access-reviews/"))) {
+                UUID cid = parseUuidOptional(queryParam(exchange, "campaignId"));
+                sendJson(exchange, 200, toJson(v2Reviews.listCampaigns(ctx, cid, correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/v2/access-reviews")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID scopeId = parseUuidOptional(extract(body, "scopeId"));
+                sendJson(exchange, 200, toJson(v2Reviews.createCampaign(
+                        ctx, extract(body, "title"), extract(body, "scopeType"), scopeId,
+                        extract(body, "dueAt"), correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/v2/access-reviews/") && path.endsWith("/decision")) {
+                UUID cid = extractPathUuid(path, "/v2/access-reviews/");
+                UUID itemId = extractPathUuid(path, "/items/");
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(v2Reviews.decideItem(
+                        ctx, cid, itemId, extract(body, "decision"), extract(body, "reason"),
+                        extract(body, "exceptionOwner"), extract(body, "exceptionExpiresAt"), correlationId)));
+                return;
+            }
+
+            // S3: Delegations (US-009, US-010)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/v2/delegations") || path.endsWith("/v2/delegations/"))) {
+                sendJson(exchange, 200, toJson(v2Delegations.listDelegations(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/v2/delegations")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                UUID delegate = parseUuid(extract(body, "delegateUserId"), "delegateUserId");
+                UUID scopeId = parseUuidOptional(extract(body, "scopeId"));
+                sendJson(exchange, 200, toJson(v2Delegations.createDelegation(
+                        ctx, delegate, extract(body, "allowedAction"), extract(body, "targetService"),
+                        extract(body, "scopeType"), scopeId, extract(body, "startsAt"),
+                        extract(body, "expiresAt"), extract(body, "reason"), correlationId)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.contains("/v2/delegations/") && path.endsWith("/status")) {
+                UUID did = extractPathUuid(path, "/v2/delegations/");
+                sendJson(exchange, 200, toJson(v2Delegations.getDelegationStatus(ctx, did)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/v2/delegations/") && path.endsWith("/revoke")) {
+                UUID did = extractPathUuid(path, "/v2/delegations/");
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(v2Delegations.revokeDelegation(
+                        ctx, did, extract(body, "reason"), correlationId)));
+                return;
+            }
+
+            // S3: Service permission registrations (US-011)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/service-registrations") || path.endsWith("/service-registrations/"))) {
+                sendJson(exchange, 200, toJson(serviceRegistrations.list(ctx)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.endsWith("/service-registrations")) {
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(serviceRegistrations.submit(
+                        ctx, extract(body, "serviceCode"), extract(body, "keyManifest"),
+                        extract(body, "roleGrantProposal"), extract(body, "migrationRef"),
+                        extract(body, "rollbackRef"), extract(body, "testEvidenceRef"),
+                        extract(body, "auditEvidenceRef"), correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/service-registrations/") && path.endsWith("/validate")) {
+                UUID regId = extractPathUuid(path, "/service-registrations/");
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(serviceRegistrations.validate(ctx, regId, extract(body, "notes"), correlationId)));
+                return;
+            }
+            if ("POST".equalsIgnoreCase(method) && path.contains("/service-registrations/") && path.endsWith("/decision")) {
+                UUID regId = extractPathUuid(path, "/service-registrations/");
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                sendJson(exchange, 200, toJson(serviceRegistrations.decide(
+                        ctx, regId, extract(body, "decision"), extract(body, "reason"), correlationId)));
+                return;
+            }
+
+            // S4: First-admin handover status read-only (US-014)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/handover/first-admin") || path.endsWith("/handover/first-admin/"))) {
+                UUID tenantFilter = parseUuidOptional(queryParam(exchange, "tenantId"));
+                sendJson(exchange, 200, toJson(handoverStatus.getHandoverStatus(ctx, tenantFilter, correlationId)));
+                return;
+            }
+
             // Boundary 3 (V2.0 record-only): no apply-grant or catalogue-mutation endpoints exist.
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/governance/snapshot")
                     || path.endsWith("/governance/snapshot/"))) {
@@ -442,6 +572,16 @@ public class Iadm03Controller implements HttpHandler {
         }
         String p = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
         return p.endsWith("/profiles");
+    }
+
+    private static UUID extractPathUuid(String path, String marker) {
+        int i = path.indexOf(marker);
+        if (i < 0) {
+            throw new InstituteAdminException(400, "IADM03_VALIDATION", "Missing identifier in path");
+        }
+        String rest = path.substring(i + marker.length());
+        int slash = rest.indexOf('/');
+        return parseUuid(slash < 0 ? rest : rest.substring(0, slash), "id");
     }
 
     private static UUID parseUuid(String raw, String field) {
