@@ -2,6 +2,7 @@ package com.campx.iadm.access.controller;
 
 import com.campx.iadm.access.exception.InstituteAdminException;
 import com.campx.iadm.access.exception.UserProfileAccessDeniedException;
+import com.campx.iadm.access.security.AccessPermissionMatrix;
 import com.campx.iadm.access.security.GatewayHmacVerifier;
 import com.campx.iadm.access.security.GrantorCeiling;
 import com.campx.iadm.access.security.UserSecurityContext;
@@ -10,7 +11,9 @@ import com.campx.iadm.access.service.AccessRequestGovernanceService;
 import com.campx.iadm.access.service.AccessReviewGovernanceService;
 import com.campx.iadm.access.service.AuditEvidenceService;
 import com.campx.iadm.access.service.CatalogChangeGovernanceService;
+import com.campx.iadm.access.service.CatalogueReadService;
 import com.campx.iadm.access.service.DelegationGovernanceService;
+import com.campx.iadm.access.service.DurableAuditWriter;
 import com.campx.iadm.access.service.GovernanceReadService;
 import com.campx.iadm.access.service.GrantGovernanceService;
 import com.campx.iadm.access.service.ProfileGovernanceService;
@@ -45,6 +48,7 @@ public class Iadm03Controller implements HttpHandler {
     private final GovernanceReadService governanceRead;
     private final AccessReviewGovernanceService accessReviews;
     private final AuditEvidenceService auditEvidence = new AuditEvidenceService();
+    private final CatalogueReadService catalogueRead = new CatalogueReadService();
     private final GatewayHmacVerifier hmacVerifier = new GatewayHmacVerifier();
 
     public Iadm03Controller(AccessGovernanceService service) {
@@ -200,13 +204,45 @@ public class Iadm03Controller implements HttpHandler {
 
             UserSecurityContext ctx = UserSecurityContext.fromPlatformHeaders(auth.getUserId(), auth.getTenantId());
 
+            // US-013 / US-020: DEV-only audit-disabled fault toggle
+            if ("true".equalsIgnoreCase(header(exchange, "X-Demo-Audit-Disabled"))) {
+                DurableAuditWriter.setDemoAuditDisabled(true);
+            }
+
             // US-033 — Auditor (R28) may read; every mutation is denied with a clear message.
             if (!"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
                 service.assertNotAuditorMutation(ctx);
             }
 
+            // S1: Computed-on-request permission-key register (US-001, US-021, US-012)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/register") || path.endsWith("/register/"))) {
+                sendJson(exchange, 200, toJson(catalogueRead.getRegister(
+                        ctx,
+                        queryParam(exchange, "service"),
+                        queryParam(exchange, "status"),
+                        queryParam(exchange, "role"),
+                        queryParam(exchange, "q"),
+                        correlationId)));
+                return;
+            }
+            if ("GET".equalsIgnoreCase(method) && path.contains("/register/") && path.endsWith("/holders")) {
+                int idx = path.indexOf("/register/");
+                String rest = path.substring(idx + "/register/".length());
+                String keyCode = rest.substring(0, rest.length() - "/holders".length());
+                UUID tenantFilter = parseUuidOptional(queryParam(exchange, "tenantId"));
+                sendJson(exchange, 200, toJson(catalogueRead.getKeyHolders(ctx, keyCode, tenantFilter, correlationId)));
+                return;
+            }
+            // S1: Computed-on-request R01-R39 role-to-permission matrix (US-002, US-021, US-012)
+            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/matrix") || path.endsWith("/matrix/"))) {
+                sendJson(exchange, 200, toJson(catalogueRead.getRoleMatrix(ctx, correlationId)));
+                return;
+            }
+
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/audit-evidence")
-                    || path.endsWith("/audit-evidence/"))) {
+                    || path.endsWith("/audit-evidence/")
+                    || path.endsWith("/evidence")
+                    || path.endsWith("/evidence/"))) {
                 int limit = 50;
                 String limRaw = queryParam(exchange, "limit");
                 if (limRaw != null && !limRaw.trim().isEmpty()) {
@@ -339,80 +375,10 @@ public class Iadm03Controller implements HttpHandler {
                         ctx, delegationId, extract(body, "reason"), key, correlationId)));
                 return;
             }
-            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/appoint-r03")) {
-                String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                String email = extract(body, "email");
-                String displayName = extract(body, "displayName");
-                UUID tenantId = parseUuid(extract(body, "tenantId"), "tenantId");
-                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
-                sendJson(exchange, 200, toJson(grants.appointInstitutionAdmin(
-                        ctx, email, displayName, tenantId, key, correlationId)));
-                return;
-            }
-            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/assign")) {
-                String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                UUID subject = parseUuid(extract(body, "subjectUserId"), "subjectUserId");
-                String targetRole = extract(body, "targetRole");
-                UUID tenantId = parseUuidOptional(extract(body, "tenantId"));
-                UUID collegeId = parseUuidOptional(extract(body, "collegeId"));
-                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
-                sendJson(exchange, 200, toJson(grants.assignGrant(
-                        ctx, subject, targetRole, tenantId, collegeId,
-                        extract(body, "validFrom"), extract(body, "validTo"),
-                        extract(body, "reason"), key, correlationId)));
-                return;
-            }
-            if ("POST".equalsIgnoreCase(method) && path.endsWith("/grants/revoke")) {
-                String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                UUID assignmentId = parseUuid(extract(body, "assignmentId"), "assignmentId");
-                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
-                sendJson(exchange, 200, toJson(grants.revokeGrant(
-                        ctx, assignmentId, extract(body, "reason"), key, correlationId)));
-                return;
-            }
-            if ("POST".equalsIgnoreCase(method) && path.contains("/grants/r03-change/") && path.endsWith("/decide")) {
-                String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                String requestId = extract(body, "requestId");
-                if (requestId == null || requestId.trim().isEmpty()) {
-                    int i = path.indexOf("/grants/r03-change/");
-                    String rest = path.substring(i + "/grants/r03-change/".length());
-                    int slash = rest.indexOf('/');
-                    requestId = slash < 0 ? rest : rest.substring(0, slash);
-                }
-                sendJson(exchange, 200, toJson(grants.decideR03GrantChange(
-                        ctx, requestId, extract(body, "decision"), extract(body, "reason"))));
-                return;
-            }
+            // Boundary 3 (V2.0 record-only): no apply-grant or catalogue-mutation endpoints exist.
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/governance/snapshot")
                     || path.endsWith("/governance/snapshot/"))) {
                 sendJson(exchange, 200, toJson(governanceRead.snapshot(ctx)));
-                return;
-            }
-            if ("GET".equalsIgnoreCase(method) && (path.endsWith("/catalog-changes")
-                    || path.endsWith("/catalog-changes/"))) {
-                sendJson(exchange, 200, toJson(catalogChanges.list(ctx, queryParam(exchange, "status"))));
-                return;
-            }
-            if ("POST".equalsIgnoreCase(method) && path.endsWith("/catalog-changes")) {
-                String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                String key = firstNonEmpty(extract(body, "idempotencyKey"), header(exchange, "Idempotency-Key"));
-                sendJson(exchange, 200, toJson(catalogChanges.propose(
-                        ctx, extract(body, "changeType"), extract(body, "roleCode"),
-                        extract(body, "permissionCode"), extract(body, "justification"),
-                        key, correlationId)));
-                return;
-            }
-            if ("POST".equalsIgnoreCase(method) && path.contains("/catalog-changes/") && path.endsWith("/decide")) {
-                String body = new String(bodyBytes, StandardCharsets.UTF_8);
-                UUID changeId = parseUuidOptional(extract(body, "requestId"));
-                if (changeId == null) {
-                    int i = path.indexOf("/catalog-changes/");
-                    String rest = path.substring(i + "/catalog-changes/".length());
-                    int slash = rest.indexOf('/');
-                    changeId = parseUuid(slash < 0 ? rest : rest.substring(0, slash), "requestId");
-                }
-                sendJson(exchange, 200, toJson(catalogChanges.decide(
-                        ctx, changeId, extract(body, "decision"), extract(body, "reason"))));
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && (path.endsWith("/access-reviews")
@@ -464,6 +430,7 @@ public class Iadm03Controller implements HttpHandler {
             logger.error("IADM-03 unhandled path={} err={}", path, ex.getMessage(), ex);
             sendJson(exchange, 500, problem("IADM03_INTERNAL", "Unexpected server error"));
         } finally {
+            DurableAuditWriter.clearDemoAuditDisabled();
             tracker.close();
             LogContext.clear();
         }

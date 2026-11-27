@@ -8,11 +8,26 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Offline role × permission matrix for IADM-03 iam.* keys (owner-approved S0 D3).
- * Permission keys only — never authorize by role name at the endpoint.
- * The dormant adm03.* family is intentionally absent.
+ * Role x permission matrix for IADM-03.
+ * Supports both additive iadm03.* keys (US-018) and legacy V1 iam.* keys for backward-compatible unit tests.
+ * Permission keys only — never authorize by role name alone; no wildcard; no apply-grant key.
  */
 public final class AccessPermissionMatrix {
+
+    public static final String[] IADM03_KEYS = {
+            "iadm03.register.view",
+            "iadm03.matrix.view",
+            "iadm03.holders.view",
+            "iadm03.grant.request.submit",
+            "iadm03.grant.review",
+            "iadm03.grant.approve",
+            "iadm03.review.manage",
+            "iadm03.delegation.manage",
+            "iadm03.registration.submit",
+            "iadm03.registration.approve",
+            "iadm03.handover.view",
+            "iadm03.evidence.view"
+    };
 
     public static final String[] NEW_KEYS = {
             "iam.catalog.roles.view",
@@ -41,9 +56,37 @@ public final class AccessPermissionMatrix {
             "R01", "R02", "R03", "R04", "R28", "R27"
     };
 
+    private static final Map<String, Set<String>> IADM03_BY_ROLE;
     private static final Map<String, Set<String>> BY_ROLE;
 
     static {
+        Map<String, Set<String>> m03 = new HashMap<String, Set<String>>();
+        m03.put("R01", setOf(IADM03_KEYS));
+        m03.put("R02", setOf(
+                "iadm03.register.view",
+                "iadm03.matrix.view",
+                "iadm03.holders.view",
+                "iadm03.grant.request.submit",
+                "iadm03.grant.review",
+                "iadm03.review.manage",
+                "iadm03.registration.submit",
+                "iadm03.handover.view",
+                "iadm03.evidence.view"));
+        m03.put("R03", setOf(
+                "iadm03.holders.view",
+                "iadm03.grant.request.submit",
+                "iadm03.delegation.manage",
+                "iadm03.handover.view"));
+        m03.put("R04", setOf("iadm03.grant.request.submit"));
+        m03.put("R28", setOf(
+                "iadm03.register.view",
+                "iadm03.matrix.view",
+                "iadm03.holders.view",
+                "iadm03.handover.view",
+                "iadm03.evidence.view"));
+        m03.put("R27", Collections.<String>emptySet());
+        IADM03_BY_ROLE = Collections.unmodifiableMap(m03);
+
         Map<String, Set<String>> m = new HashMap<String, Set<String>>();
         m.put("R01", setOf(NEW_KEYS));
         m.put("R02", setOf(
@@ -71,16 +114,13 @@ public final class AccessPermissionMatrix {
                 "iam.delegation.revoke",
                 "iam.review.manage",
                 "iam.audit.view"));
-        // R04 request-only in IADM-03
         m.put("R04", setOf("iam.request.submit"));
-        // R28 Auditor read-only
         m.put("R28", setOf(
                 "iam.catalog.roles.view",
                 "iam.catalog.permissions.view",
                 "iam.access.subject.view",
                 "iam.profile.view",
                 "iam.audit.view"));
-        // R27 API Client — denial tests only; no IADM-03 keys
         m.put("R27", Collections.<String>emptySet());
         BY_ROLE = Collections.unmodifiableMap(m);
     }
@@ -88,9 +128,21 @@ public final class AccessPermissionMatrix {
     private AccessPermissionMatrix() {
     }
 
+    public static boolean allowsIadm03(String persona, String permissionKey) {
+        if (persona == null || permissionKey == null) {
+            return false;
+        }
+        String role = normalizePersona(persona);
+        Set<String> keys = IADM03_BY_ROLE.get(role);
+        return keys != null && keys.contains(permissionKey.trim());
+    }
+
     public static boolean allows(String persona, String permissionKey) {
         if (persona == null || permissionKey == null) {
             return false;
+        }
+        if (permissionKey.trim().startsWith("iadm03.")) {
+            return allowsIadm03(persona, permissionKey);
         }
         String role = normalizePersona(persona);
         Set<String> keys = BY_ROLE.get(role);
@@ -101,6 +153,9 @@ public final class AccessPermissionMatrix {
     }
 
     public static String normalizePersona(String persona) {
+        if (persona == null) {
+            return "UNKNOWN";
+        }
         String p = persona.trim().toUpperCase(Locale.ROOT);
         if ("SUPER_ADMIN".equals(p) || "PLATFORM_ADMIN".equals(p) || "R01".equals(p)) {
             return "R01";

@@ -1,0 +1,152 @@
+{
+  "projectRef": "azulbaxszsqxymqmlwfe",
+  "capturedAt": "2026-11-27T06:52:38.261Z",
+  "before": {
+    "nonIadm03PermCount": 663,
+    "nonIadm03PermHash": "3e9f16d43435c59ad307ad540816c2a0e0f08731ea31f88b910d9b691d497379",
+    "nonIadm03RtpCount": 2223,
+    "nonIadm03RtpHash": "81f23604bbca64b0dbd2e3df9323cd32c5b838156ff92103462024be6b443b5c",
+    "iadm03PermCount": 0,
+    "iadm03Perms": [],
+    "iadm03Rtp": [],
+    "iadm03Tables": []
+  },
+  "after": {
+    "nonIadm03PermCount": 663,
+    "nonIadm03PermHash": "3e9f16d43435c59ad307ad540816c2a0e0f08731ea31f88b910d9b691d497379",
+    "nonIadm03RtpCount": 2223,
+    "nonIadm03RtpHash": "81f23604bbca64b0dbd2e3df9323cd32c5b838156ff92103462024be6b443b5c",
+    "iadm03PermCount": 12,
+    "iadm03Perms": [
+      "iadm03.delegation.manage",
+      "iadm03.evidence.view",
+      "iadm03.grant.approve",
+      "iadm03.grant.request.submit",
+      "iadm03.grant.review",
+      "iadm03.handover.view",
+      "iadm03.holders.view",
+      "iadm03.matrix.view",
+      "iadm03.register.view",
+      "iadm03.registration.approve",
+      "iadm03.registration.submit",
+      "iadm03.review.manage"
+    ],
+    "iadm03Rtp": [
+      {
+        "role_code": "AUDITOR",
+        "permission_code": "iadm03.evidence.view"
+      },
+      {
+        "role_code": "AUDITOR",
+        "permission_code": "iadm03.handover.view"
+      },
+      {
+        "role_code": "AUDITOR",
+        "permission_code": "iadm03.holders.view"
+      },
+      {
+        "role_code": "AUDITOR",
+        "permission_code": "iadm03.matrix.view"
+      },
+      {
+        "role_code": "AUDITOR",
+        "permission_code": "iadm03.register.view"
+      },
+      {
+        "role_code": "COLLEGE_ADMIN",
+        "permission_code": "iadm03.grant.request.submit"
+      },
+      {
+        "role_code": "INSTITUTION_ADMIN",
+        "permission_code": "iadm03.delegation.manage"
+      },
+      {
+        "role_code": "INSTITUTION_ADMIN",
+        "permission_code": "iadm03.grant.request.submit"
+      },
+      {
+        "role_code": "INSTITUTION_ADMIN",
+        "permission_code": "iadm03.handover.view"
+      },
+      {
+        "role_code": "INSTITUTION_ADMIN",
+        "permission_code": "iadm03.holders.view"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.evidence.view"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.grant.request.submit"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.grant.review"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.handover.view"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.holders.view"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.matrix.view"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.register.view"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.registration.submit"
+      },
+      {
+        "role_code": "SYSTEM_ADMIN",
+        "permission_code": "iadm03.review.manage"
+      }
+    ],
+    "iadm03Tables": [
+      {
+        "nspname": "iadm03",
+        "relname": "access_review_campaigns",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true
+      },
+      {
+        "nspname": "iadm03",
+        "relname": "access_review_items",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true
+      },
+      {
+        "nspname": "iadm03",
+        "relname": "delegations",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true
+      },
+      {
+        "nspname": "iadm03",
+        "relname": "grant_decisions",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true
+      },
+      {
+        "nspname": "iadm03",
+        "relname": "grant_requests",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true
+      },
+      {
+        "nspname": "iadm03",
+        "relname": "service_registrations",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true
+      }
+    ]
+  },
+  "existingCatalogueUnchanged": true
+}
