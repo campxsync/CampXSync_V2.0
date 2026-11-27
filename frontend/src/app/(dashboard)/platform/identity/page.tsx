@@ -94,6 +94,55 @@ export default function PlatformIdentityPage() {
         </p>
         <div className="flex flex-wrap gap-3 pt-2">
           <Link
+            href="/platform/identity/register"
+            className="rounded bg-blue-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-register"
+          >
+            Permission Register
+          </Link>
+          <Link
+            href="/platform/identity/matrix"
+            className="rounded bg-indigo-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-matrix"
+          >
+            Role Matrix (R01–R39)
+          </Link>
+          <Link
+            href="/platform/identity/grant-queue"
+            className="rounded bg-emerald-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-grant-queue"
+          >
+            Grant Queue (Record-Only)
+          </Link>
+          <Link
+            href="/platform/identity/reviews"
+            className="rounded bg-amber-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-reviews"
+          >
+            Access Reviews
+          </Link>
+          <Link
+            href="/platform/identity/delegations"
+            className="rounded bg-cyan-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-delegations"
+          >
+            Delegations
+          </Link>
+          <Link
+            href="/platform/identity/registrations"
+            className="rounded bg-purple-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-registrations"
+          >
+            Service Registrations
+          </Link>
+          <Link
+            href="/platform/identity/handover"
+            className="rounded bg-teal-700 px-4 py-2 text-sm text-white"
+            data-testid="iadm03-open-handover"
+          >
+            Handover Status
+          </Link>
+          <Link
             href="/platform/identity/profiles"
             className="rounded bg-slate-900 px-4 py-2 text-sm text-white"
             data-testid="iadm03-open-profiles"
