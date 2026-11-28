@@ -47,7 +47,8 @@
 | Headed film US-032 | **25/25 PASS** — tabs + 5 faults + all personas — `docs/iadm/iadm-07/evidence/us032/` |
 | Report / CSV | `docs/iadm/IADM-07_S4_Report.md`; CSV 30 `completed` · 2 `partially completed` (US-009, US-013) |
 | Service / port | `iadm-07-security-compliance-service` **:8105** `/api/v1/iadm/07` |
-| Next | **STOP** — await `APPROVED IADM-07` / `APPROVED IADM-07 COMMIT`; **do not push** |
+| Commit / push | **`3e92222`** pushed to `origin/feature/java-backend-integration` (owner `APPROVED IADM-07 COMMIT & push`, 2026-11-28) |
+| Next | IADM-07 proof close-out complete; await next-module authorization |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 | Honest partial | US-009 no live enforcing-service contract; US-013 ownership verification documented |
 
