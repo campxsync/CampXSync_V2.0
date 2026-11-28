@@ -41,9 +41,15 @@ public class BillingUsageReportService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
                 requirePermission(conn, ctx, "iadm04.usage.record");
-                if (tenantId == null) {
+                // R01 / R02 / SERVICE metering may pass institute; others forced to claims.
+                boolean canSelect = isPlatformOperator(conn) || isSystemAdmin(conn)
+                        || hasPermission(conn, "iadm04.usage.record");
+                UUID scopedTenant = com.campx.iadm.billing.security.TrustedInstituteScope.resolve(
+                        canSelect, ctx.getTenantId(), tenantId);
+                if (scopedTenant == null) {
                     throw new InstituteAdminException(400, "IADM04_INVALID", "tenantId is required.");
                 }
+                final UUID tenantIdFinal = scopedTenant;
                 if (dedupeKey == null || dedupeKey.trim().isEmpty()) {
                     throw new InstituteAdminException(400, "IADM04_INVALID", "dedupeKey is required.");
                 }
@@ -74,7 +80,7 @@ public class BillingUsageReportService {
                                 + "tenant_id, source, period_start, period_end, entitlement_key, quantity, unit, "
                                 + "dedupe_key, incomplete, incomplete_reason, demo_label) "
                                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DEMO') RETURNING id")) {
-                    ps.setObject(1, tenantId);
+                    ps.setObject(1, tenantIdFinal);
                     ps.setString(2, source == null ? "UNKNOWN" : source);
                     ps.setDate(3, Date.valueOf(start));
                     ps.setDate(4, Date.valueOf(end));
@@ -89,7 +95,7 @@ public class BillingUsageReportService {
                         id = (UUID) rs.getObject(1);
                     }
                 }
-                DurableAuditWriter.append(conn, ctx, tenantId, "IADM04_USAGE_RECORD",
+                DurableAuditWriter.append(conn, ctx, tenantIdFinal, "IADM04_USAGE_RECORD",
                         "usage_measurement", id.toString(), "Usage recorded");
                 Map<String, Object> out = findByDedupe(conn, key);
                 out.put("overageCharge", Boolean.FALSE);
@@ -104,19 +110,16 @@ public class BillingUsageReportService {
     public Map<String, Object> getUsageAgainstQuota(final UserSecurityContext ctx, final UUID tenantFilter) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                boolean platform = isPlatformOperator(conn) || hasPermission(conn, "iadm04.reports.view")
+                // R01/R02 may filter; reports.view alone (R03) does NOT grant cross-institute select.
+                boolean canSelect = isPlatformOperator(conn) || isSystemAdmin(conn)
                         || hasPermission(conn, "iadm04.subscriptions.view");
-                boolean own = hasPermission(conn, "iadm04.subscriptions.view.own");
-                if (!platform && !own) {
+                boolean own = hasPermission(conn, "iadm04.subscriptions.view.own")
+                        || hasPermission(conn, "iadm04.reports.view");
+                if (!canSelect && !own) {
                     throw forbidden("iadm04.subscriptions.view.own");
                 }
-                UUID tenantId = tenantFilter;
-                if (!platform) {
-                    tenantId = ctx.getTenantId();
-                    if (tenantId == null) {
-                        throw new InstituteAdminException(403, "IADM04_FORBIDDEN", "Tenant context required.");
-                    }
-                }
+                UUID tenantId = com.campx.iadm.billing.security.TrustedInstituteScope.resolve(
+                        canSelect, ctx.getTenantId(), tenantFilter);
                 if (tenantId == null) {
                     throw new InstituteAdminException(400, "IADM04_INVALID", "tenantId is required for platform view.");
                 }
@@ -197,26 +200,17 @@ public class BillingUsageReportService {
     public Map<String, Object> billingReport(final UserSecurityContext ctx, final UUID tenantFilter) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                boolean platform = isPlatformOperator(conn) || hasPermission(conn, "iadm04.reports.view")
-                        || hasPermission(conn, "iadm04.subscriptions.view");
+                boolean canSelect = isPlatformOperator(conn) || isSystemAdmin(conn)
+                        || hasPermission(conn, "iadm04.subscriptions.view")
+                        || hasPermission(conn, "iadm04.audit.view");
                 boolean own = hasPermission(conn, "iadm04.subscriptions.view.own")
-                        || hasPermission(conn, "iadm04.invoices.view.own");
-                boolean auditor = hasPermission(conn, "iadm04.audit.view");
-                if (!platform && !own && !auditor) {
+                        || hasPermission(conn, "iadm04.invoices.view.own")
+                        || hasPermission(conn, "iadm04.reports.view");
+                if (!canSelect && !own) {
                     throw forbidden("iadm04.reports.view");
                 }
-                UUID scopeTenant = null;
-                if (!platform) {
-                    scopeTenant = ctx.getTenantId();
-                    if (scopeTenant == null && tenantFilter != null && auditor) {
-                        scopeTenant = tenantFilter;
-                    }
-                    if (scopeTenant == null && !auditor) {
-                        throw new InstituteAdminException(403, "IADM04_FORBIDDEN", "Tenant scope required.");
-                    }
-                } else if (tenantFilter != null) {
-                    scopeTenant = tenantFilter;
-                }
+                UUID scopeTenant = com.campx.iadm.billing.security.TrustedInstituteScope.resolve(
+                        canSelect, ctx.getTenantId(), tenantFilter);
                 Map<String, Object> summary = new LinkedHashMap<String, Object>();
                 summary.put("subscriptionsByStatus", countBy(conn,
                         "SELECT status, COUNT(*) FROM plat.subscriptions WHERE deleted_at IS NULL "
@@ -341,21 +335,16 @@ public class BillingUsageReportService {
                                                       final UUID tenantFilter) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
-                // Additive IADM-06 read: Super Admin OR System Admin OR report/subscription viewers
-                boolean platform = isPlatformOperator(conn) || isSystemAdmin(conn)
-                        || hasPermission(conn, "iadm04.reports.view")
+                // R01/R02 may filter; R03 reports.view is own-scope only.
+                boolean canSelect = isPlatformOperator(conn) || isSystemAdmin(conn)
                         || hasPermission(conn, "iadm04.subscriptions.view");
-                boolean own = hasPermission(conn, "iadm04.subscriptions.view.own");
-                if (!platform && !own) {
+                boolean own = hasPermission(conn, "iadm04.subscriptions.view.own")
+                        || hasPermission(conn, "iadm04.reports.view");
+                if (!canSelect && !own) {
                     throw forbidden("iadm04.reports.view");
                 }
-                UUID scope = tenantFilter;
-                if (!platform) {
-                    scope = ctx.getTenantId();
-                    if (scope == null) {
-                        throw new InstituteAdminException(403, "IADM04_FORBIDDEN", "Tenant context required.");
-                    }
-                }
+                UUID scope = com.campx.iadm.billing.security.TrustedInstituteScope.resolve(
+                        canSelect, ctx.getTenantId(), tenantFilter);
                 Map<String, Object> out = new LinkedHashMap<String, Object>();
                 out.put("queryTime", java.time.Instant.now().toString());
                 out.put("demoLabel", "DEMO values");

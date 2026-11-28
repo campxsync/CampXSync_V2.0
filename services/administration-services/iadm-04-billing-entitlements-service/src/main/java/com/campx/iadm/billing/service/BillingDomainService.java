@@ -643,7 +643,12 @@ public class BillingDomainService {
             public Map<String, Object> execute(Connection conn) throws SQLException, InstituteAdminException {
                 requireAny(conn, ctx, "iadm04.entitlements.check", "iadm04.subscriptions.view",
                         "iadm04.subscriptions.view.own");
-                UUID id = instituteId != null ? instituteId : ctx.getTenantId();
+                // R01 may select; R03 with view.own forced to claims (403 on foreign).
+                boolean canSelect = isPlatformOperator(conn)
+                        || hasPermission(conn, "iadm04.entitlements.check")
+                        || hasPermission(conn, "iadm04.subscriptions.view");
+                UUID id = com.campx.iadm.billing.security.TrustedInstituteScope.resolve(
+                        canSelect, ctx.getTenantId(), instituteId);
                 Map<String, Object> out = new LinkedHashMap<String, Object>();
                 if (id == null) {
                     out.put("allowed", Boolean.FALSE);
