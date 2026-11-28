@@ -61,6 +61,7 @@ public class GovernanceRequestService {
                 if (existing != null) {
                     return existing;
                 }
+                UUID scopeTenant = resolveTrustedScopeTenant(conn, ctx, parseUuid(str(body, "scopeTenantId")));
                 UUID id = UUID.randomUUID();
                 UUID correlation = UUID.randomUUID();
                 String legal = strOr(body, "legalBasisRef", "TBC");
@@ -85,7 +86,7 @@ public class GovernanceRequestService {
                     ps.setString(7, purpose);
                     ps.setArray(8, conn.createArrayOf("text", toArray(body.get("domainCodes"))));
                     ps.setArray(9, conn.createArrayOf("text", toArray(body.get("fieldsRequested"))));
-                    setUuid(ps, 10, parseUuid(str(body, "scopeTenantId")), ctx.getTenantId());
+                    setUuid(ps, 10, scopeTenant, null);
                     ps.setString(11, provider);
                     ps.setString(12, consumer);
                     ps.setString(13, validityEnd);
@@ -113,16 +114,8 @@ public class GovernanceRequestService {
                 if (purpose.isEmpty() && !"ERASURE".equals(type)) {
                     throw new InstituteAdminException(400, "IADM05_VALIDATION", "purpose is required.");
                 }
-                UUID scopeTenant = parseUuid(str(body, "scopeTenantId"));
-                if (scopeTenant == null) {
-                    scopeTenant = ctx.getTenantId();
-                }
-                // Cross-tenant export needs platform authority
-                if ("EXPORT".equals(type) && scopeTenant != null && ctx.getTenantId() != null
-                        && !scopeTenant.equals(ctx.getTenantId()) && !isPlatform(conn)) {
-                    throw new InstituteAdminException(403, "IADM05_CROSS_TENANT_DENIED",
-                            "Cross-tenant export requires platform authority (R01).");
-                }
+                // All request types: non-platform callers forced to trusted claims (same as EXPORT).
+                UUID scopeTenant = resolveTrustedScopeTenant(conn, ctx, parseUuid(str(body, "scopeTenantId")));
                 // Fail closed: require applicable published policy when policyId not provided
                 UUID policyId = parseUuid(str(body, "applicablePolicyId"));
                 Integer policyVersion = null;
@@ -645,6 +638,31 @@ public class GovernanceRequestService {
         } else {
             ps.setObject(idx, v);
         }
+    }
+
+    /**
+     * Trusted institute for governance requests (close-out).
+     * Plain language: Super Admin (R01) / platform may pass scopeTenantId; everyone else is forced
+     * to the institute from verified claims; a different one is refused (403).
+     */
+    public static UUID resolveScopeTenant(boolean platformOperator, UUID trustedFromClaims, UUID clientRequested) {
+        if (platformOperator) {
+            return clientRequested != null ? clientRequested : trustedFromClaims;
+        }
+        if (trustedFromClaims == null) {
+            throw new InstituteAdminException(403, "IADM05_SCOPE_REQUIRED",
+                    "Institute context could not be verified.");
+        }
+        if (clientRequested != null && !trustedFromClaims.equals(clientRequested)) {
+            throw new InstituteAdminException(403, "IADM05_CROSS_TENANT_DENIED",
+                    "Cross-tenant request requires platform authority (R01).");
+        }
+        return trustedFromClaims;
+    }
+
+    private UUID resolveTrustedScopeTenant(Connection conn, UserSecurityContext ctx, UUID clientRequested)
+            throws SQLException {
+        return resolveScopeTenant(isPlatform(conn), ctx.getTenantId(), clientRequested);
     }
 
     private boolean isPlatform(Connection conn) throws SQLException {

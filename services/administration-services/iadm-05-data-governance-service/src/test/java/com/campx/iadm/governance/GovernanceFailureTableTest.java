@@ -195,6 +195,29 @@ public class GovernanceFailureTableTest {
                 "The governance change cannot be confirmed because audit is unavailable.").getMessage());
     }
 
+    /**
+     * Cross-institute scopeTenantId: platform may select; non-platform foreign → 403;
+     * own institute and null client both resolve to trusted claims.
+     */
+    @Test
+    public void trustedScopeTenantRefusesForeignForNonPlatform() {
+        UUID own = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID other = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        assertEquals(other, com.campx.iadm.governance.service.GovernanceRequestService
+                .resolveScopeTenant(true, own, other));
+        assertEquals(own, com.campx.iadm.governance.service.GovernanceRequestService
+                .resolveScopeTenant(false, own, null));
+        assertEquals(own, com.campx.iadm.governance.service.GovernanceRequestService
+                .resolveScopeTenant(false, own, own));
+        try {
+            com.campx.iadm.governance.service.GovernanceRequestService
+                    .resolveScopeTenant(false, own, other);
+            fail("expected cross-tenant denial");
+        } catch (InstituteAdminException ex) {
+            assertEquals("IADM05_CROSS_TENANT_DENIED", ex.getErrorCode());
+        }
+    }
+
     private static void assertNoSensitiveLeak(String text) {
         if (text == null) {
             return;
