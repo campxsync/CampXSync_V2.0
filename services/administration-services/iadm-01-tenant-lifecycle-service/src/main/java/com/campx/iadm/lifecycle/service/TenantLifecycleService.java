@@ -680,6 +680,9 @@ public class TenantLifecycleService {
         if (instituteId == null) {
             throw new InstituteAdminException(400, "IADM01_VALIDATION", "instituteId is required");
         }
+        // Compare path institute to ORIGINAL claims before withTenant rewrites session tenant
+        // (otherwise R03 manage check becomes a tautology against the path id).
+        assertCreateCollegeInstitute(ctx, instituteId);
         UserSecurityContext scoped = ctx.withTenant(instituteId);
         return scoped.executeInTransaction(db, conn -> {
             requireCollegeManage(conn, scoped, instituteId);
@@ -1513,6 +1516,47 @@ public class TenantLifecycleService {
             this.provisioningStatus = provisioningStatus;
             this.profileJson = profileJson;
         }
+    }
+
+    /**
+     * Trusted institute for college create (close-out).
+     * Plain language: Super Admin (R01) / System Admin (R02) / platform scope may pass any institute;
+     * everyone else must match verified claims; a different path institute is refused (403).
+     * Must run against the ORIGINAL context before {@code withTenant} rewrites claims.
+     */
+    public static void assertCreateCollegeInstituteAllowed(boolean platformOperator, UUID trustedFromClaims,
+                                                           UUID pathInstituteId) {
+        if (platformOperator) {
+            return;
+        }
+        if (trustedFromClaims == null) {
+            throw new InstituteAdminException(403, "IADM01_SCOPE_REQUIRED",
+                    "Institute context could not be verified");
+        }
+        if (pathInstituteId != null && !trustedFromClaims.equals(pathInstituteId)) {
+            throw new InstituteAdminException(403, "IADM01_OWN_TENANT_ONLY",
+                    "Institution Admin may only manage own institute");
+        }
+    }
+
+    private void assertCreateCollegeInstitute(UserSecurityContext ctx, UUID instituteId) {
+        if (ctx.isPlatformScope()) {
+            return;
+        }
+        UUID trusted = ctx.getTenantId();
+        if (trusted != null && trusted.equals(instituteId)) {
+            return;
+        }
+        // Claims differ (or missing): allow only verified platform admin on ORIGINAL ctx.
+        boolean platformAdmin = Boolean.TRUE.equals(ctx.executeInTransaction(db, conn -> {
+            try {
+                ctx.checkPlatformAdmin(conn);
+                return Boolean.TRUE;
+            } catch (UserProfileAccessDeniedException ignored) {
+                return Boolean.FALSE;
+            }
+        }));
+        assertCreateCollegeInstituteAllowed(platformAdmin, trusted, instituteId);
     }
 
     private void requireCollegeManage(Connection conn, UserSecurityContext ctx, UUID instituteId) throws SQLException {

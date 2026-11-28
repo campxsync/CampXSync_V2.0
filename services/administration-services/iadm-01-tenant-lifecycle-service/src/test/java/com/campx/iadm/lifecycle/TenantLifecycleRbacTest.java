@@ -73,4 +73,28 @@ public class TenantLifecycleRbacTest {
         assertEquals(400, ex.getStatus());
         assertEquals("IADM01_AUTH_USER_REQUIRED", ex.getErrorCode());
     }
+
+    /**
+     * createCollege path institute: platform may pass any; own institute works;
+     * second institute refused for non-platform (before withTenant rewrite).
+     */
+    @Test
+    public void createCollegeTrustedInstituteRefusesForeign() {
+        java.util.UUID own = java.util.UUID.fromString("11111111-1111-1111-1111-111111111111");
+        java.util.UUID other = java.util.UUID.fromString("22222222-2222-2222-2222-222222222222");
+        TenantLifecycleService.assertCreateCollegeInstituteAllowed(true, own, other);
+        TenantLifecycleService.assertCreateCollegeInstituteAllowed(false, own, own);
+        try {
+            TenantLifecycleService.assertCreateCollegeInstituteAllowed(false, own, other);
+            fail("expected own-tenant-only denial");
+        } catch (InstituteAdminException ex) {
+            assertEquals("IADM01_OWN_TENANT_ONLY", ex.getErrorCode());
+        }
+        try {
+            TenantLifecycleService.assertCreateCollegeInstituteAllowed(false, null, other);
+            fail("expected scope required");
+        } catch (InstituteAdminException ex) {
+            assertEquals("IADM01_SCOPE_REQUIRED", ex.getErrorCode());
+        }
+    }
 }
