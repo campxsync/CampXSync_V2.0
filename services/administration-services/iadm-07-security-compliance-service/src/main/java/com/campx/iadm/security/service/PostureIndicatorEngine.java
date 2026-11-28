@@ -107,9 +107,22 @@ public final class PostureIndicatorEngine {
         return countIndicator(conn, "pendingExceptions", sql, instituteId, null);
     }
 
+    /** SQL predicate for exceptions expiring within 14 days (excludes already-expired rows). */
+    public static final String EXPIRING_EXCEPTIONS_SQL =
+            "SELECT COUNT(*)::int AS cnt, MAX(updated_at) AS last_upd FROM sec.exceptions "
+                    + "WHERE status IN ('REQUESTED','APPROVED') "
+                    + "AND valid_to > now() AND valid_to <= (now() + interval '14 days') ";
+
+    public static boolean isWithinExpiringWindow(Instant validTo, Instant referenceNow) {
+        if (validTo == null || referenceNow == null) {
+            return false;
+        }
+        return validTo.isAfter(referenceNow)
+                && !validTo.isAfter(referenceNow.plusSeconds(14L * 86400L));
+    }
+
     private static Map<String, Object> expiringExceptions(Connection conn, UUID instituteId) throws SQLException {
-        String sql = "SELECT COUNT(*)::int AS cnt, MAX(updated_at) AS last_upd FROM sec.exceptions "
-                + "WHERE status IN ('REQUESTED','APPROVED') AND valid_to <= (now() + interval '14 days') "
+        String sql = EXPIRING_EXCEPTIONS_SQL
                 + (instituteId != null ? "AND institute_id = ? " : "");
         return countIndicator(conn, "expiringExceptions", sql, instituteId, null);
     }

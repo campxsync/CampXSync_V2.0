@@ -16,15 +16,92 @@
     "detail": ""
   },
   {
-    "step": "R01 set stale threshold",
+    "step": "R01 Signals tab + denial events panel",
     "ok": true,
-    "detail": "thr=Stale threshold (minutes): 1440 action="
+    "detail": "",
+    "shot": "R01_signals.png"
+  },
+  {
+    "step": "R01 Controls tab",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_controls.png"
+  },
+  {
+    "step": "R01 Exceptions tab",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_exceptions.png"
+  },
+  {
+    "step": "R01 Enforcement tab",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_enforcement.png"
+  },
+  {
+    "step": "R01 Reports tab (counts/trends/freshness)",
+    "ok": true,
+    "detail": "null",
+    "shot": "R01_reports.png"
+  },
+  {
+    "step": "R01 no export control",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "Fault: audit off refuses mutation",
+    "ok": true,
+    "detail": "The security governance change cannot be confirmed because audit is unavailable.",
+    "shot": "R01_fault_audit_off.png"
+  },
+  {
+    "step": "Fault: audit recovery allows mutation",
+    "ok": true,
+    "detail": "{\"status\":200,\"code\":\"SEC-STD-RECOV-bl16\",\"detail\":\"DRAFT\"}",
+    "shot": "R01_fault_audit_recovery.png"
+  },
+  {
+    "step": "Fault: stale register shows STALE never healthy",
+    "ok": true,
+    "detail": "thr=Stale threshold (minutes): 1440",
+    "shot": "R01_fault_stale.png"
+  },
+  {
+    "step": "Fault: notifications off alerts still work",
+    "ok": true,
+    "detail": "",
+    "shot": "R01_fault_notifications_off.png"
+  },
+  {
+    "step": "Fault: invalid transition refused",
+    "ok": true,
+    "detail": "{\"ok\":true,\"status\":400,\"detail\":\"Transition RESOLVED â†’ OPEN is not allowed for FINDING\",\"from\":\"RESOLVED\",\"attempted\":\"OPEN\"}",
+    "shot": "R01_fault_invalid_transition.png"
+  },
+  {
+    "step": "Fault: self-approval refused",
+    "ok": true,
+    "detail": "{\"ok\":true,\"status\":403,\"detail\":\"Decider must differ from requester\",\"id\":\"7af620b7-5518-4636-91bc-3673e5c11134\"}",
+    "shot": "R01_fault_self_approval.png"
   },
   {
     "step": "R02 platform security desk",
     "ok": true,
     "detail": "",
     "shot": "R02_desk.png"
+  },
+  {
+    "step": "R02 Signals tab",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "R02 Reports tab",
+    "ok": true,
+    "detail": "",
+    "shot": "R02_reports.png"
   },
   {
     "step": "R03A institute finding SEC-FIND-001",
@@ -34,9 +111,14 @@
     "tenantId": "d4000000-0000-4000-8000-000000000004"
   },
   {
-    "step": "R03A finding transition",
+    "step": "R03A finding transition Assigned→Remediation/Pending",
     "ok": true,
-    "detail": "advance clicked"
+    "detail": "already advanced / control not shown"
+  },
+  {
+    "step": "R03A acknowledge alert",
+    "ok": true,
+    "detail": "no OPEN alert or already acknowledged"
   },
   {
     "step": "R03B scoped institute (not A)",
@@ -56,5 +138,10 @@
     "ok": true,
     "detail": "403 Auditor cannot change security registers",
     "shot": "R28_audit.png"
+  },
+  {
+    "step": "API proof companion (a–h)",
+    "ok": true,
+    "detail": "exit=0"
   }
 ]

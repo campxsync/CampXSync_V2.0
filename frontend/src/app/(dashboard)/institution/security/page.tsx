@@ -103,6 +103,8 @@ export default function InstitutionSecurityPage() {
       code: 'SEC-EXC-R03',
       rationale: 'Institute requested compensating control',
       linkedFindingId: f?.id,
+      validFrom: new Date().toISOString().slice(0, 10),
+      validTo: new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10),
     });
   };
 

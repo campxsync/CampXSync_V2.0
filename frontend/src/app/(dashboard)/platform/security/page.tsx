@@ -24,6 +24,7 @@ export default function PlatformSecurityPage() {
   const [posture, setPosture] = useState<Row | null>(null);
   const [standards, setStandards] = useState<Row[]>([]);
   const [signals, setSignals] = useState<Row[]>([]);
+  const [denials, setDenials] = useState<Row[]>([]);
   const [findings, setFindings] = useState<Row[]>([]);
   const [risks, setRisks] = useState<Row[]>([]);
   const [controlRows, setControlRows] = useState<Row[]>([]);
@@ -96,8 +97,16 @@ export default function PlatformSecurityPage() {
     }
     if (next === 'posture') setPosture(body);
     else if (next === 'standards') setStandards(itemsOf(body));
-    else if (next === 'signals') setSignals(itemsOf(body));
-    else if (next === 'findings') setFindings(itemsOf(body));
+    else if (next === 'signals') {
+      setSignals(itemsOf(body));
+      const dRes = await fetch('/api/platform/security?view=denials&limit=25');
+      if (dRes.ok) {
+        const dBody = await dRes.json();
+        setDenials(itemsOf(dBody));
+      } else {
+        setDenials([]);
+      }
+    } else if (next === 'findings') setFindings(itemsOf(body));
     else if (next === 'risks') setRisks(itemsOf(body));
     else if (next === 'controls') setControlRows(itemsOf(body));
     else if (next === 'exceptions') setExceptions(itemsOf(body));
@@ -152,6 +161,7 @@ export default function PlatformSecurityPage() {
       code: 'SEC-EXC-UI',
       rationale: 'UI demo exception request',
       linkedFindingId: find?.id,
+      instituteId: find?.instituteId || find?.assignedInstituteId || 'd4000000-0000-4000-8000-000000000004',
       validFrom: new Date().toISOString().slice(0, 10),
       validTo: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
     });
@@ -255,7 +265,7 @@ export default function PlatformSecurityPage() {
     }
     if (tab === 'signals') {
       return (
-        <section data-testid="iadm07-signals">
+        <section data-testid="iadm07-signals" className="space-y-4">
           {renderRegister(signals, 'signal', 'correlationId')}
           {signals
             .filter((s) => s.status === 'NEW')
@@ -271,6 +281,23 @@ export default function PlatformSecurityPage() {
                 Triage {String(s.correlationId ?? s.id)}
               </button>
             ))}
+          <div data-testid="iadm07-denial-events" className="border-t pt-3">
+            <h3 className="mb-2 text-sm font-medium">Denial events (shared audit, read-only)</h3>
+            {denials.length === 0 ? (
+              <p data-testid="iadm07-denial-events-empty" className="text-xs text-slate-500">
+                No denial events recorded
+              </p>
+            ) : (
+              <ul className="space-y-1 text-xs">
+                {denials.map((d) => (
+                  <li key={String(d.id)} data-testid={`iadm07-denial-${d.action}`}>
+                    <strong>{String(d.action)}</strong> · {String(d.status ?? 'DENIED')} ·{' '}
+                    {String(d.eventTime ?? '')} · tenant {String(d.tenantId ?? '—')}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
       );
     }
@@ -419,6 +446,14 @@ export default function PlatformSecurityPage() {
           onClick={() => void setOutage({ auditDisabled: true })}
         >
           Audit off
+        </button>
+        <button
+          type="button"
+          data-testid="iadm07-fault-notifications"
+          className="rounded bg-amber-100 px-2 py-1 text-sm"
+          onClick={() => void setOutage({ notificationsDisabled: true })}
+        >
+          Notifications off
         </button>
         <button
           type="button"

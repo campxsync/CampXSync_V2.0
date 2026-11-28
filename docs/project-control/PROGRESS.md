@@ -35,22 +35,21 @@
 | Next | **STOP** — await `APPROVED IADM-08` / `APPROVED IADM-08 COMMIT`; **do not push** |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
-## Owner decisions – IADM-07 Security & Compliance Governance (26-11-2026)
+## Owner decisions – IADM-07 Security & Compliance Governance (28-11-2026 proof)
 
-**Authorized by:** owner kickoff (IMPLEMENT, DEV only) + **`APPROVED IADM-07`** + **commit and push** (2026-11-26).  
-**Spec:** `docs/user-stories/IADM-07-user-stories.csv` + blueprint V1.1 at `D:\CampXSync\Documentation\Platform_InstituteAdmin\MicroServices\`.
+**Authorized by:** owner **PROVE THE FIXES** (DEV only, same IADM-07 boundaries).  
+**Spec:** `docs/user-stories/IADM-07-user-stories.csv` + blueprint V1.1.
 
 | Item | Status |
 |---|---|
-| US-021 preflight | **completed** — `docs/iadm/iadm-07/US021_PREFLIGHT_REPORT.md` |
-| S0–S4 US-022…032 / US-001…020 | **Demo-verified / API-ready per row** — report `docs/iadm/IADM-07_S4_Report.md` |
-| Headed film US-032 | **10/10 PASS** — `docs/iadm/iadm-07/evidence/us032/` |
-| CSV Implementation status | 30 `completed` · 2 `partially completed` (US-006, US-009) |
+| RLS migration on DEV | **applied** — `iadm07_rls_write_tenant_guard` + rollback kept; evidence `RLS_WRITE_TENANT_GUARD.md` |
+| Fixes a–h | **proven** — `API_PROOF.md` **24/24** + unit **31/31** + `tsc` 0 |
+| Headed film US-032 | **25/25 PASS** — tabs + 5 faults + all personas — `docs/iadm/iadm-07/evidence/us032/` |
+| Report / CSV | `docs/iadm/IADM-07_S4_Report.md`; CSV 30 `completed` · 2 `partially completed` (US-009, US-013) |
 | Service / port | `iadm-07-security-compliance-service` **:8105** `/api/v1/iadm/07` |
-| Commits | `8c6f243` (implementation) + approval/CSV/handover commit; owner-authorized push |
-| Next | Await owner next-module authorization (IADM-08 / CADM / STM) |
+| Next | **STOP** — await `APPROVED IADM-07` / `APPROVED IADM-07 COMMIT`; **do not push** |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
-| Honest partial | US-006 no denial read path; US-009 no live enforcing-service contract |
+| Honest partial | US-009 no live enforcing-service contract; US-013 ownership verification documented |
 
 ## Owner decisions – IADM-06 Platform Analytics & Usage Insights (25-11-2026)
 

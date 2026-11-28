@@ -1,15 +1,23 @@
 package com.campx.iadm.security;
 
+import com.campx.iadm.security.exception.InstituteAdminException;
+import com.campx.iadm.security.exception.MalformedPayloadException;
+import com.campx.iadm.security.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.security.security.SecurityPermissionMatrix;
 import com.campx.iadm.security.service.PostureIndicatorEngine;
 import com.campx.iadm.security.service.RegisterLifecycleEngine;
+import com.campx.iadm.security.service.SecurityDomainService;
 import com.campx.iadm.security.service.SecurityOutageFlags;
-import com.campx.iadm.security.exception.InstituteAdminException;
 import org.junit.After;
 import org.junit.Test;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -109,5 +117,134 @@ public class SecurityFailureTableTest {
         assertFalse(msg.contains("password"));
         assertFalse(msg.contains("jwt"));
         assertFalse(msg.contains("secret"));
+    }
+
+    @Test
+    public void crossInstituteWriteRefusedForNonPlatform() {
+        UUID instA = UUID.fromString("d4000000-0000-4000-8000-000000000004");
+        UUID instB = UUID.fromString("72ecbfe3-2077-41b5-8a20-b6d3e045311b");
+        assertEquals(instA, SecurityDomainService.resolveWriteInstituteId(false, instA, null));
+        assertEquals(instA, SecurityDomainService.resolveWriteInstituteId(false, instA, instA));
+        assertEquals(instB, SecurityDomainService.resolveWriteInstituteId(true, null, instB));
+        try {
+            SecurityDomainService.resolveWriteInstituteId(false, instA, instB);
+            fail("expected cross-institute refusal");
+        } catch (UserProfileAccessDeniedException ex) {
+            assertTrue(ex.getMessage().contains("Cross-institute"));
+        }
+    }
+
+    @Test
+    public void exceptionSoDSelfDecideRefused() {
+        UUID u1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID u2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        SecurityDomainService.assertExceptionDecisionAllowed(u1, u2);
+        try {
+            SecurityDomainService.assertExceptionDecisionAllowed(u1, u1);
+            fail("expected SoD violation");
+        } catch (InstituteAdminException ex) {
+            assertEquals(403, ex.getStatus());
+            assertEquals("IADM07_SOD_VIOLATION", ex.getErrorCode());
+        }
+    }
+
+    @Test
+    public void exceptionMandatoryValidityWindow() {
+        Map<String, Object> missing = new LinkedHashMap<String, Object>();
+        try {
+            SecurityDomainService.parseRequiredValidityWindow(missing);
+            fail("expected missing validity window refusal");
+        } catch (MalformedPayloadException ex) {
+            assertTrue(ex.getMessage().contains("validFrom"));
+        }
+
+        Map<String, Object> reversed = new LinkedHashMap<String, Object>();
+        reversed.put("validFrom", "2026-12-10");
+        reversed.put("validTo", "2026-12-01");
+        try {
+            SecurityDomainService.parseRequiredValidityWindow(reversed);
+            fail("expected reversed validity window refusal");
+        } catch (MalformedPayloadException ex) {
+            assertTrue(ex.getMessage().contains("validTo must be after validFrom"));
+        }
+
+        Map<String, Object> valid = new LinkedHashMap<String, Object>();
+        valid.put("validFrom", "2026-12-01T00:00:00Z");
+        valid.put("validTo", "2026-12-15T00:00:00Z");
+        Timestamp[] window = SecurityDomainService.parseRequiredValidityWindow(valid);
+        assertEquals(2, window.length);
+        assertTrue(window[1].after(window[0]));
+    }
+
+    @Test
+    public void serviceIntakeRefusesHumanOperators() {
+        SecurityDomainService.assertServiceIntakeAccess(false, true);
+        try {
+            SecurityDomainService.assertServiceIntakeAccess(true, true);
+            fail("expected human operator refusal on signal intake");
+        } catch (UserProfileAccessDeniedException ex) {
+            assertTrue(ex.getMessage().contains("service callers"));
+        }
+        try {
+            SecurityDomainService.assertServiceIntakeAccess(false, false);
+            fail("expected missing permission refusal");
+        } catch (UserProfileAccessDeniedException ex) {
+            assertTrue(ex.getMessage().contains("iadm07.signal.intake"));
+        }
+    }
+
+    @Test
+    public void r03FindingAndAlertTransitionLimits() {
+        SecurityDomainService.assertInstitutionFindingTransition("ASSIGNED", "REMEDIATION_IN_PROGRESS");
+        SecurityDomainService.assertInstitutionFindingTransition("REMEDIATION_IN_PROGRESS", "PENDING_VERIFICATION");
+        try {
+            SecurityDomainService.assertInstitutionFindingTransition("OPEN", "TRIAGED");
+            fail("expected R03 finding transition refusal");
+        } catch (UserProfileAccessDeniedException ex) {
+            assertTrue(ex.getMessage().contains("Institution Admin"));
+        }
+        try {
+            SecurityDomainService.assertInstitutionFindingTransition("PENDING_VERIFICATION", "RESOLVED");
+            fail("expected R03 resolve refusal");
+        } catch (UserProfileAccessDeniedException ex) {
+            assertTrue(ex.getMessage().contains("resolved"));
+        }
+
+        SecurityDomainService.assertInstitutionAlertTransition("OPEN", "ACKNOWLEDGED");
+        try {
+            SecurityDomainService.assertInstitutionAlertTransition("ACKNOWLEDGED", "RESOLVED");
+            fail("expected R03 alert resolve refusal");
+        } catch (UserProfileAccessDeniedException ex) {
+            assertTrue(ex.getMessage().contains("acknowledge"));
+        }
+    }
+
+    @Test
+    public void expiringExceptionsExcludesExpiredRows() {
+        assertTrue(PostureIndicatorEngine.EXPIRING_EXCEPTIONS_SQL.contains("valid_to > now()"));
+        Instant now = Instant.now();
+        assertFalse(PostureIndicatorEngine.isWithinExpiringWindow(now.minus(1, ChronoUnit.DAYS), now));
+        assertTrue(PostureIndicatorEngine.isWithinExpiringWindow(now.plus(5, ChronoUnit.DAYS), now));
+        assertFalse(PostureIndicatorEngine.isWithinExpiringWindow(now.plus(20, ChronoUnit.DAYS), now));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void reportCountsShapeIncludesBreakdownTrendsAndFreshness() {
+        Map<String, Object> byStatus = new LinkedHashMap<String, Object>();
+        byStatus.put("findings", Collections.singletonMap("ASSIGNED", Integer.valueOf(1)));
+        Map<String, Integer> sev = Collections.singletonMap("HIGH", Integer.valueOf(1));
+        Map<String, Integer> trends = Collections.singletonMap("findingsCreatedThisMonth", Integer.valueOf(1));
+        Map<String, Instant> latest = new LinkedHashMap<String, Instant>();
+        latest.put("findings", Instant.now());
+        latest.put("signals", Instant.now().minus(30, ChronoUnit.DAYS));
+
+        Map<String, Object> report = SecurityDomainService.assembleReportCounts(
+                1, 1, 1, 1, 1, byStatus, sev, trends, latest);
+        assertEquals(byStatus, report.get("byStatus"));
+        assertEquals(sev, report.get("findingsBySeverity"));
+        assertEquals(trends, report.get("monthlyTrends"));
+        Map<String, Object> freshness = (Map<String, Object>) report.get("freshness");
+        assertEquals("STALE", freshness.get("status"));
     }
 }

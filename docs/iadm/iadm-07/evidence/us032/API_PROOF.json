@@ -1,0 +1,135 @@
+{
+  "generatedAt": "2026-11-28T08:00:06.262Z",
+  "pass": 24,
+  "fail": 0,
+  "results": [
+    {
+      "id": "health_8105",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "id": "a_r03_cross_institute_finding_java",
+      "ok": true,
+      "detail": "status=403 detail=Cross-institute write refused"
+    },
+    {
+      "id": "a_r03_cross_institute_risk_java",
+      "ok": true,
+      "detail": "status=403"
+    },
+    {
+      "id": "a_r03_cross_institute_alert_java",
+      "ok": true,
+      "detail": "status=403"
+    },
+    {
+      "id": "b_r01_request_exception",
+      "ok": true,
+      "detail": "status=200 id=062347cd-8516-4432-aa18-cd0eb25f52af detail="
+    },
+    {
+      "id": "b_r01_self_decide_sod",
+      "ok": true,
+      "detail": "status=403 code=IADM07_SOD_VIOLATION detail=Decider must differ from requester"
+    },
+    {
+      "id": "b_r01_decides_r02_request",
+      "ok": true,
+      "detail": "status=200 statusField=APPROVED detail="
+    },
+    {
+      "id": "b_invalid_validity_window",
+      "ok": true,
+      "detail": "status=400 detail=validTo must be after validFrom"
+    },
+    {
+      "id": "b_missing_validity_window",
+      "ok": true,
+      "detail": "status=400"
+    },
+    {
+      "id": "c_r01_intake_refused",
+      "ok": true,
+      "detail": "status=403 detail=Signal intake is restricted to authenticated service callers"
+    },
+    {
+      "id": "c_r02_intake_refused",
+      "ok": true,
+      "detail": "status=403"
+    },
+    {
+      "id": "c_service_intake_accepted",
+      "ok": true,
+      "detail": "status=200 id=004c3cc6-2849-412d-a0f2-65d452b19ae9 detail="
+    },
+    {
+      "id": "c_simulator_through_intake_path",
+      "ok": true,
+      "detail": "status=200 simulator=true id=65425fc0-5587-4749-bde2-591a29d767cf detail="
+    },
+    {
+      "id": "c_duplicate_no_second_record",
+      "ok": true,
+      "detail": "status=200 duplicate=true conflict=true"
+    },
+    {
+      "id": "c_conflict_audit_row",
+      "ok": true,
+      "detail": "status=200 hasConflict=true"
+    },
+    {
+      "id": "d_standard_new_version_draft",
+      "ok": true,
+      "detail": "status=200 version=2 newStatus=DRAFT supersedes="
+    },
+    {
+      "id": "d_old_standard_superseded",
+      "ok": true,
+      "detail": "oldStatus=SUPERSEDED supersedesId="
+    },
+    {
+      "id": "e_posture_expiring_exceptions_present",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "id": "f_r03_resolve_refused",
+      "ok": true,
+      "detail": "status=403 detail=Only platform operators may mark findings resolved"
+    },
+    {
+      "id": "f_r03_invalid_transition_refused",
+      "ok": true,
+      "detail": "from=RESOLVED status=403 detail=Institution Admin may only move assigned findings from ASSIGNED to REMEDIATION_IN_PROGRESS or PENDING_VERIFICATION"
+    },
+    {
+      "id": "f_r03_alert_resolve_refused",
+      "ok": true,
+      "detail": "no OPEN alert (prior ack) — limit still unit-proven"
+    },
+    {
+      "id": "g_reports_breakdown",
+      "ok": {
+        "status": "STALE",
+        "staleThresholdMinutes": 1440,
+        "staleRegisters": [
+          "risks",
+          "signals"
+        ],
+        "unavailableRegisters": []
+      },
+      "detail": "status=200 keys=findingsOpen,risksOpen,alertsOpen,signalsOpen,exceptionsPending,byStatus,findingsBySeverity,monthlyTrends,freshness detail="
+    },
+    {
+      "id": "h_denials_r01_r02",
+      "ok": true,
+      "detail": "r01=200 r02=200 unsafe=false"
+    },
+    {
+      "id": "h_denials_r03_refused_or_empty_scope",
+      "ok": true,
+      "detail": "status=403 items=n/a"
+    }
+  ]
+}

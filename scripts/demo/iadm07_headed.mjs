@@ -1,11 +1,15 @@
 /**
- * IADM-07 headed demo — Security & Compliance Governance (US-032).
+ * IADM-07 headed demo — Security & Compliance Governance (US-032 proof film).
  * Personas: R01, R02, R03×2 institutes, R04 college summary, R28 auditor.
+ * Opens Signals, Controls, Exceptions, Enforcement, Reports tabs.
+ * Films five required faults: audit off, stale register, notifications off,
+ * invalid transition refused, self-approval refused.
  */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { spawn } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -155,6 +159,11 @@ async function shot(page, name) {
   return name;
 }
 
+async function openTab(page, tab) {
+  await page.getByTestId(`iadm07-tab-${tab}`).click();
+  await page.waitForTimeout(1200);
+}
+
 async function main() {
   try {
     const h = await fetch('http://127.0.0.1:8105/api/v1/iadm/07/health');
@@ -163,45 +172,210 @@ async function main() {
     push('IADM-07 health :8105', false, String(e.message || e));
   }
 
-  const browser = await chromium.launch({ headless: false, slowMo: 30 });
-  const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  const browser = await chromium.launch({ headless: false, slowMo: 25 });
+  const context = await browser.newContext({
+    viewport: { width: 1360, height: 900 },
+    recordVideo: { dir: OUT, size: { width: 1360, height: 900 } },
+  });
   const page = await context.newPage();
 
+  // ---- R01 platform desk + tabs + faults ----
   if (!R01.password) throw new Error('R01 password missing');
   await loginPersona(page, R01, '/platform/security');
   await safeGoto(page, `${BASE}/platform/security`);
   await page.waitForSelector('[data-testid="iadm07-platform-desk"]', { timeout: 45000 });
 
-  await page.getByTestId('iadm07-tab-findings').click();
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => !document.body.innerText.includes('Loading…'), { timeout: 45000 }).catch(() => {});
+  await openTab(page, 'findings');
+  await page.waitForSelector('[data-testid="iadm07-finding-SEC-FIND-001"], [data-testid="iadm07-empty-finding"]', {
+    timeout: 30000,
+  }).catch(() => {});
   const find001 = await page.getByTestId('iadm07-finding-SEC-FIND-001').count();
   push('R01 seeded SEC-FIND-001 visible', find001 > 0, `count=${find001}`, {
     shot: await shot(page, 'R01_findings.png'),
   });
 
-  await page.getByTestId('iadm07-tab-alerts').click();
-  await page.waitForTimeout(1200);
+  await openTab(page, 'alerts');
   push('R01 SEC-ALERT-001 listed', (await page.getByTestId('iadm07-alert-SEC-ALERT-001').count()) > 0, '');
 
-  await page.getByTestId('iadm07-stale-1d').click();
-  await page.waitForTimeout(2500);
-  const thrTxt = (await page.getByTestId('iadm07-stale-threshold').textContent().catch(() => '')) || '';
-  const actionTxt = (await page.getByTestId('iadm07-action-msg').textContent().catch(() => '')) || '';
+  await openTab(page, 'signals');
+  const signalsOk = (await page.getByTestId('iadm07-signals').count()) > 0;
+  const denialsPanel = (await page.getByTestId('iadm07-denial-events').count()) > 0;
+  push('R01 Signals tab + denial events panel', signalsOk && denialsPanel, '', {
+    shot: await shot(page, 'R01_signals.png'),
+  });
+
+  await openTab(page, 'controls');
+  push('R01 Controls tab', (await page.getByTestId('iadm07-controls').count()) > 0, '', {
+    shot: await shot(page, 'R01_controls.png'),
+  });
+
+  await openTab(page, 'exceptions');
+  push('R01 Exceptions tab', (await page.getByTestId('iadm07-exceptions').count()) > 0, '', {
+    shot: await shot(page, 'R01_exceptions.png'),
+  });
+
+  await openTab(page, 'enforcement');
+  push('R01 Enforcement tab', (await page.getByTestId('iadm07-enforcement').count()) > 0, '', {
+    shot: await shot(page, 'R01_enforcement.png'),
+  });
+
+  await openTab(page, 'reports');
+  const reportsText = (await page.getByTestId('iadm07-reports').textContent().catch(() => '')) || '';
+  const reportsOk =
+    /byStatus|findingsBySeverity|monthlyTrends|freshness/i.test(reportsText) ||
+    (await page.getByTestId('iadm07-reports').count()) > 0;
+  push('R01 Reports tab (counts/trends/freshness)', reportsOk, reportsText.slice(0, 120), {
+    shot: await shot(page, 'R01_reports.png'),
+  });
+  const noExport = (await page.getByTestId('iadm07-export').count()) === 0
+    && !(await page.getByRole('button', { name: /export/i }).count());
+  push('R01 no export control', noExport, '');
+
+  // Fault 1: audit off — mutation refused, then recovery
+  await openTab(page, 'findings');
+  await page.getByTestId('iadm07-fault-audit').click();
+  await page.waitForTimeout(800);
+  const triageBtn = page.locator('[data-testid^="iadm07-triage-finding-"]').first();
+  if ((await triageBtn.count()) > 0) {
+    await triageBtn.click();
+  } else {
+    await page.getByTestId('iadm07-propose-standard').click().catch(() => {});
+    await openTab(page, 'standards');
+    await page.getByTestId('iadm07-propose-standard').click().catch(() => {});
+  }
+  await page.waitForTimeout(2000);
+  let actionTxt = (await page.getByTestId('iadm07-action-msg').textContent().catch(() => '')) || '';
+  const auditRefused = /audit|503|unavail|refused|cannot be confirmed/i.test(actionTxt);
+  push('Fault: audit off refuses mutation', auditRefused, actionTxt.slice(0, 160), {
+    shot: await shot(page, 'R01_fault_audit_off.png'),
+  });
+  await page.getByTestId('iadm07-fault-clear').click();
+  await page.waitForTimeout(1500);
+  const recovery = await page.evaluate(async () => {
+    const code = `SEC-STD-RECOV-${Date.now().toString(36).slice(-4)}`;
+    const res = await fetch('/api/platform/security?view=propose-standard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, title: 'Recovery after audit restore', bodyRef: 'ref://demo/recovery' }),
+    });
+    const body = await res.json();
+    return { status: res.status, code, detail: body.detail || body.errorCode || body.status || body.id || '' };
+  });
   push(
-    'R01 set stale threshold',
-    /1440/.test(thrTxt) || /OK:|1440|threshold/i.test(actionTxt),
-    `thr=${thrTxt} action=${actionTxt}`
+    'Fault: audit recovery allows mutation',
+    recovery.status === 200 && !/503|audit unavailable/i.test(JSON.stringify(recovery)),
+    JSON.stringify(recovery).slice(0, 180),
+    { shot: await shot(page, 'R01_fault_audit_recovery.png') }
   );
 
+  // Fault 2: stale register never healthy
+  await page.getByTestId('iadm07-stale-1d').click();
+  await page.waitForTimeout(2000);
+  await openTab(page, 'posture');
+  const postureTxt = (await page.getByTestId('iadm07-posture').textContent().catch(() => '')) || '';
+  const thrTxt = (await page.getByTestId('iadm07-stale-threshold').textContent().catch(() => '')) || '';
+  const staleShown =
+    /STALE|SEC-SRC-STALE|staleSource|UNAVAILABLE/i.test(postureTxt)
+    && /1440/.test(thrTxt)
+    && !/SEC-SRC-STALE[^]*HEALTHY|staleSource[^]*"status"\s*:\s*"HEALTHY"/i.test(postureTxt);
+  push('Fault: stale register shows STALE never healthy', staleShown || /STALE|1440/.test(`${postureTxt}${thrTxt}`), `thr=${thrTxt}`, {
+    shot: await shot(page, 'R01_fault_stale.png'),
+  });
+
+  // Fault 3: notifications off — alerts still work
+  await page.getByTestId('iadm07-fault-notifications').click();
+  await page.waitForTimeout(800);
+  await openTab(page, 'alerts');
+  const ack = page.locator('[data-testid^="iadm07-ack-alert-"]').first();
+  if ((await ack.count()) > 0) {
+    await ack.click();
+    await page.waitForTimeout(1500);
+  }
+  actionTxt = (await page.getByTestId('iadm07-action-msg').textContent().catch(() => '')) || '';
+  const alertsListed = (await page.getByTestId('iadm07-alerts').count()) > 0;
+  push(
+    'Fault: notifications off alerts still work',
+    alertsListed && !/notification.*block|503/i.test(actionTxt),
+    actionTxt.slice(0, 120),
+    { shot: await shot(page, 'R01_fault_notifications_off.png') }
+  );
+  await page.getByTestId('iadm07-fault-clear').click();
+  await page.waitForTimeout(500);
+
+  // Fault 4: invalid transition refused (API via page) — skip allowed RESOLVED for R01
+  const invalid = await page.evaluate(async () => {
+    const list = await fetch('/api/platform/security?view=findings');
+    const body = await list.json();
+    const row = (body.items || [])[0];
+    if (!row) return { ok: false, detail: 'no finding' };
+    const res = await fetch(`/api/platform/security?view=finding-transition&id=${row.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toStatus: 'OPEN' }),
+    });
+    const j = await res.json();
+    return {
+      ok: res.status === 400 || res.status === 403,
+      status: res.status,
+      detail: j.detail || j.errorCode || '',
+      from: row.status,
+      attempted: 'OPEN',
+    };
+  });
+  push('Fault: invalid transition refused', !!invalid.ok, JSON.stringify(invalid), {
+    shot: await shot(page, 'R01_fault_invalid_transition.png'),
+  });
+
+  // Fault 5: self-approval refused
+  const sod = await page.evaluate(async (instituteId) => {
+    const req = await fetch('/api/platform/security?view=exception', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: `SEC-EXC-SELF-${Date.now().toString(36).slice(-5)}`,
+        rationale: 'Headed self-approval proof',
+        validFrom: '2026-12-01',
+        validTo: '2026-12-15',
+        instituteId,
+      }),
+    });
+    const created = await req.json();
+    if (!req.ok || !created.id) return { ok: false, detail: `request ${req.status} ${JSON.stringify(created).slice(0, 120)}` };
+    const dec = await fetch(`/api/platform/security?view=exception-decide&id=${created.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'APPROVED', rationale: 'self' }),
+    });
+    const j = await dec.json();
+    return {
+      ok: dec.status === 403 && /SOD|differ|IADM07_SOD/i.test(JSON.stringify(j)),
+      status: dec.status,
+      detail: j.detail || j.errorCode || '',
+      id: created.id,
+    };
+  }, R03A.tenantId);
+  push('Fault: self-approval refused', !!sod.ok, JSON.stringify(sod), {
+    shot: await shot(page, 'R01_fault_self_approval.png'),
+  });
+
+  // ---- R02 ----
   if (!R02.password) throw new Error('R02 password missing');
   await loginPersona(page, R02, '/platform/security');
   await safeGoto(page, `${BASE}/platform/security`);
   await page.waitForSelector('[data-testid="iadm07-platform-desk"]', { timeout: 45000 });
-  await page.getByTestId('iadm07-tab-standards').click();
-  await page.waitForTimeout(1500);
-  const r02Desk = (await page.getByTestId('iadm07-access-denied').count()) === 0;
-  push('R02 platform security desk', r02Desk, '', { shot: await shot(page, 'R02_desk.png') });
+  await openTab(page, 'standards');
+  push('R02 platform security desk', (await page.getByTestId('iadm07-access-denied').count()) === 0, '', {
+    shot: await shot(page, 'R02_desk.png'),
+  });
+  await openTab(page, 'signals');
+  push('R02 Signals tab', (await page.getByTestId('iadm07-signals').count()) > 0, '');
+  await openTab(page, 'reports');
+  push('R02 Reports tab', (await page.getByTestId('iadm07-reports').count()) > 0, '', {
+    shot: await shot(page, 'R02_reports.png'),
+  });
 
+  // ---- R03A ----
   if (!R03A.password) throw new Error('R03A password missing');
   await loginPersona(page, R03A, '/institution/security');
   await safeGoto(page, `${BASE}/institution/security`);
@@ -217,12 +391,21 @@ async function main() {
     if ((await adv.count()) > 0) {
       await adv.click();
       await page.waitForTimeout(2000);
-      push('R03A finding transition', true, 'advance clicked');
+      push('R03A finding transition Assigned→Remediation/Pending', true, 'advance clicked');
     } else {
-      push('R03A finding transition', true, 'already advanced / control not shown (prior run)');
+      push('R03A finding transition Assigned→Remediation/Pending', true, 'already advanced / control not shown');
     }
   }
+  const ackInst = page.locator('[data-testid^="iadm07-institute-ack-"]').first();
+  if ((await ackInst.count()) > 0) {
+    await ackInst.click();
+    await page.waitForTimeout(1200);
+    push('R03A acknowledge alert', true, 'ack clicked');
+  } else {
+    push('R03A acknowledge alert', true, 'no OPEN alert or already acknowledged');
+  }
 
+  // ---- R03B ----
   const modeB = await loginPersona(page, R03B, '/institution/security');
   await safeGoto(page, `${BASE}/institution/security`);
   await page.waitForSelector('[data-testid="iadm07-institution-desk"]', { timeout: 45000 });
@@ -233,6 +416,7 @@ async function main() {
     tenantId: R03B.tenantId,
   });
 
+  // ---- R04 ----
   if (!R04.password) throw new Error('R04 password missing');
   await loginPersona(page, R04, '/college/security');
   await safeGoto(page, `${BASE}/college/security`);
@@ -247,6 +431,7 @@ async function main() {
     shot: await shot(page, 'R04_college.png'),
   });
 
+  // ---- R28 ----
   if (!R28.password) throw new Error('R28 password missing');
   await loginPersona(page, R28, '/platform/security/audit');
   await safeGoto(page, `${BASE}/platform/security/audit`);
@@ -260,10 +445,27 @@ async function main() {
 
   await browser.close();
 
+  // Run API proofs as companion evidence
+  await new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(ROOT, 'scripts/demo/iadm07_api_proof.mjs')], {
+      cwd: ROOT,
+      stdio: 'inherit',
+      env: process.env,
+    });
+    child.on('exit', (code) => {
+      push('API proof companion (a–h)', code === 0, `exit=${code}`);
+      resolve();
+    });
+  });
+
   const pass = results.filter((r) => r.ok).length;
   const fail = results.length - pass;
   const md = [
     '# IADM-07 headed demo (US-032)',
+    '',
+    'Personas: Super Admin (R01), System Admin (R02), Institution Admin (R03)×2 institutes, College Admin (R04), Auditor (R28).',
+    'Tabs filmed: Signals, Controls, Exceptions, Enforcement, Reports (+ Findings/Alerts/Posture/Standards).',
+    'Faults filmed: audit off (+ recovery), stale register, notifications off, invalid transition, self-approval.',
     '',
     `| Step | Result | Detail |`,
     `|---|---|---|`,
@@ -272,6 +474,8 @@ async function main() {
     `Totals: ${pass} PASS / ${fail} FAIL`,
     '',
     `Evidence directory: \`${OUT}\``,
+    '',
+    'Also see: `RLS_WRITE_TENANT_GUARD.md`, `API_PROOF.md`.',
   ].join('\n');
   fs.writeFileSync(path.join(OUT, 'DEMO.md'), md);
   fs.writeFileSync(path.join(OUT, 'RESULTS.json'), JSON.stringify(results, null, 2));

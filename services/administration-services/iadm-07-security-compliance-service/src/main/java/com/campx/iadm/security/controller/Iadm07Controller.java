@@ -127,6 +127,10 @@ public class Iadm07Controller implements HttpHandler {
                 sendJson(exchange, 200, toJson(service.listSignals(ctx, tenantScope)));
                 return;
             }
+            if ("GET".equalsIgnoreCase(method) && path.endsWith("/signals/denials")) {
+                sendJson(exchange, 200, toJson(service.listDenialEvents(ctx, parseLimit(exchange))));
+                return;
+            }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/exceptions")) {
                 sendJson(exchange, 200, toJson(service.listExceptions(ctx, tenantScope)));
                 return;
@@ -158,15 +162,13 @@ public class Iadm07Controller implements HttpHandler {
                 return;
             }
             if ("GET".equalsIgnoreCase(method) && path.endsWith("/audit")) {
-                Integer limit = null;
-                try {
-                    String l = queryParam(exchange, "limit");
-                    if (l != null) {
-                        limit = Integer.valueOf(l);
-                    }
-                } catch (Exception ignored) {
+                Integer limit = parseLimit(exchange);
+                String type = queryParam(exchange, "type");
+                if ("denials".equalsIgnoreCase(type)) {
+                    sendJson(exchange, 200, toJson(service.listDenialEvents(ctx, limit)));
+                } else {
+                    sendJson(exchange, 200, toJson(service.listAuditEvidence(ctx, limit)));
                 }
-                sendJson(exchange, 200, toJson(service.listAuditEvidence(ctx, limit)));
                 return;
             }
             if ("POST".equalsIgnoreCase(method) && path.endsWith("/intake/signals")) {
@@ -244,6 +246,17 @@ public class Iadm07Controller implements HttpHandler {
             tracker.close();
             LogContext.clear();
         }
+    }
+
+    private static Integer parseLimit(HttpExchange exchange) {
+        try {
+            String l = queryParam(exchange, "limit");
+            if (l != null) {
+                return Integer.valueOf(l);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private static Boolean parseBoolean(Object o) {

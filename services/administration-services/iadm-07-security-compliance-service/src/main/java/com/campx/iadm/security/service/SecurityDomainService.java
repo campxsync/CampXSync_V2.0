@@ -7,6 +7,7 @@ import com.campx.iadm.security.exception.ResourceConflictException;
 import com.campx.iadm.security.exception.ResourceNotFoundException;
 import com.campx.iadm.security.exception.UserProfileAccessDeniedException;
 import com.campx.iadm.security.security.UserSecurityContext;
+import com.campx.iadm.security.simulator.SignalIntakeSimulator;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,6 +17,8 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,20 +125,47 @@ public class SecurityDomainService {
                 if (code == null || title == null) {
                     throw new MalformedPayloadException("code and title are required");
                 }
+                int nextVersion = 1;
+                UUID supersedesId = null;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id, version_no, status FROM sec.security_standards "
+                                + "WHERE code = ? ORDER BY version_no DESC LIMIT 1")) {
+                    ps.setString(1, code);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            nextVersion = rs.getInt("version_no") + 1;
+                            if ("PUBLISHED".equals(rs.getString("status"))) {
+                                supersedesId = (UUID) rs.getObject("id");
+                            }
+                        }
+                    }
+                }
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO sec.security_standards "
-                                + "(id, code, title, version_no, status, author_user_id, body_ref) "
-                                + "VALUES (?, ?, ?, 1, 'DRAFT', ?, ?)")) {
+                                + "(id, code, title, version_no, status, author_user_id, body_ref, supersedes_id) "
+                                + "VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?)")) {
                     ps.setObject(1, id);
                     ps.setString(2, code);
                     ps.setString(3, title);
-                    ps.setObject(4, ctx.getUserId());
-                    ps.setString(5, str(body, "bodyRef"));
+                    ps.setInt(4, nextVersion);
+                    ps.setObject(5, ctx.getUserId());
+                    ps.setString(6, str(body, "bodyRef"));
+                    ps.setObject(7, supersedesId);
                     ps.executeUpdate();
                 }
+                // Change to a published standard: new Draft version; prior published becomes Superseded.
+                if (supersedesId != null) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE sec.security_standards SET status = 'SUPERSEDED', updated_at = now() "
+                                    + "WHERE id = ? AND status = 'PUBLISHED'")) {
+                        ps.setObject(1, supersedesId);
+                        ps.executeUpdate();
+                    }
+                }
                 DurableAuditWriter.append(conn, ctx, ctx.getTenantId(), "IADM07_STANDARD_PROPOSE",
-                        "security_standard", id.toString(), "Proposed standard " + code);
+                        "security_standard", id.toString(),
+                        "Proposed standard " + code + " v" + nextVersion);
                 return loadStandard(conn, id);
             }
         });
@@ -231,10 +261,7 @@ public class SecurityDomainService {
                 if (code == null || title == null) {
                     throw new MalformedPayloadException("code and title are required");
                 }
-                UUID instituteId = uuid(body.get("instituteId"));
-                if (instituteId == null) {
-                    instituteId = ctx.getTenantId();
-                }
+                UUID instituteId = resolveWriteInstituteId(conn, ctx, body);
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO sec.findings (id, institute_id, code, title, severity, status, created_by) "
@@ -265,12 +292,13 @@ public class SecurityDomainService {
                 Map<String, Object> current = loadFinding(conn, id);
                 String from = String.valueOf(current.get("status"));
                 String to = toStatus == null ? null : toStatus.trim().toUpperCase();
-                if ("RESOLVED".equals(to)) {
-                    if (!isSuperAdmin(conn) && !isSystemAdmin(conn)) {
-                        throw new UserProfileAccessDeniedException(
-                                "Only platform operators may mark findings resolved");
-                    }
-                } else {
+                boolean platformOperator = isSuperAdmin(conn) || isSystemAdmin(conn);
+                if (!platformOperator) {
+                    requireAny(conn, "iadm07.register.write");
+                    assertInstitutionFindingScope(ctx.getTenantId(),
+                            uuid(current.get("instituteId")), uuid(current.get("assignedInstituteId")));
+                    assertInstitutionFindingTransition(from, to);
+                } else if (!"RESOLVED".equals(to)) {
                     requireAny(conn, "iadm07.register.write");
                 }
                 RegisterLifecycleEngine.assertTransition(RegisterLifecycleEngine.FINDING, from, to);
@@ -314,10 +342,7 @@ public class SecurityDomainService {
                 if (code == null || title == null) {
                     throw new MalformedPayloadException("code and title are required");
                 }
-                UUID instituteId = uuid(body.get("instituteId"));
-                if (instituteId == null) {
-                    instituteId = ctx.getTenantId();
-                }
+                UUID instituteId = resolveWriteInstituteId(conn, ctx, body);
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO sec.risks (id, institute_id, code, title, status, severity, created_by) "
@@ -371,10 +396,7 @@ public class SecurityDomainService {
                 if (code == null || title == null) {
                     throw new MalformedPayloadException("code and title are required");
                 }
-                UUID instituteId = uuid(body.get("instituteId"));
-                if (instituteId == null) {
-                    instituteId = ctx.getTenantId();
-                }
+                UUID instituteId = resolveWriteInstituteId(conn, ctx, body);
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO sec.alerts (id, institute_id, code, title, severity, status) "
@@ -403,7 +425,24 @@ public class SecurityDomainService {
     }
 
     public Map<String, Object> transitionAlert(final UserSecurityContext ctx, final UUID id, final String toStatus) {
-        return transitionRegister(ctx, id, toStatus, RegisterLifecycleEngine.ALERT, "alert", "sec.alerts", "IADM07_ALERT_");
+        return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
+            public Map<String, Object> execute(Connection conn) throws SQLException {
+                requireAny(conn, "iadm07.register.write");
+                String from = loadStatus(conn, "sec.alerts", id);
+                String to = toStatus == null ? null : toStatus.trim().toUpperCase();
+                if (!isSuperAdmin(conn) && !isSystemAdmin(conn)) {
+                    assertInstitutionAlertTransition(from, to);
+                }
+                RegisterLifecycleEngine.assertTransition(RegisterLifecycleEngine.ALERT, from, to);
+                updateStatus(conn, "sec.alerts", id, to);
+                DurableAuditWriter.append(conn, ctx, ctx.getTenantId(), "IADM07_ALERT_" + to,
+                        "alert", id.toString(), "alert " + from + " → " + to);
+                Map<String, Object> out = new LinkedHashMap<String, Object>();
+                out.put("id", id.toString());
+                out.put("status", to);
+                return out;
+            }
+        });
     }
 
     public Map<String, Object> listSignals(final UserSecurityContext ctx, final String scopeTenantId) {
@@ -431,8 +470,8 @@ public class SecurityDomainService {
                 requireAny(conn, "iadm07.register.read", "iadm07.exception.request");
                 List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
                 UUID scope = resolveScope(conn, ctx, scopeTenantId, false);
-                String sql = "SELECT id, code, rationale, status, valid_from, valid_to, institute_id, updated_at "
-                        + "FROM sec.exceptions "
+                String sql = "SELECT id, code, rationale, status, valid_from, valid_to, institute_id, "
+                        + "requester_user_id, updated_at FROM sec.exceptions "
                         + (scope != null ? "WHERE institute_id = ? " : "")
                         + "ORDER BY updated_at DESC";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -461,10 +500,8 @@ public class SecurityDomainService {
                 if (code == null || rationale == null) {
                     throw new MalformedPayloadException("code and rationale are required");
                 }
-                UUID instituteId = ctx.getTenantId();
-                if (instituteId == null) {
-                    instituteId = uuid(body.get("instituteId"));
-                }
+                Timestamp[] window = parseRequiredValidityWindow(body);
+                UUID instituteId = resolveWriteInstituteId(conn, ctx, body);
                 if (instituteId == null) {
                     throw new InstituteAdminException(403, "IADM07_SCOPE_REQUIRED", "Institute context required");
                 }
@@ -476,8 +513,8 @@ public class SecurityDomainService {
                     ps.setObject(2, instituteId);
                     ps.setString(3, code);
                     ps.setString(4, rationale);
-                    ps.setTimestamp(5, parseTs(body, "validFrom", nowTs()));
-                    ps.setTimestamp(6, parseTs(body, "validTo", futureTs(30)));
+                    ps.setTimestamp(5, window[0]);
+                    ps.setTimestamp(6, window[1]);
                     ps.setObject(7, ctx.getUserId());
                     ps.executeUpdate();
                 }
@@ -498,6 +535,7 @@ public class SecurityDomainService {
                     throw new MalformedPayloadException("decision is required");
                 }
                 Map<String, Object> current = loadException(conn, id);
+                assertExceptionDecisionAllowed(uuid(current.get("requesterUserId")), ctx.getUserId());
                 String from = String.valueOf(current.get("status"));
                 String to = decision.trim().toUpperCase();
                 if (!"APPROVED".equals(to) && !"REJECTED".equals(to)) {
@@ -576,7 +614,7 @@ public class SecurityDomainService {
                     throw new MalformedPayloadException(
                             "linkedType, linkedId, referenceAddress and source are required");
                 }
-                UUID instituteId = ctx.getTenantId() != null ? ctx.getTenantId() : uuid(body.get("instituteId"));
+                UUID instituteId = resolveWriteInstituteId(conn, ctx, body);
                 UUID id = UUID.randomUUID();
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO sec.evidence_refs (id, institute_id, linked_type, linked_id, "
@@ -691,18 +729,130 @@ public class SecurityDomainService {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException {
                 requireAny(conn, "iadm07.report.view", "iadm07.summary.view", "iadm07.posture.view");
-                UUID scope = resolveScope(conn, ctx, scopeTenantId, hasSummaryOnly(conn));
+                // Platform operators (R01/R02/R28) may omit tenant for platform-wide counts;
+                // R04 summary and R03 keep institute scoping via resolveScope.
+                UUID scope = resolveScope(conn, ctx, scopeTenantId, true);
+                Map<String, Object> byStatus = new LinkedHashMap<String, Object>();
+                byStatus.put("findings", groupCounts(conn, "sec.findings", "status", scope, true));
+                byStatus.put("risks", groupCounts(conn, "sec.risks", "status", scope, false));
+                byStatus.put("alerts", groupCounts(conn, "sec.alerts", "status", scope, false));
+                byStatus.put("signals", groupCounts(conn, "sec.signals", "status", scope, false));
+                byStatus.put("exceptions", groupCounts(conn, "sec.exceptions", "status", scope, false));
+
+                Map<String, Integer> findingsBySeverity = groupCountsWhere(conn,
+                        "SELECT severity, COUNT(*)::int FROM sec.findings WHERE status <> 'RESOLVED'",
+                        "GROUP BY severity ORDER BY severity", scope, true);
+
+                Map<String, Integer> monthlyTrends = new LinkedHashMap<String, Integer>();
+                monthlyTrends.put("findingsCreatedThisMonth", count(conn,
+                        "SELECT COUNT(*) FROM sec.findings WHERE created_at >= date_trunc('month', now())",
+                        scope, true));
+                monthlyTrends.put("findingsResolvedThisMonth", count(conn,
+                        "SELECT COUNT(*) FROM sec.findings WHERE status = 'RESOLVED' "
+                                + "AND updated_at >= date_trunc('month', now())",
+                        scope, true));
+                monthlyTrends.put("alertsCreatedThisMonth", count(conn,
+                        "SELECT COUNT(*) FROM sec.alerts WHERE created_at >= date_trunc('month', now())",
+                        scope, false));
+                monthlyTrends.put("alertsResolvedThisMonth", count(conn,
+                        "SELECT COUNT(*) FROM sec.alerts WHERE status = 'RESOLVED' "
+                                + "AND updated_at >= date_trunc('month', now())",
+                        scope, false));
+
+                Map<String, Instant> latestByRegister = new LinkedHashMap<String, Instant>();
+                latestByRegister.put("findings", maxUpdatedAt(conn, "sec.findings", scope, true));
+                latestByRegister.put("risks", maxUpdatedAt(conn, "sec.risks", scope, false));
+                latestByRegister.put("alerts", maxUpdatedAt(conn, "sec.alerts", scope, false));
+                latestByRegister.put("signals", maxUpdatedAt(conn, "sec.signals", scope, false));
+                latestByRegister.put("exceptions", maxUpdatedAt(conn, "sec.exceptions", scope, false));
+
+                return assembleReportCounts(
+                        count(conn, "SELECT COUNT(*) FROM sec.findings WHERE status <> 'RESOLVED'", scope, true),
+                        count(conn, "SELECT COUNT(*) FROM sec.risks WHERE status <> 'CLOSED'", scope, false),
+                        count(conn, "SELECT COUNT(*) FROM sec.alerts WHERE status <> 'RESOLVED'", scope, false),
+                        count(conn, "SELECT COUNT(*) FROM sec.signals WHERE status <> 'CLOSED'", scope, false),
+                        count(conn, "SELECT COUNT(*) FROM sec.exceptions WHERE status = 'REQUESTED'", scope, false),
+                        byStatus, findingsBySeverity, monthlyTrends, latestByRegister);
+            }
+        });
+    }
+
+    public static Map<String, Object> assembleReportCounts(
+            int findingsOpen, int risksOpen, int alertsOpen, int signalsOpen, int exceptionsPending,
+            Map<String, Object> byStatus, Map<String, Integer> findingsBySeverity,
+            Map<String, Integer> monthlyTrends, Map<String, Instant> latestByRegister) {
+        Map<String, Object> out = new LinkedHashMap<String, Object>();
+        out.put("findingsOpen", Integer.valueOf(findingsOpen));
+        out.put("risksOpen", Integer.valueOf(risksOpen));
+        out.put("alertsOpen", Integer.valueOf(alertsOpen));
+        out.put("signalsOpen", Integer.valueOf(signalsOpen));
+        out.put("exceptionsPending", Integer.valueOf(exceptionsPending));
+        out.put("byStatus", byStatus);
+        out.put("findingsBySeverity", findingsBySeverity);
+        out.put("monthlyTrends", monthlyTrends);
+
+        List<String> staleRegisters = new ArrayList<String>();
+        List<String> unavailableRegisters = new ArrayList<String>();
+        if (latestByRegister != null) {
+            for (Map.Entry<String, Instant> e : latestByRegister.entrySet()) {
+                if (e.getValue() == null) {
+                    unavailableRegisters.add(e.getKey());
+                } else if (PostureIndicatorEngine.isStale(e.getValue())) {
+                    staleRegisters.add(e.getKey());
+                }
+            }
+        }
+        String freshnessStatus = !unavailableRegisters.isEmpty()
+                ? "PARTIAL_OR_UNAVAILABLE"
+                : (!staleRegisters.isEmpty() ? "STALE" : "CURRENT");
+        Map<String, Object> freshness = new LinkedHashMap<String, Object>();
+        freshness.put("status", freshnessStatus);
+        freshness.put("staleThresholdMinutes", Integer.valueOf(PostureIndicatorEngine.getStaleThresholdMinutes()));
+        freshness.put("staleRegisters", staleRegisters);
+        freshness.put("unavailableRegisters", unavailableRegisters);
+        out.put("freshness", freshness);
+        return out;
+    }
+
+    public Map<String, Object> listDenialEvents(final UserSecurityContext ctx, final Integer limit) {
+        return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
+            public Map<String, Object> execute(Connection conn) throws SQLException {
+                // Denial feed is platform-operator only (R01 / R02); R03/R04 must not see it.
+                if (!isSuperAdmin(conn) && !isSystemAdmin(conn)) {
+                    throw new UserProfileAccessDeniedException(
+                            "Denial events are visible only to Super Admin and System Admin");
+                }
+                requireAny(conn, "iadm07.audit.view");
+                int max = limit == null ? 50 : Math.min(Math.max(limit.intValue(), 1), 200);
+                List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
+                try (Statement elevate = conn.createStatement()) {
+                    elevate.execute("RESET ROLE");
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id, action, status, principal_id, tenant_id, event_time, correlation_id "
+                                + "FROM audit.events "
+                                + "WHERE status = 'DENIED' OR action LIKE '%\\_DENIED' ESCAPE '\\' "
+                                + "ORDER BY event_time DESC LIMIT ?")) {
+                    ps.setInt(1, max);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Map<String, Object> row = new LinkedHashMap<String, Object>();
+                            row.put("id", rs.getObject("id").toString());
+                            row.put("action", rs.getString("action"));
+                            row.put("status", rs.getString("status"));
+                            row.put("principalId", rs.getObject("principal_id") == null ? null
+                                    : rs.getObject("principal_id").toString());
+                            row.put("tenantId", rs.getObject("tenant_id") == null ? null
+                                    : rs.getObject("tenant_id").toString());
+                            row.put("eventTime", ts(rs.getTimestamp("event_time")));
+                            row.put("correlationId", rs.getString("correlation_id"));
+                            items.add(row);
+                        }
+                    }
+                }
                 Map<String, Object> out = new LinkedHashMap<String, Object>();
-                out.put("findingsOpen", count(conn,
-                        "SELECT COUNT(*) FROM sec.findings WHERE status <> 'RESOLVED'", scope));
-                out.put("risksOpen", count(conn,
-                        "SELECT COUNT(*) FROM sec.risks WHERE status <> 'CLOSED'", scope));
-                out.put("alertsOpen", count(conn,
-                        "SELECT COUNT(*) FROM sec.alerts WHERE status <> 'RESOLVED'", scope));
-                out.put("signalsOpen", count(conn,
-                        "SELECT COUNT(*) FROM sec.signals WHERE status <> 'CLOSED'", scope));
-                out.put("exceptionsPending", count(conn,
-                        "SELECT COUNT(*) FROM sec.exceptions WHERE status = 'REQUESTED'", scope));
+                out.put("items", items);
+                out.put("source", "audit.events");
                 return out;
             }
         });
@@ -804,7 +954,14 @@ public class SecurityDomainService {
                                              final boolean fromSimulator) {
         return ctx.executeInTransaction(db, new UserSecurityContext.TransactionCallback<Map<String, Object>>() {
             public Map<String, Object> execute(Connection conn) throws SQLException {
-                requireAny(conn, "iadm07.signal.intake");
+                if (fromSimulator) {
+                    // DEMO ONLY simulator: same intake path as /intake/signals with service-caller
+                    // semantics (not the R01/R02 requireAny bypass).
+                    SignalIntakeSimulator.assertEnabled();
+                    assertServiceIntakeAccess(false, true);
+                } else {
+                    requireServiceIntake(conn);
+                }
                 String correlationId = str(body, "correlationId");
                 String source = str(body, "source");
                 String summary = str(body, "summary");
@@ -820,6 +977,9 @@ public class SecurityDomainService {
                         ps.setObject(1, existingId);
                         ps.executeUpdate();
                     }
+                    DurableAuditWriter.append(conn, ctx, uuid(existing.get("instituteId")),
+                            "IADM07_SIGNAL_CONFLICT", "signal", existingId.toString(),
+                            "Conflicting duplicate signal " + correlationId);
                     Map<String, Object> out = new LinkedHashMap<String, Object>();
                     out.put("duplicate", Boolean.TRUE);
                     out.put("conflict", Boolean.TRUE);
@@ -859,6 +1019,116 @@ public class SecurityDomainService {
     }
 
     // --- helpers ---
+
+    void requireServiceIntake(Connection conn) throws SQLException {
+        boolean humanOperator = isSuperAdmin(conn) || isSystemAdmin(conn);
+        boolean hasIntake = hasPermission(conn, "iadm07.signal.intake");
+        assertServiceIntakeAccess(humanOperator, hasIntake);
+    }
+
+    public static void assertServiceIntakeAccess(boolean isHumanOperator, boolean hasSignalIntakePermission) {
+        if (isHumanOperator) {
+            throw new UserProfileAccessDeniedException(
+                    "Signal intake is restricted to authenticated service callers");
+        }
+        if (!hasSignalIntakePermission) {
+            throw new UserProfileAccessDeniedException("Missing required iadm07.signal.intake permission");
+        }
+    }
+
+    public static UUID resolveWriteInstituteId(boolean isPlatformOperator, UUID ctxTenantId, UUID requestedInstituteId) {
+        if (isPlatformOperator) {
+            return requestedInstituteId != null ? requestedInstituteId : ctxTenantId;
+        }
+        if (ctxTenantId == null) {
+            throw new InstituteAdminException(403, "IADM07_SCOPE_REQUIRED",
+                    "Institute context could not be verified");
+        }
+        if (requestedInstituteId != null && !requestedInstituteId.equals(ctxTenantId)) {
+            throw new UserProfileAccessDeniedException("Cross-institute write refused");
+        }
+        return ctxTenantId;
+    }
+
+    private UUID resolveWriteInstituteId(Connection conn, UserSecurityContext ctx, Map<String, Object> body)
+            throws SQLException {
+        boolean platformOperator = isSuperAdmin(conn) || isSystemAdmin(conn);
+        Object rawInst = body == null ? null : body.get("instituteId");
+        UUID requested = null;
+        if (rawInst != null && !String.valueOf(rawInst).trim().isEmpty()) {
+            requested = uuid(rawInst);
+            if (requested == null && !platformOperator) {
+                throw new UserProfileAccessDeniedException("Cross-institute write refused");
+            }
+        }
+        return resolveWriteInstituteId(platformOperator, ctx.getTenantId(), requested);
+    }
+
+    public static void assertExceptionDecisionAllowed(UUID requesterUserId, UUID deciderUserId) {
+        if (requesterUserId != null && requesterUserId.equals(deciderUserId)) {
+            throw new InstituteAdminException(403, "IADM07_SOD_VIOLATION",
+                    "Decider must differ from requester");
+        }
+    }
+
+    public static Timestamp[] parseRequiredValidityWindow(Map<String, Object> body) {
+        String fromRaw = str(body, "validFrom");
+        String toRaw = str(body, "validTo");
+        if (fromRaw == null || toRaw == null) {
+            throw new MalformedPayloadException("validFrom and validTo are required");
+        }
+        Instant fromInst = parseIsoOrDate(fromRaw);
+        Instant toInst = parseIsoOrDate(toRaw);
+        if (fromInst == null || toInst == null) {
+            throw new MalformedPayloadException("validFrom and validTo must be valid ISO-8601 timestamps or dates");
+        }
+        if (!toInst.isAfter(fromInst)) {
+            throw new MalformedPayloadException("validTo must be after validFrom");
+        }
+        return new Timestamp[]{Timestamp.from(fromInst), Timestamp.from(toInst)};
+    }
+
+    private static Instant parseIsoOrDate(String raw) {
+        try {
+            return Instant.parse(raw);
+        } catch (Exception ignored) {
+        }
+        try {
+            return LocalDate.parse(raw).atStartOfDay(ZoneOffset.UTC).toInstant();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    public static void assertInstitutionFindingScope(UUID ctxTenantId, UUID instituteId, UUID assignedInstituteId) {
+        if (ctxTenantId == null) {
+            throw new InstituteAdminException(403, "IADM07_SCOPE_REQUIRED",
+                    "Institute context could not be verified");
+        }
+        boolean own = ctxTenantId.equals(instituteId) || ctxTenantId.equals(assignedInstituteId);
+        if (!own) {
+            throw new UserProfileAccessDeniedException("Cross-institute finding transition refused");
+        }
+    }
+
+    public static void assertInstitutionFindingTransition(String from, String to) {
+        if ("RESOLVED".equals(to)) {
+            throw new UserProfileAccessDeniedException("Only platform operators may mark findings resolved");
+        }
+        boolean allowed = ("ASSIGNED".equals(from) && "REMEDIATION_IN_PROGRESS".equals(to))
+                || ("REMEDIATION_IN_PROGRESS".equals(from) && "PENDING_VERIFICATION".equals(to));
+        if (!allowed) {
+            throw new UserProfileAccessDeniedException(
+                    "Institution Admin may only move assigned findings from ASSIGNED to REMEDIATION_IN_PROGRESS or PENDING_VERIFICATION");
+        }
+    }
+
+    public static void assertInstitutionAlertTransition(String from, String to) {
+        if (!("OPEN".equals(from) && "ACKNOWLEDGED".equals(to))) {
+            throw new UserProfileAccessDeniedException(
+                    "Institution Admin may only acknowledge open alerts (OPEN to ACKNOWLEDGED)");
+        }
+    }
 
     void requireAny(Connection conn, String... keys) throws SQLException {
         if (isSuperAdmin(conn) || isSystemAdmin(conn)) {
@@ -1125,8 +1395,8 @@ public class SecurityDomainService {
 
     private Map<String, Object> loadException(Connection conn, UUID id) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT id, code, rationale, status, valid_from, valid_to, institute_id, updated_at "
-                        + "FROM sec.exceptions WHERE id = ?")) {
+                "SELECT id, code, rationale, status, valid_from, valid_to, institute_id, "
+                        + "requester_user_id, updated_at FROM sec.exceptions WHERE id = ?")) {
             ps.setObject(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -1152,6 +1422,8 @@ public class SecurityDomainService {
         m.put("validFrom", ts(rs.getTimestamp("valid_from")));
         m.put("validTo", ts(validTo));
         m.put("instituteId", rs.getObject("institute_id") == null ? null : rs.getObject("institute_id").toString());
+        m.put("requesterUserId", rs.getObject("requester_user_id") == null ? null
+                : rs.getObject("requester_user_id").toString());
         m.put("updatedAt", ts(rs.getTimestamp("updated_at")));
         return m;
     }
@@ -1159,7 +1431,7 @@ public class SecurityDomainService {
     private Map<String, Object> findSignalByCorrelation(Connection conn, String correlationId, boolean conflictOnly)
             throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT id, correlation_id, status, summary, updated_at FROM sec.signals "
+                "SELECT id, institute_id, correlation_id, status, summary, updated_at FROM sec.signals "
                         + "WHERE correlation_id = ? AND conflict_flag = false LIMIT 1")) {
             ps.setString(1, correlationId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -1168,6 +1440,8 @@ public class SecurityDomainService {
                 }
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("id", rs.getObject("id").toString());
+                m.put("instituteId", rs.getObject("institute_id") == null ? null
+                        : rs.getObject("institute_id").toString());
                 m.put("correlationId", rs.getString("correlation_id"));
                 m.put("status", rs.getString("status"));
                 m.put("summary", rs.getString("summary"));
@@ -1205,15 +1479,80 @@ public class SecurityDomainService {
     }
 
     private Integer count(Connection conn, String sql, UUID scope) throws SQLException {
-        String q = sql + (scope != null ? " AND institute_id = ?" : "");
+        return Integer.valueOf(count(conn, sql, scope, false));
+    }
+
+    private int count(Connection conn, String sql, UUID scope, boolean includeAssigned) throws SQLException {
+        String q = sql + scopeFilter(scope, includeAssigned, " AND ");
         try (PreparedStatement ps = conn.prepareStatement(q)) {
             if (scope != null) {
                 ps.setObject(1, scope);
+                if (includeAssigned) {
+                    ps.setObject(2, scope);
+                }
             }
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Integer.valueOf(rs.getInt(1)) : Integer.valueOf(0);
+                return rs.next() ? rs.getInt(1) : 0;
             }
         }
+    }
+
+    private Map<String, Integer> groupCounts(Connection conn, String table, String column,
+                                             UUID scope, boolean includeAssigned) throws SQLException {
+        return groupCountsWhere(conn, "SELECT " + column + ", COUNT(*)::int FROM " + table,
+                "GROUP BY " + column + " ORDER BY " + column, scope, includeAssigned);
+    }
+
+    private Map<String, Integer> groupCountsWhere(Connection conn, String selectPrefix, String groupSuffix,
+                                                  UUID scope, boolean includeAssigned) throws SQLException {
+        boolean hasWhere = selectPrefix.toUpperCase().contains(" WHERE ");
+        String q = selectPrefix + scopeFilter(scope, includeAssigned, hasWhere ? " AND " : " WHERE ") + " " + groupSuffix;
+        Map<String, Integer> out = new LinkedHashMap<String, Integer>();
+        try (PreparedStatement ps = conn.prepareStatement(q)) {
+            if (scope != null) {
+                ps.setObject(1, scope);
+                if (includeAssigned) {
+                    ps.setObject(2, scope);
+                }
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.put(rs.getString(1), Integer.valueOf(rs.getInt(2)));
+                }
+            }
+        }
+        return out;
+    }
+
+    private Instant maxUpdatedAt(Connection conn, String table, UUID scope, boolean includeAssigned)
+            throws SQLException {
+        String q = "SELECT MAX(updated_at) FROM " + table + scopeFilter(scope, includeAssigned, " WHERE ");
+        try (PreparedStatement ps = conn.prepareStatement(q)) {
+            if (scope != null) {
+                ps.setObject(1, scope);
+                if (includeAssigned) {
+                    ps.setObject(2, scope);
+                }
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Timestamp t = rs.getTimestamp(1);
+                    return t == null ? null : t.toInstant();
+                }
+            }
+        } catch (SQLException ex) {
+            return null;
+        }
+        return null;
+    }
+
+    private static String scopeFilter(UUID scope, boolean includeAssigned, String conj) {
+        if (scope == null) {
+            return "";
+        }
+        return includeAssigned
+                ? conj + "(institute_id = ? OR assigned_institute_id = ?)"
+                : conj + "institute_id = ?";
     }
 
     private void auditRead(Connection conn, UserSecurityContext ctx, UUID tenantId, String action,

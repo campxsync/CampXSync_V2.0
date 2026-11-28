@@ -40,6 +40,12 @@ function gatewayGetPath(view: string, sp: URLSearchParams, id: string): string |
     if (limit) q.set('limit', limit);
     return withQuery('/api/v1/iadm/07/audit', q);
   }
+  if (view === 'denials') {
+    const q = new URLSearchParams({ type: 'denials' });
+    const limit = sp.get('limit');
+    if (limit) q.set('limit', limit);
+    return withQuery('/api/v1/iadm/07/audit', q);
+  }
   if (view === 'stale-threshold') return '/api/v1/iadm/07/settings/stale-threshold';
   if (view === 'outage') return '/api/v1/iadm/07/dev/outage-flags';
   if (view === 'health') return '/api/v1/iadm/07/health';
