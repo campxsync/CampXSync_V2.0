@@ -10,7 +10,7 @@
     "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3b\\s3b_r01_propose.png",
     "ok": true,
     "detail": "Proposal stored. A different R01 must approve before apply.",
-    "requestId": "ef44c844-3fe7-45e0-b9be-daeac6506b93"
+    "requestId": "704a80fe-6bd2-4ff6-8b6c-d7e1e2a24849"
   },
   {
     "step": "R01 self-approve denied",
@@ -23,7 +23,7 @@
     "shot": "D:\\CampXSync\\CampXSync_V2.0\\docs\\iadm\\iadm-03\\evidence\\s3b\\s3b_r01b_approve.png",
     "ok": true,
     "detail": "APPROVE → APPLIED; applied=true",
-    "requestId": "ef44c844-3fe7-45e0-b9be-daeac6506b93",
+    "requestId": "704a80fe-6bd2-4ff6-8b6c-d7e1e2a24849",
     "approverEmail": "platformadmin2.campx@gmail.com"
   }
 ]

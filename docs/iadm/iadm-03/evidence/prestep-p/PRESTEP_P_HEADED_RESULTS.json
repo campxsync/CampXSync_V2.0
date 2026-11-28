@@ -1,12 +1,12 @@
 {
   "story": "IADM-03 Pre-step P (US-033 + US-018)",
-  "filmedAt": "2026-11-25T05:32:39.026Z",
+  "filmedAt": "2026-11-28T08:21:04.377Z",
   "pass": true,
   "results": [
     {
       "step": "US-033 API GET audit-evidence",
       "status": 200,
-      "count": 19,
+      "count": 20,
       "pass": true
     },
     {

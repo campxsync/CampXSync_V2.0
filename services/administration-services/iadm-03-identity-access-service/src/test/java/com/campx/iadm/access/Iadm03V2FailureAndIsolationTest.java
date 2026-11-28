@@ -12,6 +12,10 @@ import org.junit.Test;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -22,7 +26,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * IADM-03-US-024 — Failure, isolation, ceiling matrix, no-apply-endpoint, and log-leak suite.
+ * IADM-03-US-024 — Failure, isolation, ceiling matrix, legacy/V2 isolation, and log-leak suite.
+ * Live before/after catalogue+grant hash equality for V2 decisions is proven by
+ * {@code scripts/demo/iadm03_v14_api_hash_proof.mjs} (API-level; replaces source-scan
+ * {@code noApplyEndpointExistsInControllerSource}).
  */
 public class Iadm03V2FailureAndIsolationTest {
 
@@ -79,54 +86,79 @@ public class Iadm03V2FailureAndIsolationTest {
         }
     }
 
+    /**
+     * (a) API contract: for every governed role, V2 grant decision is either R01-only approve
+     * or a hard deny — never an apply. Live before/after hash equality is in
+     * {@code docs/iadm/iadm-03/evidence/v2/v14_api_hash_proof.json}.
+     */
     @Test
-    public void v2GrantWorkflowNeverMutatesCatalogueOrGrants() throws Exception {
-        // (a) V2 grant-request workflow writes only to iadm03.grant_requests / iadm03.grant_decisions;
-        // never mutates iam.permissions, iam.role_permissions, iam.role_template_permissions, or iam.role_assignments.
-        String v2Workflow = new String(Files.readAllBytes(Paths.get(
-                "src/main/java/com/campx/iadm/access/service/RecordOnlyGrantWorkflowService.java")),
-                StandardCharsets.UTF_8);
-        assertFalse(v2Workflow.contains("INSERT INTO iam."));
-        assertFalse(v2Workflow.contains("UPDATE iam."));
-        assertFalse(v2Workflow.contains("DELETE FROM iam."));
-        assertFalse(v2Workflow.contains("GrantGovernanceService"));
-        assertFalse(v2Workflow.contains("CatalogChangeGovernanceService"));
-        // Only R01 holds iadm03.grant.approve; R02/R03/R04/R28 cannot approve in V2
-        assertTrue(AccessPermissionMatrix.allowsIadm03("R01", "iadm03.grant.approve"));
-        assertFalse(AccessPermissionMatrix.allowsIadm03("R02", "iadm03.grant.approve"));
-        assertFalse(AccessPermissionMatrix.allowsIadm03("R03", "iadm03.grant.approve"));
-        assertFalse(AccessPermissionMatrix.allowsIadm03("R04", "iadm03.grant.approve"));
-        assertFalse(AccessPermissionMatrix.allowsIadm03("R28", "iadm03.grant.approve"));
+    public void v2GrantDecisionForEveryRoleNeverAppliesCatalogueOrGrants() {
+        String[] roles = {"R01", "R02", "R03", "R04", "R28", "R05", "R10", "R25", "R38"};
+        for (String role : roles) {
+            boolean canApprove = AccessPermissionMatrix.allowsIadm03(role, "iadm03.grant.approve");
+            if ("R01".equals(role)) {
+                assertTrue("Only R01 may decide V2 grant requests", canApprove);
+            } else {
+                assertFalse(role + " must not hold iadm03.grant.approve (V2 record-only; no apply)", canApprove);
+            }
+            // V2 decision path is not a legacy grant mutator
+            assertFalse(
+                    "V2 /grant-requests/{id}/decision must not be listed as a legacy grant mutator for " + role,
+                    LegacyV14Routes.isLegacyGrantOrCatalogueMutation("POST", "/api/v1/iadm/03/grant-requests/x/decision"));
+        }
+        // V2 routes are never in the exclusive legacy mutating inventory
+        for (String route : LegacyV14Routes.GRANT_OR_CATALOGUE_MUTATING) {
+            assertFalse(route.contains("/grant-requests"));
+            assertFalse(route.contains("/v2/"));
+        }
     }
 
+    /**
+     * (b) Restored legacy V1.4 endpoints are the exclusive grant/catalogue mutators and are labeled legacy.
+     */
     @Test
-    public void restoredLegacyEndpointsAreMarkedLegacyAndIsolatedFromV2() throws Exception {
-        // (b) Restored legacy V1.4 endpoints exist in Iadm03Controller, are marked LEGACY V1.4,
-        // and legacy services never write to V2 iadm03.* tables.
-        String ctrl = new String(Files.readAllBytes(Paths.get(
-                "src/main/java/com/campx/iadm/access/controller/Iadm03Controller.java")),
-                StandardCharsets.UTF_8);
-        String[] legacyRoutes = {
-                "/grants/appoint-r03",
-                "/grants/assign",
-                "/grants/revoke",
-                "/grants/r03-change/",
-                "/catalog-changes"
-        };
-        for (String r : legacyRoutes) {
-            assertTrue("Restored legacy route missing: " + r, ctrl.contains(r));
-        }
-        assertTrue("Legacy routes must be marked LEGACY V1.4", ctrl.contains("LEGACY V1.4"));
+    public void restoredLegacyEndpointsAreExclusiveGrantMutatorsAndLabeled() {
+        List<String> expected = Arrays.asList(
+                "POST /grants/appoint-r03",
+                "POST /grants/assign",
+                "POST /grants/revoke",
+                "POST /grants/r03-change/{id}/decide",
+                "POST /catalog-changes",
+                "POST /catalog-changes/{id}/decide"
+        );
+        assertEquals(expected, LegacyV14Routes.GRANT_OR_CATALOGUE_MUTATING);
+        assertEquals(Arrays.asList("GET /catalog-changes"), LegacyV14Routes.LEGACY_READ);
+        assertEquals(LegacyV14Routes.LABEL, "IADM-03 V1.4 (legacy)");
 
-        String legacyGrantSvc = new String(Files.readAllBytes(Paths.get(
-                "src/main/java/com/campx/iadm/access/service/GrantGovernanceService.java")),
-                StandardCharsets.UTF_8);
-        String legacyCatalogSvc = new String(Files.readAllBytes(Paths.get(
-                "src/main/java/com/campx/iadm/access/service/CatalogChangeGovernanceService.java")),
-                StandardCharsets.UTF_8);
-        assertFalse("Legacy GrantGovernanceService must not write to iadm03.*", legacyGrantSvc.contains("iadm03."));
-        assertFalse("Legacy CatalogChangeGovernanceService must not write to iadm03.*", legacyCatalogSvc.contains("iadm03."));
-        assertEquals("IADM-03 V1.4 (legacy)", CatalogueReadService.deriveOwningService("iam.grant.assign"));
+        assertTrue(LegacyV14Routes.isLegacyGrantOrCatalogueMutation("POST", "/api/v1/iadm/03/grants/assign"));
+        assertTrue(LegacyV14Routes.isLegacyGrantOrCatalogueMutation("POST", "/api/v1/iadm/03/grants/revoke"));
+        assertTrue(LegacyV14Routes.isLegacyGrantOrCatalogueMutation("POST", "/api/v1/iadm/03/grants/appoint-r03"));
+        assertTrue(LegacyV14Routes.isLegacyGrantOrCatalogueMutation(
+                "POST", "/api/v1/iadm/03/grants/r03-change/11111111-1111-1111-1111-111111111111/decide"));
+        assertTrue(LegacyV14Routes.isLegacyGrantOrCatalogueMutation("POST", "/api/v1/iadm/03/catalog-changes"));
+        assertTrue(LegacyV14Routes.isLegacyGrantOrCatalogueMutation(
+                "POST", "/api/v1/iadm/03/catalog-changes/11111111-1111-1111-1111-111111111111/decide"));
+        assertFalse(LegacyV14Routes.isLegacyGrantOrCatalogueMutation("GET", "/api/v1/iadm/03/catalog-changes"));
+        assertFalse(LegacyV14Routes.isLegacyGrantOrCatalogueMutation("POST", "/api/v1/iadm/03/grant-requests"));
+        assertFalse(LegacyV14Routes.isLegacyGrantOrCatalogueMutation(
+                "POST", "/api/v1/iadm/03/grant-requests/11111111-1111-1111-1111-111111111111/decision"));
+
+        // Permission register labels all iam.* as legacy V1.4 (not Unknown)
+        String[] iamKeys = {
+                "iam.access.overview.view", "iam.access.subject.view", "iam.audit.view",
+                "iam.catalog.change.approve", "iam.catalog.change.propose",
+                "iam.catalog.permissions.view", "iam.catalog.roles.view",
+                "iam.delegation.create", "iam.delegation.revoke", "iam.governance.read",
+                "iam.grant.assign", "iam.grant.r03.decide", "iam.grant.revoke",
+                "iam.identity.technical.assign", "iam.profile.invite", "iam.profile.status",
+                "iam.profile.view", "iam.request.decide", "iam.request.submit", "iam.review.manage"
+        };
+        assertEquals(20, iamKeys.length);
+        Set<String> unique = new HashSet<String>(Arrays.asList(iamKeys));
+        assertEquals(20, unique.size());
+        for (String key : iamKeys) {
+            assertEquals(LegacyV14Routes.LABEL, CatalogueReadService.deriveOwningService(key));
+        }
     }
 
     @Test

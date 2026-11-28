@@ -1,7 +1,20 @@
 # CampXSync — Current Progress (source of truth for status)
 
 **Branch:** `feature/java-backend-integration`  
-**Updated:** 2026-11-27 (IADM-03 V2.0 S0–S4 built on DEV; awaiting owner approval)
+**Updated:** 2026-11-28 (IADM-03 legacy V1.4 restore verified; await owner approval; do not push)
+
+## Owner decisions – IADM-03 restore Legacy V1.4 endpoints (28-11-2026)
+
+**Authorized by:** owner (RESTORE THE LEGACY V1.4 ENDPOINTS; DEV only; local commit; no push).
+
+| Item | Status |
+|---|---|
+| Removal / restore | Removed in `2c348a4`; restored in `969fc14`; this commit = API hash proof + demos + doc/CSV |
+| Isolation | V2 never calls legacy; legacy never writes `iadm03.*`; D-03 remains owner-open |
+| API hash proof | `docs/iadm/iadm-03/evidence/v2/v14_api_hash_proof.json` — V2 decisions hashes equal; 20 `iam.*` labeled legacy |
+| Headed demos | `iadm03_prestep_p_headed.mjs`, `iadm03_s2_headed.mjs`, `iadm03_s3b_headed.mjs` — **PASS** |
+| Unrelated note | `appoint-r03` probe → `503 IADM03_AUTH_ADMIN_UNAVAILABLE` (route restored; Auth Admin precondition) |
+| Next | **STOP** — await `APPROVED IADM-03` / `APPROVED IADM-03 COMMIT`; **do not push** |
 
 ## Owner decisions – IADM-03 V2.0 Platform Identity & Access Governance (27-11-2026)
 
@@ -15,7 +28,7 @@
 | Service / port / schema | `iadm-03-identity-access-service` **:8101** `/api/v1/iadm/03` · schema `iadm03` (6 tables, `FORCE RLS`) |
 | Migration on DEV | `20261127010000_iadm03_v2_keys_and_schema.sql` (+12 `iadm03.*` additive keys; 663/2223 existing unchanged) |
 | Tests & typecheck | **45/45 JUnit PASS** (`Iadm03V2S0S1Test`, `Iadm03V2FailureAndIsolationTest`, +8 owner suites); `tsc --noEmit` **0 errors** |
-| Next | **STOP** — await owner approval; **do not push** |
+| Next | Superseded by 28-11 restore verification — still **do not push** without owner |
 | DB writes | DEV only (`azulbaxszsqxymqmlwfe`) |
 
 ## Owner decisions – IADM-08 Audit, Health & Operations Oversight (26-11-2026)

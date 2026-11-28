@@ -1,0 +1,185 @@
+{
+  "removedInCommit": "2c348a4",
+  "restoredInCommit": "969fc14",
+  "legacyLabel": "IADM-03 V1.4 (legacy)",
+  "legacyMutatingEndpoints": [
+    "POST /grants/appoint-r03",
+    "POST /grants/assign",
+    "POST /grants/revoke",
+    "POST /grants/r03-change/{id}/decide",
+    "POST /catalog-changes",
+    "POST /catalog-changes/{id}/decide"
+  ],
+  "legacyReadEndpoints": [
+    "GET /catalog-changes"
+  ],
+  "note": "Only LEGACY_MUTATING endpoints can change grants/catalogue; V2 grant-request decision is record-only.",
+  "beforeHashes": {
+    "permissions": "83a6bfa9c3aebc85e791bb37fcc12420",
+    "role_template_permissions": "66ed02784ba438261d68c6294a8ba267",
+    "role_permissions": "4c46d687e3c5970060f6f686e462207c",
+    "role_assignments": "39eff35686da1c71039afa7bcfe27b5f"
+  },
+  "afterV2DecisionHashes": {
+    "permissions": "83a6bfa9c3aebc85e791bb37fcc12420",
+    "role_template_permissions": "66ed02784ba438261d68c6294a8ba267",
+    "role_permissions": "4c46d687e3c5970060f6f686e462207c",
+    "role_assignments": "39eff35686da1c71039afa7bcfe27b5f"
+  },
+  "afterAllHashes": {
+    "permissions": "83a6bfa9c3aebc85e791bb37fcc12420",
+    "role_template_permissions": "66ed02784ba438261d68c6294a8ba267",
+    "role_permissions": "4c46d687e3c5970060f6f686e462207c",
+    "role_assignments": "39eff35686da1c71039afa7bcfe27b5f"
+  },
+  "v2HashesEqual": true,
+  "decisionAttempts": [
+    {
+      "role": "R02",
+      "status": 403,
+      "errorCode": "IADM03_FORBIDDEN"
+    },
+    {
+      "role": "R03",
+      "status": 403,
+      "errorCode": "IADM03_FORBIDDEN"
+    },
+    {
+      "role": "R04",
+      "status": 403,
+      "errorCode": "IADM03_FORBIDDEN"
+    },
+    {
+      "role": "R28",
+      "status": 403,
+      "errorCode": "IADM03_AUDITOR_READONLY"
+    },
+    {
+      "role": "R01A",
+      "status": 200,
+      "bodyStatus": "RECORDED",
+      "statement": "recorded, not applied",
+      "recordedOnly": true
+    },
+    {
+      "role": "R01B",
+      "skipped": true,
+      "reason": "request already decided"
+    }
+  ],
+  "iamCount": 20,
+  "allLabeledLegacy": true,
+  "results": [
+    {
+      "step": "login R01A",
+      "ok": true,
+      "detail": "token acquired"
+    },
+    {
+      "step": "login R01B",
+      "ok": true,
+      "detail": "token acquired"
+    },
+    {
+      "step": "login R02",
+      "ok": true,
+      "detail": "token acquired"
+    },
+    {
+      "step": "login R03",
+      "ok": true,
+      "detail": "token acquired"
+    },
+    {
+      "step": "login R04",
+      "ok": true,
+      "detail": "token acquired"
+    },
+    {
+      "step": "login R28",
+      "ok": true,
+      "detail": "token acquired"
+    },
+    {
+      "step": "V2 submit grant-request",
+      "ok": true,
+      "detail": "id=2569bf51-41de-4ddb-af1d-5911ab48610b status=200"
+    },
+    {
+      "step": "V2 R02 validate",
+      "ok": true,
+      "detail": "status=200 catalogueTouched=false"
+    },
+    {
+      "step": "V2 decision attempt R02",
+      "ok": true,
+      "detail": "http=403 code=IADM03_FORBIDDEN (expect 403)"
+    },
+    {
+      "step": "V2 decision attempt R03",
+      "ok": true,
+      "detail": "http=403 code=IADM03_FORBIDDEN (expect 403)"
+    },
+    {
+      "step": "V2 decision attempt R04",
+      "ok": true,
+      "detail": "http=403 code=IADM03_FORBIDDEN (expect 403)"
+    },
+    {
+      "step": "V2 decision attempt R28",
+      "ok": true,
+      "detail": "http=403 code=IADM03_AUDITOR_READONLY (expect 403)"
+    },
+    {
+      "step": "V2 decision attempt R01A",
+      "ok": true,
+      "detail": "http=200 status=RECORDED code= statement=recorded, not applied"
+    },
+    {
+      "step": "(a) V2 decisions leave catalogue+grants hashes equal",
+      "ok": true,
+      "detail": "permissions=83a6bfa9c3aebc85e791bb37fcc12420"
+    },
+    {
+      "step": "IADM-03 health",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "step": "Legacy GET /catalog-changes",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "step": "Legacy POST /grants/assign reachable (R28 denied)",
+      "ok": true,
+      "detail": "status=403"
+    },
+    {
+      "step": "Legacy POST /grants/revoke reachable",
+      "ok": true,
+      "detail": "status=404"
+    },
+    {
+      "step": "Legacy POST /grants/appoint-r03 reachable",
+      "ok": true,
+      "detail": "status=503 code=IADM03_AUTH_ADMIN_UNAVAILABLE msg="
+    },
+    {
+      "step": "NOTE appoint-r03 503 (unrelated to route restore — report only)",
+      "ok": true,
+      "detail": "code=IADM03_AUTH_ADMIN_UNAVAILABLE — endpoint is restored; failure is runtime precondition"
+    },
+    {
+      "step": "Register labels 20 iam.* as IADM-03 V1.4 (legacy)",
+      "ok": true,
+      "detail": "iamCount=20 allLabeledLegacy=true"
+    },
+    {
+      "step": "(b) legacy probes did not silently mutate grants (hashes still equal to before)",
+      "ok": true,
+      "detail": "equal"
+    }
+  ],
+  "generatedAt": "2026-11-28T08:20:19.451Z"
+}

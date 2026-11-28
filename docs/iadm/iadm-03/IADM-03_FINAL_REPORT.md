@@ -1,10 +1,27 @@
 # IADM-03 Platform Identity & Access Governance — Final Report
 
-**Date:** 2026-11-27  
+**Date:** 2026-11-28  
 **Branch:** `feature/java-backend-integration` (local commits only; **not pushed**)  
 **Database Target:** DEV Supabase (`azulbaxszsqxymqmlwfe`)  
 **Service / Port / Route:** `iadm-03-identity-access-service` · Port `8101` · Route `/api/v1/iadm/03`  
 **Owned Schema:** `iadm03` (6 tables, all with `ENABLE` + `FORCE ROW LEVEL SECURITY` and `DELETE` denied)
+
+---
+
+## 0. Plain-language status (codes → meaning)
+
+| Code / ID | Plain-language label |
+|---|---|
+| `IADM-03` | Platform Identity & Access Governance service |
+| `V1.4` | Earlier IADM-03 that **can apply** grants / catalogue changes (legacy; restored) |
+| `V2.0` | Current record-only workflow (`status = RECORDED`, `"recorded, not applied"`) |
+| `D-03` | Owner decision still open: **apply versus record-only** |
+| `iam.*` (20 keys) | **IADM-03 V1.4 (legacy)** — not Unknown |
+| `iadm03.*` (12 keys) | V2 additive keys only |
+| `iadm03` schema | V2 owned tables only (legacy never writes here) |
+| `iam.*` tables | Shared catalogue / grants; legacy apply may write; V2 decisions must not |
+
+**Plain fact:** IADM-03 V1.4 existed before the V2 kickoff. Routes were removed in `2c348a4` (S0 “no apply-grant” assumption) and restored in `969fc14`. V2 coexists with V1.4. **D-03 stays with the owner.**
 
 ---
 
@@ -68,12 +85,12 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 | `IADM-03-US-018` | IADM-03 permission keys (`iadm03.*`) and role mapping | API-ready | **Completed** | `20261127010000_iadm03_v2_keys_and_schema.sql`, `Iadm03V2S0S1Test` (45/45 JUnit pass) |
 | `IADM-03-US-019` | Schema, tenant scoping and FORCE Row-Level Security | API-ready | **Completed** | `s0_catalogue_snapshot.json` (6 `iadm03.*` tables `relforcerowsecurity=true`), `rls_two_institutes.json` (`t1OwnCount=2, t2CrossReadT1Count=0`) |
 | `IADM-03-US-020` | Shared audit integration with refusal | API-ready | **Completed** | `DurableAuditWriter.java`, `Iadm03V2S0S1Test.demoAuditDisabledSwitchFailsClosed`, 20 `IADM03_*` rows in `final_db_verification.json` |
-| `IADM-03-US-021` | Catalogue, holders and role-matrix read engine | API-ready | **Completed** | `CatalogueReadService.java` (20 `iam.*` keys labeled `IADM-03 V1.4 (legacy)`), `v14_restore_result.json` (`allLabeledLegacy: true`) |
+| `IADM-03-US-021` | Catalogue, holders and role-matrix read engine | API-ready | **Completed** | `CatalogueReadService.java` (20 `iam.*` keys labeled `IADM-03 V1.4 (legacy)`), `v14_api_hash_proof.json` (`iamCount: 20, allLabeledLegacy: true`) |
 | `IADM-03-US-001` | Inspect the permission-key register (R01, R02) | Demo-verified | **Demo-verified** | `01_r01_register.png` (`Live catalogue total: 675 · Reconciled: YES`), `v14_restore_result.json` (`iamCount: 20, allLabeledLegacy: true`) |
 | `IADM-03-US-002` | Inspect the role-to-permission matrix (R01, R02, R28) | Demo-verified | **Demo-verified** | `02_r01_matrix.png` (39 roles `R01`–`R39`, `RBAC v3.0`, flagged differences), `results.json` |
 | `IADM-03-US-012` | Auditor (R28) read-only access evidence | Demo-verified | **Demo-verified** | `12_r28_readonly.png`, `results.json` (`PASS \| US-012 R28 Read-Only \| mutate=403`) |
 | `IADM-03-US-015` | Runtime enforcement unaffected by IADM-03 | Demo-verified | **Demo-verified** | `13_us015_iadm06_with_iadm03_stopped.png`, `us015_result.json` (`r01_iadm06: 200, r04_iadm06: 403` with `:8101` stopped) + `GatewayConfig.java` |
-| `IADM-03-US-022` | Grant request workflow engine (record-only) | API-ready | **Completed** | `RecordOnlyGrantWorkflowService.java`, `Iadm03V2FailureAndIsolationTest.v2GrantWorkflowNeverMutatesCatalogueOrGrants` & `restoredLegacyEndpointsAreMarkedLegacyAndIsolatedFromV2` |
+| `IADM-03-US-022` | Grant request workflow engine (record-only) | API-ready | **Completed** | V2 record-only + restored Legacy V1.4 isolated; `LegacyV14Routes.java`; API hash proof `v14_api_hash_proof.json` (`v2HashesEqual: true` after R01 `RECORDED`) |
 | `IADM-03-US-005` | System Admin (R02) validate and prepare diff | Demo-verified | **Demo-verified** | `07_r02_validate_and_approve_deny.png`, `results.json` (`val=200, catalogueTouched=false, approve=403`) |
 | `IADM-03-US-003` | Institution Admin (R03) view and request own institute | Demo-verified | **Demo-verified** | `10_r03_institute_scope.png`, `results.json` (`matrix=403, crossHandover=403`), `rls_two_institutes.json` |
 | `IADM-03-US-004` | College Admin (R04) submit access request only | Demo-verified | **Demo-verified** | `11_r04_request_only.png`, `results.json` (`submit=200, register=403`) |
@@ -86,7 +103,7 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 | `IADM-03-US-011` | Register a new service's permission keys | Demo-verified | **Demo-verified** | `06_r01_registrations.png` (`IADM-09-DEMO · APPROVED`), `us011_result.json` (`sub: 200, val: 200, dec: 200, appliedMigration: false`) |
 | `IADM-03-US-014` | View first-admin handover status | Demo-verified | **Demo-verified** | `03_r01_handover.png`, `results.json` (`PASS \| US-014 R01 Handover \| rows=1` from `plat.college_cadm_handovers`) |
 | `IADM-03-US-023` | Demo data check (no invention) | Demo-verified | **Completed** | Reused existing `.env.audit` + `seed_accounts.json` (`r01a`, `r01b`, `r02`, `r03demo`, `auditor`, `COLLEGE_ADMIN`); zero invented emails |
-| `IADM-03-US-024` | Failure, isolation and role test suite | API-ready | **Completed** | `Iadm03V2FailureAndIsolationTest` + full 10-class JUnit suite: **45/45 PASS**; `frontend npx tsc --noEmit` **0 errors** |
+| `IADM-03-US-024` | Failure, isolation and role test suite | API-ready | **Completed** | Source-scan `noApplyEndpointExistsInControllerSource` **replaced** by API-level tests: (a) V2 decision every role — hashes equal; (b) only `LegacyV14Routes.GRANT_OR_CATALOGUE_MUTATING` can change grants. Evidence: `v14_api_hash_proof.json`; JUnit `Iadm03V2FailureAndIsolationTest` |
 | `IADM-03-US-025` | Evidence pack and close-out | Demo-verified | **Completed** | `IADM-03_FINAL_REPORT.md`, `s0_catalogue_snapshot.json`, `final_db_verification.json`, `rls_two_institutes.json`, `us015_result.json`, `us011_result.json`, 12 headed PNGs + `.webm` video |
 
 ---
@@ -108,12 +125,20 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 
 ---
 
-## 5. Git Status (Local Commits Only — Not Pushed)
+## 5. Legacy V1.4 restore verification (2026-11-28)
+
+- **Removal commit:** `2c348a4` removed `/grants/appoint-r03`, `/grants/assign`, `/grants/revoke`, `/grants/r03-change/{id}/decide`, `/catalog-changes` (GET/POST), `/catalog-changes/{id}/decide` when scaffolding V2 record-only.
+- **Restore commit:** `969fc14` put those routes and services back (no behaviour change) with `LEGACY V1.4` comments; labeled 20 `iam.*` keys `IADM-03 V1.4 (legacy)`.
+- **This verification commit:** API-level hash tests replace the source-scan; demos re-run; docs/CSV claim adjustments for coexistence / D-03 owner-open.
+- **API hash proof** (`docs/iadm/iadm-03/evidence/v2/v14_api_hash_proof.json`):
+  - (a) V2 grant decision: R02/R03/R04/R28 → 403; R01A → `RECORDED` / `"recorded, not applied"`; before/after MD5 of `iam.permissions`, `iam.role_template_permissions`, `iam.role_permissions`, `iam.role_assignments` **identical**.
+  - (b) Exclusive mutators listed in `LegacyV14Routes.GRANT_OR_CATALOGUE_MUTATING` and labeled legacy; register `iamCount=20`, `allLabeledLegacy=true`.
+- **Legacy headed demos (PASS):** `iadm03_prestep_p_headed.mjs`, `iadm03_s2_headed.mjs` (assign/revoke/ceiling), `iadm03_s3b_headed.mjs` (catalog-changes propose/decide).
+- **Unrelated to restore (reported):** `POST /grants/appoint-r03` returns `503 IADM03_AUTH_ADMIN_UNAVAILABLE` for an invented tenant probe — route is restored; Auth Admin dependency is a separate runtime precondition.
+
+## 6. Git Status (Local Commits Only — Not Pushed)
 
 - Branch: `feature/java-backend-integration`
-- S0: `2c348a4` — `feat(iadm03): S0 foundation — IAM inventory, additive iadm03.* keys, FORCE RLS schema, fail-closed audit`
-- S1: `30ed281` — `feat(iadm03): S1 read engine — permission register, holder lookup, R01-R39 matrix, R28 read-only UI`
-- S2: `2892540` — `feat(iadm03): S2 record-only grant workflow — submit, R02 validate diff, R01 approve/reject, self/scope/audit refusals`
-- S3: `03def57` — `feat(iadm03): S3 reviews, delegations, and additive service registrations`
-- S4: `61d2f53` — `feat(iadm03): S4 handover, failure/isolation suite, headed evidence pack, and final report`
-- Close-out fix & verification commit: committed locally on `feature/java-backend-integration` (**not pushed**).
+- S0: `2c348a4` — removed V1.4 apply routes while adding V2 scaffold (later reversed by owner decision)
+- Restore: `969fc14` — `fix(iadm03): restore legacy V1.4 routes, label iam.* keys, and document D-03 coexistence`
+- This commit: API hash proof + demo re-run + CSV/report claim adjustments (**local only; do not push**)

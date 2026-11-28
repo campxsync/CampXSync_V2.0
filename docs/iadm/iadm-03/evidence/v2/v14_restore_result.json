@@ -4,5 +4,17 @@
   "allLabeledLegacy": true,
   "assignProbeStatus": 403,
   "revokeProbeStatus": 404,
-  "appointProbeStatus": 400
+  "appointProbeStatus": 503,
+  "v2HashesEqual": true,
+  "beforePermissionsHash": "83a6bfa9c3aebc85e791bb37fcc12420",
+  "afterPermissionsHash": "83a6bfa9c3aebc85e791bb37fcc12420",
+  "legacyMutatingEndpoints": [
+    "POST /grants/appoint-r03",
+    "POST /grants/assign",
+    "POST /grants/revoke",
+    "POST /grants/r03-change/{id}/decide",
+    "POST /catalog-changes",
+    "POST /catalog-changes/{id}/decide"
+  ],
+  "legacyLabel": "IADM-03 V1.4 (legacy)"
 }

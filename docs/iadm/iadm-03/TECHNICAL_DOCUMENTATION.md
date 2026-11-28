@@ -15,8 +15,9 @@
 - **No per-request runtime dependency:** Gateway, Java microservices, and PostgreSQL RLS enforce authentication and authorization independently. Stopping IADM-03 does not affect any other service.
 - **Record-only V2 grants + Coexisting Legacy V1.4 routes (D-03 owner-open):**
   - **V2 (`iadm03.*`):** Record-only (`status = RECORDED`, `"recorded, not applied"`). V2 endpoints never mutate `iam.permissions`, `iam.role_permissions`, `iam.role_template_permissions`, or `iam.role_assignments`, and never call legacy V1.4 services.
-  - **Legacy V1.4 (restored until D-03 is resolved):** `/grants/appoint-r03`, `/grants/assign`, `/grants/revoke`, `/grants/r03-change/{id}/decide`, `/catalog-changes` (`GET`/`POST`), and `/catalog-changes/{id}/decide` remain marked **Legacy V1.4** and never write to `iadm03.*` tables.
-  - **Permission Register label:** The 20 `iam.*` keys are labeled `IADM-03 V1.4 (legacy)` in the computed register.
+  - **Legacy V1.4 (restored until D-03 is resolved):** `/grants/appoint-r03`, `/grants/assign`, `/grants/revoke`, `/grants/r03-change/{id}/decide`, `/catalog-changes` (`GET`/`POST`), and `/catalog-changes/{id}/decide` remain marked **Legacy V1.4** in `Iadm03Controller` and inventoried in `LegacyV14Routes` (exclusive grant/catalogue mutators). Legacy services never write to `iadm03.*` tables.
+  - **Permission Register label:** The 20 `iam.*` keys are labeled `IADM-03 V1.4 (legacy)` in the computed register (not Unknown).
+  - **API proof:** `scripts/demo/iadm03_v14_api_hash_proof.mjs` — V2 decisions leave catalogue/grant MD5 hashes equal; only legacy mutators listed above can change grants.
 - **Computed-on-request views:** The permission-key register, current holders, and R01–R39 role matrix are computed live on each request from `iam.permissions`, `iam.role_template_permissions`, `iam.role_permissions`, `iam.role_assignments`, and RBAC v3.0 — never stored as snapshots.
 - **Shared audit (`audit.log_event` / `audit.events`):** Every governed read and mutation (plus every denial) writes to `audit.log_event` in the same transaction. If audit fails, the operation fails closed (`503 IADM03_AUDIT_UNAVAILABLE`) and rolls back.
 - **Structured logging:** Uses `CampXLogger` with `correlationId` / `traceId`; never logs JWTs, raw auth claims, passwords, or personal data.

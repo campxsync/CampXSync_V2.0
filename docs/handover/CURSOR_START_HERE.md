@@ -2,15 +2,15 @@
 **Document:** `docs/handover/CURSOR_START_HERE.md`  
 **Target Environment:** Development Supabase PostgreSQL (`azulbaxszsqxymqmlwfe`), Local Windows Host  
 **Governing Branch:** `feature/java-backend-integration`  
-**Last current-state refresh:** 2026-11-26 (IADM-08 S0–S4 built; awaiting owner approval)
+**Last current-state refresh:** 2026-11-28 (IADM-03 Legacy V1.4 restore verified; await owner approval)
 
 ---
 
 ## What to do next
 
-1. **IADM-08** implementation complete on DEV — STOP for `APPROVED IADM-08` / `APPROVED IADM-08 COMMIT`.
-2. Report: `docs/iadm/IADM-08_S4_Report.md`; headed **10/10** at `docs/iadm/iadm-08/evidence/us023/`.
-3. Do **not** push unless owner authorizes.
+1. **IADM-03 Legacy V1.4 restore** complete on DEV — STOP for `APPROVED IADM-03` / `APPROVED IADM-03 COMMIT`.
+2. Report: `docs/iadm/iadm-03/IADM-03_FINAL_REPORT.md`; hash proof `docs/iadm/iadm-03/evidence/v2/v14_api_hash_proof.json`.
+3. Do **not** push unless owner authorizes. **D-03 (apply vs record-only) stays with the owner.**
 
 Do **not** use `docs/archive/` for status, approvals or instructions.
 
@@ -18,16 +18,16 @@ Do **not** use `docs/archive/` for status, approvals or instructions.
 
 ## 1. Current State in 10 Bullets (context)
 
-1. **Branch:** `feature/java-backend-integration` — IADM-08 S0–S4 implemented; local commit pending/owner approval.
-2. **IADM-08:** `:8106` `/api/v1/iadm/08` — **no owned schema**; read-only audit/health oversight.
-3. **Headed US-023:** **10/10 PASS** (R01/R02/R03/R04/R28).
-4. **Catalogue:** 5 `iadm08.*` keys additive; legacy `adm08.*` untouched; `iadm08.manage` reserved not granted.
-5. **Limits DEMO ONLY:** max window **31 days**, page size **50**.
-6. **Shared audit:** read via `audit.events` (platform elevate); every read recorded `IADM08_*` fail-closed.
-7. **IADM-05 gate:** DEMO-OPERATIONS-HANDLING (OPERATIONS domain) published.
+1. **Branch:** `feature/java-backend-integration` — IADM-03 V1.4 restore verified; local commit pending owner approval.
+2. **IADM-03:** `:8101` `/api/v1/iadm/03` — V2 record-only (`iadm03.*`) **coexists** with restored Legacy V1.4 apply routes.
+3. **Legacy routes:** `/grants/appoint-r03|assign|revoke`, `/grants/r03-change/{id}/decide`, `/catalog-changes` (+ decide) marked `LEGACY V1.4`.
+4. **20 `iam.*` keys** labeled **`IADM-03 V1.4 (legacy)`** (not Unknown).
+5. **API hash proof PASS:** V2 decisions leave catalogue/grant hashes equal; only legacy mutators change grants.
+6. **Headed demos PASS:** `iadm03_prestep_p_headed.mjs`, `iadm03_s2_headed.mjs`, `iadm03_s3b_headed.mjs`.
+7. **Unrelated:** `appoint-r03` invented-tenant probe → `503 IADM03_AUTH_ADMIN_UNAVAILABLE`.
 8. **Dev DB only:** `azulbaxszsqxymqmlwfe`.
-9. **CSV:** working backlog at `docs/user-stories/IADM-08-user-stories.csv` (owner path was missing at preflight; reconstructed).
-10. **Aggregator:** `iadm-08-audit-health-ops-service` registered.
+9. **CSV:** `docs/user-stories/IADM-03-user-stories.csv` (US-021/022/024 claims adjusted for coexistence).
+10. **IADM-07** previously APPROVED COMMIT & pushed (`3e92222` / `788e31c`).
 ---
 
 ## 2. File Map & Project Artifacts
