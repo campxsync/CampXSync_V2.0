@@ -699,7 +699,22 @@ public class SecurityDomainService {
                     }
                 }
                 UUID id = UUID.randomUUID();
-                UUID instituteId = uuid(body.get("instituteId"));
+                // Platform (R01/R02) or SERVICE (signal.intake without human register.write) may select;
+                // Institution Admin (R03) and other humans are forced to trusted claims.
+                boolean platform = isSuperAdmin(conn) || isSystemAdmin(conn);
+                boolean serviceCaller = hasPermission(conn, "iadm07.signal.intake")
+                        && !hasPermission(conn, "iadm07.register.write");
+                Object rawInst = body.get("instituteId");
+                UUID requested = (rawInst == null || String.valueOf(rawInst).trim().isEmpty())
+                        ? null : uuid(rawInst);
+                UUID instituteId = resolveWriteInstituteId(platform || serviceCaller, ctx.getTenantId(), requested);
+                if (instituteId == null) {
+                    throw new InstituteAdminException(403, "IADM07_SCOPE_REQUIRED",
+                            "Institute context could not be verified");
+                }
+                if (!instituteExists(conn, instituteId)) {
+                    throw new ResourceNotFoundException("institute", instituteId.toString());
+                }
                 UUID controlId = uuid(body.get("controlId"));
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO sec.enforcement_status (id, institute_id, control_id, service_name, "
@@ -1048,6 +1063,16 @@ public class SecurityDomainService {
             throw new UserProfileAccessDeniedException("Cross-institute write refused");
         }
         return ctxTenantId;
+    }
+
+    private boolean instituteExists(Connection conn, UUID instituteId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM core.tenants WHERE id = ? AND deleted_at IS NULL")) {
+            ps.setObject(1, instituteId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
     }
 
     private UUID resolveWriteInstituteId(Connection conn, UserSecurityContext ctx, Map<String, Object> body)
