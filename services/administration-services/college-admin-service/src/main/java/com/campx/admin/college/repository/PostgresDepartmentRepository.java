@@ -105,27 +105,22 @@ public class PostgresDepartmentRepository implements DepartmentRepository {
         UUID finalDepId = depUuid;
 
         return context.executeInTransaction(connectionManager, conn -> {
-            // Resolve college_id: if not explicitly specified, find the first active college for this tenant
-            UUID collegeUuid = null;
+            // Trusted college: body collegeId must belong to claim tenant; else primary college under tenant.
+            UUID clientCollege = null;
             if (dep.getCollegeId() != null && !dep.getCollegeId().trim().isEmpty()) {
                 try {
-                    collegeUuid = UUID.fromString(dep.getCollegeId().trim());
+                    clientCollege = UUID.fromString(dep.getCollegeId().trim());
                 } catch (IllegalArgumentException e) {
                     throw new CollegeMalformedPayloadException("Invalid collegeId UUID format: " + dep.getCollegeId());
                 }
-            } else {
-                try (PreparedStatement psCollege = conn.prepareStatement(
-                        "SELECT id FROM core.colleges WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")) {
-                    psCollege.setObject(1, tenantUuid);
-                    try (ResultSet rs = psCollege.executeQuery()) {
-                        if (rs.next()) {
-                            collegeUuid = (UUID) rs.getObject("id");
-                        }
-                    }
-                }
-                if (collegeUuid == null) {
-                    throw new CollegeMalformedPayloadException("No parent college exists for tenant: " + tenantUuid + ". A college must exist before creating departments.");
-                }
+            }
+            UUID collegeUuid;
+            try {
+                collegeUuid = CollegeResolver.resolveTrustedCollegeId(conn, tenantUuid, clientCollege);
+            } catch (CollegeResourceNotFoundException ex) {
+                throw new CollegeMalformedPayloadException(
+                        "No parent college exists for tenant: " + tenantUuid
+                                + ". A college must exist before creating departments.");
             }
 
             // Check duplicate code under college

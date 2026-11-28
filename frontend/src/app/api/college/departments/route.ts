@@ -80,10 +80,11 @@ export async function POST(req: NextRequest) {
       headers['X-College-Id'] = resolution.session.collegeId;
     }
 
+    // Do not inject client/session collegeId into the Java body — service resolves
+    // college from trusted tenant claims (CADM close-out).
     const payload = {
       name,
       departmentCode: code,
-      collegeId: resolution.session.collegeId || null,
       headUserId: 'FACULTY_HOD',
     };
 

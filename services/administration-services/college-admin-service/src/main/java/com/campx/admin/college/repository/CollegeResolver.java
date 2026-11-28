@@ -43,4 +43,44 @@ public final class CollegeResolver {
         }
         throw new CollegeResourceNotFoundException("College", "tenant:" + tenantId);
     }
+
+    /**
+     * Trusted college for writes (close-out).
+     * Plain language: optional client collegeId must belong to the caller's institute;
+     * otherwise resolve the primary college under the trusted institute from claims.
+     */
+    public static UUID resolveTrustedCollegeId(Connection conn, UUID tenantId, UUID clientCollegeId)
+            throws SQLException {
+        if (tenantId == null) {
+            throw new CollegeSecurityViolationException("Tenant context required to resolve college identity");
+        }
+        if (clientCollegeId == null) {
+            return resolveCollegeId(conn, tenantId);
+        }
+        String sql = "SELECT id FROM core.colleges WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, clientCollegeId);
+            ps.setObject(2, tenantId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return (UUID) rs.getObject("id");
+                }
+            }
+        }
+        throw new CollegeSecurityViolationException(
+                "collegeId is not authorized for the caller's institute");
+    }
+
+    /**
+     * Offline unit helper: foreign college vs trusted institute is refused.
+     */
+    public static void assertCollegeBelongsToTenant(UUID trustedTenantId, UUID collegeTenantId) {
+        if (trustedTenantId == null) {
+            throw new CollegeSecurityViolationException("Tenant context required to resolve college identity");
+        }
+        if (collegeTenantId != null && !trustedTenantId.equals(collegeTenantId)) {
+            throw new CollegeSecurityViolationException(
+                    "collegeId is not authorized for the caller's institute");
+        }
+    }
 }

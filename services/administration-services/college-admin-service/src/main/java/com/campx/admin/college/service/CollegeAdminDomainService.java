@@ -2820,6 +2820,16 @@ public class CollegeAdminDomainService {
      * @return populated BatchApprovalDetails
      */
     public BatchApprovalDetails processBatchApprovalEvent(String rawJson) {
+        return processBatchApprovalEvent(rawJson, null);
+    }
+
+    /**
+     * Batch approval intake with trusted institute from HMAC claims (close-out).
+     * Plain language: body tenantId/institutionId are overwritten from verified context;
+     * a different UUID is refused (403).
+     */
+    public BatchApprovalDetails processBatchApprovalEvent(String rawJson,
+                                                          com.campx.admin.college.security.UserSecurityContext ctx) {
         if (rawJson == null || rawJson.trim().isEmpty()) {
             throw new CollegeMalformedPayloadException("Event JSON body cannot be empty");
         }
@@ -2828,6 +2838,13 @@ public class CollegeAdminDomainService {
         String eventVersion = extractRegex(rawJson, "eventVersion", "1.0");
         String tenantId = extractRegex(rawJson, "tenantId", "TENANT-001");
         String institutionId = extractRegex(rawJson, "institutionId", "INST-001");
+        if (ctx != null && ctx.getTenantId() != null) {
+            String trusted = ctx.getTenantId().toString();
+            assertBatchEventTenantTrusted(trusted, tenantId);
+            assertBatchEventTenantTrusted(trusted, institutionId);
+            tenantId = trusted;
+            institutionId = trusted;
+        }
         String correlationId = extractRegex(rawJson, "correlationId", LogContext.getTraceId());
         long timestamp = parseLongSafe(extractRegex(rawJson, "timestamp", "0"), System.currentTimeMillis());
 
@@ -3103,6 +3120,29 @@ public class CollegeAdminDomainService {
             return Long.parseLong(s);
         } catch (Exception e) {
             return defaultValue;
+        }
+    }
+
+    /**
+     * Batch-event tenant must match trusted claims when the body supplies a UUID.
+     * Placeholders like TENANT-001 are ignored and overwritten.
+     */
+    public static void assertBatchEventTenantTrusted(String trustedTenantId, String clientTenantOrInstitution) {
+        if (trustedTenantId == null || trustedTenantId.trim().isEmpty()) {
+            throw new CollegeSecurityViolationException("Tenant context required for batch approval events");
+        }
+        if (clientTenantOrInstitution == null || clientTenantOrInstitution.trim().isEmpty()) {
+            return;
+        }
+        String raw = clientTenantOrInstitution.trim();
+        try {
+            UUID.fromString(raw);
+        } catch (IllegalArgumentException e) {
+            return; // non-UUID placeholder — overwrite later
+        }
+        if (!trustedTenantId.equalsIgnoreCase(raw)) {
+            throw new CollegeSecurityViolationException(403, "CADM_CROSS_TENANT_DENIED",
+                    "Batch event tenant does not match the authenticated institute");
         }
     }
 }

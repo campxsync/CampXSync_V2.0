@@ -124,25 +124,17 @@ public class PostgresProgramRepository implements ProgramRepository {
         UUID finalProgId = progUuid;
 
         return context.executeInTransaction(connectionManager, conn -> {
-            // 1. Resolve college_id from parent department in core.departments
-            UUID collegeUuid = null;
-            if (prog.getCollegeId() != null && !prog.getCollegeId().trim().isEmpty()) {
-                try {
-                    collegeUuid = UUID.fromString(prog.getCollegeId().trim());
-                } catch (IllegalArgumentException ignored) {}
-            }
-
-            if (collegeUuid == null) {
-                try (PreparedStatement depPs = conn.prepareStatement(
-                        "SELECT college_id, status FROM core.departments WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL")) {
-                    depPs.setObject(1, tenantUuid);
-                    depPs.setObject(2, depUuid);
-                    try (ResultSet rs = depPs.executeQuery()) {
-                        if (rs.next()) {
-                            collegeUuid = (UUID) rs.getObject("college_id");
-                        } else {
-                            throw new CollegeResourceNotFoundException("Department", depUuid.toString());
-                        }
+            // Always derive college from parent department under claim tenant (ignore body collegeId).
+            UUID collegeUuid;
+            try (PreparedStatement depPs = conn.prepareStatement(
+                    "SELECT college_id, status FROM core.departments WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL")) {
+                depPs.setObject(1, tenantUuid);
+                depPs.setObject(2, depUuid);
+                try (ResultSet rs = depPs.executeQuery()) {
+                    if (rs.next()) {
+                        collegeUuid = (UUID) rs.getObject("college_id");
+                    } else {
+                        throw new CollegeResourceNotFoundException("Department", depUuid.toString());
                     }
                 }
             }

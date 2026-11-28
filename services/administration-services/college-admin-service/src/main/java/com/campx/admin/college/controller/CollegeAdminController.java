@@ -1253,7 +1253,7 @@ public class CollegeAdminController implements HttpHandler {
 
         // User Story 40 & 41: Cross-module ACD-04 batch approval event ingestion
         if (body.contains("BatchSplitApprovalRequested") || body.contains("BatchMergeApprovalRequested") || "ACD-04".equalsIgnoreCase(sourceService)) {
-            BatchApprovalDetails d = domainService.processBatchApprovalEvent(body);
+            BatchApprovalDetails d = domainService.processBatchApprovalEvent(body, getSecurityContext(exchange));
             sendJson(exchange, 200, "{\"id\":\"" + d.getRequestId() + "\",\"eventId\":\"" + eventId
                     + "\",\"status\":\"" + d.getStatus() + "\",\"workflowInstanceId\":\"" + d.getWorkflowInstanceId() + "\"}");
             return;
@@ -1655,7 +1655,7 @@ public class CollegeAdminController implements HttpHandler {
 
     private void handleProcessBatchApprovalEvent(HttpExchange exchange) throws IOException {
         String body = readBody(exchange);
-        BatchApprovalDetails details = domainService.processBatchApprovalEvent(body);
+        BatchApprovalDetails details = domainService.processBatchApprovalEvent(body, getSecurityContext(exchange));
         int statusCode = "DUPLICATE_IGNORED".equals(details.getStatus()) ? 200 : 201;
         String resp = "{"
                 + "\"status\":\"" + details.getStatus() + "\","
