@@ -136,9 +136,10 @@ Captured from DEV Supabase (`azulbaxszsqxymqmlwfe`) in `docs/iadm/iadm-03/eviden
 - **Legacy headed demos (PASS):** `iadm03_prestep_p_headed.mjs`, `iadm03_s2_headed.mjs` (assign/revoke/ceiling), `iadm03_s3b_headed.mjs` (catalog-changes propose/decide).
 - **Unrelated to restore (reported):** `POST /grants/appoint-r03` returns `503 IADM03_AUTH_ADMIN_UNAVAILABLE` for an invented tenant probe — route is restored; Auth Admin dependency is a separate runtime precondition.
 
-## 6. Git Status (Local Commits Only — Not Pushed)
+## 6. Git Status
 
 - Branch: `feature/java-backend-integration`
 - S0: `2c348a4` — removed V1.4 apply routes while adding V2 scaffold (later reversed by owner decision)
 - Restore: `969fc14` — `fix(iadm03): restore legacy V1.4 routes, label iam.* keys, and document D-03 coexistence`
-- This commit: API hash proof + demo re-run + CSV/report claim adjustments (**local only; do not push**)
+- Verification: `086f3c8` — `fix(iadm03): prove restored V1.4 routes with API hash isolation tests`
+- **Owner:** `APPROVED IADM-03 COMMIT` (2026-11-28) — commit kept **local**; push not authorized

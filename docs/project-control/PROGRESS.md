@@ -14,7 +14,8 @@
 | API hash proof | `docs/iadm/iadm-03/evidence/v2/v14_api_hash_proof.json` — V2 decisions hashes equal; 20 `iam.*` labeled legacy |
 | Headed demos | `iadm03_prestep_p_headed.mjs`, `iadm03_s2_headed.mjs`, `iadm03_s3b_headed.mjs` — **PASS** |
 | Unrelated note | `appoint-r03` probe → `503 IADM03_AUTH_ADMIN_UNAVAILABLE` (route restored; Auth Admin precondition) |
-| Next | **STOP** — await `APPROVED IADM-03` / `APPROVED IADM-03 COMMIT`; **do not push** |
+| Commit | **`086f3c8`** local on `feature/java-backend-integration` (owner `APPROVED IADM-03 COMMIT`, 2026-11-28) — restore body earlier in `969fc14` |
+| Next | IADM-03 V1.4 restore close-out complete; **not pushed** (owner did not authorize push); await next-module authorization |
 
 ## Owner decisions – IADM-03 V2.0 Platform Identity & Access Governance (27-11-2026)
 
